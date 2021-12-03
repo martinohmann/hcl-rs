@@ -1,0 +1,145 @@
+// HCL spec (https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md)
+
+// The top-level scope of an HCL file
+hcl = _{ SOI ~ config_file ~ EOI }
+
+// Structural elements
+config_file = { body }
+body = _{ NEWLINE* ~ (attribute | block)* }
+block_body = { body }
+attribute = { identifier ~ "=" ~ expression }
+block = { block_identifier ~ block_keys ~ "{" ~ block_body ~ "}" }
+block_identifier = { identifier }
+block_keys = { (string_lit | identifier)* }
+
+// Expressions
+expression = _{ operation | conditional | expr_term }
+expr_term = _{
+    value | function_call |
+    for_expr | variable_expr |
+    ("(" ~ expression ~ ")")
+}
+
+// Values
+value = _{ literal_value | collection_value | heredoc }
+
+// Literal values
+literal_value = _{ string_lit | numeric_lit | boolean_lit | null_lit }
+
+// Identifiers
+identifier = @{ ident_first_char ~ ident_char* }
+ident_char = _{ letter | decimal | "-" | "_" }
+ident_first_char = _{ letter | "_" }
+letter = _{ 'a'..'z' | 'A'..'Z' }
+
+// Booleans
+boolean_lit = _{ boolean }
+boolean = { "true" | "false" }
+
+// Null
+null_lit = _{ null }
+null = { "null" }
+
+// Numeric literals
+numeric_lit = _{ float | int }
+float = @{ "-"? ~ decimal+ ~ (("." ~ decimal+ ~ (expmark ~ decimal+)?) | (expmark ~ decimal+)) }
+int = @{ "-"? ~ decimal+ }
+expmark = { ("e" | "E") ~ ("+" | "-")? }
+decimal = { '0'..'9' }
+
+// Collection values
+collection_value = _{ tuple | object }
+tuple = { "[" ~ (expression ~ (","? ~ expression)* ~ ","?)? ~ "]" }
+object = { "{" ~ (object_item ~ (","? ~ object_item)* ~ ","?)? ~ "}" }
+object_item = _{ (identifier | expression) ~ ("=" | ":") ~ expression }
+
+// Heredoc
+heredoc = ${
+    ("<<-" | "<<") ~ PUSH(identifier) ~ WHITESPACE+ ~
+    template ~ WHITESPACE+ ~
+    POP
+}
+
+// Templates
+template_literal = _{ (ANY~ !PEEK)* }
+// @TODO(mohmann): treat everything as template literals for now as it's really hard to get
+// interpolations and directives right recursively. We are not going to consume the tokens anyways
+// right now.
+//
+// template = { template_interpolation | template_directive | template_literal }
+template = { template_literal }
+template_directive = _{ template_if | template_for }
+template_interpolation = !{ ("${" | "${~") ~ ("\"" | expression) ~ ("}" | "~}") }
+template_if = {
+    ("%{" | "%{~") ~ "if" ~ expression ~ ("}" | "~}") ~
+    template ~
+    (
+        ("%{" | "%{~") ~ "else" ~ ("}" | "~}") ~
+        template
+    )? ~
+    ("%{" | "%{~") ~ "endif" ~ ("}" | "~}")
+}
+template_for = {
+    ("%{" | "%{~") ~ "for" ~ identifier ~ ("," ~ identifier)? ~ "in" ~ expression ~ ("}" | "~}") ~
+    template ~
+    ("%{" | "%{~") ~ "endfor" ~ ("}" | "~}")
+}
+
+// String literals
+string_lit = ${ "\"" ~ string ~ "\"" }
+string = { (template_interpolation | ("\\" ~ "\"") | (!"\"" ~ ANY))* }
+
+// Functions and function calls
+function_call = @{
+    identifier ~ "(" ~
+    WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
+    arguments ~
+    WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
+    ")" ~
+    (splat | index | get_attr)*
+}
+arguments = !{ (expression ~ ("," ~ expression)* ~ ("," | "...")?)? }
+
+// For expressions
+for_expr = { for_tuple_expr | for_object_expr }
+for_tuple_expr = { "[" ~ for_intro ~ expression ~ for_cond? ~ "]" }
+for_object_expr = { "{" ~ for_intro ~ expression ~ "=>" ~ expression ~ "..."? ~ for_cond? ~ "}" }
+for_intro = { "for" ~ identifier ~ ("," ~ identifier)? ~ "in" ~ expression ~ ":" }
+for_cond = { "if" ~ expression }
+
+// Variables and variable expressions
+variable_expr = @{ identifier ~ (splat | index | get_attr)* }
+
+// Index operator
+index = @{ ("[" ~ expression ~ "]") | legacy_index }
+legacy_index = @{ "." ~ decimal+ }
+
+// Attribute access operator
+get_attr = @{ "." ~ identifier }
+
+// Splat operators
+splat = { attr_splat | full_splat }
+attr_splat = @{ "." ~ "*" ~ get_attr* }
+full_splat = @{ "[" ~ "*" ~ "]" ~ (get_attr | index)* }
+
+// Operations
+operation = { unary_op | binary_op }
+unary_op = { ("-" | "!") ~ expression }
+binary_op = { expr_term ~ binary_operator ~ expression }
+binary_operator = { compare_operator | arithmetic_operator | logic_operator }
+compare_operator = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
+arithmetic_operator = { "+" | "-" | "*" | "/" | "%" }
+logic_operator = { "&&" | "||" | "!" }
+
+// Conditional operator
+cond_expr = { expr_term | operation }
+conditional = { cond_expr ~ "?" ~ expression ~ ":" ~ expression }
+
+// Comments
+COMMENT = _{ inline_comment | block_comment }
+inline_comment = _{ ("#" | "//") ~ (!eo_inline_comment ~ ANY)* }
+block_comment = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+eo_inline_comment = _{ NEWLINE | EOI }
+
+// Whitespace
+WHITESPACE = _{ " " | "\t" | NEWLINE }
