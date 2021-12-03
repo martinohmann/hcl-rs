@@ -192,6 +192,22 @@ impl Attribute {
     pub fn value_mut(&mut self) -> &mut Value {
         &mut self.value
     }
+
+    /// Creates a new `Attribute` from a new key and the existing value.
+    pub fn with_key(self, key: &str) -> Self {
+        Self {
+            key: key.to_owned(),
+            value: self.value,
+        }
+    }
+
+    /// Creates a new `Attribute` from a new value and the existing key.
+    pub fn with_value(self, value: Value) -> Self {
+        Self {
+            key: self.key,
+            value,
+        }
+    }
 }
 
 /// Represents a HCL block.
@@ -240,6 +256,42 @@ impl Block {
     /// Returns a mutable reference to the block body.
     pub fn body_mut(&mut self) -> &mut Body {
         &mut self.body
+    }
+
+    /// Creates a new `Block` from new block identifier and the existing block keys and block
+    /// body.
+    pub fn with_ident(self, ident: &str) -> Self {
+        Self {
+            ident: ident.to_owned(),
+            keys: self.keys,
+            body: self.body,
+        }
+    }
+
+    /// Creates a new `Block` from new block keys and the existing block identifier and block
+    /// body.
+    pub fn with_keys<K>(self, keys: K) -> Self
+    where
+        K: IntoIterator<Item = String>,
+    {
+        Self {
+            ident: self.ident,
+            keys: keys.into_iter().collect(),
+            body: self.body,
+        }
+    }
+
+    /// Creates a new `Block` from a new block body and the existing block identifier and block
+    /// keys.
+    pub fn with_body<B>(self, body: B) -> Self
+    where
+        B: IntoIterator<Item = Structure>,
+    {
+        Self {
+            ident: self.ident,
+            keys: self.keys,
+            body: body.into_iter().collect(),
+        }
     }
 }
 
