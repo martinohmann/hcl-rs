@@ -7,7 +7,7 @@ mod ser;
 use crate::number::Number;
 
 /// The map type used for HCL objects.
-pub type Map<K, V> = std::collections::HashMap<K, V>;
+pub type Map<K, V> = indexmap::IndexMap<K, V>;
 
 /// Represents any valid HCL value.
 #[derive(Debug, PartialEq, Clone)]

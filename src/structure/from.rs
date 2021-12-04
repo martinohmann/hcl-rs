@@ -117,11 +117,11 @@ impl From<Block> for Structure {
 mod test {
     use super::*;
     use crate::value::Map;
-    use maplit::hashmap;
+    use indexmap::indexmap;
 
     #[test]
     fn attribute_from_value() {
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "attribute".into(),
             "key".into() => "foo".into(),
             "value".into() => "bar".into()
@@ -136,14 +136,14 @@ mod test {
 
         assert!(Structure::try_from(value).is_err());
 
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "attribute".into(),
             "key".into() => "foo".into(),
         });
 
         assert!(Structure::try_from(value).is_err());
 
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "attribute".into(),
             "value".into() => "bar".into()
         });
@@ -153,7 +153,7 @@ mod test {
 
     #[test]
     fn block_from_value() {
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "block".into(),
             "ident".into() => "resource".into(),
             "keys".into() => Value::Array(vec![
@@ -161,7 +161,7 @@ mod test {
                 "mybucket".into()
             ]),
             "body".into() => Value::Array(vec![
-                Value::Object(hashmap! {
+                Value::Object(indexmap! {
                     "kind".into() => "attribute".into(),
                     "key".into() => "name".into(),
                     "value".into() => "mybucket".into()
@@ -181,10 +181,10 @@ mod test {
             ))
         );
 
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "block".into(),
             "body".into() => Value::Array(vec![
-                Value::Object(hashmap! {
+                Value::Object(indexmap! {
                     "kind".into() => "attribute".into(),
                     "key".into() => "name".into(),
                     "value".into() => "mybucket".into()
@@ -194,14 +194,14 @@ mod test {
 
         assert!(Structure::try_from(value).is_err());
 
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "block".into(),
             "ident".into() => Value::Array(vec!["foo".into()]),
         });
 
         assert!(Structure::try_from(value).is_err());
 
-        let value = Value::Object(hashmap! {
+        let value = Value::Object(indexmap! {
             "kind".into() => "block".into(),
             "ident".into() => Value::Array(vec!["foo".into()]),
             "body".into() => Value::Array(vec![Value::Null])

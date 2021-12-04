@@ -7,7 +7,10 @@ edition = "2021"
 pest = "2.1.3"
 pest_derive = "2.1.0"
 thiserror = "1.0.30"
-maplit = "1.0.2"
+
+[dependencies.indexmap]
+features = ["serde"]
+version = "1.7.0"
 
 [dependencies.serde]
 features = ["derive"]
