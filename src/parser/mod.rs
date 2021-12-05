@@ -1,8 +1,22 @@
+mod ast;
+
+pub use ast::{interpolate, Node};
+
+use crate::{Error, Result};
+use pest::Parser as ParserTrait;
 use pest_derive::Parser;
 
 #[derive(Parser)]
-#[grammar = "grammar/hcl.pest"]
+#[grammar = "parser/grammar/hcl.pest"]
 pub(crate) struct HclParser;
+
+pub(crate) fn parse(input: &str) -> Result<ast::Node<'_>> {
+    let pair = HclParser::parse(Rule::hcl, input)
+        .map_err(|e| Error::ParseError(e.to_string()))?
+        .next()
+        .unwrap();
+    Ok(Node::from_pair(pair))
+}
 
 #[cfg(test)]
 mod test {
@@ -113,54 +127,53 @@ resource "aws_s3_bucket" "mybucket" {
             rule: Rule::body,
             tokens: [
                 block(1, 299, [
-                    block_identifier(1, 9, [
-                        identifier(1, 9),
-                    ]),
-                    block_keys(10, 36, [
+                    identifier(1, 9),
+                    block_labeled(10, 299, [
                         string_lit(10, 25, [
                             string(11, 24)
                         ]),
-                        string_lit(26, 36, [
-                            string(27, 35)
-                        ])
-                    ]),
-                    block_body(41, 297, [
-                        attribute(41, 67, [
-                            identifier(41, 47),
-                            string_lit(57, 67, [
-                                string(58, 66)
-                            ])
-                        ]),
-                        attribute(70, 90, [
-                            identifier(70, 83),
-                            boolean(86, 90)
-                        ]),
-                        block(94, 297, [
-                            block_identifier(94, 130, [
-                                identifier(94, 130)
+                        block_labeled(26, 299, [
+                            string_lit(26, 36, [
+                                string(27, 35)
                             ]),
-                            block_keys(131, 131),
-                            block_body(137, 293, [
-                                block(137, 293, [
-                                    block_identifier(137, 141, [
-                                        identifier(137, 141)
+                            block_body(37, 299, [
+                                block_body_inner(41, 297, [
+                                    attribute(41, 67, [
+                                        identifier(41, 47),
+                                        string_lit(57, 67, [
+                                            string(58, 66)
+                                        ])
                                     ]),
-                                    block_keys(142, 142),
-                                    block_body(150, 287, [
-                                        block(150, 287, [
-                                            block_identifier(150, 189, [
-                                                identifier(150, 189)
-                                            ]),
-                                            block_keys(190, 190),
-                                            block_body(200, 279, [
-                                                attribute(200, 241, [
-                                                    identifier(200, 217),
-                                                    variable_expr(220, 241)
-                                                ]),
-                                                attribute(250, 279, [
-                                                    identifier(250, 263),
-                                                    string_lit(270, 279, [
-                                                        string(271, 278)
+                                    attribute(70, 90, [
+                                        identifier(70, 83),
+                                        boolean(86, 90)
+                                    ]),
+                                    block(94, 297, [
+                                        identifier(94, 130),
+                                        block_body(131, 297, [
+                                            block_body_inner(137, 293, [
+                                                block(137, 293, [
+                                                    identifier(137, 141),
+                                                    block_body(142, 293, [
+                                                        block_body_inner(150, 287, [
+                                                            block(150, 287, [
+                                                                identifier(150, 189),
+                                                                block_body(190, 287, [
+                                                                    block_body_inner(200, 279, [
+                                                                        attribute(200, 241, [
+                                                                            identifier(200, 217),
+                                                                            variable_expr(220, 241)
+                                                                        ]),
+                                                                        attribute(250, 279, [
+                                                                            identifier(250, 263),
+                                                                            string_lit(270, 279, [
+                                                                                string(271, 278)
+                                                                            ])
+                                                                        ])
+                                                                    ])
+                                                                ])
+                                                            ])
+                                                        ])
                                                     ])
                                                 ])
                                             ])

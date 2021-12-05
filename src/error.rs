@@ -31,13 +31,6 @@ pub enum Error {
 }
 
 impl Error {
-    pub(crate) fn new<S>(s: S) -> Self
-    where
-        S: AsRef<str>,
-    {
-        Self::Message(s.as_ref().into())
-    }
-
     pub(crate) fn token_expected<S>(s: S) -> Self
     where
         S: AsRef<str>,
