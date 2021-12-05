@@ -478,7 +478,7 @@ impl<'de> MapAccess<'de> for Map<'de> {
     }
 
     fn size_hint(&self) -> Option<usize> {
-        self.iter.size_hint().1.map(|hint| hint / 2)
+        self.iter.size_hint().1
     }
 }
 
