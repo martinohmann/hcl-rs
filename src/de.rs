@@ -63,7 +63,7 @@ where
 
 // Utility functions for consuming the input.
 impl<'de> Deserializer<'de> {
-    fn peek_node(&mut self) -> Result<&Node<'de>> {
+    fn peek_node(&self) -> Result<&Node<'de>> {
         self.node.as_ref().ok_or(Error::Eof)
     }
 
@@ -133,7 +133,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         match self.peek_node()? {
             Node::Null(_) => self.deserialize_unit(visitor),
             Node::Boolean(_) => self.deserialize_bool(visitor),
-            Node::String(_) => self.deserialize_string(visitor),
+            Node::String(_) => self.deserialize_str(visitor),
             Node::Float(_) => self.deserialize_f64(visitor),
             Node::Int(_) => self.deserialize_i64(visitor),
             Node::Seq(_) => self.deserialize_seq(visitor),
@@ -261,10 +261,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.peek_node()? {
-            Node::Null(_) => {
-                self.take_node()?; // consume `null`
-                visitor.visit_none()
-            }
+            Node::Null(_) => visitor.visit_none(),
             _ => visitor.visit_some(self),
         }
     }
@@ -375,11 +372,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-struct MapKeyDeserializer {
+struct StringDeserializer {
     key: String,
 }
 
-impl MapKeyDeserializer {
+impl StringDeserializer {
     fn new(key: &str) -> Self {
         Self {
             key: key.to_owned(),
@@ -387,7 +384,7 @@ impl MapKeyDeserializer {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut MapKeyDeserializer {
+impl<'de, 'a> de::Deserializer<'de> for &'a mut StringDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -460,7 +457,7 @@ impl<'de> MapAccess<'de> for Map<'de> {
         match self.iter.next() {
             Some((key, value)) => {
                 self.value = Some(value);
-                seed.deserialize(&mut MapKeyDeserializer::new(&key))
+                seed.deserialize(&mut StringDeserializer::new(&key))
                     .map(Some)
             }
             None => Ok(None),
@@ -498,14 +495,13 @@ impl<'de, 'a> EnumAccess<'de> for Enum<'de> {
     type Error = Error;
     type Variant = EnumVariant<'de>;
 
-    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+    fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, Self::Variant)>
     where
         V: DeserializeSeed<'de>,
     {
-        let mut iter = self.iter;
-        match iter.next() {
+        match self.iter.next() {
             Some((value, variant)) => Ok((
-                seed.deserialize(&mut MapKeyDeserializer::new(&value))?,
+                seed.deserialize(&mut StringDeserializer::new(&value))?,
                 EnumVariant::new(variant),
             )),
             None => Err(Error::token_expected("variant")),
