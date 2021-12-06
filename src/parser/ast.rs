@@ -107,36 +107,47 @@ pub fn interpolate(s: &str) -> String {
 // We need to account for blocks with the same name and merge their contents.
 //
 // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-fn merge_nodes<'a>(map: &mut Map<String, Node<'a>>, mut pairs: Pairs<'a, Rule>) {
-    while pairs.peek().is_some() {
-        match (pairs.next(), pairs.next()) {
-            (Some(k), Some(v)) => {
-                let key = Node::from_pair(k).as_map_key();
-                let mut value = Node::from_pair(v);
-
-                match map.entry(key) {
-                    Entry::Occupied(mut e) => {
-                        e.get_mut().deep_merge(&mut value);
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(value);
-                    }
-                }
+fn merge_nodes<'a>(map: &mut Map<String, Node<'a>>, pairs: Pairs<'a, Rule>) {
+    for (key, mut node) in MapNodesIter::new(pairs) {
+        match map.entry(key) {
+            Entry::Occupied(mut e) => {
+                e.get_mut().deep_merge(&mut node);
             }
-            (Some(k), None) => panic!("missing map value for key: {}", k),
-            (_, _) => (),
+            Entry::Vacant(e) => {
+                e.insert(node);
+            }
         }
     }
 }
 
-fn overwrite_nodes<'a>(map: &mut Map<String, Node<'a>>, mut pairs: Pairs<'a, Rule>) {
-    while pairs.peek().is_some() {
-        match (pairs.next(), pairs.next()) {
+fn overwrite_nodes<'a>(map: &mut Map<String, Node<'a>>, pairs: Pairs<'a, Rule>) {
+    for (key, node) in MapNodesIter::new(pairs) {
+        map.insert(key, node);
+    }
+}
+
+struct MapNodesIter<'a> {
+    inner: Pairs<'a, Rule>,
+}
+
+impl<'a> MapNodesIter<'a> {
+    fn new(inner: Pairs<'a, Rule>) -> Self {
+        MapNodesIter { inner }
+    }
+}
+
+impl<'a> Iterator for MapNodesIter<'a> {
+    type Item = (String, Node<'a>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match (self.inner.next(), self.inner.next()) {
             (Some(k), Some(v)) => {
-                map.insert(Node::from_pair(k).as_map_key(), Node::from_pair(v));
+                let key = Node::from_pair(k).as_map_key();
+                let node = Node::from_pair(v);
+                Some((key, node))
             }
-            (Some(k), None) => panic!("missing map value for key: {}", k),
-            (_, _) => (),
+            (Some(k), None) => panic!("missing node for key: {}", k),
+            (_, _) => None,
         }
     }
 }
