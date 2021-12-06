@@ -90,7 +90,7 @@ template_for = {
 
 // String literals
 string_lit = ${ "\"" ~ string ~ "\"" }
-string = { (template_interpolation | ("\\" ~ "\"") | (!"\"" ~ ANY))* }
+string = { (template_interpolation | ("\\" ~ ("\"" | "\\")) | (!"\"" ~ ANY))* }
 
 // Functions and function calls
 function_call = @{

@@ -371,4 +371,18 @@ providers = {
             ]
         };
     }
+
+    #[test]
+    fn escaped_slash_in_string() {
+        parses_to! {
+            parser: HclParser,
+            input: r#""\\""#,
+            rule: Rule::string_lit,
+            tokens: [
+                string_lit(0, 4, [
+                    string(1, 3),
+                ])
+            ]
+        };
+    }
 }
