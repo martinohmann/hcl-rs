@@ -114,8 +114,9 @@ for_cond = { "if" ~ expression }
 variable_expr = @{ identifier ~ element_access }
 
 // Index operator
-index = @{ ("[" ~ expression ~ "]") | legacy_index }
+index = @{ ("[" ~ index_expression ~ "]") | legacy_index }
 legacy_index = @{ "." ~ decimal+ }
+index_expression = !{ expression }
 
 // Attribute access operator
 get_attr = @{ "." ~ identifier }

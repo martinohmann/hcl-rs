@@ -329,4 +329,31 @@ providers = {
             ]
         };
     }
+
+    #[test]
+    fn element_access_with_expression() {
+        parses_to! {
+            parser: HclParser,
+            input: r#"route_table_id = aws_route_table.private[count.index % var.availability_zone_count].id"#,
+            rule: Rule::attribute,
+            tokens: [
+                attribute(0, 86, [
+                    identifier(0, 14),
+                    variable_expr(17, 86, [
+                        index_expression(41, 82, [
+                            operation(41, 82, [
+                                binary_op(41, 82, [
+                                    variable_expr(41, 52),
+                                    binary_operator(53, 54, [
+                                        arithmetic_operator(53, 54)
+                                    ]),
+                                    variable_expr(55, 82)
+                                ])
+                            ])
+                        ])
+                    ])
+                ])
+            ]
+        };
+    }
 }
