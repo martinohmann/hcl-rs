@@ -1,10 +1,11 @@
 use super::Rule;
 use indexmap::{map::Entry, IndexMap as Map};
-use pest::iterators::Pair;
+use pest::iterators::{Pair, Pairs};
 use pest::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node<'a> {
+    Empty,
     Null(Pair<'a, Rule>),
     Boolean(Pair<'a, Rule>),
     Int(Pair<'a, Rule>),
@@ -28,58 +29,21 @@ impl<'a> Node<'a> {
             Rule::tuple | Rule::block_body => {
                 Node::Seq(pair.into_inner().map(Node::from_pair).collect())
             }
-            Rule::attribute | Rule::block | Rule::block_labeled | Rule::object => {
+            Rule::attribute | Rule::object => {
                 let mut map = Map::new();
-                let mut inner = pair.into_inner();
-
-                while inner.peek().is_some() {
-                    match (inner.next(), inner.next()) {
-                        (Some(k), Some(v)) => {
-                            map.insert(Node::from_pair(k).as_map_key(), Node::from_pair(v));
-                        }
-                        (Some(k), None) => panic!("missing map value for key: {}", k),
-                        (_, _) => (),
-                    };
-                }
-
+                overwrite_nodes(&mut map, pair.into_inner());
+                Node::Map(map)
+            }
+            Rule::block | Rule::block_labeled => {
+                let mut map = Map::new();
+                merge_nodes(&mut map, pair.into_inner());
                 Node::Map(map)
             }
             Rule::config_file | Rule::block_body_inner => {
                 let mut map = Map::new();
-
-                pair.into_inner()
-                    .map(|pair| pair.into_inner())
-                    .for_each(|mut inner| {
-                        while inner.peek().is_some() {
-                            match (inner.next(), inner.next()) {
-                                (Some(k), Some(v)) => {
-                                    let key = Node::from_pair(k).as_map_key();
-                                    let mut value = Node::from_pair(v);
-
-                                    // We need to account for blocks with the same name and merge
-                                    // their contents.
-                                    //
-                                    // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-                                    match map.entry(key) {
-                                        Entry::Occupied(mut e) => {
-                                            match (&mut e.get_mut(), &mut value) {
-                                                (Node::Seq(lhs), Node::Seq(rhs)) => lhs.append(rhs),
-                                                (_, _) => {
-                                                    e.insert(value);
-                                                }
-                                            }
-                                        }
-                                        Entry::Vacant(e) => {
-                                            e.insert(value);
-                                        }
-                                    }
-                                }
-                                (Some(k), None) => panic!("missing map value for key: {}", k),
-                                (_, _) => (),
-                            };
-                        }
-                    });
-
+                for pair in pair.into_inner() {
+                    merge_nodes(&mut map, pair.into_inner());
+                }
                 Node::Map(map)
             }
             _ => Node::Expression(pair),
@@ -92,6 +56,7 @@ impl<'a> Node<'a> {
 
     fn as_pair(&self) -> Option<&Pair<'a, Rule>> {
         match self {
+            Node::Empty => None,
             Node::Null(pair) => Some(pair),
             Node::Boolean(pair) => Some(pair),
             Node::String(pair) => Some(pair),
@@ -116,6 +81,23 @@ impl<'a> Node<'a> {
 
         s.to_owned()
     }
+
+    fn deep_merge(&mut self, other: &mut Node<'a>) {
+        match (self, other) {
+            (Node::Map(lhs), Node::Map(rhs)) => {
+                rhs.iter_mut().for_each(|(key, value)| {
+                    lhs.entry(key.to_string())
+                        .and_modify(|lhs| lhs.deep_merge(value))
+                        .or_insert_with(|| std::mem::replace(value, Node::Empty));
+                });
+            }
+            (Node::Seq(lhs), Node::Seq(rhs)) => {
+                lhs.append(rhs);
+            }
+            (_, Node::Empty) => (),
+            (lhs, rhs) => *lhs = std::mem::replace(rhs, Node::Empty),
+        }
+    }
 }
 
 pub fn interpolate(s: &str) -> String {
@@ -123,5 +105,42 @@ pub fn interpolate(s: &str) -> String {
         s.to_owned()
     } else {
         format!("${{{}}}", s)
+    }
+}
+
+// We need to account for blocks with the same name and merge their contents.
+//
+// See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
+fn merge_nodes<'a>(map: &mut Map<String, Node<'a>>, mut pairs: Pairs<'a, Rule>) {
+    while pairs.peek().is_some() {
+        match (pairs.next(), pairs.next()) {
+            (Some(k), Some(v)) => {
+                let key = Node::from_pair(k).as_map_key();
+                let mut value = Node::from_pair(v);
+
+                match map.entry(key) {
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().deep_merge(&mut value);
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(value);
+                    }
+                }
+            }
+            (Some(k), None) => panic!("missing map value for key: {}", k),
+            (_, _) => (),
+        }
+    }
+}
+
+fn overwrite_nodes<'a>(map: &mut Map<String, Node<'a>>, mut pairs: Pairs<'a, Rule>) {
+    while pairs.peek().is_some() {
+        match (pairs.next(), pairs.next()) {
+            (Some(k), Some(v)) => {
+                map.insert(Node::from_pair(k).as_map_key(), Node::from_pair(v));
+            }
+            (Some(k), None) => panic!("missing map value for key: {}", k),
+            (_, _) => (),
+        }
     }
 }

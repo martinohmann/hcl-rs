@@ -35,3 +35,11 @@ resource "aws_eks_cluster" "this" {
     aws_cloudwatch_log_group.this
   ]
 }
+
+resource "aws_s3_bucket" "mybucket" {
+  name = "mybucket"
+}
+
+resource "aws_s3_bucket" "otherbucket" {
+  name = "otherbucket"
+}

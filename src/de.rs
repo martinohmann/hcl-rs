@@ -159,7 +159,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             Node::Map(_) => self.deserialize_map(visitor),
             // Anthing else is treated as an expression and gets interpolated to distinguish it
             // from normal string values.
-            Node::Expression(_) => visitor.visit_string(self.interpolate_expression()?),
+            _ => visitor.visit_string(self.interpolate_expression()?),
         }
     }
 
@@ -751,6 +751,18 @@ mod test {
                             },
                             "tags": "${merge(\n    var.tags,\n    var.cluster_tags,\n  )}",
                             "depends_on": ["${aws_cloudwatch_log_group.this}"]
+                        }
+                    ]
+                },
+                "aws_s3_bucket": {
+                    "mybucket": [
+                        {
+                            "name": "mybucket"
+                        }
+                    ],
+                    "otherbucket": [
+                        {
+                            "name": "otherbucket"
                         }
                     ]
                 }
