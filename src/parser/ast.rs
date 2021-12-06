@@ -17,12 +17,12 @@ pub enum Node<'a> {
 impl<'a> Node<'a> {
     pub fn from_pair(pair: Pair<'a, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::boolean => Node::Boolean(pair),
+            Rule::boolean_lit => Node::Boolean(pair),
             Rule::float => Node::Float(pair),
             Rule::heredoc => Node::String(pair.into_inner().nth(1).unwrap()),
             Rule::identifier => Node::String(pair),
             Rule::int => Node::Int(pair),
-            Rule::null => Node::Null(pair),
+            Rule::null_lit => Node::Null(pair),
             Rule::string_lit => Node::String(pair.into_inner().next().unwrap()),
             Rule::tuple | Rule::block_body => {
                 Node::Seq(pair.into_inner().map(Node::from_pair).collect())

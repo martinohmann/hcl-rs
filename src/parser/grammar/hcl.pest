@@ -34,11 +34,11 @@ ident_first_char = _{ letter | "_" }
 letter = _{ 'a'..'z' | 'A'..'Z' }
 
 // Booleans
-boolean_lit = _{ boolean }
+boolean_lit = @{ boolean ~ !identifier }
 boolean = { "true" | "false" }
 
 // Null
-null_lit = _{ null }
+null_lit = @{ null ~ !identifier }
 null = { "null" }
 
 // Numeric literals

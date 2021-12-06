@@ -146,7 +146,7 @@ resource "aws_s3_bucket" "mybucket" {
                                     ]),
                                     attribute(70, 90, [
                                         identifier(70, 83),
-                                        boolean(86, 90)
+                                        boolean_lit(86, 90)
                                     ]),
                                     block(94, 297, [
                                         identifier(94, 130),
@@ -352,6 +352,21 @@ providers = {
                             ])
                         ])
                     ])
+                ])
+            ]
+        };
+    }
+
+    #[test]
+    fn null_in_variable_expr() {
+        parses_to! {
+            parser: HclParser,
+            input: r#"foo = null_foo"#,
+            rule: Rule::attribute,
+            tokens: [
+                attribute(0, 14, [
+                    identifier(0, 3),
+                    variable_expr(6, 14)
                 ])
             ]
         };
