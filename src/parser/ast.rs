@@ -62,24 +62,20 @@ impl<'a> Node<'a> {
             Node::String(pair) => Some(pair),
             Node::Float(pair) => Some(pair),
             Node::Int(pair) => Some(pair),
+            Node::Expression(pair) => Some(pair),
             Node::Seq(seq) => seq.first().and_then(|n| n.as_pair()),
             Node::Map(map) => map.first().and_then(|(_, n)| n.as_pair()),
-            Node::Expression(pair) => Some(pair),
         }
     }
 
     fn as_map_key(&self) -> String {
-        let s = match self {
-            Node::Null(pair) => pair.as_str(),
-            Node::Boolean(pair) => pair.as_str(),
-            Node::Int(pair) => pair.as_str(),
-            Node::Float(pair) => pair.as_str(),
-            Node::String(pair) => pair.as_str(),
-            Node::Expression(pair) => return interpolate(pair.as_str()),
-            node => panic!("unexpected map key: {:?}", node),
-        };
-
-        s.to_owned()
+        match self {
+            Node::Expression(pair) => interpolate(pair.as_str()),
+            node => node
+                .as_pair()
+                .map(|pair| pair.as_str().to_owned())
+                .expect("map key"),
+        }
     }
 
     fn deep_merge(&mut self, other: &mut Node<'a>) {
