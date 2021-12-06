@@ -52,7 +52,9 @@ decimal = { '0'..'9' }
 collection_value = _{ tuple | object }
 tuple = { "[" ~ (expression ~ (","? ~ expression)* ~ ","?)? ~ "]" }
 object = { "{" ~ (object_item ~ (","? ~ object_item)* ~ ","?)? ~ "}" }
-object_item = _{ (identifier | expression) ~ ("=" | ":") ~ expression }
+object_item = _{ object_item_identifier | object_item_expression }
+object_item_identifier = _{ identifier ~ ("=" | ":") ~ expression }
+object_item_expression = _{ expression ~ ("=" | ":") ~ expression }
 
 // Heredoc
 heredoc = ${
@@ -97,7 +99,7 @@ function_call = @{
     arguments ~
     WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
     ")" ~
-    (splat | index | get_attr)*
+    element_access
 }
 arguments = !{ (expression ~ ("," ~ expression)* ~ ("," | "...")?)? }
 
@@ -109,7 +111,7 @@ for_intro = { "for" ~ identifier ~ ("," ~ identifier)? ~ "in" ~ expression ~ ":"
 for_cond = { "if" ~ expression }
 
 // Variables and variable expressions
-variable_expr = @{ identifier ~ (splat | index | get_attr)* }
+variable_expr = @{ identifier ~ element_access }
 
 // Index operator
 index = @{ ("[" ~ expression ~ "]") | legacy_index }
@@ -120,8 +122,11 @@ get_attr = @{ "." ~ identifier }
 
 // Splat operators
 splat = { attr_splat | full_splat }
-attr_splat = @{ "." ~ "*" ~ get_attr* }
-full_splat = @{ "[" ~ "*" ~ "]" ~ (get_attr | index)* }
+attr_splat = @{ "." ~ "*" }
+full_splat = @{ "[" ~ "*" ~ "]" }
+
+// Element access
+element_access = { (splat | get_attr | index)* }
 
 // Operations
 operation = { unary_op | binary_op }

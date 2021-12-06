@@ -280,4 +280,53 @@ resource "aws_s3_bucket" "mybucket" {
             ]
         };
     }
+
+    #[test]
+    fn object_with_variable_expr_key() {
+        parses_to! {
+            parser: HclParser,
+            input: r#"
+providers = {
+  aws.eu-central-1 = aws.eu-central-1
+  aws.eu-west-1    = aws.eu-west-1
+}
+                "#,
+            rule: Rule::config_file,
+            tokens: [
+                config_file(0, 89, [
+                    attribute(1, 89, [
+                        identifier(1, 10),
+                        object(13, 89, [
+                            variable_expr(17, 33),
+                            variable_expr(36, 52),
+                            variable_expr(55, 68),
+                            variable_expr(74, 87)
+                        ])
+                    ])
+                ])
+            ]
+        };
+    }
+
+    #[test]
+    fn nested_function_call_with_splat() {
+        parses_to! {
+            parser: HclParser,
+            input: r#"element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)"#,
+            rule: Rule::function_call,
+            tokens: [
+                function_call(0, 72, [
+                    arguments(8, 71, [
+                        function_call(8, 68, [
+                            arguments(15, 67, [
+                                variable_expr(15, 40),
+                                variable_expr(42, 67)
+                            ])
+                        ]),
+                        int(70, 71)
+                    ])
+                ])
+            ]
+        };
+    }
 }
