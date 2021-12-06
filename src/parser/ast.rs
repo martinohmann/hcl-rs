@@ -1,6 +1,7 @@
 use super::Rule;
 use indexmap::{map::Entry, IndexMap as Map};
 use pest::iterators::Pair;
+use pest::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node<'a> {
@@ -82,6 +83,23 @@ impl<'a> Node<'a> {
                 Node::Map(map)
             }
             _ => Node::Expression(pair),
+        }
+    }
+
+    pub fn as_span(&self) -> Option<Span<'a>> {
+        self.as_pair().map(|pair| pair.as_span())
+    }
+
+    fn as_pair(&self) -> Option<&Pair<'a, Rule>> {
+        match self {
+            Node::Null(pair) => Some(pair),
+            Node::Boolean(pair) => Some(pair),
+            Node::String(pair) => Some(pair),
+            Node::Float(pair) => Some(pair),
+            Node::Int(pair) => Some(pair),
+            Node::Seq(seq) => seq.first().and_then(|n| n.as_pair()),
+            Node::Map(map) => map.first().and_then(|(_, n)| n.as_pair()),
+            Node::Expression(pair) => Some(pair),
         }
     }
 

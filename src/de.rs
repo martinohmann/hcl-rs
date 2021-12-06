@@ -74,7 +74,7 @@ impl<'de> Deserializer<'de> {
     fn parse_bool(&mut self) -> Result<bool> {
         match self.take_node()? {
             Node::Boolean(pair) => Ok(pair.as_str().parse().unwrap()),
-            _ => Err(Error::token_expected("boolean")),
+            node => Err(Error::expected_span("boolean", node.as_span())),
         }
     }
 
@@ -82,43 +82,62 @@ impl<'de> Deserializer<'de> {
     where
         T: FromStr,
     {
-        match self.take_node()? {
-            Node::Int(pair) => pair.as_str().parse().map_err(|_| Error::Syntax),
-            _ => Err(Error::token_expected("int")),
+        let node = self.take_node()?;
+        let span = node.as_span();
+
+        match node {
+            Node::Int(pair) => pair.as_str().parse().map_err(|_| Error::new("Invalid int")),
+            _ => Err(Error::expected("int")),
         }
+        .map_err(|e| e.with_span(span))
     }
 
     fn parse_float<T>(&mut self) -> Result<T>
     where
         T: FromStr,
     {
-        match self.take_node()? {
-            Node::Float(pair) => pair.as_str().parse().map_err(|_| Error::Syntax),
-            _ => Err(Error::token_expected("float")),
+        let node = self.take_node()?;
+        let span = node.as_span();
+
+        match node {
+            Node::Float(pair) => pair
+                .as_str()
+                .parse()
+                .map_err(|_| Error::new("Invalid float")),
+            _ => Err(Error::expected("float")),
         }
+        .map_err(|e| e.with_span(span))
     }
 
     fn parse_str(&mut self) -> Result<&'de str> {
         match self.take_node()? {
             Node::String(pair) => Ok(pair.as_str()),
-            _ => Err(Error::token_expected("string")),
+            node => Err(Error::expected_span("string", node.as_span())),
         }
     }
 
     fn parse_char(&mut self) -> Result<char> {
-        let s = self.parse_str()?;
+        let node = self.take_node()?;
+        let span = node.as_span();
 
-        if s.len() == 1 {
-            Ok(s.chars().next().unwrap())
-        } else {
-            Err(Error::token_expected("char"))
+        match node {
+            Node::String(pair) => {
+                let mut chars = pair.as_str().chars();
+
+                match (chars.next(), chars.next()) {
+                    (Some(c), None) => Ok(c),
+                    (_, _) => Err(Error::expected("char")),
+                }
+            }
+            _ => Err(Error::expected("string")),
         }
+        .map_err(|e| e.with_span(span))
     }
 
     fn interpolate_expression(&mut self) -> Result<String> {
         match self.take_node()? {
             Node::Expression(pair) => Ok(interpolate(pair.as_str())),
-            _ => Err(Error::token_expected("expression")),
+            node => Err(Error::expected_span("expression", node.as_span())),
         }
     }
 }
@@ -272,7 +291,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.take_node()? {
             Node::Null(_) => visitor.visit_unit(),
-            _ => Err(Error::token_expected("null")),
+            node => Err(Error::expected_span("null", node.as_span())),
         }
     }
 
@@ -296,7 +315,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.take_node()? {
             Node::Seq(nodes) => visitor.visit_seq(Seq::new(nodes)),
-            _ => Err(Error::token_expected("sequence")),
+            node => Err(Error::expected_span("sequence", node.as_span())),
         }
     }
 
@@ -325,7 +344,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     {
         match self.take_node()? {
             Node::Map(map) => visitor.visit_map(Map::new(map)),
-            _ => Err(Error::token_expected("map")),
+            node => Err(Error::expected_span("map", node.as_span())),
         }
     }
 
@@ -350,11 +369,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.take_node()? {
+        let node = self.take_node()?;
+        let span = node.as_span();
+
+        match node {
             Node::String(pair) => visitor.visit_enum(pair.as_str().into_deserializer()),
             Node::Map(map) => visitor.visit_enum(Enum::new(map)),
-            _ => Err(Error::token_expected("enum")),
+            _ => Err(Error::expected("enum")),
         }
+        .map_err(|e| e.with_span(span))
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -468,10 +491,7 @@ impl<'de> MapAccess<'de> for Map<'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        match self.value.take() {
-            Some(value) => seed.deserialize(&mut Deserializer::from_node(value)),
-            None => Err(Error::token_expected("map value")),
-        }
+        seed.deserialize(&mut Deserializer::from_node(self.value.take().unwrap()))
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -504,7 +524,7 @@ impl<'de, 'a> EnumAccess<'de> for Enum<'de> {
                 seed.deserialize(&mut StringDeserializer::new(&value))?,
                 EnumVariant::new(variant),
             )),
-            None => Err(Error::token_expected("variant")),
+            None => Err(Error::expected("variant")),
         }
     }
 }
@@ -523,7 +543,7 @@ impl<'de> VariantAccess<'de> for EnumVariant<'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
-        Err(Error::token_expected("string"))
+        Err(Error::expected("string"))
     }
 
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>

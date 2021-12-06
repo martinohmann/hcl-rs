@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 pest = "2.1.3"
 pest_derive = "2.1.0"
-thiserror = "1.0.30"
 
 [dependencies.indexmap]
 features = ["serde"]

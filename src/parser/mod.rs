@@ -2,7 +2,7 @@ mod ast;
 
 pub use ast::{interpolate, Node};
 
-use crate::{Error, Result};
+use crate::Result;
 use pest::Parser as ParserTrait;
 use pest_derive::Parser;
 
@@ -11,10 +11,7 @@ use pest_derive::Parser;
 pub(crate) struct HclParser;
 
 pub(crate) fn parse(input: &str) -> Result<ast::Node<'_>> {
-    let pair = HclParser::parse(Rule::hcl, input)
-        .map_err(|e| Error::ParseError(e.to_string()))?
-        .next()
-        .unwrap();
+    let pair = HclParser::parse(Rule::hcl, input)?.next().unwrap();
     Ok(Node::from_pair(pair))
 }
 
