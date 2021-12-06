@@ -31,10 +31,14 @@ impl<'a> Node<'a> {
                 let mut map = Map::new();
                 let mut inner = pair.into_inner();
 
-                while let Some(k) = inner.next() {
-                    if let Some(v) = inner.next() {
-                        map.insert(Node::from_pair(k).as_map_key(), Node::from_pair(v));
-                    }
+                while inner.peek().is_some() {
+                    match (inner.next(), inner.next()) {
+                        (Some(k), Some(v)) => {
+                            map.insert(Node::from_pair(k).as_map_key(), Node::from_pair(v));
+                        }
+                        (Some(k), None) => panic!("missing map value for key: {}", k),
+                        (_, _) => (),
+                    };
                 }
 
                 Node::Map(map)
@@ -45,29 +49,33 @@ impl<'a> Node<'a> {
                 pair.into_inner()
                     .map(|pair| pair.into_inner())
                     .for_each(|mut inner| {
-                        while let Some(k) = inner.next() {
-                            if let Some(v) = inner.next() {
-                                let key = Node::from_pair(k).as_map_key();
-                                let mut value = Node::from_pair(v);
+                        while inner.peek().is_some() {
+                            match (inner.next(), inner.next()) {
+                                (Some(k), Some(v)) => {
+                                    let key = Node::from_pair(k).as_map_key();
+                                    let mut value = Node::from_pair(v);
 
-                                // We need to account for blocks with the same name and merge
-                                // their contents.
-                                //
-                                // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-                                match map.entry(key) {
-                                    Entry::Occupied(mut e) => {
-                                        match (&mut e.get_mut(), &mut value) {
-                                            (Node::Seq(lhs), Node::Seq(rhs)) => lhs.append(rhs),
-                                            (_, _) => {
-                                                e.insert(value);
+                                    // We need to account for blocks with the same name and merge
+                                    // their contents.
+                                    //
+                                    // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
+                                    match map.entry(key) {
+                                        Entry::Occupied(mut e) => {
+                                            match (&mut e.get_mut(), &mut value) {
+                                                (Node::Seq(lhs), Node::Seq(rhs)) => lhs.append(rhs),
+                                                (_, _) => {
+                                                    e.insert(value);
+                                                }
                                             }
                                         }
-                                    }
-                                    Entry::Vacant(e) => {
-                                        e.insert(value);
+                                        Entry::Vacant(e) => {
+                                            e.insert(value);
+                                        }
                                     }
                                 }
-                            }
+                                (Some(k), None) => panic!("missing map value for key: {}", k),
+                                (_, _) => (),
+                            };
                         }
                     });
 
