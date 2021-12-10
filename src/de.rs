@@ -85,11 +85,12 @@ impl<'de> Deserializer<'de> {
         let node = self.take_node()?;
         let span = node.as_span();
 
-        match node {
+        let res = match node {
             Node::Int(pair) => pair.as_str().parse().map_err(|_| Error::new("Invalid int")),
             _ => Err(Error::expected("int")),
-        }
-        .map_err(|e| e.with_span(span))
+        };
+
+        res.map_err(|err| err.with_span(span))
     }
 
     fn parse_float<T>(&mut self) -> Result<T>
@@ -99,14 +100,15 @@ impl<'de> Deserializer<'de> {
         let node = self.take_node()?;
         let span = node.as_span();
 
-        match node {
+        let res = match node {
             Node::Float(pair) => pair
                 .as_str()
                 .parse()
                 .map_err(|_| Error::new("Invalid float")),
             _ => Err(Error::expected("float")),
-        }
-        .map_err(|e| e.with_span(span))
+        };
+
+        res.map_err(|err| err.with_span(span))
     }
 
     fn parse_str(&mut self) -> Result<&'de str> {
@@ -120,7 +122,7 @@ impl<'de> Deserializer<'de> {
         let node = self.take_node()?;
         let span = node.as_span();
 
-        match node {
+        let res = match node {
             Node::String(pair) => {
                 let mut chars = pair.as_str().chars();
 
@@ -130,8 +132,9 @@ impl<'de> Deserializer<'de> {
                 }
             }
             _ => Err(Error::expected("string")),
-        }
-        .map_err(|e| e.with_span(span))
+        };
+
+        res.map_err(|err| err.with_span(span))
     }
 
     fn interpolate_expression(&mut self) -> Result<String> {
@@ -372,12 +375,13 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         let node = self.take_node()?;
         let span = node.as_span();
 
-        match node {
+        let res = match node {
             Node::String(pair) => visitor.visit_enum(pair.as_str().into_deserializer()),
             Node::Map(map) => visitor.visit_enum(Enum::new(map)),
             _ => Err(Error::expected("enum")),
-        }
-        .map_err(|e| e.with_span(span))
+        };
+
+        res.map_err(|err| err.with_span(span))
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>

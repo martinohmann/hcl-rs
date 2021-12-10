@@ -19,45 +19,47 @@ pub enum Error {
         /// An optional location context where the error happened in the input.
         location: Option<Location>,
     },
+
     /// Represents the error emitted when the `Deserializer` hits an unexpected end of input.
     Eof,
+
     /// Represents generic IO errors.
-    IoError(io::Error),
+    Io(io::Error),
 }
 
 impl Error {
-    pub(crate) fn new<T>(msg: T) -> Self
+    pub(crate) fn new<T>(msg: T) -> Error
     where
         T: Display,
     {
-        Self::new_span(msg, None)
+        Error::new_span(msg, None)
     }
 
-    pub(crate) fn new_span<T>(msg: T, span: Option<Span<'_>>) -> Self
+    pub(crate) fn new_span<T>(msg: T, span: Option<Span<'_>>) -> Error
     where
         T: Display,
     {
-        Self::Message {
+        Error::Message {
             msg: msg.to_string(),
             location: span.map(Into::into),
         }
     }
 
-    pub(crate) fn expected<T>(token: T) -> Self
+    pub(crate) fn expected<T>(token: T) -> Error
     where
         T: Display,
     {
-        Self::expected_span(token, None)
+        Error::expected_span(token, None)
     }
 
-    pub(crate) fn expected_span<T>(token: T, span: Option<Span<'_>>) -> Self
+    pub(crate) fn expected_span<T>(token: T, span: Option<Span<'_>>) -> Error
     where
         T: Display,
     {
-        Self::new_span(format!("Expected `{}`", token), span)
+        Error::new_span(format!("Expected `{}`", token), span)
     }
 
-    pub(crate) fn with_span(self, span: Option<Span<'_>>) -> Self {
+    pub(crate) fn with_span(self, span: Option<Span<'_>>) -> Error {
         match self {
             Error::Message { msg, location } => Error::Message {
                 msg,
@@ -69,13 +71,21 @@ impl Error {
             _ => self,
         }
     }
+
+    /// Returns the `Location` in the input where the error happened, if available.
+    pub fn location(&self) -> Option<&Location> {
+        match self {
+            Error::Message { location, .. } => location.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Eof => write!(f, "Unexpected end of input"),
-            Error::IoError(err) => Display::fmt(err, f),
+            Error::Io(err) => Display::fmt(err, f),
             Error::Message { msg, location } => match location {
                 Some(loc) => {
                     write!(f, "{} in line {}, col {}", msg, loc.line, loc.col)
@@ -88,7 +98,7 @@ impl Display for Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Error::IoError(err)
+        Error::Io(err)
     }
 }
 
@@ -130,8 +140,8 @@ pub struct Location {
 }
 
 impl From<Span<'_>> for Location {
-    fn from(s: Span<'_>) -> Self {
-        let (line, col) = s.start_pos().line_col();
-        Self { line, col }
+    fn from(span: Span<'_>) -> Self {
+        let (line, col) = span.start_pos().line_col();
+        Location { line, col }
     }
 }
