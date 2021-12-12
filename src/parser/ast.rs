@@ -19,27 +19,27 @@ pub enum Node<'a> {
 impl<'a> Node<'a> {
     pub fn from_pair(pair: Pair<'a, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::boolean_lit => Node::Boolean(pair),
-            Rule::float => Node::Float(pair),
-            Rule::heredoc => Node::String(pair.into_inner().nth(1).unwrap()),
-            Rule::identifier => Node::String(pair),
-            Rule::int => Node::Int(pair),
-            Rule::null_lit => Node::Null(pair),
-            Rule::string_lit => Node::String(pair.into_inner().next().unwrap()),
-            Rule::tuple | Rule::block_body => {
+            Rule::BooleanLit => Node::Boolean(pair),
+            Rule::Float => Node::Float(pair),
+            Rule::Heredoc => Node::String(pair.into_inner().nth(1).unwrap()),
+            Rule::Identifier => Node::String(pair),
+            Rule::Int => Node::Int(pair),
+            Rule::NullLit => Node::Null(pair),
+            Rule::StringLit => Node::String(pair.into_inner().next().unwrap()),
+            Rule::Tuple | Rule::BlockBody => {
                 Node::Seq(pair.into_inner().map(Node::from_pair).collect())
             }
-            Rule::attribute | Rule::object => {
+            Rule::Attribute | Rule::Object => {
                 let mut map = Map::new();
                 overwrite_nodes(&mut map, pair.into_inner());
                 Node::Map(map)
             }
-            Rule::block | Rule::block_labeled => {
+            Rule::Block | Rule::BlockLabeled => {
                 let mut map = Map::new();
                 merge_nodes(&mut map, pair.into_inner());
                 Node::Map(map)
             }
-            Rule::config_file | Rule::block_body_inner => {
+            Rule::ConfigFile | Rule::BlockBodyInner => {
                 let mut map = Map::new();
                 for pair in pair.into_inner() {
                     merge_nodes(&mut map, pair.into_inner());
