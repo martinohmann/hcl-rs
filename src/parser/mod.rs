@@ -8,7 +8,7 @@ use pest_derive::Parser;
 
 #[derive(Parser)]
 #[grammar = "parser/grammar/hcl.pest"]
-pub(crate) struct HclParser;
+struct HclParser;
 
 pub(crate) fn parse(input: &str) -> Result<ast::Node<'_>> {
     let pair = HclParser::parse(Rule::hcl, input)?.next().unwrap();
