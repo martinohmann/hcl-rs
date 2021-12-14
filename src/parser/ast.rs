@@ -1,5 +1,5 @@
 use super::Rule;
-use indexmap::{map::Entry, IndexMap as Map};
+use indexmap::IndexMap as Map;
 use pest::iterators::{Pair, Pairs};
 use pest::Span;
 
@@ -29,22 +29,21 @@ impl<'a> Node<'a> {
             Rule::Tuple | Rule::BlockBody => {
                 Node::Seq(pair.into_inner().map(Node::from_pair).collect())
             }
-            Rule::Attribute | Rule::Object => {
-                let mut map = Map::new();
-                overwrite_nodes(&mut map, pair.into_inner());
-                Node::Map(map)
+            Rule::Attribute | Rule::Object | Rule::Block | Rule::BlockLabeled => {
+                Node::Map(KeyValueIter::new(pair).collect())
             }
-            Rule::Block | Rule::BlockLabeled => {
-                let mut map = Map::new();
-                merge_nodes(&mut map, pair.into_inner());
-                Node::Map(map)
-            }
-            Rule::ConfigFile | Rule::BlockBodyInner => {
-                let mut map = Map::new();
-                for pair in pair.into_inner() {
-                    merge_nodes(&mut map, pair.into_inner());
-                }
-                Node::Map(map)
+            Rule::Hcl | Rule::BlockBodyInner => {
+                Node::Map(pair.into_inner().fold(Map::new(), |mut map, pair| {
+                    // We need to account for blocks with the same name and merge their contents.
+                    //
+                    // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
+                    for (key, mut node) in KeyValueIter::new(pair) {
+                        map.entry(key)
+                            .and_modify(|entry| entry.deep_merge(&mut node))
+                            .or_insert(node);
+                    }
+                    map
+                }))
             }
             _ => Node::Expression(pair),
         }
@@ -104,39 +103,19 @@ pub fn interpolate(s: &str) -> String {
     }
 }
 
-// We need to account for blocks with the same name and merge their contents.
-//
-// See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-fn merge_nodes<'a>(map: &mut Map<String, Node<'a>>, pairs: Pairs<'a, Rule>) {
-    for (key, mut node) in MapNodesIter::new(pairs) {
-        match map.entry(key) {
-            Entry::Occupied(mut e) => {
-                e.get_mut().deep_merge(&mut node);
-            }
-            Entry::Vacant(e) => {
-                e.insert(node);
-            }
+struct KeyValueIter<'a> {
+    inner: Pairs<'a, Rule>,
+}
+
+impl<'a> KeyValueIter<'a> {
+    fn new(pair: Pair<'a, Rule>) -> Self {
+        KeyValueIter {
+            inner: pair.into_inner(),
         }
     }
 }
 
-fn overwrite_nodes<'a>(map: &mut Map<String, Node<'a>>, pairs: Pairs<'a, Rule>) {
-    for (key, node) in MapNodesIter::new(pairs) {
-        map.insert(key, node);
-    }
-}
-
-struct MapNodesIter<'a> {
-    inner: Pairs<'a, Rule>,
-}
-
-impl<'a> MapNodesIter<'a> {
-    fn new(inner: Pairs<'a, Rule>) -> Self {
-        MapNodesIter { inner }
-    }
-}
-
-impl<'a> Iterator for MapNodesIter<'a> {
+impl<'a> Iterator for KeyValueIter<'a> {
     type Item = (String, Node<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -625,7 +625,25 @@ mod test {
 
     #[test]
     fn test_duplicate_block() {
-        let h = "block {\nfoo { bar = \"baz\" }\nfoo {\nbar = 1 }\n}";
+        let h = r#"
+block {
+  foo {
+    bar = "baz"
+  }
+
+  foo {
+    bar = 1
+  }
+}
+
+other "one" "two" {
+  foo = "bar"
+}
+
+other "two" "three" {
+  bar = "baz"
+}
+"#;
         let expected = json!({
             "block": [
                 {
@@ -638,7 +656,23 @@ mod test {
                         }
                     ]
                 }
-            ]
+            ],
+            "other": {
+                "one": {
+                    "two": [
+                        {
+                            "foo": "bar"
+                        }
+                    ]
+                },
+                "two": {
+                    "three": [
+                        {
+                            "bar": "baz"
+                        }
+                    ]
+                }
+            }
         });
         assert_eq!(expected, from_str::<Value>(h).unwrap());
 

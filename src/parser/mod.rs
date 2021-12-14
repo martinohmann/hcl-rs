@@ -121,50 +121,52 @@ resource "aws_s3_bucket" "mybucket" {
   }
 }
             "#,
-            rule: Rule::Body,
+            rule: Rule::Hcl,
             tokens: [
-                Block(1, 299, [
-                    Identifier(1, 9),
-                    BlockLabeled(10, 299, [
-                        StringLit(10, 25, [
-                            String(11, 24)
-                        ]),
-                        BlockLabeled(26, 299, [
-                            StringLit(26, 36, [
-                                String(27, 35)
+                Hcl(0, 299, [
+                    Block(1, 299, [
+                        Identifier(1, 9),
+                        BlockLabeled(10, 299, [
+                            StringLit(10, 25, [
+                                String(11, 24)
                             ]),
-                            BlockBody(37, 299, [
-                                BlockBodyInner(41, 297, [
-                                    Attribute(41, 67, [
-                                        Identifier(41, 47),
-                                        StringLit(57, 67, [
-                                            String(58, 66)
-                                        ])
-                                    ]),
-                                    Attribute(70, 90, [
-                                        Identifier(70, 83),
-                                        BooleanLit(86, 90)
-                                    ]),
-                                    Block(94, 297, [
-                                        Identifier(94, 130),
-                                        BlockBody(131, 297, [
-                                            BlockBodyInner(137, 293, [
-                                                Block(137, 293, [
-                                                    Identifier(137, 141),
-                                                    BlockBody(142, 293, [
-                                                        BlockBodyInner(150, 287, [
-                                                            Block(150, 287, [
-                                                                Identifier(150, 189),
-                                                                BlockBody(190, 287, [
-                                                                    BlockBodyInner(200, 279, [
-                                                                        Attribute(200, 241, [
-                                                                            Identifier(200, 217),
-                                                                            VariableExpr(220, 241)
-                                                                        ]),
-                                                                        Attribute(250, 279, [
-                                                                            Identifier(250, 263),
-                                                                            StringLit(270, 279, [
-                                                                                String(271, 278)
+                            BlockLabeled(26, 299, [
+                                StringLit(26, 36, [
+                                    String(27, 35)
+                                ]),
+                                BlockBody(37, 299, [
+                                    BlockBodyInner(41, 297, [
+                                        Attribute(41, 67, [
+                                            Identifier(41, 47),
+                                            StringLit(57, 67, [
+                                                String(58, 66)
+                                            ])
+                                        ]),
+                                        Attribute(70, 90, [
+                                            Identifier(70, 83),
+                                            BooleanLit(86, 90)
+                                        ]),
+                                        Block(94, 297, [
+                                            Identifier(94, 130),
+                                            BlockBody(131, 297, [
+                                                BlockBodyInner(137, 293, [
+                                                    Block(137, 293, [
+                                                        Identifier(137, 141),
+                                                        BlockBody(142, 293, [
+                                                            BlockBodyInner(150, 287, [
+                                                                Block(150, 287, [
+                                                                    Identifier(150, 189),
+                                                                    BlockBody(190, 287, [
+                                                                        BlockBodyInner(200, 279, [
+                                                                            Attribute(200, 241, [
+                                                                                Identifier(200, 217),
+                                                                                VariableExpr(220, 241)
+                                                                            ]),
+                                                                            Attribute(250, 279, [
+                                                                                Identifier(250, 263),
+                                                                                StringLit(270, 279, [
+                                                                                    String(271, 278)
+                                                                                ])
                                                                             ])
                                                                         ])
                                                                     ])
@@ -288,9 +290,9 @@ providers = {
   aws.eu-west-1    = aws.eu-west-1
 }
                 "#,
-            rule: Rule::ConfigFile,
+            rule: Rule::Hcl,
             tokens: [
-                ConfigFile(0, 89, [
+                Hcl(0, 89, [
                     Attribute(1, 89, [
                         Identifier(1, 10),
                         Object(13, 89, [
