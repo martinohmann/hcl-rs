@@ -626,24 +626,24 @@ mod test {
     #[test]
     fn test_duplicate_block() {
         let h = r#"
-block {
-  foo {
-    bar = "baz"
-  }
+            block {
+              foo {
+                bar = "baz"
+              }
 
-  foo {
-    bar = 1
-  }
-}
+              foo {
+                bar = 1
+              }
+            }
 
-other "one" "two" {
-  foo = "bar"
-}
+            other "one" "two" {
+              foo = "bar"
+            }
 
-other "two" "three" {
-  bar = "baz"
-}
-"#;
+            other "two" "three" {
+              bar = "baz"
+            }
+        "#;
         let expected = json!({
             "block": [
                 {
@@ -676,7 +676,10 @@ other "two" "three" {
         });
         assert_eq!(expected, from_str::<Value>(h).unwrap());
 
-        let h = "foo { bar = \"baz\" }\nfoo {\nbar = 1 }";
+        let h = r#"
+            foo { bar = "baz" }
+            foo { bar = 1 }
+        "#;
         let expected = json!({
             "foo": [
                 {
@@ -687,6 +690,16 @@ other "two" "three" {
                 }
             ]
         });
+        assert_eq!(expected, from_str::<Value>(h).unwrap());
+    }
+
+    #[test]
+    fn test_duplicate_attribute() {
+        let h = r#"
+            foo = ["bar"]
+            foo = ["baz"]
+        "#;
+        let expected = json!({"foo": ["baz"]});
         assert_eq!(expected, from_str::<Value>(h).unwrap());
     }
 

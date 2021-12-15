@@ -33,16 +33,23 @@ impl<'a> Node<'a> {
                 Node::Map(KeyValueIter::new(pair).collect())
             }
             Rule::Hcl | Rule::BlockBodyInner => {
-                Node::Map(pair.into_inner().fold(Map::new(), |mut map, pair| {
+                Node::Map(pair.into_inner().fold(Map::new(), |mut body, structure| {
                     // We need to account for blocks with the same name and merge their contents.
                     //
                     // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-                    for (key, mut node) in KeyValueIter::new(pair) {
-                        map.entry(key)
-                            .and_modify(|entry| entry.deep_merge(&mut node))
-                            .or_insert(node);
-                    }
-                    map
+                    match structure.as_rule() {
+                        Rule::Block => KeyValueIter::new(structure).for_each(|(key, mut node)| {
+                            body.entry(key)
+                                .and_modify(|entry| entry.deep_merge(&mut node))
+                                .or_insert(node);
+                        }),
+                        Rule::Attribute => KeyValueIter::new(structure).for_each(|(key, node)| {
+                            body.insert(key, node);
+                        }),
+                        rule => panic!("encountered unexpected rule `{:?}`", rule),
+                    };
+
+                    body
                 }))
             }
             _ => Node::Expression(pair),
