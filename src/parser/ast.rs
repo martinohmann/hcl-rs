@@ -79,16 +79,6 @@ impl<'a> Node<'a> {
         }
     }
 
-    fn as_map_key(&self) -> String {
-        match self {
-            Node::Expression(pair) => interpolate(pair.as_str()),
-            node => node
-                .as_pair()
-                .map(|pair| pair.as_str().to_owned())
-                .expect("map key"),
-        }
-    }
-
     fn deep_merge_blocks(&mut self, other: &mut Node<'a>) {
         match (self, other) {
             (Node::Block(lhs), Node::Block(rhs)) => {
@@ -141,9 +131,15 @@ impl<'a> Iterator for KeyValueIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match (self.inner.next(), self.inner.next()) {
             (Some(k), Some(v)) => {
-                let key = Node::from_pair(k).as_map_key();
-                let node = Node::from_pair(v);
-                Some((key, node))
+                let key = match Node::from_pair(k) {
+                    Node::Expression(pair) => interpolate(pair.as_str()),
+                    node => node
+                        .as_pair()
+                        .map(|pair| pair.as_str().to_owned())
+                        .expect("failed to convert node to map key"),
+                };
+
+                Some((key, Node::from_pair(v)))
             }
             (Some(k), None) => panic!("missing node for key: {}", k),
             (_, _) => None,
