@@ -158,8 +158,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             Node::String(_) => self.deserialize_str(visitor),
             Node::Float(_) => self.deserialize_f64(visitor),
             Node::Int(_) => self.deserialize_i64(visitor),
-            Node::Seq(_) => self.deserialize_seq(visitor),
-            Node::Map(_) => self.deserialize_map(visitor),
+            Node::Seq(_) | Node::BlockBody(_) => self.deserialize_seq(visitor),
+            Node::Map(_) | Node::Attribute(_) | Node::Block(_) => self.deserialize_map(visitor),
             // Anthing else is treated as an expression and gets interpolated to distinguish it
             // from normal string values.
             _ => visitor.visit_string(self.interpolate_expression()?),
@@ -317,7 +317,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.take_node()? {
-            Node::Seq(nodes) => visitor.visit_seq(Seq::new(nodes)),
+            Node::Seq(nodes) | Node::BlockBody(nodes) => visitor.visit_seq(Seq::new(nodes)),
             node => Err(Error::expected_span("sequence", node.as_span())),
         }
     }
@@ -346,7 +346,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         match self.take_node()? {
-            Node::Map(map) => visitor.visit_map(Map::new(map)),
+            Node::Map(map) | Node::Attribute(map) | Node::Block(map) => {
+                visitor.visit_map(Map::new(map))
+            }
             node => Err(Error::expected_span("map", node.as_span())),
         }
     }
@@ -377,7 +379,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
         let res = match node {
             Node::String(pair) => visitor.visit_enum(pair.as_str().into_deserializer()),
-            Node::Map(map) => visitor.visit_enum(Enum::new(map)),
+            Node::Map(map) | Node::Attribute(map) | Node::Block(map) => {
+                visitor.visit_enum(Enum::new(map))
+            }
             _ => Err(Error::expected("enum")),
         };
 
@@ -700,6 +704,23 @@ mod test {
             foo = ["baz"]
         "#;
         let expected = json!({"foo": ["baz"]});
+        assert_eq!(expected, from_str::<Value>(h).unwrap());
+    }
+
+    #[test]
+    fn test_duplicate_attribute_and_block() {
+        let h = r#"
+            foo = ["bar"]
+            foo { bar = "baz" }
+        "#;
+        let expected = json!({"foo": [{"bar": "baz"}]});
+        assert_eq!(expected, from_str::<Value>(h).unwrap());
+
+        let h = r#"
+            foo { bar = "baz" }
+            foo = ["bar"]
+        "#;
+        let expected = json!({"foo": ["bar"]});
         assert_eq!(expected, from_str::<Value>(h).unwrap());
     }
 

@@ -14,6 +14,9 @@ pub enum Node<'a> {
     Expression(Pair<'a, Rule>),
     Seq(Vec<Node<'a>>),
     Map(Map<String, Node<'a>>),
+    Attribute(Map<String, Node<'a>>),
+    Block(Map<String, Node<'a>>),
+    BlockBody(Vec<Node<'a>>),
 }
 
 impl<'a> Node<'a> {
@@ -26,27 +29,27 @@ impl<'a> Node<'a> {
             Rule::Int => Node::Int(pair),
             Rule::NullLit => Node::Null(pair),
             Rule::StringLit => Node::String(pair.into_inner().next().unwrap()),
-            Rule::Tuple | Rule::BlockBody => {
-                Node::Seq(pair.into_inner().map(Node::from_pair).collect())
-            }
-            Rule::Attribute | Rule::Object | Rule::Block | Rule::BlockLabeled => {
-                Node::Map(KeyValueIter::new(pair).collect())
-            }
+            Rule::Tuple => Node::Seq(collect_seq(pair)),
+            Rule::BlockBody => Node::BlockBody(collect_seq(pair)),
+            Rule::Object => Node::Map(collect_map(pair)),
+            Rule::Attribute => Node::Attribute(collect_map(pair)),
+            Rule::Block | Rule::BlockLabeled => Node::Block(collect_map(pair)),
             Rule::Hcl | Rule::BlockBodyInner => {
-                Node::Map(pair.into_inner().fold(Map::new(), |mut body, structure| {
+                Node::Map(pair.into_inner().fold(Map::new(), |mut body, pair| {
+                    let node = Node::from_pair(pair);
                     // We need to account for blocks with the same name and merge their contents.
                     //
                     // See: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-                    match structure.as_rule() {
-                        Rule::Block => KeyValueIter::new(structure).for_each(|(key, mut node)| {
-                            body.entry(key)
-                                .and_modify(|entry| entry.deep_merge(&mut node))
-                                .or_insert(node);
-                        }),
-                        Rule::Attribute => KeyValueIter::new(structure).for_each(|(key, node)| {
+                    match node {
+                        Node::Attribute(map) => map.into_iter().for_each(|(key, node)| {
                             body.insert(key, node);
                         }),
-                        rule => panic!("encountered unexpected rule `{:?}`", rule),
+                        Node::Block(map) => map.into_iter().for_each(|(key, mut node)| {
+                            body.entry(key)
+                                .and_modify(|entry| entry.deep_merge_blocks(&mut node))
+                                .or_insert(node);
+                        }),
+                        node => panic!("encountered unexpected node `{:?}`", node),
                     };
 
                     body
@@ -69,8 +72,10 @@ impl<'a> Node<'a> {
             Node::Float(pair) => Some(pair),
             Node::Int(pair) => Some(pair),
             Node::Expression(pair) => Some(pair),
-            Node::Seq(seq) => seq.first().and_then(|n| n.as_pair()),
-            Node::Map(map) => map.first().and_then(|(_, n)| n.as_pair()),
+            Node::Seq(seq) | Node::BlockBody(seq) => seq.first().and_then(|n| n.as_pair()),
+            Node::Map(map) | Node::Attribute(map) | Node::Block(map) => {
+                map.first().and_then(|(_, n)| n.as_pair())
+            }
         }
     }
 
@@ -84,22 +89,30 @@ impl<'a> Node<'a> {
         }
     }
 
-    fn deep_merge(&mut self, other: &mut Node<'a>) {
+    fn deep_merge_blocks(&mut self, other: &mut Node<'a>) {
         match (self, other) {
-            (Node::Map(lhs), Node::Map(rhs)) => {
+            (Node::Block(lhs), Node::Block(rhs)) => {
                 rhs.iter_mut().for_each(|(key, value)| {
                     lhs.entry(key.to_string())
-                        .and_modify(|lhs| lhs.deep_merge(value))
+                        .and_modify(|lhs| lhs.deep_merge_blocks(value))
                         .or_insert_with(|| std::mem::replace(value, Node::Empty));
                 });
             }
-            (Node::Seq(lhs), Node::Seq(rhs)) => {
+            (Node::BlockBody(lhs), Node::BlockBody(rhs)) => {
                 lhs.append(rhs);
             }
             (_, Node::Empty) => (),
             (lhs, rhs) => *lhs = std::mem::replace(rhs, Node::Empty),
         }
     }
+}
+
+fn collect_seq<'a>(pair: Pair<'a, Rule>) -> Vec<Node<'a>> {
+    pair.into_inner().map(Node::from_pair).collect()
+}
+
+fn collect_map<'a>(pair: Pair<'a, Rule>) -> Map<String, Node<'a>> {
+    KeyValueIter::new(pair).collect()
 }
 
 pub fn interpolate(s: &str) -> String {
