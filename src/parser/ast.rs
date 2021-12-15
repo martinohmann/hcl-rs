@@ -107,11 +107,11 @@ impl<'a> Node<'a> {
     }
 }
 
-fn collect_seq<'a>(pair: Pair<'a, Rule>) -> Vec<Node<'a>> {
+fn collect_seq(pair: Pair<Rule>) -> Vec<Node> {
     pair.into_inner().map(Node::from_pair).collect()
 }
 
-fn collect_map<'a>(pair: Pair<'a, Rule>) -> Map<String, Node<'a>> {
+fn collect_map(pair: Pair<Rule>) -> Map<String, Node> {
     KeyValueIter::new(pair).collect()
 }
 
