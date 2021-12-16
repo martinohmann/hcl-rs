@@ -20,6 +20,7 @@ pub enum Node<'a> {
 }
 
 impl<'a> Node<'a> {
+    /// Create a new `Node` from a `Pair`.
     pub fn from_pair(pair: Pair<'a, Rule>) -> Self {
         match pair.as_rule() {
             Rule::BooleanLit => Node::Boolean(pair),
@@ -59,6 +60,12 @@ impl<'a> Node<'a> {
         }
     }
 
+    /// Takes the value out of the `Node` and puts `Node::Empty` in its place.
+    pub fn take(&mut self) -> Node<'a> {
+        std::mem::replace(self, Node::Empty)
+    }
+
+    /// Returns a `Span` for the position of the `Node` in the parsed input, if available.
     pub fn as_span(&self) -> Option<Span<'a>> {
         self.as_pair().map(|pair| pair.as_span())
     }
@@ -82,17 +89,17 @@ impl<'a> Node<'a> {
     fn deep_merge_blocks(&mut self, other: &mut Node<'a>) {
         match (self, other) {
             (Node::Block(lhs), Node::Block(rhs)) => {
-                rhs.iter_mut().for_each(|(key, value)| {
+                rhs.iter_mut().for_each(|(key, node)| {
                     lhs.entry(key.to_string())
-                        .and_modify(|lhs| lhs.deep_merge_blocks(value))
-                        .or_insert_with(|| std::mem::replace(value, Node::Empty));
+                        .and_modify(|lhs| lhs.deep_merge_blocks(node))
+                        .or_insert_with(|| node.take());
                 });
             }
             (Node::BlockBody(lhs), Node::BlockBody(rhs)) => {
                 lhs.append(rhs);
             }
             (_, Node::Empty) => (),
-            (lhs, rhs) => *lhs = std::mem::replace(rhs, Node::Empty),
+            (lhs, rhs) => *lhs = rhs.take(),
         }
     }
 }

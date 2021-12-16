@@ -19,7 +19,7 @@ use std::vec;
 
 /// A structure that deserializes HCL into Rust values.
 pub struct Deserializer<'de> {
-    node: Option<Node<'de>>,
+    node: Node<'de>,
 }
 
 impl<'de> Deserializer<'de> {
@@ -36,7 +36,7 @@ impl<'de> Deserializer<'de> {
     }
 
     fn from_node(node: Node<'de>) -> Self {
-        Deserializer { node: Some(node) }
+        Deserializer { node }
     }
 }
 
@@ -63,16 +63,8 @@ where
 
 // Utility functions for consuming the input.
 impl<'de> Deserializer<'de> {
-    fn peek_node(&self) -> Result<&Node<'de>> {
-        self.node.as_ref().ok_or(Error::Eof)
-    }
-
-    fn take_node(&mut self) -> Result<Node<'de>> {
-        self.node.take().ok_or(Error::Eof)
-    }
-
     fn parse_bool(&mut self) -> Result<bool> {
-        match self.take_node()? {
+        match self.node.take() {
             Node::Boolean(pair) => Ok(pair.as_str().parse().unwrap()),
             node => Err(Error::expected_span("boolean", node.as_span())),
         }
@@ -82,7 +74,7 @@ impl<'de> Deserializer<'de> {
     where
         T: FromStr,
     {
-        let node = self.take_node()?;
+        let node = self.node.take();
         let span = node.as_span();
 
         let res = match node {
@@ -97,7 +89,7 @@ impl<'de> Deserializer<'de> {
     where
         T: FromStr,
     {
-        let node = self.take_node()?;
+        let node = self.node.take();
         let span = node.as_span();
 
         let res = match node {
@@ -112,14 +104,14 @@ impl<'de> Deserializer<'de> {
     }
 
     fn parse_str(&mut self) -> Result<&'de str> {
-        match self.take_node()? {
+        match self.node.take() {
             Node::String(pair) => Ok(pair.as_str()),
             node => Err(Error::expected_span("string", node.as_span())),
         }
     }
 
     fn parse_char(&mut self) -> Result<char> {
-        let node = self.take_node()?;
+        let node = self.node.take();
         let span = node.as_span();
 
         let res = match node {
@@ -138,7 +130,7 @@ impl<'de> Deserializer<'de> {
     }
 
     fn interpolate_expression(&mut self) -> Result<String> {
-        match self.take_node()? {
+        match self.node.take() {
             Node::Expression(pair) => Ok(interpolate(pair.as_str())),
             node => Err(Error::expected_span("expression", node.as_span())),
         }
@@ -152,7 +144,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.peek_node()? {
+        match &self.node {
             Node::Null(_) => self.deserialize_unit(visitor),
             Node::Boolean(_) => self.deserialize_bool(visitor),
             Node::String(_) => self.deserialize_str(visitor),
@@ -282,7 +274,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.peek_node()? {
+        match &self.node {
             Node::Null(_) => visitor.visit_none(),
             _ => visitor.visit_some(self),
         }
@@ -292,7 +284,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.take_node()? {
+        match self.node.take() {
             Node::Null(_) => visitor.visit_unit(),
             node => Err(Error::expected_span("null", node.as_span())),
         }
@@ -316,7 +308,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.take_node()? {
+        match self.node.take() {
             Node::Seq(nodes) | Node::BlockBody(nodes) => visitor.visit_seq(Seq::new(nodes)),
             node => Err(Error::expected_span("sequence", node.as_span())),
         }
@@ -345,7 +337,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.take_node()? {
+        match self.node.take() {
             Node::Map(map) | Node::Attribute(map) | Node::Block(map) => {
                 visitor.visit_map(Map::new(map))
             }
@@ -374,7 +366,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let node = self.take_node()?;
+        let node = self.node.take();
         let span = node.as_span();
 
         let res = match node {
