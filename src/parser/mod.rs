@@ -1,7 +1,7 @@
 mod ast;
 
 use crate::Result;
-pub use ast::{interpolate, Node};
+pub use ast::Node;
 use pest::Parser as ParserTrait;
 use pest_derive::Parser;
 

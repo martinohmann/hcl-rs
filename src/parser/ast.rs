@@ -1,7 +1,9 @@
 use super::Rule;
+use crate::{Error, Result};
 use indexmap::IndexMap as Map;
 use pest::iterators::{Pair, Pairs};
 use pest::Span;
+use std::borrow::Cow;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Node<'a> {
@@ -112,12 +114,8 @@ fn collect_map(pair: Pair<Rule>) -> Map<String, Node> {
     KeyValueIter::new(pair).collect()
 }
 
-pub fn interpolate(s: &str) -> String {
-    if s.starts_with("${") {
-        s.to_owned()
-    } else {
-        format!("${{{}}}", s)
-    }
+fn interpolate(s: &str) -> String {
+    format!("${{{}}}", s)
 }
 
 struct KeyValueIter<'a> {
@@ -153,3 +151,126 @@ impl<'a> Iterator for KeyValueIter<'a> {
         }
     }
 }
+
+impl<'a> TryFrom<Node<'a>> for () {
+    type Error = Error;
+
+    fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+        match node {
+            Node::Null(_) => Ok(()),
+            node => Err(Error::expected_span("null", node.as_span())),
+        }
+    }
+}
+
+impl<'a> TryFrom<Node<'a>> for bool {
+    type Error = Error;
+
+    fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+        match node {
+            Node::Boolean(pair) => Ok(pair.as_str().parse().unwrap()),
+            node => Err(Error::expected_span("boolean", node.as_span())),
+        }
+    }
+}
+
+impl<'a> TryFrom<Node<'a>> for char {
+    type Error = Error;
+
+    fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+        let span = node.as_span();
+
+        match node {
+            Node::String(pair) => {
+                let mut chars = pair.as_str().chars();
+
+                match (chars.next(), chars.next()) {
+                    (Some(c), None) => Ok(c),
+                    (_, _) => Err(Error::expected_span("char", span)),
+                }
+            }
+            _ => Err(Error::expected_span("string", span)),
+        }
+    }
+}
+
+impl<'a> TryFrom<Node<'a>> for Cow<'a, str> {
+    type Error = Error;
+
+    fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+        match node {
+            Node::String(pair) => Ok(pair.as_str().into()),
+            Node::Expression(pair) => Ok(interpolate(pair.as_str()).into()),
+            node => Err(Error::expected_span("string", node.as_span())),
+        }
+    }
+}
+
+impl<'a> TryFrom<Node<'a>> for Vec<Node<'a>> {
+    type Error = Error;
+
+    fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+        match node {
+            Node::Seq(seq) | Node::BlockBody(seq) => Ok(seq),
+            node => Err(Error::expected_span("sequence", node.as_span())),
+        }
+    }
+}
+
+impl<'a> TryFrom<Node<'a>> for Map<String, Node<'a>> {
+    type Error = Error;
+
+    fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+        match node {
+            Node::Map(map) | Node::Attribute(map) | Node::Block(map) => Ok(map),
+            node => Err(Error::expected_span("map", node.as_span())),
+        }
+    }
+}
+
+macro_rules! impl_try_from_int {
+    ($($ty:ty),*) => {
+        $(
+            impl<'a> TryFrom<Node<'a>> for $ty {
+                type Error = Error;
+
+                fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+                    let span = node.as_span();
+
+                    match node {
+                        Node::Int(pair) => pair
+                            .as_str()
+                            .parse()
+                            .map_err(|_| Error::new_span("Invalid int", span)),
+                        _ => Err(Error::expected_span("int", span)),
+                    }
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! impl_try_from_float {
+    ($($ty:ty),*) => {
+        $(
+            impl<'a> TryFrom<Node<'a>> for $ty {
+                type Error = Error;
+
+                fn try_from(node: Node<'a>) -> Result<Self, Self::Error> {
+                    let span = node.as_span();
+
+                    match node {
+                        Node::Float(pair) => pair
+                            .as_str()
+                            .parse()
+                            .map_err(|_| Error::new_span("Invalid float", span)),
+                        _ => Err(Error::expected_span("float", span)),
+                    }
+                }
+            }
+        )*
+    };
+}
+
+impl_try_from_int!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+impl_try_from_float!(f32, f64);

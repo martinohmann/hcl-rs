@@ -5,7 +5,7 @@
 //!
 //! [hcl-json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md
 
-use crate::parser::{self, interpolate, Node};
+use crate::parser::{self, Node};
 use crate::{Error, Result};
 use indexmap::{map, IndexMap};
 use serde::de::{
@@ -14,7 +14,7 @@ use serde::de::{
 };
 use serde::forward_to_deserialize_any;
 use serde::Deserialize;
-use std::str::FromStr;
+use std::borrow::Cow;
 use std::vec;
 
 /// A structure that deserializes HCL into Rust values.
@@ -37,6 +37,17 @@ impl<'de> Deserializer<'de> {
 
     fn from_node(node: Node<'de>) -> Self {
         Deserializer { node }
+    }
+
+    fn node(&mut self) -> Node<'de> {
+        self.node.take()
+    }
+
+    fn node_into<T>(&mut self) -> Result<T, T::Error>
+    where
+        T: TryFrom<Node<'de>>,
+    {
+        self.node().try_into()
     }
 }
 
@@ -61,82 +72,6 @@ where
     from_str(&s)
 }
 
-// Utility functions for consuming the input.
-impl<'de> Deserializer<'de> {
-    fn parse_bool(&mut self) -> Result<bool> {
-        match self.node.take() {
-            Node::Boolean(pair) => Ok(pair.as_str().parse().unwrap()),
-            node => Err(Error::expected_span("boolean", node.as_span())),
-        }
-    }
-
-    fn parse_int<T>(&mut self) -> Result<T>
-    where
-        T: FromStr,
-    {
-        let node = self.node.take();
-        let span = node.as_span();
-
-        let res = match node {
-            Node::Int(pair) => pair.as_str().parse().map_err(|_| Error::new("Invalid int")),
-            _ => Err(Error::expected("int")),
-        };
-
-        res.map_err(|err| err.with_span(span))
-    }
-
-    fn parse_float<T>(&mut self) -> Result<T>
-    where
-        T: FromStr,
-    {
-        let node = self.node.take();
-        let span = node.as_span();
-
-        let res = match node {
-            Node::Float(pair) => pair
-                .as_str()
-                .parse()
-                .map_err(|_| Error::new("Invalid float")),
-            _ => Err(Error::expected("float")),
-        };
-
-        res.map_err(|err| err.with_span(span))
-    }
-
-    fn parse_str(&mut self) -> Result<&'de str> {
-        match self.node.take() {
-            Node::String(pair) => Ok(pair.as_str()),
-            node => Err(Error::expected_span("string", node.as_span())),
-        }
-    }
-
-    fn parse_char(&mut self) -> Result<char> {
-        let node = self.node.take();
-        let span = node.as_span();
-
-        let res = match node {
-            Node::String(pair) => {
-                let mut chars = pair.as_str().chars();
-
-                match (chars.next(), chars.next()) {
-                    (Some(c), None) => Ok(c),
-                    (_, _) => Err(Error::expected("char")),
-                }
-            }
-            _ => Err(Error::expected("string")),
-        };
-
-        res.map_err(|err| err.with_span(span))
-    }
-
-    fn interpolate_expression(&mut self) -> Result<String> {
-        match self.node.take() {
-            Node::Expression(pair) => Ok(interpolate(pair.as_str())),
-            node => Err(Error::expected_span("expression", node.as_span())),
-        }
-    }
-}
-
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
@@ -152,9 +87,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             Node::Int(_) => self.deserialize_i64(visitor),
             Node::Seq(_) | Node::BlockBody(_) => self.deserialize_seq(visitor),
             Node::Map(_) | Node::Attribute(_) | Node::Block(_) => self.deserialize_map(visitor),
-            // Anthing else is treated as an expression and gets interpolated to distinguish it
-            // from normal string values.
-            _ => visitor.visit_string(self.interpolate_expression()?),
+            _ => self.deserialize_str(visitor),
         }
     }
 
@@ -162,91 +95,94 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_bool(self.parse_bool()?)
+        self.node_into().and_then(|b| visitor.visit_bool(b))
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i8(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_i8(i))
     }
 
     fn deserialize_i16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i16(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_i16(i))
     }
 
     fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i32(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_i32(i))
     }
 
     fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_i64(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_i64(i))
     }
 
     fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u8(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_u8(i))
     }
 
     fn deserialize_u16<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u16(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_u16(i))
     }
 
     fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u32(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_u32(i))
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_u64(self.parse_int()?)
+        self.node_into().and_then(|i| visitor.visit_u64(i))
     }
 
     fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f32(self.parse_float()?)
+        self.node_into().and_then(|f| visitor.visit_f32(f))
     }
 
     fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_f64(self.parse_float()?)
+        self.node_into().and_then(|f| visitor.visit_f64(f))
     }
 
     fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_char(self.parse_char()?)
+        self.node_into().and_then(|c| visitor.visit_char(c))
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_borrowed_str(self.parse_str()?)
+        self.node_into().and_then(|s| match s {
+            Cow::Borrowed(s) => visitor.visit_borrowed_str(s),
+            Cow::Owned(s) => visitor.visit_string(s),
+        })
     }
 
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
@@ -260,14 +196,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_bytes(self.parse_str()?.as_bytes())
+        self.node_into()
+            .and_then(|s: Cow<'de, str>| visitor.visit_bytes(s.as_bytes()))
     }
 
     fn deserialize_byte_buf<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        visitor.visit_byte_buf(self.parse_str()?.as_bytes().to_vec())
+        self.node_into()
+            .and_then(|s: Cow<'de, str>| visitor.visit_byte_buf(s.as_bytes().to_vec()))
     }
 
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
@@ -284,10 +222,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.node.take() {
-            Node::Null(_) => visitor.visit_unit(),
-            node => Err(Error::expected_span("null", node.as_span())),
-        }
+        self.node_into().and_then(|()| visitor.visit_unit())
     }
 
     fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
@@ -308,10 +243,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.node.take() {
-            Node::Seq(nodes) | Node::BlockBody(nodes) => visitor.visit_seq(Seq::new(nodes)),
-            node => Err(Error::expected_span("sequence", node.as_span())),
-        }
+        self.node_into()
+            .and_then(|seq| visitor.visit_seq(Seq::new(seq)))
     }
 
     fn deserialize_tuple<V>(self, _len: usize, visitor: V) -> Result<V::Value>
@@ -337,12 +270,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        match self.node.take() {
-            Node::Map(map) | Node::Attribute(map) | Node::Block(map) => {
-                visitor.visit_map(Map::new(map))
-            }
-            node => Err(Error::expected_span("map", node.as_span())),
-        }
+        self.node_into()
+            .and_then(|map| visitor.visit_map(Map::new(map)))
     }
 
     fn deserialize_struct<V>(
@@ -366,18 +295,19 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        let node = self.node.take();
+        let node = self.node();
         let span = node.as_span();
 
-        let res = match node {
-            Node::String(pair) => visitor.visit_enum(pair.as_str().into_deserializer()),
-            Node::Map(map) | Node::Attribute(map) | Node::Block(map) => {
-                visitor.visit_enum(Enum::new(map))
-            }
+        match node {
+            Node::String(_) | Node::Expression(_) => node
+                .try_into()
+                .and_then(|s: Cow<'a, str>| visitor.visit_enum(s.into_deserializer())),
+            Node::Map(_) | Node::Attribute(_) | Node::Block(_) => node
+                .try_into()
+                .and_then(|map| visitor.visit_enum(Enum::new(map))),
             _ => Err(Error::expected("enum")),
-        };
-
-        res.map_err(|err| err.with_span(span))
+        }
+        .map_err(|err| err.with_span(span))
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -458,14 +388,14 @@ impl<'de> SeqAccess<'de> for Seq<'de> {
 
 struct Map<'de> {
     iter: map::IntoIter<String, Node<'de>>,
-    value: Option<Node<'de>>,
+    value: Node<'de>,
 }
 
 impl<'de> Map<'de> {
     fn new(map: IndexMap<String, Node<'de>>) -> Self {
         Self {
             iter: map.into_iter(),
-            value: None,
+            value: Node::Empty,
         }
     }
 }
@@ -479,7 +409,7 @@ impl<'de> MapAccess<'de> for Map<'de> {
     {
         match self.iter.next() {
             Some((key, value)) => {
-                self.value = Some(value);
+                self.value = value;
                 seed.deserialize(&mut StringDeserializer::new(&key))
                     .map(Some)
             }
@@ -491,7 +421,7 @@ impl<'de> MapAccess<'de> for Map<'de> {
     where
         V: DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut Deserializer::from_node(self.value.take().unwrap()))
+        seed.deserialize(&mut Deserializer::from_node(self.value.take()))
     }
 
     fn size_hint(&self) -> Option<usize> {
