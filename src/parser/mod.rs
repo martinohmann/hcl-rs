@@ -10,7 +10,7 @@ use pest_derive::Parser;
 struct HclParser;
 
 /// Parses a HCL `Node` from a `&str`.
-pub fn parse(input: &str) -> Result<ast::Node<'_>> {
+pub fn parse(input: &str) -> Result<Node<'_>> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
     Ok(Node::from_pair(pair))
 }
@@ -123,7 +123,7 @@ resource "aws_s3_bucket" "mybucket" {
             "#,
             rule: Rule::Hcl,
             tokens: [
-                Hcl(0, 299, [
+                Body(1, 299, [
                     Block(1, 299, [
                         Identifier(1, 9),
                         BlockLabeled(10, 299, [
@@ -135,7 +135,7 @@ resource "aws_s3_bucket" "mybucket" {
                                     String(27, 35)
                                 ]),
                                 BlockBody(37, 299, [
-                                    BlockBodyInner(41, 297, [
+                                    Body(41, 297, [
                                         Attribute(41, 67, [
                                             Identifier(41, 47),
                                             StringLit(57, 67, [
@@ -149,15 +149,15 @@ resource "aws_s3_bucket" "mybucket" {
                                         Block(94, 297, [
                                             Identifier(94, 130),
                                             BlockBody(131, 297, [
-                                                BlockBodyInner(137, 293, [
+                                                Body(137, 293, [
                                                     Block(137, 293, [
                                                         Identifier(137, 141),
                                                         BlockBody(142, 293, [
-                                                            BlockBodyInner(150, 287, [
+                                                            Body(150, 287, [
                                                                 Block(150, 287, [
                                                                     Identifier(150, 189),
                                                                     BlockBody(190, 287, [
-                                                                        BlockBodyInner(200, 279, [
+                                                                        Body(200, 279, [
                                                                             Attribute(200, 241, [
                                                                                 Identifier(200, 217),
                                                                                 VariableExpr(220, 241)
@@ -292,7 +292,7 @@ providers = {
                 "#,
             rule: Rule::Hcl,
             tokens: [
-                Hcl(0, 89, [
+                Body(1, 89, [
                     Attribute(1, 89, [
                         Identifier(1, 10),
                         Object(13, 89, [

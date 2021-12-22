@@ -37,7 +37,7 @@ impl<'a> Node<'a> {
             Rule::Object => Node::Map(collect_map(pair)),
             Rule::Attribute => Node::Attribute(collect_map(pair)),
             Rule::Block | Rule::BlockLabeled => Node::Block(collect_map(pair)),
-            Rule::Hcl | Rule::BlockBodyInner => {
+            Rule::Body => {
                 Node::Map(pair.into_inner().fold(Map::new(), |mut body, pair| {
                     let node = Node::from_pair(pair);
                     // We need to account for blocks with the same name and merge their contents.

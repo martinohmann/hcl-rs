@@ -764,4 +764,10 @@ mod test {
         });
         assert_eq!(expected, value);
     }
+
+    #[test]
+    fn test_invalid_hcl() {
+        let h = r#"invalid["#;
+        assert!(from_str::<Value>(h).is_err());
+    }
 }

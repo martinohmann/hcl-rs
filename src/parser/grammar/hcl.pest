@@ -1,15 +1,14 @@
 // HCL spec (https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md)
 
 // The top-level scope of an HCL file
-Hcl = { SOI ~ Body }
+Hcl = _{ SOI ~ Body ~ EOI }
 
 // Structural elements
-Body           = _{ (Attribute | Block)* }
-Attribute      =  { Identifier ~ "=" ~ Expression }
-Block          =  { Identifier ~ (BlockLabeled | BlockBody) }
-BlockLabeled   =  { (StringLit | Identifier) ~ (BlockLabeled | BlockBody) }
-BlockBody      =  { "{" ~ BlockBodyInner ~ "}" }
-BlockBodyInner =  { Body }
+Body         = { (Attribute | Block)* }
+Attribute    = { Identifier ~ "=" ~ Expression }
+Block        = { Identifier ~ (BlockLabeled | BlockBody) }
+BlockLabeled = { (StringLit | Identifier) ~ (BlockLabeled | BlockBody) }
+BlockBody    = { "{" ~ Body ~ "}" }
 
 // Expressions
 Expression = _{ Operation | Conditional | ExprTerm }
