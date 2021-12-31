@@ -52,6 +52,24 @@ impl<'de> Deserializer<'de> {
 }
 
 /// Deserialize an instance of type `T` from a string of HCL text.
+///
+/// ## Example
+///
+/// ```
+/// let input = r#"
+///     some_attr = {
+///       foo = [1, 2]
+///       bar = true
+///     }
+///
+///     some_block "some_block_label" {
+///       attr = "value"
+///     }
+/// "#;
+///
+/// let v: hcl::Value = hcl::from_str(input).unwrap();
+/// println!("{:#?}", v);
+/// ```
 pub fn from_str<'de, T>(s: &'de str) -> Result<T>
 where
     T: Deserialize<'de>,
@@ -61,6 +79,24 @@ where
 }
 
 /// Deserialize an instance of type `T` from an IO stream of HCL.
+///
+/// ## Example
+///
+/// ```
+/// let input = r#"
+///     some_attr = {
+///       foo = [1, 2]
+///       bar = true
+///     }
+///
+///     some_block "some_block_label" {
+///       attr = "value"
+///     }
+/// "#;
+///
+/// let v: hcl::Value = hcl::from_reader(input.as_bytes()).unwrap();
+/// println!("{:#?}", v);
+/// ```
 pub fn from_reader<T, R>(mut reader: R) -> Result<T>
 where
     T: DeserializeOwned,

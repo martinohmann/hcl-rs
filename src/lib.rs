@@ -1,7 +1,4 @@
-//! This crate provides functionality to deserialize and manipulate HCL data.
-//!
-//! Serializing to HCL is not supported.
-
+#![doc = include_str!("../README.md")]
 #![allow(clippy::should_implement_trait)]
 #![warn(missing_docs)]
 
