@@ -56,7 +56,7 @@ impl Error {
     where
         T: Display,
     {
-        Error::new_span(format!("Expected `{}`", token), span)
+        Error::new_span(format!("expected `{}`", token), span)
     }
 
     pub(crate) fn with_span(self, span: Option<Span<'_>>) -> Error {
@@ -84,7 +84,7 @@ impl Error {
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Eof => write!(f, "Unexpected end of input"),
+            Error::Eof => write!(f, "unexpected end of input"),
             Error::Io(err) => Display::fmt(err, f),
             Error::Message { msg, location } => match location {
                 Some(loc) => {
