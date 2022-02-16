@@ -10,6 +10,9 @@ keywords = ["hcl", "serde", "serialization"]
 categories = ["encoding"]
 readme = "README.md"
 edition = "2021"
+exclude = [
+    ".github/",
+]
 
 [lib]
 name = "hcl"
