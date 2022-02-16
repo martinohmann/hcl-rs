@@ -1,7 +1,19 @@
 [package]
-name = "hcl"
+name = "hcl-rs"
 version = "0.1.0"
+authors = ["Martin Ohmann <martinohmann@gmail.com>"]
+license = "MIT"
+description = "An HCL deserializer"
+repository = "https://github.com/martinohmann/hcl-rs"
+documentation = "https://docs.rs/hcl-rs/"
+keywords = ["hcl", "serde", "serialization"]
+categories = ["encoding"]
+readme = "README.md"
 edition = "2021"
+
+[lib]
+name = "hcl"
+path = "src/lib.rs"
 
 [dependencies]
 pest = "2.1.3"
