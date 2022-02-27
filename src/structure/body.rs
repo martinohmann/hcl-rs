@@ -1,3 +1,5 @@
+//! Types to represent and build HCL body structures.
+
 use super::{Attribute, Block, IntoNodeMap, Structure};
 use crate::Value;
 

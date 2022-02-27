@@ -1,3 +1,5 @@
+//! Types to represent and build HCL attributes.
+
 use crate::Value;
 use std::iter;
 

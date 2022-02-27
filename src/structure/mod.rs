@@ -1,3 +1,5 @@
+//! Types to represent HCL structures.
+
 mod attribute;
 mod block;
 mod body;
@@ -7,9 +9,14 @@ pub use self::block::{Block, BlockBuilder, BlockLabel};
 pub use self::body::{Body, BodyBuilder};
 use crate::{Map, Value};
 
+/// Represents an HCL structure.
+///
+/// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Structure {
+    /// Represents an HCL attribute.
     Attribute(Attribute),
+    /// Represents an HCL block.
     Block(Block),
 }
 
