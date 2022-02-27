@@ -1,6 +1,16 @@
 use crate::Value;
 use std::iter;
 
+/// Represents an HCL attribute which consists of an attribute key and value.
+///
+/// In HCL syntax this is represented as:
+///
+/// ```hcl
+/// key = value
+/// ```
+///
+/// Use [`Attribute::new`] to construct an [`Attribute`] from a value that is convertible to this
+/// crate's [`Value`] type.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Attribute {
     pub key: String,
@@ -8,6 +18,8 @@ pub struct Attribute {
 }
 
 impl Attribute {
+    /// Creates a new `Attribute` from an attribute key that is convertible into a `String` and an
+    /// attribute value that is convertible into a `Value`.
     pub fn new<K, V>(key: K, value: V) -> Attribute
     where
         K: Into<String>,
