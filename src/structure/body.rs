@@ -1,18 +1,19 @@
 use super::{Attribute, Block, IntoNodeMap, Structure};
 use crate::Value;
 
+/// Represents an HCL config file body.
+///
+/// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct Body(Vec<Structure>);
 
 impl Body {
-    pub fn new() -> Body {
-        Body::default()
-    }
-
+    /// Consumes `self` and returns the wrapped `Vec<Structure>`.
     pub fn into_inner(self) -> Vec<Structure> {
         self.0
     }
 
+    /// Creates a new [`BodyBuilder`] to start building a new `Body`.
     pub fn builder() -> BodyBuilder {
         BodyBuilder::default()
     }
@@ -50,6 +51,9 @@ impl IntoIterator for Body {
 pub struct BodyBuilder(Vec<Structure>);
 
 impl BodyBuilder {
+    /// Adds an `Attribute` to the body.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
     pub fn add_attribute<A>(self, attr: A) -> BodyBuilder
     where
         A: Into<Attribute>,
@@ -57,6 +61,9 @@ impl BodyBuilder {
         self.add_structure(attr.into())
     }
 
+    /// Adds a `Block` to the body.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
     pub fn add_block<B>(self, block: B) -> BodyBuilder
     where
         B: Into<Block>,
@@ -64,6 +71,9 @@ impl BodyBuilder {
         self.add_structure(block.into())
     }
 
+    /// Adds a `Structure` to the body.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
     pub fn add_structure<S>(mut self, structure: S) -> BodyBuilder
     where
         S: Into<Structure>,
@@ -72,6 +82,7 @@ impl BodyBuilder {
         self
     }
 
+    /// Consumes `self` and builds the [`Body`] from the structures added via the builder methods.
     pub fn build(self) -> Body {
         Body::from_iter(self.0)
     }
