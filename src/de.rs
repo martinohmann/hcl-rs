@@ -39,6 +39,12 @@ impl Deserializer {
 
 /// Deserialize an instance of type `T` from a string of HCL text.
 ///
+/// If preserving HCL semantics is required consider using [`hcl::parse`][parse] to parse the
+/// input into a [`Body`][Body].
+///
+/// [parse]: ../fn.parse.html
+/// [Body]: ../struct.Body.html
+///
 /// ## Example
 ///
 /// ```
@@ -85,6 +91,12 @@ where
 
 /// Deserialize an instance of type `T` from an IO stream of HCL.
 ///
+/// If preserving HCL semantics is required consider using [`hcl::parse`][parse] to parse the
+/// input into a [`Body`][Body].
+///
+/// [parse]: ../fn.parse.html
+/// [Body]: ../struct.Body.html
+/////
 /// ## Example
 ///
 /// ```

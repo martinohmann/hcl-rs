@@ -49,6 +49,10 @@ impl IntoIterator for Body {
     }
 }
 
+/// `BodyBuilder` builds a HCL [`Body`].
+///
+/// The builder allows to build the `Body` by adding attributes and other nested blocks via chained
+/// method calls. A call to [`.build()`](BodyBuilder::build) produces the final `Body`.
 #[derive(Debug, Default)]
 pub struct BodyBuilder(Vec<Structure>);
 
