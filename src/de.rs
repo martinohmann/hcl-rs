@@ -42,6 +42,10 @@ impl Deserializer {
 /// ## Example
 ///
 /// ```
+/// use serde_json::{json, Value};
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
 /// let input = r#"
 ///     some_attr = {
 ///       foo = [1, 2]
@@ -53,8 +57,23 @@ impl Deserializer {
 ///     }
 /// "#;
 ///
-/// let v: hcl::Value = hcl::from_str(input).unwrap();
-/// println!("{:#?}", v);
+/// let expected = json!({
+///     "some_attr": {
+///         "foo": [1, 2],
+///         "bar": true
+///     },
+///     "some_block": {
+///         "some_block_label": {
+///             "attr": "value"
+///         }
+///     }
+/// });
+///
+/// let value: Value = hcl::from_str(input)?;
+///
+/// assert_eq!(value, expected);
+/// #   Ok(())
+/// # }
 /// ```
 pub fn from_str<'de, T>(s: &'de str) -> Result<T>
 where
@@ -69,6 +88,10 @@ where
 /// ## Example
 ///
 /// ```
+/// use serde_json::{json, Value};
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
 /// let input = r#"
 ///     some_attr = {
 ///       foo = [1, 2]
@@ -80,8 +103,23 @@ where
 ///     }
 /// "#;
 ///
-/// let v: hcl::Value = hcl::from_reader(input.as_bytes()).unwrap();
-/// println!("{:#?}", v);
+/// let expected = json!({
+///     "some_attr": {
+///         "foo": [1, 2],
+///         "bar": true
+///     },
+///     "some_block": {
+///         "some_block_label": {
+///             "attr": "value"
+///         }
+///     }
+/// });
+///
+/// let value: Value = hcl::from_reader(input.as_bytes())?;
+///
+/// assert_eq!(value, expected);
+/// #   Ok(())
+/// # }
 /// ```
 pub fn from_reader<T, R>(mut reader: R) -> Result<T>
 where
@@ -311,11 +349,9 @@ mod test {
         let expected: Value = json!({
             "resource": {
                 "aws_s3_bucket": {
-                    "mybucket": [
-                        {
-                            "name": "mybucket"
-                        }
-                    ]
+                    "mybucket": {
+                        "name": "mybucket"
+                    }
                 }
             }
         });
@@ -323,11 +359,9 @@ mod test {
 
         let h = r#"block { name = "asdf" }"#;
         let expected: Value = json!({
-            "block": [
-                {
-                    "name": "asdf"
-                }
-            ]
+            "block": {
+                "name": "asdf"
+            }
         });
         assert_eq!(expected, from_str::<Value>(h).unwrap());
     }
@@ -354,32 +388,26 @@ mod test {
             }
         "#;
         let expected = json!({
-            "block": [
-                {
-                    "foo": [
-                        {
-                            "bar": "baz"
-                        },
-                        {
-                            "bar": 1
-                        }
-                    ]
-                }
-            ],
+            "block": {
+                "foo": [
+                    {
+                        "bar": "baz"
+                    },
+                    {
+                        "bar": 1
+                    }
+                ]
+            },
             "other": {
                 "one": {
-                    "two": [
-                        {
-                            "foo": "bar"
-                        }
-                    ]
+                    "two": {
+                        "foo": "bar"
+                    }
                 },
                 "two": {
-                    "three": [
-                        {
-                            "bar": "baz"
-                        }
-                    ]
+                    "three": {
+                        "bar": "baz"
+                    }
                 }
             }
         });
@@ -418,7 +446,7 @@ mod test {
             foo = ["bar"]
             foo { bar = "baz" }
         "#;
-        let expected = json!({"foo": [{"bar": "baz"}]});
+        let expected = json!({"foo": {"bar": "baz"}});
         assert_eq!(expected, from_str::<Value>(h).unwrap());
 
         let h = r#"
@@ -491,57 +519,41 @@ mod test {
         let expected = json!({
             "resource": {
                 "aws_eks_cluster": {
-                    "this": [
-                        {
-                            "count": "${var.create_eks ? 1 : 0}",
-                            "name": "${var.cluster_name}",
-                            "enabled_cluster_log_types": "${var.cluster_enabled_log_types}",
-                            "role_arn": "${local.cluster_iam_role_arn}",
-                            "version": "${var.cluster_version}",
-                            "vpc_config": [
-                                {
-                                    "security_group_ids": "${compact([local.cluster_security_group_id])}",
-                                    "subnet_ids": "${var.subnets}"
+                    "this": {
+                        "count": "${var.create_eks ? 1 : 0}",
+                        "name": "${var.cluster_name}",
+                        "enabled_cluster_log_types": "${var.cluster_enabled_log_types}",
+                        "role_arn": "${local.cluster_iam_role_arn}",
+                        "version": "${var.cluster_version}",
+                        "vpc_config": {
+                            "security_group_ids": "${compact([local.cluster_security_group_id])}",
+                            "subnet_ids": "${var.subnets}"
+                        },
+                        "kubernetes_network_config": {
+                            "service_ipv4_cidr": "${var.cluster_service_ipv4_cidr}"
+                        },
+                        "dynamic": {
+                            "encryption_config": {
+                                "for_each": "${toset(var.cluster_encryption_config)}",
+                                "content": {
+                                    "provider": {
+                                        "key_arn": "${encryption_config.value[\"provider_key_arn\"]}"
+                                    },
+                                    "resources": "${encryption_config.value[\"resources\"]}"
                                 }
-                            ],
-                            "kubernetes_network_config": [
-                                {
-                                    "service_ipv4_cidr": "${var.cluster_service_ipv4_cidr}"
-                                },
-                            ],
-                            "dynamic": {
-                                "encryption_config": [
-                                    {
-                                        "for_each": "${toset(var.cluster_encryption_config)}",
-                                        "content": [
-                                            {
-                                                "provider": [
-                                                    {
-                                                        "key_arn": "${encryption_config.value[\"provider_key_arn\"]}"
-                                                    }
-                                                ],
-                                                "resources": "${encryption_config.value[\"resources\"]}"
-                                            }
-                                        ]
-                                    }
-                                ]
-                            },
-                            "tags": "${merge(\n    var.tags,\n    var.cluster_tags,\n  )}",
-                            "depends_on": ["${aws_cloudwatch_log_group.this}"]
-                        }
-                    ]
+                            }
+                        },
+                        "tags": "${merge(\n    var.tags,\n    var.cluster_tags,\n  )}",
+                        "depends_on": ["${aws_cloudwatch_log_group.this}"]
+                    }
                 },
                 "aws_s3_bucket": {
-                    "mybucket": [
-                        {
-                            "name": "mybucket"
-                        }
-                    ],
-                    "otherbucket": [
-                        {
-                            "name": "otherbucket"
-                        }
-                    ]
+                    "mybucket": {
+                        "name": "mybucket"
+                    },
+                    "otherbucket": {
+                        "name": "otherbucket"
+                    }
                 }
             }
         });

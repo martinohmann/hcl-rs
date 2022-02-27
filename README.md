@@ -14,6 +14,8 @@ be used to deserialize arbitrary HCL data.
 ## Example
 
 ```rust
+use serde_json::{json, Value};
+
 let input = r#"
     some_attr = {
       foo = [1, 2]
@@ -25,8 +27,21 @@ let input = r#"
     }
 "#;
 
-let v: hcl::Value = hcl::from_str(input).unwrap();
-println!("{:#?}", v);
+let expected = json!({
+    "some_attr": {
+        "foo": [1, 2],
+        "bar": true
+    },
+    "some_block": {
+        "some_block_label": {
+            "attr": "value"
+        }
+    }
+});
+
+let value: Value = hcl::from_str(input).unwrap();
+
+assert_eq!(value, expected);
 ```
 
 ## License

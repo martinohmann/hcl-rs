@@ -104,7 +104,20 @@ impl From<Node> for Value {
         match node {
             Node::Empty => Value::Null,
             Node::Block(map) => Value::from_iter(map),
-            Node::BlockInner(vec) => vec.into(),
+            Node::BlockInner(mut vec) => {
+                // Flatten as per the [HCL JSON spec](json-spec).
+                //
+                // > After any labelling levels, the next nested value is either a JSON
+                // > object representing a single block body, or a JSON array of JSON
+                // > objects that each represent a single block body.
+                //
+                // [json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
+                if vec.len() == 1 {
+                    vec.remove(0).into()
+                } else {
+                    vec.into()
+                }
+            }
             Node::Value(value) => value,
         }
     }
