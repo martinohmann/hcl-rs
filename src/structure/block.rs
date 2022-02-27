@@ -1,6 +1,16 @@
 use super::{Attribute, Body, BodyBuilder, IntoNodeMap, Structure};
 use crate::Value;
 
+/// Represents an HCL block which consists of a block identifier, zero or more block labels and a
+/// block body.
+///
+/// In HCL syntax this is represented as:
+///
+/// ```hcl
+/// block_identifier "block_label1" "block_label2" {
+///   body
+/// }
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     pub identifier: String,
@@ -9,6 +19,7 @@ pub struct Block {
 }
 
 impl Block {
+    /// Creates a new `Block` from a block identifier, block labels and a block body.
     pub fn new<I, L, B>(identifier: I, labels: L, body: B) -> Block
     where
         I: Into<String>,
@@ -24,6 +35,8 @@ impl Block {
         }
     }
 
+    /// Creates a new [`BlockBuilder`] to start building a new `Block` with the provided
+    /// identifier.
     pub fn builder<I>(identifier: I) -> BlockBuilder
     where
         I: Into<String>,
@@ -53,6 +66,23 @@ where
     }
 }
 
+/// Represents an HCL block label.
+///
+/// In HCL syntax this can be represented either as a quoted string literal...
+///
+/// ```hcl
+/// block_identifier "block_label1" {
+///   body
+/// }
+/// ```
+///
+/// ...or as a bare identifier:
+///
+/// ```hcl
+/// block_identifier block_label1 {
+///   body
+/// }
+/// ```
 #[derive(Debug, PartialEq, Clone)]
 pub enum BlockLabel {
     Identifier(String),
@@ -60,6 +90,7 @@ pub enum BlockLabel {
 }
 
 impl BlockLabel {
+    /// Creates a new bare `BlockLabel` identifier.
     pub fn identifier<I>(identifier: I) -> Self
     where
         I: Into<String>,
@@ -67,6 +98,7 @@ impl BlockLabel {
         BlockLabel::Identifier(identifier.into())
     }
 
+    /// Creates a new quoted string `BlockLabel`.
     pub fn string_lit<S>(string: S) -> Self
     where
         S: Into<String>,
@@ -74,6 +106,10 @@ impl BlockLabel {
         BlockLabel::StringLit(string.into())
     }
 
+    /// Consumes `self` and returns the `String` wrapped by the `BlockLabel`.
+    ///
+    /// Beware that after calling `.into_inner()` it is not possible anymore to tell whether the
+    /// `String` resembles a quoted string or bare identifer.
     pub fn into_inner(self) -> String {
         match self {
             BlockLabel::Identifier(ident) => ident,
@@ -91,6 +127,10 @@ where
     }
 }
 
+/// `BlockBuilder` builds a HCL [`Block`].
+///
+/// The builder allows build the `Block` by adding labels, attributes and other nested blocks via
+/// chained method calls. A call to [`.build()`](BlockBuilder::build) produces the final `Block`.
 #[derive(Debug)]
 pub struct BlockBuilder {
     identifier: String,
@@ -99,6 +139,8 @@ pub struct BlockBuilder {
 }
 
 impl BlockBuilder {
+    /// Creates a new `BlockBuilder` to start building a new [`Block`] with the provided
+    /// identifier.
     pub fn new<I>(identifier: I) -> BlockBuilder
     where
         I: Into<String>,
@@ -110,6 +152,9 @@ impl BlockBuilder {
         }
     }
 
+    /// Adds a `BlockLabel`.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
     pub fn add_label<L>(mut self, label: L) -> BlockBuilder
     where
         L: Into<BlockLabel>,
@@ -118,6 +163,9 @@ impl BlockBuilder {
         self
     }
 
+    /// Adds an `Attribute` to the block body.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
     pub fn add_attribute<A>(mut self, attr: A) -> BlockBuilder
     where
         A: Into<Attribute>,
@@ -126,6 +174,9 @@ impl BlockBuilder {
         self
     }
 
+    /// Adds another `Block` to the block body.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
     pub fn add_block<B>(mut self, block: B) -> BlockBuilder
     where
         B: Into<Block>,
@@ -134,6 +185,9 @@ impl BlockBuilder {
         self
     }
 
+    /// Adds a `Structure` to the block body.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
     pub fn add_structure<S>(mut self, structure: S) -> BlockBuilder
     where
         S: Into<Structure>,
@@ -142,6 +196,7 @@ impl BlockBuilder {
         self
     }
 
+    /// Consumes `self` and builds the [`Block`] from the items added via the builder methods.
     pub fn build(self) -> Block {
         Block {
             identifier: self.identifier,
