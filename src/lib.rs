@@ -6,6 +6,7 @@ pub mod de;
 pub mod error;
 mod number;
 mod parser;
+mod structure;
 pub mod value;
 
 pub use de::{from_reader, from_str};

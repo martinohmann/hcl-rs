@@ -1,24 +1,166 @@
-mod ast;
-
-use crate::Result;
-pub use ast::Node;
-use pest::Parser as ParserTrait;
+use crate::{
+    structure::{Attribute, Block, BlockLabel, Body, Structure},
+    Map, Result, Value,
+};
+use pest::{
+    iterators::{Pair, Pairs},
+    Parser as ParserTrait,
+};
 use pest_derive::Parser;
+use std::str::FromStr;
 
 #[derive(Parser)]
 #[grammar = "parser/grammar/hcl.pest"]
 struct HclParser;
 
-/// Parses a HCL `Node` from a `&str`.
-pub fn parse(input: &str) -> Result<Node<'_>> {
+/// Parses a HCL `Body` from a `&str`.
+pub fn parse(input: &str) -> Result<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-    Ok(Node::from_pair(pair))
+
+    Ok(parse_body(pair))
+}
+
+fn parse_body(pair: Pair<Rule>) -> Body {
+    pair.into_inner().map(parse_structure).collect()
+}
+
+fn parse_structure(pair: Pair<Rule>) -> Structure {
+    match pair.as_rule() {
+        Rule::Attribute => Structure::Attribute(parse_attribute(pair)),
+        Rule::Block => Structure::Block(parse_block(pair)),
+        rule => unexpected_rule(rule),
+    }
+}
+
+fn parse_attribute(pair: Pair<Rule>) -> Attribute {
+    let mut pairs = pair.into_inner();
+
+    Attribute {
+        key: parse_string(pairs.next().unwrap()),
+        value: parse_value(pairs.next().unwrap()),
+    }
+}
+
+fn parse_block(pair: Pair<Rule>) -> Block {
+    let mut pairs = pair.into_inner();
+
+    let identifier = parse_string(pairs.next().unwrap());
+
+    let (labels, block_body): (Vec<Pair<Rule>>, Vec<Pair<Rule>>) =
+        pairs.partition(|pair| pair.as_rule() != Rule::BlockBody);
+
+    Block {
+        identifier,
+        labels: labels.into_iter().map(parse_block_label).collect(),
+        body: parse_block_body(block_body.into_iter().next().unwrap()),
+    }
+}
+
+fn parse_block_label(pair: Pair<Rule>) -> BlockLabel {
+    match pair.as_rule() {
+        Rule::Identifier => BlockLabel::Identifier(parse_string(pair)),
+        Rule::StringLit => BlockLabel::StringLit(parse_string(inner(pair))),
+        rule => unexpected_rule(rule),
+    }
+}
+
+fn parse_block_body(pair: Pair<Rule>) -> Body {
+    match pair.as_rule() {
+        Rule::BlockBody => parse_body(inner(pair)),
+        rule => unexpected_rule(rule),
+    }
+}
+
+fn parse_value(pair: Pair<Rule>) -> Value {
+    match pair.as_rule() {
+        Rule::BooleanLit => Value::Bool(parse_primitive(pair)),
+        Rule::Float => Value::Number(parse_primitive::<f64>(pair).into()),
+        Rule::Heredoc => Value::String(parse_string(pair.into_inner().nth(1).unwrap())),
+        Rule::Identifier => Value::String(parse_string(pair)),
+        Rule::Int => Value::Number(parse_primitive::<i64>(pair).into()),
+        Rule::NullLit => Value::Null,
+        Rule::StringLit => Value::String(parse_string(inner(pair))),
+        Rule::Tuple => Value::Array(parse_array(pair)),
+        Rule::Object => Value::Object(parse_object(pair)),
+        _ => Value::String(parse_expression(pair)),
+    }
+}
+
+fn parse_array(pair: Pair<Rule>) -> Vec<Value> {
+    pair.into_inner().map(parse_value).collect()
+}
+
+fn parse_object(pair: Pair<Rule>) -> Map<String, Value> {
+    KeyValueIter::new(pair).collect()
+}
+
+fn parse_primitive<F>(pair: Pair<Rule>) -> F
+where
+    F: FromStr,
+    <F as FromStr>::Err: std::fmt::Debug,
+{
+    pair.as_str().parse::<F>().unwrap()
+}
+
+fn inner(pair: Pair<Rule>) -> Pair<Rule> {
+    pair.into_inner().next().unwrap()
+}
+
+fn parse_map_key(pair: Pair<Rule>) -> String {
+    match pair.as_rule() {
+        Rule::Identifier => parse_string(pair),
+        Rule::StringLit => parse_string(inner(pair)),
+        _ => parse_expression(pair),
+    }
+}
+
+fn parse_string(pair: Pair<Rule>) -> String {
+    pair.as_str().to_owned()
+}
+
+fn parse_expression(pair: Pair<Rule>) -> String {
+    let expr = pair.as_str();
+    let mut s = String::with_capacity(expr.len() + 3);
+    s.push_str("${");
+    s.push_str(expr);
+    s.push('}');
+    s
+}
+
+#[track_caller]
+fn unexpected_rule(rule: Rule) -> ! {
+    panic!("unexpected rule: {:?}", rule)
+}
+
+struct KeyValueIter<'a> {
+    inner: Pairs<'a, Rule>,
+}
+
+impl<'a> KeyValueIter<'a> {
+    fn new(pair: Pair<'a, Rule>) -> Self {
+        KeyValueIter {
+            inner: pair.into_inner(),
+        }
+    }
+}
+
+impl<'a> Iterator for KeyValueIter<'a> {
+    type Item = (String, Value);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match (self.inner.next(), self.inner.next()) {
+            (Some(k), Some(v)) => Some((parse_map_key(k), parse_value(v))),
+            (Some(k), None) => panic!("missing value for key: {}", k),
+            (_, _) => None,
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use pest::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn identifier() {
@@ -126,48 +268,44 @@ resource "aws_s3_bucket" "mybucket" {
                 Body(1, 299, [
                     Block(1, 299, [
                         Identifier(1, 9),
-                        BlockLabeled(10, 299, [
-                            StringLit(10, 25, [
-                                String(11, 24)
-                            ]),
-                            BlockLabeled(26, 299, [
-                                StringLit(26, 36, [
-                                    String(27, 35)
+                        StringLit(10, 25, [
+                            String(11, 24)
+                        ]),
+                        StringLit(26, 36, [
+                            String(27, 35)
+                        ]),
+                        BlockBody(37, 299, [
+                            Body(41, 297, [
+                                Attribute(41, 67, [
+                                    Identifier(41, 47),
+                                    StringLit(57, 67, [
+                                        String(58, 66)
+                                    ])
                                 ]),
-                                BlockBody(37, 299, [
-                                    Body(41, 297, [
-                                        Attribute(41, 67, [
-                                            Identifier(41, 47),
-                                            StringLit(57, 67, [
-                                                String(58, 66)
-                                            ])
-                                        ]),
-                                        Attribute(70, 90, [
-                                            Identifier(70, 83),
-                                            BooleanLit(86, 90)
-                                        ]),
-                                        Block(94, 297, [
-                                            Identifier(94, 130),
-                                            BlockBody(131, 297, [
-                                                Body(137, 293, [
-                                                    Block(137, 293, [
-                                                        Identifier(137, 141),
-                                                        BlockBody(142, 293, [
-                                                            Body(150, 287, [
-                                                                Block(150, 287, [
-                                                                    Identifier(150, 189),
-                                                                    BlockBody(190, 287, [
-                                                                        Body(200, 279, [
-                                                                            Attribute(200, 241, [
-                                                                                Identifier(200, 217),
-                                                                                VariableExpr(220, 241)
-                                                                            ]),
-                                                                            Attribute(250, 279, [
-                                                                                Identifier(250, 263),
-                                                                                StringLit(270, 279, [
-                                                                                    String(271, 278)
-                                                                                ])
-                                                                            ])
+                                Attribute(70, 90, [
+                                    Identifier(70, 83),
+                                    BooleanLit(86, 90)
+                                ]),
+                                Block(94, 297, [
+                                    Identifier(94, 130),
+                                    BlockBody(131, 297, [
+                                        Body(137, 293, [
+                                            Block(137, 293, [
+                                                Identifier(137, 141),
+                                                BlockBody(142, 293, [
+                                                    Body(150, 287, [
+                                                        Block(150, 287, [
+                                                            Identifier(150, 189),
+                                                            BlockBody(190, 287, [
+                                                                Body(200, 279, [
+                                                                    Attribute(200, 241, [
+                                                                        Identifier(200, 217),
+                                                                        VariableExpr(220, 241)
+                                                                    ]),
+                                                                    Attribute(250, 279, [
+                                                                        Identifier(250, 263),
+                                                                        StringLit(270, 279, [
+                                                                            String(271, 278)
                                                                         ])
                                                                     ])
                                                                 ])
@@ -383,5 +521,58 @@ providers = {
                 ])
             ]
         };
+    }
+
+    #[test]
+    fn test_parse_hcl() {
+        let input = r#"
+            resource "aws_s3_bucket" "mybucket" {
+              bucket        = "mybucket"
+              force_destroy = true
+
+              server_side_encryption_configuration {
+                rule {
+                  apply_server_side_encryption_by_default {
+                    kms_master_key_id = aws_kms_key.mykey.arn
+                    sse_algorithm     = "aws:kms"
+                  }
+                }
+              }
+            }"#;
+
+        let body = parse(input).unwrap();
+
+        let expected = Body::builder()
+            .add_block(
+                Block::builder("resource")
+                    .add_label("aws_s3_bucket")
+                    .add_label("mybucket")
+                    .add_attribute(Attribute::new("bucket", "mybucket"))
+                    .add_attribute(Attribute::new("force_destroy", true))
+                    .add_block(
+                        Block::builder("server_side_encryption_configuration")
+                            .add_block(
+                                Block::builder("rule")
+                                    .add_block(
+                                        Block::builder("apply_server_side_encryption_by_default")
+                                            .add_attribute(Attribute::new(
+                                                "kms_master_key_id",
+                                                "${aws_kms_key.mykey.arn}",
+                                            ))
+                                            .add_attribute(Attribute::new(
+                                                "sse_algorithm",
+                                                "aws:kms",
+                                            ))
+                                            .build(),
+                                    )
+                                    .build(),
+                            )
+                            .build(),
+                    )
+                    .build(),
+            )
+            .build();
+
+        assert_eq!(body, expected);
     }
 }

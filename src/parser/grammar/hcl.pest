@@ -4,11 +4,10 @@
 Hcl = _{ SOI ~ Body ~ EOI }
 
 // Structural elements
-Body         = { (Attribute | Block)* }
-Attribute    = { Identifier ~ "=" ~ Expression }
-Block        = { Identifier ~ (BlockLabeled | BlockBody) }
-BlockLabeled = { (StringLit | Identifier) ~ (BlockLabeled | BlockBody) }
-BlockBody    = { "{" ~ Body ~ "}" }
+Body      = { (Attribute | Block)* }
+Attribute = { Identifier ~ "=" ~ Expression }
+Block     = { Identifier ~ (StringLit | Identifier)* ~ BlockBody }
+BlockBody = { "{" ~ Body ~ "}" }
 
 // Expressions
 Expression = _{ Operation | Conditional | ExprTerm }
