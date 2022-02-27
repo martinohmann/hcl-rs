@@ -30,6 +30,16 @@ impl Attribute {
             value: value.into(),
         }
     }
+
+    /// Returns a reference to the attribute key.
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    /// Returns a reference to the attribute value.
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
 }
 
 impl From<Attribute> for Value {
