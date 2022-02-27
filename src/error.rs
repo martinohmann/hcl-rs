@@ -32,16 +32,9 @@ impl Error {
     where
         T: Display,
     {
-        Error::new_span(msg, None)
-    }
-
-    pub(crate) fn new_span<T>(msg: T, span: Option<Span<'_>>) -> Error
-    where
-        T: Display,
-    {
         Error::Message {
             msg: msg.to_string(),
-            location: span.map(Into::into),
+            location: None,
         }
     }
 
@@ -49,27 +42,7 @@ impl Error {
     where
         T: Display,
     {
-        Error::expected_span(token, None)
-    }
-
-    pub(crate) fn expected_span<T>(token: T, span: Option<Span<'_>>) -> Error
-    where
-        T: Display,
-    {
-        Error::new_span(format!("expected `{}`", token), span)
-    }
-
-    pub(crate) fn with_span(self, span: Option<Span<'_>>) -> Error {
-        match self {
-            Error::Message { msg, location } => Error::Message {
-                msg,
-                location: match location {
-                    Some(loc) => Some(loc),
-                    None => span.map(Into::into),
-                },
-            },
-            _ => self,
-        }
+        Error::new(format!("expected `{}`", token))
     }
 
     /// Returns the `Location` in the input where the error happened, if available.
