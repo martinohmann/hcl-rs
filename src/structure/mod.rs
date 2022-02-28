@@ -1,4 +1,35 @@
 //! Types to represent HCL structures.
+//!
+//! The main types in this module are:
+//!
+//! - [`Attribute`]: represent an HCL attribute
+//! - [`Block`]: represent an HCL block
+//! - [`BlockBuilder`]: provides functionality for building `Block`s
+//! - [`Body`]: represent the body of an HCL configuration or block
+//! - [`BodyBuilder`]: provides functionality for building `Body`s
+//!
+//! ## Examples
+//!
+//! Building HCL structures:
+//!
+//! ```
+//! use hcl::{Body, Block};
+//!
+//! let body = Body::builder()
+//!     .add_block(
+//!         Block::builder("resource")
+//!             .add_label("aws_s3_bucket")
+//!             .add_label("mybucket")
+//!             .add_attribute(("name", "mybucket"))
+//!             .add_block(
+//!                 Block::builder("logging")
+//!                     .add_attribute(("target_bucket", "mylogsbucket"))
+//!                     .build()
+//!             )
+//!             .build()
+//!     )
+//!     .build();
+//! ```
 
 pub mod attribute;
 pub mod block;

@@ -53,6 +53,22 @@ impl IntoIterator for Body {
 ///
 /// The builder allows to build the `Body` by adding attributes and other nested blocks via chained
 /// method calls. A call to [`.build()`](BodyBuilder::build) produces the final `Body`.
+///
+/// ## Example
+///
+/// ```
+/// use hcl::{Body, Block};
+///
+/// let body = Body::builder()
+///     .add_block(
+///         Block::builder("resource")
+///             .add_label("aws_s3_bucket")
+///             .add_label("mybucket")
+///             .add_attribute(("name", "mybucket"))
+///             .build()
+///     )
+///     .build();
+/// ```
 #[derive(Debug, Default)]
 pub struct BodyBuilder(Vec<Structure>);
 

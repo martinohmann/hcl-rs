@@ -139,6 +139,23 @@ where
 /// The builder allows to build the `Block` by adding labels, attributes and other nested blocks
 /// via chained method calls. A call to [`.build()`](BlockBuilder::build) produces the final
 /// `Block`.
+///
+/// ## Example
+///
+/// ```
+/// use hcl::Block;
+///
+/// let block = Block::builder("resource")
+///     .add_label("aws_s3_bucket")
+///     .add_label("mybucket")
+///     .add_attribute(("name", "mybucket"))
+///     .add_block(
+///         Block::builder("logging")
+///             .add_attribute(("target_bucket", "mylogsbucket"))
+///             .build()
+///     )
+///     .build();
+/// ```
 #[derive(Debug)]
 pub struct BlockBuilder {
     identifier: String,
