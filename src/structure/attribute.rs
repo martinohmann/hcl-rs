@@ -15,7 +15,9 @@ use std::iter;
 /// crate's [`Value`] type.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Attribute {
+    /// The HCL attribute's key.
     pub key: String,
+    /// The value of the HCL attribute.
     pub value: Value,
 }
 

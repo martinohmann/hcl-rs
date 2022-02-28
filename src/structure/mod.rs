@@ -1,12 +1,14 @@
 //! Types to represent HCL structures.
 
-mod attribute;
-mod block;
-mod body;
+pub mod attribute;
+pub mod block;
+pub mod body;
 
-pub use self::attribute::Attribute;
-pub use self::block::{Block, BlockBuilder, BlockLabel};
-pub use self::body::{Body, BodyBuilder};
+pub use self::{
+    attribute::Attribute,
+    block::{Block, BlockBuilder, BlockLabel},
+    body::{Body, BodyBuilder},
+};
 use crate::{Map, Value};
 
 /// Represents an HCL structure.

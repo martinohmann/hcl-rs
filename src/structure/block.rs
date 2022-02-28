@@ -15,8 +15,11 @@ use crate::Value;
 /// ```
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
+    /// The block identifier.
     pub identifier: String,
+    /// Zero or more block labels.
     pub labels: Vec<BlockLabel>,
+    /// Represents the `Block`'s body.
     pub body: Body,
 }
 
@@ -87,7 +90,9 @@ where
 /// ```
 #[derive(Debug, PartialEq, Clone)]
 pub enum BlockLabel {
+    /// A bare HCL block label.
     Identifier(String),
+    /// A quoted string literal.
     StringLit(String),
 }
 
@@ -129,10 +134,11 @@ where
     }
 }
 
-/// `BlockBuilder` builds a HCL [`Block`].
+/// `BlockBuilder` builds an HCL [`Block`].
 ///
-/// The builder allows build the `Block` by adding labels, attributes and other nested blocks via
-/// chained method calls. A call to [`.build()`](BlockBuilder::build) produces the final `Block`.
+/// The builder allows to build the `Block` by adding labels, attributes and other nested blocks
+/// via chained method calls. A call to [`.build()`](BlockBuilder::build) produces the final
+/// `Block`.
 #[derive(Debug)]
 pub struct BlockBuilder {
     identifier: String,
