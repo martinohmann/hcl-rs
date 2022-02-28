@@ -13,7 +13,7 @@
 //! Building HCL structures:
 //!
 //! ```
-//! use hcl::{Body, Block};
+//! use hcl::{Body, Block, BlockLabel};
 //!
 //! let body = Body::builder()
 //!     .add_block(
@@ -29,6 +29,20 @@
 //!             .build()
 //!     )
 //!     .build();
+//!
+//! let mut iter = body.iter();
+//!
+//! let first = iter.next().unwrap();
+//!
+//! assert_eq!(first.is_block(), true);
+//!
+//! let block = first.as_block().unwrap();
+//!
+//! assert_eq!(block.identifier(), "resource");
+//! assert_eq!(
+//!     block.labels().first(),
+//!     Some(&BlockLabel::StringLit("aws_s3_bucket".into())),
+//! );
 //! ```
 
 pub mod attribute;
@@ -51,6 +65,53 @@ pub enum Structure {
     Attribute(Attribute),
     /// Represents an HCL block.
     Block(Block),
+}
+
+impl Structure {
+    /// Returns `true` if the structure represents an [`Attribute`].
+    pub fn is_attribute(&self) -> bool {
+        self.as_attribute().is_some()
+    }
+
+    /// Returns `true` if the structure represents a [`Block`].
+    pub fn is_block(&self) -> bool {
+        self.as_block().is_some()
+    }
+
+    /// If the `Structure` is an Attribute, returns a reference to the `Attribute`. Returns None
+    /// otherwise.
+    pub fn as_attribute(&self) -> Option<&Attribute> {
+        match self {
+            Structure::Attribute(attr) => Some(attr),
+            Structure::Block(_) => None,
+        }
+    }
+
+    /// If the `Structure` is an Attribute, returns a mutable reference to the `Attribute`. Returns
+    /// None otherwise.
+    pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
+        match self {
+            Structure::Attribute(attr) => Some(attr),
+            Structure::Block(_) => None,
+        }
+    }
+
+    /// If the `Structure` is a Block, returns a reference to the `Block`. Returns None otherwise.
+    pub fn as_block(&self) -> Option<&Block> {
+        match self {
+            Structure::Block(block) => Some(block),
+            Structure::Attribute(_) => None,
+        }
+    }
+
+    /// If the `Structure` is a Block, returns a mutable reference to the `Block`. Returns None
+    /// otherwise.
+    pub fn as_block_mut(&mut self) -> Option<&mut Block> {
+        match self {
+            Structure::Block(block) => Some(block),
+            Structure::Attribute(_) => None,
+        }
+    }
 }
 
 impl From<Structure> for Value {
