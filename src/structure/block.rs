@@ -203,6 +203,18 @@ impl BlockBuilder {
         self
     }
 
+    /// Adds `BlockLabel`s from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    pub fn add_labels<I>(mut self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<BlockLabel>,
+    {
+        self.labels.extend(iter.into_iter().map(Into::into));
+        self
+    }
+
     /// Adds an `Attribute` to the block body.
     ///
     /// Consumes `self` and returns a new `BlockBuilder`.
@@ -211,6 +223,18 @@ impl BlockBuilder {
         A: Into<Attribute>,
     {
         self.body = self.body.add_attribute(attr);
+        self
+    }
+
+    /// Adds `Attribute`s to the block body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    pub fn add_attributes<I>(mut self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Attribute>,
+    {
+        self.body = self.body.add_attributes(iter.into_iter().map(Into::into));
         self
     }
 
@@ -225,6 +249,18 @@ impl BlockBuilder {
         self
     }
 
+    /// Adds `Block`s to the block body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    pub fn add_blocks<I>(mut self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Block>,
+    {
+        self.body = self.body.add_blocks(iter.into_iter().map(Into::into));
+        self
+    }
+
     /// Adds a `Structure` to the block body.
     ///
     /// Consumes `self` and returns a new `BlockBuilder`.
@@ -233,6 +269,18 @@ impl BlockBuilder {
         S: Into<Structure>,
     {
         self.body = self.body.add_structure(structure);
+        self
+    }
+
+    /// Adds `Structure`s to the block body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    pub fn add_structures<I>(mut self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Structure>,
+    {
+        self.body = self.body.add_structures(iter.into_iter().map(Into::into));
         self
     }
 

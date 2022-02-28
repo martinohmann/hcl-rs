@@ -238,6 +238,17 @@ impl BodyBuilder {
         self.add_structure(attr.into())
     }
 
+    /// Adds `Attribute`s to the body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    pub fn add_attributes<I>(self, iter: I) -> BodyBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Attribute>,
+    {
+        self.add_structures(iter.into_iter().map(Into::into))
+    }
+
     /// Adds a `Block` to the body.
     ///
     /// Consumes `self` and returns a new `BodyBuilder`.
@@ -248,6 +259,17 @@ impl BodyBuilder {
         self.add_structure(block.into())
     }
 
+    /// Adds `Block`s to the body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    pub fn add_blocks<I>(self, iter: I) -> BodyBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Block>,
+    {
+        self.add_structures(iter.into_iter().map(Into::into))
+    }
+
     /// Adds a `Structure` to the body.
     ///
     /// Consumes `self` and returns a new `BodyBuilder`.
@@ -256,6 +278,18 @@ impl BodyBuilder {
         S: Into<Structure>,
     {
         self.0.push(structure.into());
+        self
+    }
+
+    /// Adds `Structure`s to the body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    pub fn add_structures<I>(mut self, iter: I) -> BodyBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Structure>,
+    {
+        self.0.extend(iter.into_iter().map(Into::into));
         self
     }
 
