@@ -30,13 +30,13 @@
 //!     )
 //!     .build();
 //!
-//! let mut iter = body.iter();
+//! let mut iter = body.attributes();
 //!
-//! let first = iter.next().unwrap();
+//! assert_eq!(iter.next(), None);
 //!
-//! assert_eq!(first.is_block(), true);
+//! let mut iter = body.blocks();
 //!
-//! let block = first.as_block().unwrap();
+//! let block = iter.next().unwrap();
 //!
 //! assert_eq!(block.identifier(), "resource");
 //! assert_eq!(

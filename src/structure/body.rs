@@ -2,7 +2,6 @@
 
 use super::{Attribute, Block, IntoNodeMap, Structure};
 use crate::Value;
-use std::slice::{Iter, IterMut};
 use std::vec::IntoIter;
 
 /// Represents an HCL config file body.
@@ -23,14 +22,157 @@ impl Body {
     }
 
     /// Returns an iterator over all [`Structure`]s of the `Body`.
-    pub fn iter(&self) -> Iter<'_, Structure> {
-        self.0.iter()
+    pub fn iter(&self) -> Iter<'_> {
+        Iter {
+            inner: self.0.iter(),
+        }
     }
 
     /// Returns an iterator over all [`Structure`]s of the `Body` that allows modifying the
     /// structures.
-    pub fn iter_mut(&mut self) -> IterMut<'_, Structure> {
-        self.0.iter_mut()
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        IterMut {
+            inner: self.0.iter_mut(),
+        }
+    }
+
+    /// Returns an iterator over all [`Attribute`]s of the `Body`.
+    pub fn attributes(&self) -> AttributeIter<'_> {
+        AttributeIter { inner: self.iter() }
+    }
+
+    /// Returns an iterator over all [`Attribute`]s of the `Body` that allows modifying the
+    /// attributes.
+    pub fn attributes_mut(&mut self) -> AttributeIterMut<'_> {
+        AttributeIterMut {
+            inner: self.iter_mut(),
+        }
+    }
+
+    /// Returns an iterator over all [`Block`]s of the `Body`.
+    pub fn blocks(&self) -> BlockIter<'_> {
+        BlockIter { inner: self.iter() }
+    }
+
+    /// Returns an iterator over all [`Block`]s of the `Body` that allows modifying the blocks.
+    pub fn blocks_mut(&mut self) -> BlockIterMut<'_> {
+        BlockIterMut {
+            inner: self.iter_mut(),
+        }
+    }
+}
+
+/// Immutable body iterator.
+///
+/// This struct is created by the [`iter`](Body::iter) method on a [`Body`].
+pub struct Iter<'a> {
+    inner: std::slice::Iter<'a, Structure>,
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a Structure;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+/// Mutable body iterator.
+///
+/// This struct is created by the [`iter_mut`](Body::iter_mut) method on a [`Body`].
+pub struct IterMut<'a> {
+    inner: std::slice::IterMut<'a, Structure>,
+}
+
+impl<'a> Iterator for IterMut<'a> {
+    type Item = &'a mut Structure;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+/// Immutable `Attribute` iterator.
+///
+/// This struct is created by the [`attributes`](Body::attributes) method on a [`Body`].
+pub struct AttributeIter<'a> {
+    inner: Iter<'a>,
+}
+
+impl<'a> Iterator for AttributeIter<'a> {
+    type Item = &'a Attribute;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for structure in &mut self.inner {
+            if let Structure::Attribute(attr) = structure {
+                return Some(attr);
+            }
+        }
+
+        None
+    }
+}
+
+/// Mutable `Attribute` iterator.
+///
+/// This struct is created by the [`attributes_mut`](Body::attributes_mut) method on a [`Body`].
+pub struct AttributeIterMut<'a> {
+    inner: IterMut<'a>,
+}
+
+impl<'a> Iterator for AttributeIterMut<'a> {
+    type Item = &'a mut Attribute;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for structure in &mut self.inner {
+            if let Structure::Attribute(attr) = structure {
+                return Some(attr);
+            }
+        }
+
+        None
+    }
+}
+
+/// Immutable `Block` iterator.
+///
+/// This struct is created by the [`blocks`](Body::blocks) method on a [`Body`].
+pub struct BlockIter<'a> {
+    inner: Iter<'a>,
+}
+
+impl<'a> Iterator for BlockIter<'a> {
+    type Item = &'a Block;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for structure in &mut self.inner {
+            if let Structure::Block(block) = structure {
+                return Some(block);
+            }
+        }
+
+        None
+    }
+}
+
+/// Mutable `Block` iterator.
+///
+/// This struct is created by the [`blocks_mut`](Body::blocks_mut) method on a [`Body`].
+pub struct BlockIterMut<'a> {
+    inner: IterMut<'a>,
+}
+
+impl<'a> Iterator for BlockIterMut<'a> {
+    type Item = &'a mut Block;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for structure in &mut self.inner {
+            if let Structure::Block(block) = structure {
+                return Some(block);
+            }
+        }
+
+        None
     }
 }
 
