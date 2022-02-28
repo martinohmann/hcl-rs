@@ -4,6 +4,7 @@ use pest::{error::LineColLocation, Span};
 use serde::{de, ser};
 use std::fmt::{self, Display};
 use std::io;
+use std::str::Utf8Error;
 
 /// The result type used by this crate.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -22,6 +23,9 @@ pub enum Error {
 
     /// Represents the error emitted when the `Deserializer` hits an unexpected end of input.
     Eof,
+
+    /// Represents an error that resulted from invalid UTF8 input.
+    Utf8(Utf8Error),
 
     /// Represents generic IO errors.
     Io(io::Error),
@@ -59,6 +63,7 @@ impl Display for Error {
         match self {
             Error::Eof => write!(f, "unexpected end of input"),
             Error::Io(err) => Display::fmt(err, f),
+            Error::Utf8(err) => Display::fmt(err, f),
             Error::Message { msg, location } => match location {
                 Some(loc) => {
                     write!(f, "{} in line {}, col {}", msg, loc.line, loc.col)
@@ -72,6 +77,12 @@ impl Display for Error {
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
         Error::Io(err)
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(err: Utf8Error) -> Self {
+        Error::Utf8(err)
     }
 }
 

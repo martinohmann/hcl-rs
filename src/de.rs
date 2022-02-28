@@ -81,6 +81,10 @@ impl Deserializer {
 /// #   Ok(())
 /// # }
 /// ```
+///
+/// ## Errors
+///
+/// This functions fails with an error if the data does not match the structure of `T`.
 pub fn from_str<'de, T>(s: &'de str) -> Result<T>
 where
     T: Deserialize<'de>,
@@ -133,6 +137,11 @@ where
 /// #   Ok(())
 /// # }
 /// ```
+///
+/// ## Errors
+///
+/// This functions fails with an error if reading from the reader fails or if the data does not
+/// match the structure of `T`.
 pub fn from_reader<T, R>(mut reader: R) -> Result<T>
 where
     T: DeserializeOwned,
@@ -142,6 +151,20 @@ where
     reader.read_to_string(&mut s)?;
 
     from_str(&s)
+}
+
+/// Deserialize an instance of type `T` from a byte slice.
+///
+/// ## Errors
+///
+/// This functions fails with an error if `buf` does not contain valid UTF-8 or if the data does
+/// not match the structure of `T`.
+pub fn from_slice<'de, T>(buf: &'de [u8]) -> Result<T>
+where
+    T: Deserialize<'de>,
+{
+    let s = std::str::from_utf8(buf)?;
+    from_str(s)
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer {
