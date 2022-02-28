@@ -2,6 +2,8 @@
 
 use super::{Attribute, Block, IntoNodeMap, Structure};
 use crate::Value;
+use std::slice::{Iter, IterMut};
+use std::vec::IntoIter;
 
 /// Represents an HCL config file body.
 ///
@@ -18,6 +20,17 @@ impl Body {
     /// Creates a new [`BodyBuilder`] to start building a new `Body`.
     pub fn builder() -> BodyBuilder {
         BodyBuilder::default()
+    }
+
+    /// Returns an iterator over all [`Structure`]s of the `Body`.
+    pub fn iter(&self) -> Iter<'_, Structure> {
+        self.0.iter()
+    }
+
+    /// Returns an iterator over all [`Structure`]s of the `Body` that allows modifying the
+    /// structures.
+    pub fn iter_mut(&mut self) -> IterMut<'_, Structure> {
+        self.0.iter_mut()
     }
 }
 
@@ -42,7 +55,7 @@ where
 impl IntoIterator for Body {
     type Item = Structure;
 
-    type IntoIter = std::vec::IntoIter<Self::Item>;
+    type IntoIter = IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
