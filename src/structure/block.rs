@@ -48,6 +48,21 @@ impl Block {
     {
         BlockBuilder::new(identifier)
     }
+
+    /// Returns a reference to the block's identifier.
+    pub fn identifier(&self) -> &str {
+        &self.identifier
+    }
+
+    /// Returns a reference to the block's labels.
+    pub fn labels(&self) -> &[BlockLabel] {
+        &self.labels
+    }
+
+    /// Returns a reference to the block's body.
+    pub fn body(&self) -> &Body {
+        &self.body
+    }
 }
 
 impl From<Block> for Value {
