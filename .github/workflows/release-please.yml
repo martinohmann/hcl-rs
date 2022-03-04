@@ -13,4 +13,4 @@ jobs:
         with:
           release-type: rust
           bump-minor-pre-major: true
-          package-name: release-please-action
+          package-name: hcl-rs
