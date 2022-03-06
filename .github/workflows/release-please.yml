@@ -1,6 +1,12 @@
 ---
 name: release-please
 on:
+  workflow_dispatch:
+    inputs:
+      force-publish:
+        required: true
+        type: boolean
+        description: Publish artifacts even if no new release was created.
   push:
     branches:
       - main
@@ -21,7 +27,7 @@ jobs:
 
   publish-crate:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.release_created || github.event.inputs.force-publish }}
     runs-on: ubuntu-latest
     steps:
       - name: Install Rust
