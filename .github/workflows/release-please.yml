@@ -30,6 +30,9 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created || github.event.inputs.force-publish }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
