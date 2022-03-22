@@ -1,0 +1,8 @@
+{
+  "template": {
+    "source": "  This is valid"
+  },
+  "heredoc": {
+    "data": "  data = <<-EOF # This is valid"
+  }
+}
