@@ -50,9 +50,9 @@ ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 
 // Heredoc
 Heredoc = ${
-    ("<<-" | "<<") ~ PUSH(Identifier) ~ WHITESPACE+ ~
-    Template ~ WHITESPACE+ ~
-    POP
+    ("<<-" | "<<") ~ PUSH(Identifier) ~ NEWLINE ~
+    Template ~ 
+    WHITESPACE+ ~ POP
 }
 
 // Templates
@@ -63,7 +63,7 @@ Heredoc = ${
 //
 // Template           =  { TemplateInterpolation | TemplateDirective | TemplateLiteral }
 Template              =  { TemplateLiteral }
-TemplateLiteral       = _{ (ANY~ !PEEK)* }
+TemplateLiteral       = _{ (!(NEWLINE ~ WHITESPACE* ~ PEEK) ~ ANY)* }
 TemplateDirective     = _{ TemplateIf | TemplateFor }
 TemplateInterpolation = !{ ("${" | "${~") ~ ("\"" | Expression) ~ ("}" | "~}") }
 
