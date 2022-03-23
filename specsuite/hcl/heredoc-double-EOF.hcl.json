@@ -1,5 +1,5 @@
 {
   "heredoc": {
-    "data": "data = <<-EOF # This is valid"
+    "data": "data = <<EOF # This is actually valid"
   }
 }
