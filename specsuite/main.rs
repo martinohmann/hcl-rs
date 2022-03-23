@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     println!("ok");
                 } else {
                     failures += 1;
-                    println!("error\n{:?}\n{:?}", json, value);
+                    println!("error\nFound: {:?}\nExpect: {:?}", json, value);
                 }
             }
             Err(hcl::Error::Message { msg, location: _ }) => {
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     println!("ok");
                 } else {
                     failures += 1;
-                    println!("error\nHCL: {:?}\nJSN: {:?}", value, json);
+                    println!("error\nFound: {:?}\nExpect: {:?}", value, json);
                 }
             }
             Err(msg) => {
