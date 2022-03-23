@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("running {} tests", tests.len());
     for test in tests {
-        print!("test {} ... ", test.to_str().expect("Invalid path"));
+        print!("test {} - ", test.to_str().expect("Invalid path"));
 
         let json = test.with_extension("hcl.json");
         print!("{} ... ", json.to_str().expect("Invalid path"));
@@ -53,41 +53,52 @@ fn main() -> Result<(), Box<dyn Error>> {
             Ok(value) => {
                 if json.is_none() {
                     ignored += 1;
-                    println!("ignored\n{}", serde_json::to_string_pretty(&value)?);
+                    println!("\x1b[33mignored\x1b[0m\n{}", serde_json::to_string_pretty(&value)?);
                 } else if json.as_ref() == Some(&value) {
                     successes += 1;
-                    println!("ok");
+                    println!("\x1b[32mok\x1b[0m");
                 } else {
                     failures += 1;
-                    println!("error\nFound: {:?}\nExpect: {:?}", json, value);
+                    println!("\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}", json, value);
                 }
             }
             Err(hcl::Error::Message { msg, location: _ }) => {
                 let value = Some(json!({ "Message": msg }));
                 if json.is_none() {
                     ignored += 1;
-                    println!("ignored\n{}", serde_json::to_string_pretty(&value)?);
+                    println!("\x1b[33mignored\x1b[0m\n{}", serde_json::to_string_pretty(&value)?);
                 } else if json == value {
                     successes += 1;
-                    println!("ok");
+                    println!("\x1b[32mok\x1b[0m");
                 } else {
                     failures += 1;
-                    println!("error\nFound: {:?}\nExpect: {:?}", value, json);
+                    println!("\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}", value, json);
                 }
             }
             Err(msg) => {
                 failures += 1;
-                println!("error\n{:?}", msg);
+                println!("\x1b[31mfail\x1b[0m\n{:?}", msg);
             }
         };
     }
 
+    let status = if failures == 0 {
+        "\x1b[32mok\x1b[0m"
+    } else {
+        "\x1b[31mfailed\x1b[0m"
+    };
     println!(
-        "\ntest result: ok. {} passed; {} failed; {} ignored; finished in {:.2}s\n",
+        "\ntest result: {}. {} passed; {} failed; {} ignored; finished in {:.2}s\n",
+        status,
         successes,
         failures,
         ignored,
         timer.elapsed().as_secs_f64()
     );
-    Ok(())
+
+    if failures == 0 {
+        std::process::exit(0);
+    } else {
+        std::process::exit(1);
+    }
 }
