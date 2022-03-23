@@ -53,26 +53,38 @@ fn main() -> Result<(), Box<dyn Error>> {
             Ok(value) => {
                 if json.is_none() {
                     ignored += 1;
-                    println!("\x1b[33mignored\x1b[0m\n{}", serde_json::to_string_pretty(&value)?);
+                    println!(
+                        "\x1b[33mignored\x1b[0m\n{}",
+                        serde_json::to_string_pretty(&value)?
+                    );
                 } else if json.as_ref() == Some(&value) {
                     successes += 1;
                     println!("\x1b[32mok\x1b[0m");
                 } else {
                     failures += 1;
-                    println!("\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}", json, value);
+                    println!(
+                        "\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}",
+                        json, value
+                    );
                 }
             }
             Err(hcl::Error::Message { msg, location: _ }) => {
                 let value = Some(json!({ "Message": msg }));
                 if json.is_none() {
                     ignored += 1;
-                    println!("\x1b[33mignored\x1b[0m\n{}", serde_json::to_string_pretty(&value)?);
+                    println!(
+                        "\x1b[33mignored\x1b[0m\n{}",
+                        serde_json::to_string_pretty(&value)?
+                    );
                 } else if json == value {
                     successes += 1;
                     println!("\x1b[32mok\x1b[0m");
                 } else {
                     failures += 1;
-                    println!("\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}", value, json);
+                    println!(
+                        "\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}",
+                        value, json
+                    );
                 }
             }
             Err(msg) => {
