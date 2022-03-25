@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/martinohmann/hcl-rs/compare/v0.2.1...v0.3.0) (2022-03-25)
+
+
+### Features
+
+* add specsuite integration harness ([#9](https://github.com/martinohmann/hcl-rs/issues/9)) ([71e1205](https://github.com/martinohmann/hcl-rs/commit/71e1205836e17b469b106dc4af1d1fa7f47589b2))
+
 ### [0.2.1](https://github.com/martinohmann/hcl-rs/compare/v0.2.0...v0.2.1) (2022-03-23)
 
 
