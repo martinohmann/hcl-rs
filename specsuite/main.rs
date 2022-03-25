@@ -2,7 +2,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::error::Error;
 use std::ffi::OsStr;
+use std::fmt;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -14,7 +16,23 @@ struct Test {
     body: Value,
 }
 
-fn find_tests<P: AsRef<Path>>(root: P) -> Result<Vec<PathBuf>, std::io::Error> {
+enum Status {
+    Ok,
+    Failed,
+    Ignored,
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Status::Ok => f.write_str("\x1b[32mok\x1b[0m"),
+            Status::Failed => f.write_str("\x1b[31mFAILED\x1b[0m"),
+            Status::Ignored => f.write_str("\x1b[33mignored\x1b[0m"),
+        }
+    }
+}
+
+fn find_tests<P: AsRef<Path>>(root: P) -> Result<Vec<PathBuf>, io::Error> {
     let mut tests = Vec::new();
 
     let root = root.as_ref();
@@ -43,78 +61,84 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut tests = find_tests("specsuite/")?;
     tests.sort();
 
-    println!("running {} tests", tests.len());
-    for test_file in tests {
-        print!("test {} - ", test_file.to_str().expect("Invalid path"));
+    println!("\nrunning {} tests", tests.len());
 
+    for test_file in tests {
         let json_file = test_file.with_extension("hcl.json");
-        print!("{} ... ", json_file.to_str().expect("Invalid path"));
-        let test = std::fs::read_to_string(json_file)
+
+        print!(
+            "test {} - {} ... ",
+            test_file.to_string_lossy(),
+            json_file.to_string_lossy()
+        );
+
+        let expected = fs::read_to_string(json_file)
             .ok()
             .and_then(|data| serde_json::from_str::<Test>(&data).ok());
 
-        let hcl_content = std::fs::read_to_string(test_file)?;
+        let hcl_content = fs::read_to_string(test_file)?;
 
-        let result = match hcl::from_str::<Value>(&hcl_content) {
-            Ok(value) => Some(value),
-            Err(hcl::Error::Message { msg, location: _ }) => Some(json!({ "message": msg })),
-            Err(err) => Some(json!({ "message": format!("{:#?}", err) })),
+        let result = match hcl::from_str(&hcl_content) {
+            Ok(value) => value,
+            Err(hcl::Error::Message { msg, .. }) => json!({ "message": msg }),
+            Err(err) => json!({ "message": format!("{:#?}", err) }),
         };
 
-        let (status, msg) = if test.is_none() {
-            let dump = Test {
-                ignore: false,
-                message: "Auto-generated test. Verify for accuracy.".to_string(),
-                body: result.unwrap(),
-            };
-            ("ignore", serde_json::to_string_pretty(&dump)?)
-        } else {
-            let test = test.unwrap();
-            let result = result.unwrap();
-            if test.body == result {
-                if test.ignore {
-                    ("fail", "Ignored test is now passing".to_string())
+        let (status, msg) = match expected {
+            Some(expected) => {
+                if expected.body == result {
+                    if expected.ignore {
+                        (Status::Failed, "Ignored test is now passing".to_string())
+                    } else {
+                        (Status::Ok, String::new())
+                    }
                 } else {
-                    ("ok", "success".to_string())
-                }
-            } else {
-                let status = if test.ignore { "ignore" } else { "fail" };
-                (
-                    status,
-                    format!(
+                    let msg = format!(
                         "Comment: {}\nFound:\n{}\nExpected:\n{}",
-                        test.message,
+                        expected.message,
                         serde_json::to_string_pretty(&result)?,
-                        serde_json::to_string_pretty(&test.body)?
-                    ),
-                )
+                        serde_json::to_string_pretty(&expected.body)?
+                    );
+
+                    if expected.ignore {
+                        (Status::Ignored, msg)
+                    } else {
+                        (Status::Failed, msg)
+                    }
+                }
+            }
+            None => {
+                let dump = Test {
+                    ignore: false,
+                    message: "Auto-generated test. Verify for accuracy.".to_string(),
+                    body: result,
+                };
+                (Status::Ignored, serde_json::to_string_pretty(&dump)?)
             }
         };
 
         match status {
-            "ok" => {
+            Status::Ok => {
                 successes += 1;
-                println!("\x1b[32mok\x1b[0m");
+                println!("{}", status);
             }
-            "fail" => {
+            Status::Failed => {
                 failures += 1;
-                println!("\x1b[31mfail\x1b[0m\n{}", msg);
+                println!("{}\n{}", status, msg);
             }
-            "ignore" => {
+            Status::Ignored => {
                 ignored += 1;
-                println!("\x1b[33mignored\x1b[0m\n{}", msg);
-            }
-            _ => {
-                unreachable!("Status must be ok, fail, or ignore");
+                println!("{}\n{}", status, msg);
             }
         }
     }
 
-    let status = if failures == 0 {
-        "\x1b[32mok\x1b[0m"
+    let (code, status) = if failures == 0 {
+        (0, Status::Ok)
     } else {
-        "\x1b[31mfailed\x1b[0m"
+        (1, Status::Failed)
     };
+
     println!(
         "\ntest result: {}. {} passed; {} failed; {} ignored; finished in {:.2}s\n",
         status,
@@ -124,9 +148,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         timer.elapsed().as_secs_f64()
     );
 
-    if failures == 0 {
-        std::process::exit(0);
-    } else {
-        std::process::exit(1);
-    }
+    std::process::exit(code);
 }
