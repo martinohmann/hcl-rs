@@ -111,7 +111,7 @@ fn parse_value(pair: Pair<Rule>) -> Value {
     match pair.as_rule() {
         Rule::BooleanLit => Value::Bool(parse_primitive(pair)),
         Rule::Float => Value::Number(parse_primitive::<f64>(pair).into()),
-        Rule::Heredoc => Value::String(parse_string(pair.into_inner().nth(1).unwrap())),
+        Rule::Heredoc => Value::String(parse_heredoc(pair)),
         Rule::Identifier => Value::String(parse_string(pair)),
         Rule::Int => Value::Number(parse_primitive::<i64>(pair).into()),
         Rule::NullLit => Value::Null,
@@ -161,6 +161,18 @@ fn parse_expression(pair: Pair<Rule>) -> String {
     s.push_str(expr);
     s.push('}');
     s
+}
+
+fn parse_heredoc(pair: Pair<Rule>) -> String {
+    let mut pairs = pair.into_inner();
+    let intro = pairs.next().unwrap();
+    let content = pairs.nth(1).unwrap();
+
+    match intro.as_rule() {
+        Rule::HeredocIntroNormal => parse_string(content),
+        Rule::HeredocIntroIndent => textwrap::dedent(content.as_str()),
+        rule => unexpected_rule(rule),
+    }
 }
 
 #[track_caller]
@@ -416,6 +428,7 @@ resource "aws_s3_bucket" "mybucket" {
             rule: Rule::ExprTerm,
             tokens: [
                 Heredoc(0, 54, [
+                    HeredocIntroNormal(0, 2),
                     Identifier(2, 9),
                     Template(10, 46)
                 ])
