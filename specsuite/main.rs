@@ -82,7 +82,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 (
                     status,
                     format!(
-                        "Found:\n{}\nExpected:\n{}",
+                        "Comment: {}\nFound:\n{}\nExpected:\n{}",
+                        test.message,
                         serde_json::to_string_pretty(&result)?,
                         serde_json::to_string_pretty(&test.body)?
                     ),

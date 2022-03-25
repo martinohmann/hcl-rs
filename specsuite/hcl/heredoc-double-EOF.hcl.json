@@ -1,5 +1,4 @@
 {
-  "status": "ok",
   "message": "Double EOF are valid, as long as only the final is preceded by a newline and whitespace.",
   "body": {
     "heredoc": {
