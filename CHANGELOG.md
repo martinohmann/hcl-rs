@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.3.1](https://github.com/martinohmann/hcl-rs/compare/v0.3.0...v0.3.1) (2022-03-25)
+
+
+### Bug Fixes
+
+* strip indent from `<<-` heredocs as defined in the HCL spec ([#11](https://github.com/martinohmann/hcl-rs/issues/11)) ([61a0ea9](https://github.com/martinohmann/hcl-rs/commit/61a0ea9f6ebdc3353e4221b21d632a5c84cef7a0))
+
 ## [0.3.0](https://github.com/martinohmann/hcl-rs/compare/v0.2.1...v0.3.0) (2022-03-25)
 
 
