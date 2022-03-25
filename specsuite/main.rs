@@ -79,7 +79,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             } else {
                 let status = if test.ignore { "ignore" } else { "fail" };
-                (status, format!("Found:\n{}\nExpected:\n{}",  serde_json::to_string_pretty(&result)?, serde_json::to_string_pretty(&test.body)?))
+                (
+                    status,
+                    format!(
+                        "Found:\n{}\nExpected:\n{}",
+                        serde_json::to_string_pretty(&result)?,
+                        serde_json::to_string_pretty(&test.body)?
+                    ),
+                )
             }
         };
 
