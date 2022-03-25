@@ -548,54 +548,6 @@ mod test {
     }
 
     #[test]
-    fn test_terraform() {
-        let hcl = std::fs::read_to_string("fixtures/test.tf").unwrap();
-        let value: Value = from_str(&hcl).unwrap();
-        let expected = json!({
-            "resource": {
-                "aws_eks_cluster": {
-                    "this": {
-                        "count": "${var.create_eks ? 1 : 0}",
-                        "name": "${var.cluster_name}",
-                        "enabled_cluster_log_types": "${var.cluster_enabled_log_types}",
-                        "role_arn": "${local.cluster_iam_role_arn}",
-                        "version": "${var.cluster_version}",
-                        "vpc_config": {
-                            "security_group_ids": "${compact([local.cluster_security_group_id])}",
-                            "subnet_ids": "${var.subnets}"
-                        },
-                        "kubernetes_network_config": {
-                            "service_ipv4_cidr": "${var.cluster_service_ipv4_cidr}"
-                        },
-                        "dynamic": {
-                            "encryption_config": {
-                                "for_each": "${toset(var.cluster_encryption_config)}",
-                                "content": {
-                                    "provider": {
-                                        "key_arn": "${encryption_config.value[\"provider_key_arn\"]}"
-                                    },
-                                    "resources": "${encryption_config.value[\"resources\"]}"
-                                }
-                            }
-                        },
-                        "tags": "${merge(\n    var.tags,\n    var.cluster_tags,\n  )}",
-                        "depends_on": ["${aws_cloudwatch_log_group.this}"]
-                    }
-                },
-                "aws_s3_bucket": {
-                    "mybucket": {
-                        "name": "mybucket"
-                    },
-                    "otherbucket": {
-                        "name": "otherbucket"
-                    }
-                }
-            }
-        });
-        assert_eq!(expected, value);
-    }
-
-    #[test]
     fn test_invalid_hcl() {
         let h = r#"invalid["#;
         assert!(from_str::<Value>(h).is_err());
