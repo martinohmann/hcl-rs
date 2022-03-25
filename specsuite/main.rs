@@ -1,9 +1,18 @@
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
+
+#[derive(Serialize, Deserialize)]
+struct Test {
+    #[serde(default)]
+    ignore: bool,
+    message: String,
+    body: Value,
+}
 
 fn find_tests<P: AsRef<Path>>(root: P) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut tests = Vec::new();
@@ -35,63 +44,62 @@ fn main() -> Result<(), Box<dyn Error>> {
     tests.sort();
 
     println!("running {} tests", tests.len());
-    for test in tests {
-        print!("test {} - ", test.to_str().expect("Invalid path"));
+    for test_file in tests {
+        print!("test {} - ", test_file.to_str().expect("Invalid path"));
 
-        let json = test.with_extension("hcl.json");
-        print!("{} ... ", json.to_str().expect("Invalid path"));
-        let json = if json.is_file() {
-            let data = std::fs::read_to_string(json)?;
-            let value: Value = serde_json::from_str(&data)?;
-            Some(value)
+        let json_file = test_file.with_extension("hcl.json");
+        print!("{} ... ", json_file.to_str().expect("Invalid path"));
+        let test = std::fs::read_to_string(json_file)
+            .ok()
+            .and_then(|data| serde_json::from_str::<Test>(&data).ok());
+
+        let hcl_content = std::fs::read_to_string(test_file)?;
+
+        let result = match hcl::from_str::<Value>(&hcl_content) {
+            Ok(value) => Some(value),
+            Err(hcl::Error::Message { msg, location: _ }) => Some(json!({ "message": msg })),
+            Err(err) => Some(json!({ "message": format!("{:#?}", err) })),
+        };
+
+        let (status, msg) = if test.is_none() {
+            let dump = Test {
+                ignore: false,
+                message: "Auto-generated test. Verify for accuracy.".to_string(),
+                body: result.unwrap(),
+            };
+            ("ignore", serde_json::to_string_pretty(&dump)?)
         } else {
-            None
+            let test = test.unwrap();
+            let result = result.unwrap();
+            if test.body == result {
+                if test.ignore {
+                    ("fail", "Ignored test is now passing".to_string())
+                } else {
+                    ("ok", "success".to_string())
+                }
+            } else {
+                let status = if test.ignore { "ignore" } else { "fail" };
+                (status, format!("Found:\n{}\nExpected:\n{}",  serde_json::to_string_pretty(&result)?, serde_json::to_string_pretty(&test.body)?))
+            }
         };
 
-        let contents = std::fs::read_to_string(test)?;
-        match hcl::from_str::<Value>(&contents) {
-            Ok(value) => {
-                if json.is_none() {
-                    ignored += 1;
-                    println!(
-                        "\x1b[33mignored\x1b[0m\n{}",
-                        serde_json::to_string_pretty(&value)?
-                    );
-                } else if json.as_ref() == Some(&value) {
-                    successes += 1;
-                    println!("\x1b[32mok\x1b[0m");
-                } else {
-                    failures += 1;
-                    println!(
-                        "\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}",
-                        json, value
-                    );
-                }
+        match status {
+            "ok" => {
+                successes += 1;
+                println!("\x1b[32mok\x1b[0m");
             }
-            Err(hcl::Error::Message { msg, location: _ }) => {
-                let value = Some(json!({ "Message": msg }));
-                if json.is_none() {
-                    ignored += 1;
-                    println!(
-                        "\x1b[33mignored\x1b[0m\n{}",
-                        serde_json::to_string_pretty(&value)?
-                    );
-                } else if json == value {
-                    successes += 1;
-                    println!("\x1b[32mok\x1b[0m");
-                } else {
-                    failures += 1;
-                    println!(
-                        "\x1b[31mfail\x1b[0m\nFound: {:?}\nExpect: {:?}",
-                        value, json
-                    );
-                }
-            }
-            Err(msg) => {
+            "fail" => {
                 failures += 1;
-                println!("\x1b[31mfail\x1b[0m\n{:?}", msg);
+                println!("\x1b[31mfail\x1b[0m\n{}", msg);
             }
-        };
+            "ignore" => {
+                ignored += 1;
+                println!("\x1b[33mignored\x1b[0m\n{}", msg);
+            }
+            _ => {
+                unreachable!("Status must be ok, fail, or ignore");
+            }
+        }
     }
 
     let status = if failures == 0 {

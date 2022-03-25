@@ -1,0 +1,9 @@
+{
+  "ignore": true,
+  "message": "Auto-generated test. Verify for accuracy.",
+  "body": {
+    "heredoc": {
+      "data": "Indent was stripped.\n  And it was the correct amount."
+    }
+  }
+}

@@ -1,5 +1,6 @@
-template {
-  source = <<-EOF
-  heredoc's <<- requires stripping indent, feature not present
+heredoc {
+  data = <<-EOF
+  Indent was stripped.
+    And it was the correct amount.
   EOF
 }

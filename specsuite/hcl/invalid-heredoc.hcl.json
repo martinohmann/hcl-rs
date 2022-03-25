@@ -1,3 +1,6 @@
 {
-  "Message": " --> 2:12\n  |\n2 |   source = <<-EOF # This is invalid␊\n  |            ^---\n  |\n  = expected BooleanLit, NullLit, Float, Int, Tuple, Object, Heredoc, StringLit, FunctionCall, ForExpr, VariableExpr, Operation, or CondExpr"
+  "message": "Auto-generated test. Verify for accuracy.",
+  "body": {
+    "message": " --> 2:12\n  |\n2 |   source = <<-EOF # This is invalid␊\n  |            ^---\n  |\n  = expected BooleanLit, NullLit, Float, Int, Tuple, Object, Heredoc, StringLit, FunctionCall, ForExpr, VariableExpr, Operation, or CondExpr"
+  }
 }

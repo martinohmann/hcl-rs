@@ -1,5 +1,9 @@
 {
-  "heredoc": {
-    "data": "data = <<EOF # This is actually valid"
+  "status": "ok",
+  "message": "Auto-generated result. Verify for accuracy.",
+  "body": {
+    "heredoc": {
+      "data": "data = <<EOF # This is actually valid"
+    }
   }
 }
