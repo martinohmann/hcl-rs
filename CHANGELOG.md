@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.3.3](https://github.com/martinohmann/hcl-rs/compare/v0.3.2...v0.3.3) (2022-03-26)
+
+
+### Bug Fixes
+
+* correctly handle non-space indent in heredocs ([#15](https://github.com/martinohmann/hcl-rs/issues/15)) ([cc8a043](https://github.com/martinohmann/hcl-rs/commit/cc8a043ae0bfc0f522e1a427fe1984c1e9e519ab))
+
 ### [0.3.2](https://github.com/martinohmann/hcl-rs/compare/v0.3.1...v0.3.2) (2022-03-26)
 
 
