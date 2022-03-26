@@ -430,7 +430,7 @@ resource "aws_s3_bucket" "mybucket" {
                 Heredoc(0, 54, [
                     HeredocIntroNormal(0, 2),
                     Identifier(2, 9),
-                    Template(10, 46)
+                    HeredocContent(10, 47)
                 ])
             ]
         };

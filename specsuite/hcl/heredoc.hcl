@@ -25,13 +25,17 @@ EOT
 
   newlines_between = <<EOT
 Foo
+
 Bar
+
 Baz
 EOT
 
   indented_newlines_between = <<EOT
     Foo
+
     Bar
+
     Baz
   EOT
 
@@ -83,27 +87,19 @@ EOT
     Baz
   EOT
 
-  tabs = <<-EOT
-	Foo
-  Bar
-  Baz
-  EOT
-
-  unicode_spaces = <<-EOT
-     Foo (there's two "em spaces" before Foo there)
-    Bar
-    Baz
-  EOT
-
   newlines_between = <<-EOT
 Foo
+
 Bar
+
 Baz
 EOT
 
   indented_newlines_between = <<-EOT
     Foo
+
     Bar
+
     Baz
   EOT
 }

@@ -51,12 +51,13 @@ ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 // Heredoc
 Heredoc = ${
     HeredocIntro ~ PUSH(Identifier) ~ NEWLINE ~
-    Template ~ 
-    WHITESPACE+ ~ POP
+    HeredocContent ~
+    SpaceOrTab* ~ POP
 }
 HeredocIntro       = _{ (HeredocIntroIndent | HeredocIntroNormal) }
 HeredocIntroIndent =  { "<<-" }
 HeredocIntroNormal =  { "<<" }
+HeredocContent     = @{ Template ~ NEWLINE }
 
 // Templates
 //
@@ -66,7 +67,7 @@ HeredocIntroNormal =  { "<<" }
 //
 // Template           =  { TemplateInterpolation | TemplateDirective | TemplateLiteral }
 Template              =  { TemplateLiteral }
-TemplateLiteral       = _{ (!(NEWLINE ~ WHITESPACE* ~ PEEK) ~ ANY)* }
+TemplateLiteral       = _{ (!(NEWLINE ~ SpaceOrTab* ~ PEEK) ~ ANY)* }
 TemplateDirective     = _{ TemplateIf | TemplateFor }
 TemplateInterpolation = !{ ("${" | "${~") ~ ("\"" | Expression) ~ ("}" | "~}") }
 
@@ -148,4 +149,5 @@ BlockComment    = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 EoInlineComment = _{ NEWLINE | EOI }
 
 // Whitespace
-WHITESPACE = _{ " " | "\t" | NEWLINE }
+WHITESPACE = _{ SpaceOrTab | NEWLINE }
+SpaceOrTab = _{ " " | "\t" }
