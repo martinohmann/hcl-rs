@@ -1,5 +1,12 @@
 # Changelog
 
+### [0.3.2](https://github.com/martinohmann/hcl-rs/compare/v0.3.1...v0.3.2) (2022-03-26)
+
+
+### Bug Fixes
+
+* heredocs must be newline-terminated ([#13](https://github.com/martinohmann/hcl-rs/issues/13)) ([2c7353e](https://github.com/martinohmann/hcl-rs/commit/2c7353e805d421070c05cc45032248184bd4852c))
+
 ### [0.3.1](https://github.com/martinohmann/hcl-rs/compare/v0.3.0...v0.3.1) (2022-03-25)
 
 
