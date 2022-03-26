@@ -170,9 +170,57 @@ fn parse_heredoc(pair: Pair<Rule>) -> String {
 
     match intro.as_rule() {
         Rule::HeredocIntroNormal => parse_string(content),
-        Rule::HeredocIntroIndent => textwrap::dedent(content.as_str()),
+        Rule::HeredocIntroIndent => dedent_string(content.as_str()),
         rule => unexpected_rule(rule),
     }
+}
+
+// String dedent implementation which does not distinguish between spaces, tabs or unicode
+// whitespace but simply treats all of them as "one unit of whitespace".
+//
+// This is how the original HCL spec seems to handle it based on the original specsuite although it
+// is not formally defined. E.g. ' ' (space) and '\u{2003}' (unicode "em-space") are treated as one
+// unit of whitespace even though the former is 1 byte and the latter is 3 bytes long.
+fn dedent_string(s: &str) -> String {
+    if s.is_empty() {
+        return String::new();
+    }
+
+    let mut leading_ws = usize::MAX;
+    let mut non_empty_lines = 0;
+
+    // Find the minimum number of possible leading units of whitespace that can be be stripped off
+    // of each non-empty line.
+    for line in s.lines().filter(|line| !line.is_empty()) {
+        let line_leading_ws = line.chars().take_while(|ch| ch.is_whitespace()).count();
+
+        if line_leading_ws == 0 {
+            // Fast path: no dedent needed if we encounter a non-empty line which starts with a
+            // non-whitespace character.
+            return s.to_string();
+        }
+
+        leading_ws = leading_ws.min(line_leading_ws);
+        non_empty_lines += 1;
+    }
+
+    // Strip the determined amount of leading whitespace off of each line.
+    let mut dedented = String::with_capacity(s.len() - leading_ws * non_empty_lines);
+
+    for line in s.lines() {
+        if !line.is_empty() {
+            dedented.extend(line.chars().skip(leading_ws));
+        }
+
+        dedented.push('\n');
+    }
+
+    if dedented.ends_with('\n') && !s.ends_with('\n') {
+        let new_len = dedented.len() - 1;
+        dedented.truncate(new_len);
+    }
+
+    dedented
 }
 
 #[track_caller]
