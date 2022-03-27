@@ -101,7 +101,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                             &expected.body,
                             &result,
                             Config::new(CompareMode::Strict)
-                        ).unwrap_err()
+                        )
+                        .unwrap_err()
                     );
 
                     if expected.ignore {
