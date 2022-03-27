@@ -1,3 +1,4 @@
+use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::error::Error;
@@ -94,10 +95,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                 } else {
                     let msg = format!(
-                        "Comment: {}\nFound:\n{}\nExpected:\n{}",
+                        "Comment: {}\n{}",
                         expected.message,
-                        serde_json::to_string_pretty(&result)?,
-                        serde_json::to_string_pretty(&expected.body)?
+                        assert_json_matches_no_panic(
+                            &expected.body,
+                            &result,
+                            Config::new(CompareMode::Strict)
+                        ).unwrap_err()
                     );
 
                     if expected.ignore {
@@ -124,11 +128,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             Status::Failed => {
                 failures += 1;
-                println!("{}\n{}", status, msg);
+                println!("{}\n{}", status, textwrap::indent(&msg, "  "));
             }
             Status::Ignored => {
                 ignored += 1;
-                println!("{}\n{}", status, msg);
+                println!("{}\n{}", status, textwrap::indent(&msg, "  "));
             }
         }
     }
