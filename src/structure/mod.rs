@@ -48,11 +48,13 @@
 pub mod attribute;
 pub mod block;
 pub mod body;
+pub mod expression;
 
 pub use self::{
     attribute::Attribute,
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
+    expression::{Expression, Object, ObjectKey, RawExpression},
 };
 use crate::{Map, Value};
 
@@ -153,7 +155,7 @@ impl IntoNodeMap for Body {
         self.into_iter().fold(Map::new(), |mut map, structure| {
             match structure {
                 Structure::Attribute(attr) => {
-                    map.insert(attr.key, Node::Value(attr.value));
+                    map.insert(attr.key, Node::Value(attr.expr.into()));
                 }
                 Structure::Block(block) => {
                     block

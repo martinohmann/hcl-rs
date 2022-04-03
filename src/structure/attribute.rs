@@ -1,9 +1,9 @@
 //! Types to represent and build HCL attributes.
 
-use crate::Value;
+use super::{Expression, Value};
 use std::iter;
 
-/// Represents an HCL attribute which consists of an attribute key and value.
+/// Represents an HCL attribute which consists of an attribute key and a value expression.
 ///
 /// In HCL syntax this is represented as:
 ///
@@ -12,26 +12,26 @@ use std::iter;
 /// ```
 ///
 /// Use [`Attribute::new`] to construct an [`Attribute`] from a value that is convertible to this
-/// crate's [`Value`] type.
+/// crate's [`Expression`] type.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Attribute {
     /// The HCL attribute's key.
     pub key: String,
-    /// The value of the HCL attribute.
-    pub value: Value,
+    /// The value expression of the HCL attribute.
+    pub expr: Expression,
 }
 
 impl Attribute {
     /// Creates a new `Attribute` from an attribute key that is convertible into a `String` and an
-    /// attribute value that is convertible into a `Value`.
-    pub fn new<K, V>(key: K, value: V) -> Attribute
+    /// attribute value that is convertible into an `Expression`.
+    pub fn new<K, V>(key: K, expr: V) -> Attribute
     where
         K: Into<String>,
-        V: Into<Value>,
+        V: Into<Expression>,
     {
         Attribute {
             key: key.into(),
-            value: value.into(),
+            expr: expr.into(),
         }
     }
 
@@ -40,22 +40,22 @@ impl Attribute {
         &self.key
     }
 
-    /// Returns a reference to the attribute value.
-    pub fn value(&self) -> &Value {
-        &self.value
+    /// Returns a reference to the attribute value expression.
+    pub fn expr(&self) -> &Expression {
+        &self.expr
     }
 }
 
 impl From<Attribute> for Value {
     fn from(attr: Attribute) -> Value {
-        Value::from_iter(iter::once((attr.key, attr.value)))
+        Value::from_iter(iter::once((attr.key, attr.expr)))
     }
 }
 
 impl<K, V> From<(K, V)> for Attribute
 where
     K: Into<String>,
-    V: Into<Value>,
+    V: Into<Expression>,
 {
     fn from(pair: (K, V)) -> Attribute {
         Attribute::new(pair.0.into(), pair.1.into())
