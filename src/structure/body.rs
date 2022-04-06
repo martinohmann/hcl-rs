@@ -302,6 +302,7 @@ impl BodyBuilder {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::RawExpression;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
@@ -326,6 +327,7 @@ mod test {
                 Block::builder("bar")
                     .add_label("baz")
                     .add_attribute(("bar", "baz"))
+                    .add_attribute(("baz", RawExpression::new("var.foo")))
                     .build(),
             )
             .add_attribute(("foo", "baz"))
@@ -339,7 +341,8 @@ mod test {
                         "foo": "bar"
                     },
                     {
-                        "bar": "baz"
+                        "bar": "baz",
+                        "baz": "${var.foo}"
                     }
                 ],
                 "qux": {

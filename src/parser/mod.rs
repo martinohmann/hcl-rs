@@ -1,6 +1,6 @@
 use crate::{
-    structure::{Attribute, Block, BlockLabel, Body, Structure},
-    Map, Result, Value,
+    Attribute, Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression, Result,
+    Structure,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -52,7 +52,6 @@ struct HclParser;
 /// ```
 pub fn parse(input: &str) -> Result<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-
     Ok(parse_body(pair))
 }
 
@@ -73,7 +72,7 @@ fn parse_attribute(pair: Pair<Rule>) -> Attribute {
 
     Attribute {
         key: parse_string(pairs.next().unwrap()),
-        value: parse_value(pairs.next().unwrap()),
+        expr: parse_expression(pairs.next().unwrap()),
     }
 }
 
@@ -107,27 +106,36 @@ fn parse_block_body(pair: Pair<Rule>) -> Body {
     }
 }
 
-fn parse_value(pair: Pair<Rule>) -> Value {
+fn parse_expression(pair: Pair<Rule>) -> Expression {
     match pair.as_rule() {
-        Rule::BooleanLit => Value::Bool(parse_primitive(pair)),
-        Rule::Float => Value::Number(parse_primitive::<f64>(pair).into()),
-        Rule::Heredoc => Value::String(parse_heredoc(pair)),
-        Rule::Identifier => Value::String(parse_string(pair)),
-        Rule::Int => Value::Number(parse_primitive::<i64>(pair).into()),
-        Rule::NullLit => Value::Null,
-        Rule::StringLit => Value::String(parse_string(inner(pair))),
-        Rule::Tuple => Value::Array(parse_array(pair)),
-        Rule::Object => Value::Object(parse_object(pair)),
-        _ => Value::String(parse_expression(pair)),
+        Rule::BooleanLit => Expression::Bool(parse_primitive(pair)),
+        Rule::Float => Expression::Number(parse_primitive::<f64>(pair).into()),
+        Rule::Heredoc => Expression::String(parse_heredoc(pair)),
+        Rule::Int => Expression::Number(parse_primitive::<i64>(pair).into()),
+        Rule::NullLit => Expression::Null,
+        Rule::StringLit => Expression::String(parse_string(inner(pair))),
+        Rule::Tuple => Expression::Tuple(parse_expressions(pair)),
+        Rule::Object => Expression::Object(parse_object(pair)),
+        _ => Expression::Raw(parse_raw_expression(pair)),
     }
 }
 
-fn parse_array(pair: Pair<Rule>) -> Vec<Value> {
-    pair.into_inner().map(parse_value).collect()
+fn parse_expressions(pair: Pair<Rule>) -> Vec<Expression> {
+    pair.into_inner().map(parse_expression).collect()
 }
 
-fn parse_object(pair: Pair<Rule>) -> Map<String, Value> {
-    KeyValueIter::new(pair).collect()
+fn parse_object(pair: Pair<Rule>) -> Object<ObjectKey, Expression> {
+    ObjectIter::new(pair)
+        .map(|(k, v)| (parse_object_key(k), parse_expression(v)))
+        .collect()
+}
+
+fn parse_object_key(pair: Pair<Rule>) -> ObjectKey {
+    match pair.as_rule() {
+        Rule::Identifier => ObjectKey::Identifier(parse_string(pair)),
+        Rule::StringLit => ObjectKey::String(parse_string(inner(pair))),
+        _ => ObjectKey::RawExpression(parse_raw_expression(pair)),
+    }
 }
 
 fn parse_primitive<F>(pair: Pair<Rule>) -> F
@@ -142,25 +150,12 @@ fn inner(pair: Pair<Rule>) -> Pair<Rule> {
     pair.into_inner().next().unwrap()
 }
 
-fn parse_map_key(pair: Pair<Rule>) -> String {
-    match pair.as_rule() {
-        Rule::Identifier => parse_string(pair),
-        Rule::StringLit => parse_string(inner(pair)),
-        _ => parse_expression(pair),
-    }
-}
-
 fn parse_string(pair: Pair<Rule>) -> String {
     pair.as_str().to_owned()
 }
 
-fn parse_expression(pair: Pair<Rule>) -> String {
-    let expr = pair.as_str();
-    let mut s = String::with_capacity(expr.len() + 3);
-    s.push_str("${");
-    s.push_str(expr);
-    s.push('}');
-    s
+fn parse_raw_expression(pair: Pair<Rule>) -> RawExpression {
+    pair.as_str().into()
 }
 
 fn parse_heredoc(pair: Pair<Rule>) -> String {
@@ -228,24 +223,24 @@ fn unexpected_rule(rule: Rule) -> ! {
     panic!("unexpected rule: {:?}", rule)
 }
 
-struct KeyValueIter<'a> {
+struct ObjectIter<'a> {
     inner: Pairs<'a, Rule>,
 }
 
-impl<'a> KeyValueIter<'a> {
+impl<'a> ObjectIter<'a> {
     fn new(pair: Pair<'a, Rule>) -> Self {
-        KeyValueIter {
+        ObjectIter {
             inner: pair.into_inner(),
         }
     }
 }
 
-impl<'a> Iterator for KeyValueIter<'a> {
-    type Item = (String, Value);
+impl<'a> Iterator for ObjectIter<'a> {
+    type Item = (Pair<'a, Rule>, Pair<'a, Rule>);
 
     fn next(&mut self) -> Option<Self::Item> {
         match (self.inner.next(), self.inner.next()) {
-            (Some(k), Some(v)) => Some((parse_map_key(k), parse_value(v))),
+            (Some(k), Some(v)) => Some((k, v)),
             (Some(k), None) => panic!("missing value for key: {}", k),
             (_, _) => None,
         }
@@ -654,7 +649,7 @@ providers = {
                                         Block::builder("apply_server_side_encryption_by_default")
                                             .add_attribute(Attribute::new(
                                                 "kms_master_key_id",
-                                                "${aws_kms_key.mykey.arn}",
+                                                RawExpression::new("aws_kms_key.mykey.arn"),
                                             ))
                                             .add_attribute(Attribute::new(
                                                 "sse_algorithm",

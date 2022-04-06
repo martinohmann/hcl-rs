@@ -13,5 +13,8 @@ pub use de::{from_reader, from_slice, from_str};
 pub use error::{Error, Result};
 pub use number::Number;
 pub use parser::parse;
-pub use structure::{Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Structure};
+pub use structure::{
+    Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Expression, Object, ObjectKey,
+    RawExpression, Structure,
+};
 pub use value::{Map, Value};
