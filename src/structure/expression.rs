@@ -20,8 +20,8 @@ pub enum Expression {
     Number(Number),
     /// Represents a string.
     String(String),
-    /// Represents a tuple (list/array).
-    Tuple(Vec<Expression>),
+    /// Represents array.
+    Array(Vec<Expression>),
     /// Represents an object.
     Object(Object<ObjectKey, Expression>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
@@ -36,7 +36,7 @@ impl From<Expression> for Value {
             Expression::Bool(b) => Value::Bool(b),
             Expression::Number(n) => Value::Number(n),
             Expression::String(s) => Value::String(s),
-            Expression::Tuple(tuple) => tuple.into_iter().collect(),
+            Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::Raw(raw) => Value::String(raw.into()),
         }
@@ -115,19 +115,19 @@ impl From<Object<ObjectKey, Expression>> for Expression {
 
 impl<T: Into<Expression>> From<Vec<T>> for Expression {
     fn from(f: Vec<T>) -> Self {
-        Expression::Tuple(f.into_iter().map(Into::into).collect())
+        Expression::Array(f.into_iter().map(Into::into).collect())
     }
 }
 
 impl<'a, T: Clone + Into<Expression>> From<&'a [T]> for Expression {
     fn from(f: &'a [T]) -> Self {
-        Expression::Tuple(f.iter().cloned().map(Into::into).collect())
+        Expression::Array(f.iter().cloned().map(Into::into).collect())
     }
 }
 
 impl<T: Into<Expression>> FromIterator<T> for Expression {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Expression::Tuple(iter.into_iter().map(Into::into).collect())
+        Expression::Array(iter.into_iter().map(Into::into).collect())
     }
 }
 
@@ -201,7 +201,7 @@ impl Display for ObjectKey {
 
 /// A type that holds the value of a raw expression.
 ///
-/// As of now, anthing that is not a null value, a boolean, number, string, tuple or object is
+/// As of now, anthing that is not a null value, a boolean, number, string, array or object is
 /// treated as raw expression and is not further parsed. This includes conditionals, operations,
 /// function calls, for expressions and variable expressions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

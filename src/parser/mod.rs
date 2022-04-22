@@ -114,7 +114,7 @@ fn parse_expression(pair: Pair<Rule>) -> Expression {
         Rule::Int => Expression::Number(parse_primitive::<i64>(pair).into()),
         Rule::NullLit => Expression::Null,
         Rule::StringLit => Expression::String(parse_string(inner(pair))),
-        Rule::Tuple => Expression::Tuple(parse_expressions(pair)),
+        Rule::Tuple => Expression::Array(parse_expressions(pair)),
         Rule::Object => Expression::Object(parse_object(pair)),
         _ => Expression::Raw(parse_raw_expression(pair)),
     }
