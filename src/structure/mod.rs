@@ -250,7 +250,7 @@ impl Node {
 }
 
 #[doc(hidden)]
-pub(crate) mod private {
+pub(crate) mod marker {
     pub const ATTRIBUTE_NAME: &str = "$__hcl_private_Attribute";
     pub const BLOCK_NAME: &str = "$__hcl_private_Block";
     pub const IDENT_NAME: &str = "$__hcl_private_Identifier";

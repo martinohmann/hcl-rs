@@ -2,7 +2,7 @@
 
 use crate::{
     format::{Format, PrettyFormatter},
-    structure::private,
+    structure::marker,
     Error, Result,
 };
 use serde::ser::{self, Impossible, Serialize, SerializeSeq};
@@ -229,8 +229,8 @@ where
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let ser = match name {
-            private::ATTRIBUTE_NAME => StructureSerializer::Attribute { ser: self },
-            private::BLOCK_NAME => StructureSerializer::Block { ser: self },
+            marker::ATTRIBUTE_NAME => StructureSerializer::Attribute { ser: self },
+            marker::BLOCK_NAME => StructureSerializer::Block { ser: self },
             _ => StructureSerializer::Map { ser: self },
         };
 
@@ -440,24 +440,24 @@ where
     {
         match self {
             StructureSerializer::Attribute { ser } => match key {
-                private::IDENT_FIELD => {
+                marker::IDENT_FIELD => {
                     ser.serialize_attribute_key(value)?;
                 }
-                private::EXPRESSION_FIELD => {
+                marker::EXPRESSION_FIELD => {
                     ser.serialize_attribute_value(value)?;
                     ser.formatter.end_attribute(&mut ser.writer)?;
                 }
                 _ => return Err(Error::new("not an attribute")),
             },
             StructureSerializer::Block { ser } => match key {
-                private::IDENT_FIELD => {
+                marker::IDENT_FIELD => {
                     ser.formatter.begin_block(&mut ser.writer)?;
                     value.serialize(IdentifierSerializer::new(ser))?;
                 }
-                private::BLOCK_LABELS_FIELD => {
+                marker::BLOCK_LABELS_FIELD => {
                     value.serialize(BlockLabelSerializer::new(ser))?;
                 }
-                private::BLOCK_BODY_FIELD => {
+                marker::BLOCK_BODY_FIELD => {
                     ser.formatter.begin_block_body(&mut ser.writer)?;
                     value.serialize(&mut **ser)?;
                 }
@@ -891,7 +891,7 @@ where
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         match name {
-            private::IDENT_NAME | private::RAW_EXPRESSION_NAME => Ok(self),
+            marker::IDENT_NAME | marker::RAW_EXPRESSION_NAME => Ok(self),
             _ => Err(not_an_object_key()),
         }
     }
@@ -922,10 +922,10 @@ where
         T: ?Sized + Serialize,
     {
         match key {
-            private::IDENT_FIELD => {
+            marker::IDENT_FIELD => {
                 value.serialize(IdentifierSerializer::new(self.ser))?;
             }
-            private::RAW_EXPRESSION_FIELD => {
+            marker::RAW_EXPRESSION_FIELD => {
                 self.ser.writer.write_all(b"\"${")?;
                 value.serialize(IdentifierSerializer::new(self.ser))?;
                 self.ser.writer.write_all(b"}\"")?;
@@ -1069,7 +1069,7 @@ where
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         match name {
-            private::IDENT_NAME => Ok(self),
+            marker::IDENT_NAME => Ok(self),
             _ => Err(not_a_block_label()),
         }
     }
@@ -1120,7 +1120,7 @@ where
         T: ?Sized + Serialize,
     {
         match key {
-            private::IDENT_FIELD => value.serialize(IdentifierSerializer::new(self.ser)),
+            marker::IDENT_FIELD => value.serialize(IdentifierSerializer::new(self.ser)),
             _ => Err(not_an_identifier()),
         }
     }
@@ -1366,7 +1366,7 @@ where
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let ser = match name {
-            private::RAW_EXPRESSION_NAME => StructValueSerializer::RawExpression { ser: self.ser },
+            marker::RAW_EXPRESSION_NAME => StructValueSerializer::RawExpression { ser: self.ser },
             _ => {
                 self.ser.formatter.begin_object(&mut self.ser.writer)?;
                 StructValueSerializer::Object { ser: self.ser }
@@ -1565,7 +1565,7 @@ where
         match self {
             StructValueSerializer::Object { ser } => ser.serialize_object_key_value(key, value),
             StructValueSerializer::RawExpression { ser } => match key {
-                private::RAW_EXPRESSION_FIELD => value.serialize(IdentifierSerializer::new(ser)),
+                marker::RAW_EXPRESSION_FIELD => value.serialize(IdentifierSerializer::new(ser)),
                 _ => Err(not_an_identifier()),
             },
         }
