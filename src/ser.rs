@@ -124,7 +124,7 @@ where
     type SerializeStructVariant = Self;
 
     serialize_unsupported! {
-        structure_expected
+        not_a_structure
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         char str bytes none unit unit_struct
     }
@@ -744,7 +744,7 @@ where
     {
         match key {
             marker::IDENT_FIELD => value.serialize(IdentifierSerializer::new(self.ser)),
-            _ => Err(not_an_identifier()),
+            _ => Err(not_a_block_label()),
         }
     }
 
@@ -776,7 +776,7 @@ where
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
-    type SerializeStruct = StructValueSerializer<'a, W, F>;
+    type SerializeStruct = StructValue<'a, W, F>;
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
@@ -989,10 +989,10 @@ where
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let ser = match name {
-            marker::RAW_EXPRESSION_NAME => StructValueSerializer::RawExpression { ser: self.ser },
+            marker::RAW_EXPRESSION_NAME => StructValue::RawExpression { ser: self.ser },
             _ => {
                 self.ser.formatter.begin_object(&mut self.ser.writer)?;
-                StructValueSerializer::Object { ser: self.ser }
+                StructValue::Object { ser: self.ser }
             }
         };
 
@@ -1168,12 +1168,12 @@ where
     }
 }
 
-enum StructValueSerializer<'a, W: 'a, F: 'a> {
+enum StructValue<'a, W: 'a, F: 'a> {
     Object { ser: &'a mut Serializer<W, F> },
     RawExpression { ser: &'a mut Serializer<W, F> },
 }
 
-impl<'a, W, F> ser::SerializeStruct for StructValueSerializer<'a, W, F>
+impl<'a, W, F> ser::SerializeStruct for StructValue<'a, W, F>
 where
     W: io::Write,
     F: Format,
@@ -1186,8 +1186,8 @@ where
         T: ?Sized + Serialize,
     {
         match self {
-            StructValueSerializer::Object { ser } => ser.serialize_object_key_value(key, value),
-            StructValueSerializer::RawExpression { ser } => match key {
+            StructValue::Object { ser } => ser.serialize_object_key_value(key, value),
+            StructValue::RawExpression { ser } => match key {
                 marker::RAW_EXPRESSION_FIELD => value.serialize(IdentifierSerializer::new(ser)),
                 _ => Err(not_an_identifier()),
             },
@@ -1196,10 +1196,10 @@ where
 
     fn end(self) -> Result<()> {
         match self {
-            StructValueSerializer::Object { ser } => {
+            StructValue::Object { ser } => {
                 ser.formatter.end_object(&mut ser.writer)?;
             }
-            StructValueSerializer::RawExpression { .. } => {}
+            StructValue::RawExpression { .. } => {}
         }
         Ok(())
     }
@@ -1242,8 +1242,8 @@ where
     value.serialize(&mut serializer)
 }
 
-fn structure_expected() -> Error {
-    Error::new("structure expected")
+fn not_a_structure() -> Error {
+    Error::new("not a structure")
 }
 
 fn not_an_identifier() -> Error {
