@@ -505,8 +505,6 @@ where
     unsupported_type!(f64, serialize_f64, not_an_identifier);
     unsupported_type!(&[u8], serialize_bytes, not_an_identifier);
 
-    // Serialize a char as a single-character string. Other formats may
-    // represent this differently.
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
     }
@@ -516,16 +514,10 @@ where
         Ok(())
     }
 
-    // An absent optional is represented as the HCL `null`.
     fn serialize_none(self) -> Result<()> {
         self.serialize_unit()
     }
 
-    // A present optional is represented as just the contained value. Note that
-    // this is a lossy representation. For example the values `Some(())` and
-    // `None` both serialize as just `null`. Unfortunately this is typically
-    // what people expect when working with HCL. Other formats are encouraged
-    // to behave more intelligently if possible.
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -533,23 +525,14 @@ where
         value.serialize(self)
     }
 
-    // In Serde, unit means an anonymous value containing no data. Map this to
-    // HCL as `null`.
     fn serialize_unit(self) -> Result<()> {
         Err(not_an_identifier())
     }
 
-    // Unit struct means a named value containing no data. Again, since there is
-    // no data, map this to HCL as `null`. There is no need to serialize the
-    // name in most formats.
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         self.serialize_unit()
     }
 
-    // When serializing a unit variant (or any other kind of variant), formats
-    // can choose whether to keep track of it by index or by name. Binary
-    // formats typically use the index of the variant and human-readable formats
-    // typically use the name.
     fn serialize_unit_variant(
         self,
         _name: &'static str,
@@ -559,8 +542,6 @@ where
         self.serialize_str(variant)
     }
 
-    // As is done here, serializers are encouraged to treat newtype structs as
-    // insignificant wrappers around the data they contain.
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -568,11 +549,6 @@ where
         value.serialize(self)
     }
 
-    // Note that newtype variant (and all of the other variant serialization
-    // methods) refer exclusively to the "externally tagged" enum
-    // representation.
-    //
-    // Serialize this to HCL in externally tagged form as `{ NAME = VALUE }`.
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
@@ -586,29 +562,14 @@ where
         Err(not_an_identifier())
     }
 
-    // Now we get to the serialization of compound types.
-    //
-    // The start of the sequence, each value, and the end are three separate
-    // method calls. This one is responsible only for serializing the start,
-    // which in HCL is `[`.
-    //
-    // The length of the sequence may or may not be known ahead of time. This
-    // doesn't make a difference in HCL because the length is not represented
-    // explicitly in the serialized form. Some serializers may only be able to
-    // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Err(not_an_identifier())
     }
 
-    // Tuples look just like sequences in HCL. Some formats may be able to
-    // represent tuples more efficiently by omitting the length, since tuple
-    // means that the corresponding `Deserialize implementation will know the
-    // length without needing to look at the serialized data.
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Err(not_an_identifier())
     }
 
-    // Tuple structs look just like sequences in HCL.
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -617,8 +578,6 @@ where
         Err(not_an_identifier())
     }
 
-    // Tuple variants are represented in HCL as `{ NAME = [DATA...] }`. Again
-    // this method is only responsible for the externally tagged representation.
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
@@ -629,22 +588,14 @@ where
         Err(not_an_identifier())
     }
 
-    // Maps are represented in HCL as `{ K = V, K = V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Err(not_an_identifier())
     }
 
-    // Structs look just like maps in HCL. In particular, HCL requires that we
-    // serialize the field names of the struct. Other formats may be able to
-    // omit the field names when serializing structs because the corresponding
-    // Deserialize implementation is required to know what the keys are without
-    // looking at the serialized data.
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Err(not_an_identifier())
     }
 
-    // Struct variants are represented in HCL as `{ NAME = { K = V, ... } }`.
-    // This is the externally tagged representation.
     fn serialize_struct_variant(
         self,
         _name: &'static str,
@@ -679,7 +630,7 @@ where
     type SerializeTupleStruct = Impossible<(), Error>;
     type SerializeTupleVariant = Impossible<(), Error>;
     type SerializeMap = Impossible<(), Error>;
-    type SerializeStruct = Self;
+    type SerializeStruct = ObjectKey<'a, W, F>;
     type SerializeStructVariant = Impossible<(), Error>;
 
     unsupported_type!(bool, serialize_bool, not_an_object_key);
@@ -695,15 +646,10 @@ where
     unsupported_type!(f64, serialize_f64, not_an_object_key);
     unsupported_type!(&[u8], serialize_bytes, not_an_object_key);
 
-    // Serialize a char as a single-character string. Other formats may
-    // represent this differently.
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
     }
 
-    // This only works for strings that don't require escape sequences but you
-    // get the idea. For example it would emit invalid HCL if the input string
-    // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
         self.ser.formatter.write_str(&mut self.ser.writer, v)?;
         Ok(())
@@ -728,10 +674,6 @@ where
         self.serialize_unit()
     }
 
-    // When serializing a unit variant (or any other kind of variant), formats
-    // can choose whether to keep track of it by index or by name. Binary
-    // formats typically use the index of the variant and human-readable formats
-    // typically use the name.
     fn serialize_unit_variant(
         self,
         _name: &'static str,
@@ -741,8 +683,6 @@ where
         self.serialize_str(variant)
     }
 
-    // As is done here, serializers are encouraged to treat newtype structs as
-    // insignificant wrappers around the data they contain.
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -750,11 +690,6 @@ where
         value.serialize(self)
     }
 
-    // Note that newtype variant (and all of the other variant serialization
-    // methods) refer exclusively to the "externally tagged" enum
-    // representation.
-    //
-    // Serialize this to HCL in externally tagged form as `{ NAME = VALUE }`.
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
@@ -768,29 +703,14 @@ where
         Err(not_an_object_key())
     }
 
-    // Now we get to the serialization of compound types.
-    //
-    // The start of the sequence, each value, and the end are three separate
-    // method calls. This one is responsible only for serializing the start,
-    // which in HCL is `[`.
-    //
-    // The length of the sequence may or may not be known ahead of time. This
-    // doesn't make a difference in HCL because the length is not represented
-    // explicitly in the serialized form. Some serializers may only be able to
-    // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Err(not_an_object_key())
     }
 
-    // Tuples look just like sequences in HCL. Some formats may be able to
-    // represent tuples more efficiently by omitting the length, since tuple
-    // means that the corresponding `Deserialize implementation will know the
-    // length without needing to look at the serialized data.
     fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
         Err(not_an_object_key())
     }
 
-    // Tuple structs look just like sequences in HCL.
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -799,8 +719,6 @@ where
         Err(not_an_object_key())
     }
 
-    // Tuple variants are represented in HCL as `{ NAME = [DATA...] }`. Again
-    // this method is only responsible for the externally tagged representation.
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
@@ -811,25 +729,20 @@ where
         Err(not_an_object_key())
     }
 
-    // Maps are represented in HCL as `{ K = V, K = V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Err(not_an_object_key())
     }
 
-    // Structs look just like maps in HCL. In particular, HCL requires that we
-    // serialize the field names of the struct. Other formats may be able to
-    // omit the field names when serializing structs because the corresponding
-    // Deserialize implementation is required to know what the keys are without
-    // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        match name {
-            marker::IDENT_NAME | marker::RAW_EXPRESSION_NAME => Ok(self),
-            _ => Err(not_an_object_key()),
-        }
+        let ser = match name {
+            marker::IDENT_NAME => ObjectKey::new(ObjectKeyKind::Identifier, self.ser),
+            marker::RAW_EXPRESSION_NAME => ObjectKey::new(ObjectKeyKind::RawExpression, self.ser),
+            _ => return Err(not_an_object_key()),
+        };
+
+        Ok(ser)
     }
 
-    // Struct variants are represented in HCL as `{ NAME = { K = V, ... } }`.
-    // This is the externally tagged representation.
     fn serialize_struct_variant(
         self,
         _name: &'static str,
@@ -841,7 +754,24 @@ where
     }
 }
 
-impl<'a, W, F> ser::SerializeStruct for ObjectKeySerializer<'a, W, F>
+enum ObjectKeyKind {
+    Identifier,
+    RawExpression,
+}
+
+#[doc(hidden)]
+pub struct ObjectKey<'a, W: 'a, F: 'a> {
+    kind: ObjectKeyKind,
+    ser: &'a mut Serializer<W, F>,
+}
+
+impl<'a, W, F> ObjectKey<'a, W, F> {
+    fn new(kind: ObjectKeyKind, ser: &'a mut Serializer<W, F>) -> ObjectKey<'a, W, F> {
+        ObjectKey { kind, ser }
+    }
+}
+
+impl<'a, W, F> ser::SerializeStruct for ObjectKey<'a, W, F>
 where
     W: io::Write,
     F: Format,
@@ -853,19 +783,21 @@ where
     where
         T: ?Sized + Serialize,
     {
-        match key {
-            marker::IDENT_FIELD => {
-                value.serialize(IdentifierSerializer::new(self.ser))?;
-            }
-            marker::RAW_EXPRESSION_FIELD => {
-                self.ser.writer.write_all(b"\"${")?;
-                value.serialize(IdentifierSerializer::new(self.ser))?;
-                self.ser.writer.write_all(b"}\"")?;
-            }
-            _ => return Err(not_an_identifier()),
+        match self.kind {
+            ObjectKeyKind::Identifier => match key {
+                marker::IDENT_FIELD => value.serialize(IdentifierSerializer::new(self.ser)),
+                _ => Err(not_an_object_key()),
+            },
+            ObjectKeyKind::RawExpression => match key {
+                marker::RAW_EXPRESSION_FIELD => {
+                    self.ser.writer.write_all(b"\"${")?;
+                    value.serialize(IdentifierSerializer::new(self.ser))?;
+                    self.ser.writer.write_all(b"}\"")?;
+                    Ok(())
+                }
+                _ => Err(not_an_object_key()),
+            },
         }
-
-        Ok(())
     }
 
     fn end(self) -> Result<()> {
