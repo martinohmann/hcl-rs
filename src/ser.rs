@@ -107,14 +107,6 @@ where
     }
 }
 
-macro_rules! unsupported_type {
-    ($ty:ty, $method:ident, $err_fn:ident) => {
-        fn $method(self, _v: $ty) -> Result<()> {
-            Err($err_fn())
-        }
-    };
-}
-
 impl<'a, W, F> ser::Serializer for &'a mut Serializer<W, F>
 where
     W: io::Write,
@@ -131,23 +123,10 @@ where
     type SerializeStruct = Structure<'a, W, F>;
     type SerializeStructVariant = Self;
 
-    unsupported_type!(bool, serialize_bool, structure_expected);
-    unsupported_type!(i8, serialize_i8, structure_expected);
-    unsupported_type!(i16, serialize_i16, structure_expected);
-    unsupported_type!(i32, serialize_i32, structure_expected);
-    unsupported_type!(i64, serialize_i64, structure_expected);
-    unsupported_type!(u8, serialize_u8, structure_expected);
-    unsupported_type!(u16, serialize_u16, structure_expected);
-    unsupported_type!(u32, serialize_u32, structure_expected);
-    unsupported_type!(u64, serialize_u64, structure_expected);
-    unsupported_type!(f32, serialize_f32, structure_expected);
-    unsupported_type!(f64, serialize_f64, structure_expected);
-    unsupported_type!(char, serialize_char, structure_expected);
-    unsupported_type!(&str, serialize_str, structure_expected);
-    unsupported_type!(&[u8], serialize_bytes, structure_expected);
-
-    fn serialize_none(self) -> Result<()> {
-        self.serialize_unit()
+    serialize_unsupported! {
+        structure_expected
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        char str bytes none unit unit_struct
     }
 
     fn serialize_some<T>(self, value: &T) -> Result<()>
@@ -155,14 +134,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-        self.serialize_unit()
     }
 
     fn serialize_unit_variant(
@@ -492,18 +463,13 @@ where
     type SerializeStruct = Impossible<(), Error>;
     type SerializeStructVariant = Impossible<(), Error>;
 
-    unsupported_type!(bool, serialize_bool, not_an_identifier);
-    unsupported_type!(i8, serialize_i8, not_an_identifier);
-    unsupported_type!(i16, serialize_i16, not_an_identifier);
-    unsupported_type!(i32, serialize_i32, not_an_identifier);
-    unsupported_type!(i64, serialize_i64, not_an_identifier);
-    unsupported_type!(u8, serialize_u8, not_an_identifier);
-    unsupported_type!(u16, serialize_u16, not_an_identifier);
-    unsupported_type!(u32, serialize_u32, not_an_identifier);
-    unsupported_type!(u64, serialize_u64, not_an_identifier);
-    unsupported_type!(f32, serialize_f32, not_an_identifier);
-    unsupported_type!(f64, serialize_f64, not_an_identifier);
-    unsupported_type!(&[u8], serialize_bytes, not_an_identifier);
+    serialize_unsupported! {
+        not_an_identifier
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        bytes none unit unit_struct newtype_variant
+        seq tuple tuple_struct tuple_variant
+        map struct struct_variant
+    }
 
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
@@ -514,23 +480,11 @@ where
         Ok(())
     }
 
-    fn serialize_none(self) -> Result<()> {
-        self.serialize_unit()
-    }
-
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-        self.serialize_unit()
     }
 
     fn serialize_unit_variant(
@@ -547,63 +501,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_newtype_variant<T>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleVariant> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStructVariant> {
-        Err(not_an_identifier())
     }
 }
 
@@ -633,18 +530,12 @@ where
     type SerializeStruct = ObjectKey<'a, W, F>;
     type SerializeStructVariant = Impossible<(), Error>;
 
-    unsupported_type!(bool, serialize_bool, not_an_object_key);
-    unsupported_type!(i8, serialize_i8, not_an_object_key);
-    unsupported_type!(i16, serialize_i16, not_an_object_key);
-    unsupported_type!(i32, serialize_i32, not_an_object_key);
-    unsupported_type!(i64, serialize_i64, not_an_object_key);
-    unsupported_type!(u8, serialize_u8, not_an_object_key);
-    unsupported_type!(u16, serialize_u16, not_an_object_key);
-    unsupported_type!(u32, serialize_u32, not_an_object_key);
-    unsupported_type!(u64, serialize_u64, not_an_object_key);
-    unsupported_type!(f32, serialize_f32, not_an_object_key);
-    unsupported_type!(f64, serialize_f64, not_an_object_key);
-    unsupported_type!(&[u8], serialize_bytes, not_an_object_key);
+    serialize_unsupported! {
+        not_an_object_key
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        bytes none unit unit_struct newtype_variant
+        seq tuple tuple_struct tuple_variant map struct_variant
+    }
 
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
@@ -655,23 +546,11 @@ where
         Ok(())
     }
 
-    fn serialize_none(self) -> Result<()> {
-        self.serialize_unit()
-    }
-
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-        self.serialize_unit()
     }
 
     fn serialize_unit_variant(
@@ -690,49 +569,6 @@ where
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleVariant> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Err(not_an_object_key())
-    }
-
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let ser = match name {
             marker::IDENT_NAME => ObjectKey::new(ObjectKeyKind::Identifier, self.ser),
@@ -741,16 +577,6 @@ where
         };
 
         Ok(ser)
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStructVariant> {
-        Err(not_an_object_key())
     }
 }
 
@@ -831,18 +657,12 @@ where
     type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<(), Error>;
 
-    unsupported_type!(bool, serialize_bool, not_an_object_key);
-    unsupported_type!(i8, serialize_i8, not_an_object_key);
-    unsupported_type!(i16, serialize_i16, not_an_object_key);
-    unsupported_type!(i32, serialize_i32, not_an_object_key);
-    unsupported_type!(i64, serialize_i64, not_an_object_key);
-    unsupported_type!(u8, serialize_u8, not_an_object_key);
-    unsupported_type!(u16, serialize_u16, not_an_object_key);
-    unsupported_type!(u32, serialize_u32, not_an_object_key);
-    unsupported_type!(u64, serialize_u64, not_an_object_key);
-    unsupported_type!(f32, serialize_f32, not_an_object_key);
-    unsupported_type!(f64, serialize_f64, not_an_object_key);
-    unsupported_type!(&[u8], serialize_bytes, not_an_object_key);
+    serialize_unsupported! {
+        not_a_block_label
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        bytes none unit unit_struct newtype_variant
+        tuple tuple_struct tuple_variant map struct_variant
+    }
 
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
@@ -853,23 +673,11 @@ where
         Ok(())
     }
 
-    fn serialize_none(self) -> Result<()> {
-        self.serialize_unit()
-    }
-
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-        self.serialize_unit()
     }
 
     fn serialize_unit_variant(
@@ -888,47 +696,8 @@ where
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(not_a_block_label())
-    }
-
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Ok(self)
-    }
-
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleVariant> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Err(not_a_block_label())
     }
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
@@ -936,16 +705,6 @@ where
             marker::IDENT_NAME => Ok(self),
             _ => Err(not_a_block_label()),
         }
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStructVariant> {
-        Err(not_a_block_label())
     }
 }
 
