@@ -373,28 +373,6 @@ where
     }
 }
 
-// Structs are like maps in which the keys are constrained to be compile-time
-// constant strings.
-impl<'a, W, F> ser::SerializeStruct for &'a mut Serializer<W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.serialize_attribute(key, value)
-    }
-
-    fn end(self) -> Result<()> {
-        Ok(())
-    }
-}
-
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
 impl<'a, W, F> ser::SerializeStructVariant for &'a mut Serializer<W, F>
@@ -479,57 +457,6 @@ where
             }
             StructureSerializer::Map { .. } => {}
         }
-        Ok(())
-    }
-}
-
-impl<'a, W, F> ser::SerializeMap for StructureSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    // The Serde data model allows map keys to be any serializable type. HCL
-    // only allows string keys so the implementation below will produce invalid
-    // HCL if the key serializes as something other than a string.
-    //
-    // A real HCL serializer would need to validate that map keys are strings.
-    // This can be done by using a different Serializer to serialize the key
-    // (instead of `&mut **self`) and having that other serializer only
-    // implement `serialize_str` and return an error on any other data type.
-    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        match self {
-            StructureSerializer::Attribute { .. } => unreachable!(),
-            StructureSerializer::Block { .. } => unreachable!(),
-            StructureSerializer::Map { ser } => ser.serialize_attribute_key(key),
-        }
-    }
-
-    // It doesn't make a difference whether the colon is printed at the end of
-    // `serialize_key` or at the beginning of `serialize_value`. In this case
-    // the code is a bit simpler having it here.
-    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        match self {
-            StructureSerializer::Attribute { .. } => unreachable!(),
-            StructureSerializer::Block { .. } => unreachable!(),
-            StructureSerializer::Map { ser } => {
-                ser.serialize_attribute_value(value)?;
-                ser.formatter.end_attribute(&mut ser.writer)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn end(self) -> Result<()> {
         Ok(())
     }
 }
