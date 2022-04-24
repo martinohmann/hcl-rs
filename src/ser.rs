@@ -43,6 +43,14 @@ where
     }
 }
 
+macro_rules! unsupported_type {
+    ($ty:ty, $method:ident, $err_fn:ident) => {
+        fn $method(self, _v: $ty) -> Result<()> {
+            Err($err_fn())
+        }
+    };
+}
+
 impl<'a, W, F> ser::Serializer for &'a mut Serializer<W, F>
 where
     W: io::Write,
@@ -59,61 +67,20 @@ where
     type SerializeStruct = StructureSerializer<'a, W, F>;
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_i8(self, _v: i8) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_i16(self, _v: i16) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_i32(self, _v: i32) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_i64(self, _v: i64) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_u8(self, _v: u8) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_u16(self, _v: u16) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_u32(self, _v: u32) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_u64(self, _v: u64) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_f32(self, _v: f32) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_f64(self, _v: f64) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_char(self, _v: char) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_str(self, _v: &str) -> Result<()> {
-        Err(structure_expected())
-    }
-
-    fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
-        Err(structure_expected())
-    }
+    unsupported_type!(bool, serialize_bool, structure_expected);
+    unsupported_type!(i8, serialize_i8, structure_expected);
+    unsupported_type!(i16, serialize_i16, structure_expected);
+    unsupported_type!(i32, serialize_i32, structure_expected);
+    unsupported_type!(i64, serialize_i64, structure_expected);
+    unsupported_type!(u8, serialize_u8, structure_expected);
+    unsupported_type!(u16, serialize_u16, structure_expected);
+    unsupported_type!(u32, serialize_u32, structure_expected);
+    unsupported_type!(u64, serialize_u64, structure_expected);
+    unsupported_type!(f32, serialize_f32, structure_expected);
+    unsupported_type!(f64, serialize_f64, structure_expected);
+    unsupported_type!(char, serialize_char, structure_expected);
+    unsupported_type!(&str, serialize_str, structure_expected);
+    unsupported_type!(&[u8], serialize_bytes, structure_expected);
 
     fn serialize_none(self) -> Result<()> {
         self.serialize_unit()
@@ -564,49 +531,18 @@ where
     type SerializeStruct = Impossible<(), Error>;
     type SerializeStructVariant = Impossible<(), Error>;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_i8(self, _v: i8) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_i16(self, _v: i16) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_i32(self, _v: i32) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_i64(self, _v: i64) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_u8(self, _v: u8) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_u16(self, _v: u16) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_u32(self, _v: u32) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_u64(self, _v: u64) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_f32(self, _v: f32) -> Result<()> {
-        Err(not_an_identifier())
-    }
-
-    fn serialize_f64(self, _v: f64) -> Result<()> {
-        Err(not_an_identifier())
-    }
+    unsupported_type!(bool, serialize_bool, not_an_identifier);
+    unsupported_type!(i8, serialize_i8, not_an_identifier);
+    unsupported_type!(i16, serialize_i16, not_an_identifier);
+    unsupported_type!(i32, serialize_i32, not_an_identifier);
+    unsupported_type!(i64, serialize_i64, not_an_identifier);
+    unsupported_type!(u8, serialize_u8, not_an_identifier);
+    unsupported_type!(u16, serialize_u16, not_an_identifier);
+    unsupported_type!(u32, serialize_u32, not_an_identifier);
+    unsupported_type!(u64, serialize_u64, not_an_identifier);
+    unsupported_type!(f32, serialize_f32, not_an_identifier);
+    unsupported_type!(f64, serialize_f64, not_an_identifier);
+    unsupported_type!(&[u8], serialize_bytes, not_an_identifier);
 
     // Serialize a char as a single-character string. Other formats may
     // represent this differently.
@@ -617,13 +553,6 @@ where
     fn serialize_str(self, v: &str) -> Result<()> {
         self.ser.formatter.write_ident(&mut self.ser.writer, v)?;
         Ok(())
-    }
-
-    // Serialize a byte array as an array of bytes. Could also use a base64
-    // string here. Binary formats will typically represent byte arrays more
-    // compactly.
-    fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
-        Err(not_an_identifier())
     }
 
     // An absent optional is represented as the HCL `null`.
@@ -792,49 +721,18 @@ where
     type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<(), Error>;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_i8(self, _v: i8) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_i16(self, _v: i16) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_i32(self, _v: i32) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_i64(self, _v: i64) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_u8(self, _v: u8) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_u16(self, _v: u16) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_u32(self, _v: u32) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_u64(self, _v: u64) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_f32(self, _v: f32) -> Result<()> {
-        Err(not_an_object_key())
-    }
-
-    fn serialize_f64(self, _v: f64) -> Result<()> {
-        Err(not_an_object_key())
-    }
+    unsupported_type!(bool, serialize_bool, not_an_object_key);
+    unsupported_type!(i8, serialize_i8, not_an_object_key);
+    unsupported_type!(i16, serialize_i16, not_an_object_key);
+    unsupported_type!(i32, serialize_i32, not_an_object_key);
+    unsupported_type!(i64, serialize_i64, not_an_object_key);
+    unsupported_type!(u8, serialize_u8, not_an_object_key);
+    unsupported_type!(u16, serialize_u16, not_an_object_key);
+    unsupported_type!(u32, serialize_u32, not_an_object_key);
+    unsupported_type!(u64, serialize_u64, not_an_object_key);
+    unsupported_type!(f32, serialize_f32, not_an_object_key);
+    unsupported_type!(f64, serialize_f64, not_an_object_key);
+    unsupported_type!(&[u8], serialize_bytes, not_an_object_key);
 
     // Serialize a char as a single-character string. Other formats may
     // represent this differently.
@@ -848,10 +746,6 @@ where
     fn serialize_str(self, v: &str) -> Result<()> {
         self.ser.formatter.write_str(&mut self.ser.writer, v)?;
         Ok(())
-    }
-
-    fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
-        Err(not_an_object_key())
     }
 
     fn serialize_none(self) -> Result<()> {
@@ -1042,49 +936,18 @@ where
     type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<(), Error>;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_i8(self, _v: i8) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_i16(self, _v: i16) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_i32(self, _v: i32) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_i64(self, _v: i64) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_u8(self, _v: u8) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_u16(self, _v: u16) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_u32(self, _v: u32) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_u64(self, _v: u64) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_f32(self, _v: f32) -> Result<()> {
-        Err(not_a_block_label())
-    }
-
-    fn serialize_f64(self, _v: f64) -> Result<()> {
-        Err(not_a_block_label())
-    }
+    unsupported_type!(bool, serialize_bool, not_an_object_key);
+    unsupported_type!(i8, serialize_i8, not_an_object_key);
+    unsupported_type!(i16, serialize_i16, not_an_object_key);
+    unsupported_type!(i32, serialize_i32, not_an_object_key);
+    unsupported_type!(i64, serialize_i64, not_an_object_key);
+    unsupported_type!(u8, serialize_u8, not_an_object_key);
+    unsupported_type!(u16, serialize_u16, not_an_object_key);
+    unsupported_type!(u32, serialize_u32, not_an_object_key);
+    unsupported_type!(u64, serialize_u64, not_an_object_key);
+    unsupported_type!(f32, serialize_f32, not_an_object_key);
+    unsupported_type!(f64, serialize_f64, not_an_object_key);
+    unsupported_type!(&[u8], serialize_bytes, not_an_object_key);
 
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
@@ -1093,10 +956,6 @@ where
     fn serialize_str(self, v: &str) -> Result<()> {
         self.ser.formatter.write_str(&mut self.ser.writer, v)?;
         Ok(())
-    }
-
-    fn serialize_bytes(self, _v: &[u8]) -> Result<()> {
-        Err(not_a_block_label())
     }
 
     fn serialize_none(self) -> Result<()> {
