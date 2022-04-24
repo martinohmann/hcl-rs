@@ -41,6 +41,70 @@ where
     pub fn into_inner(self) -> W {
         self.writer
     }
+
+    fn serialize_attribute<K, V>(&mut self, key: &K, value: &V) -> Result<()>
+    where
+        K: ?Sized + Serialize,
+        V: ?Sized + Serialize,
+    {
+        self.serialize_attribute_key(key)?;
+        self.serialize_attribute_value(value)?;
+        self.formatter.end_attribute(&mut self.writer)?;
+        Ok(())
+    }
+
+    fn serialize_attribute_key<K>(&mut self, key: &K) -> Result<()>
+    where
+        K: ?Sized + Serialize,
+    {
+        self.formatter.begin_attribute(&mut self.writer)?;
+        key.serialize(IdentifierSerializer::new(self))
+    }
+
+    fn serialize_attribute_value<V>(&mut self, value: &V) -> Result<()>
+    where
+        V: ?Sized + Serialize,
+    {
+        self.formatter.begin_attribute_value(&mut self.writer)?;
+        value.serialize(ValueSerializer::new(self))
+    }
+
+    fn serialize_array_value<V>(&mut self, value: &V) -> Result<()>
+    where
+        V: ?Sized + Serialize,
+    {
+        self.formatter.begin_array_value(&mut self.writer)?;
+        value.serialize(ValueSerializer::new(self))?;
+        self.formatter.end_array_value(&mut self.writer)?;
+        Ok(())
+    }
+
+    fn serialize_object_key_value<K, V>(&mut self, key: &K, value: &V) -> Result<()>
+    where
+        K: ?Sized + Serialize,
+        V: ?Sized + Serialize,
+    {
+        self.serialize_object_key(key)?;
+        self.serialize_object_value(value)
+    }
+
+    fn serialize_object_key<K>(&mut self, key: &K) -> Result<()>
+    where
+        K: ?Sized + Serialize,
+    {
+        self.formatter.begin_object_key(&mut self.writer)?;
+        key.serialize(ObjectKeySerializer::new(self))
+    }
+
+    fn serialize_object_value<V>(&mut self, value: &V) -> Result<()>
+    where
+        V: ?Sized + Serialize,
+    {
+        self.formatter.begin_object_value(&mut self.writer)?;
+        value.serialize(ValueSerializer::new(self))?;
+        self.formatter.end_object_value(&mut self.writer)?;
+        Ok(())
+    }
 }
 
 macro_rules! unsupported_type {
@@ -127,12 +191,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_attribute(&mut self.writer)?;
-        variant.serialize(IdentifierSerializer::new(self))?;
-        self.formatter.begin_attribute_value(&mut self.writer)?;
-        value.serialize(ValueSerializer::new(self))?;
-        self.formatter.end_attribute(&mut self.writer)?;
-        Ok(())
+        self.serialize_attribute(variant, value)
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -158,8 +217,7 @@ where
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        self.formatter.begin_attribute(&mut self.writer)?;
-        variant.serialize(IdentifierSerializer::new(self))?;
+        self.serialize_attribute_key(variant)?;
         self.formatter.begin_attribute_value(&mut self.writer)?;
         self.formatter.begin_array(&mut self.writer)?;
         Ok(self)
@@ -186,8 +244,7 @@ where
         variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        self.formatter.begin_attribute(&mut self.writer)?;
-        variant.serialize(IdentifierSerializer::new(self))?;
+        self.serialize_attribute_key(variant)?;
         self.formatter.begin_attribute_value(&mut self.writer)?;
         self.formatter.begin_object(&mut self.writer)?;
         Ok(self)
@@ -266,10 +323,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_array_value(&mut self.writer)?;
-        value.serialize(ValueSerializer::new(self))?;
-        self.formatter.end_array_value(&mut self.writer)?;
-        Ok(())
+        self.serialize_array_value(value)
     }
 
     fn end(self) -> Result<()> {
@@ -299,8 +353,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_attribute(&mut self.writer)?;
-        key.serialize(IdentifierSerializer::new(self))
+        self.serialize_attribute_key(key)
     }
 
     // It doesn't make a difference whether the colon is printed at the end of
@@ -310,8 +363,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_attribute_value(&mut self.writer)?;
-        value.serialize(ValueSerializer::new(self))?;
+        self.serialize_attribute_value(value)?;
         self.formatter.end_attribute(&mut self.writer)?;
         Ok(())
     }
@@ -335,12 +387,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_attribute(&mut self.writer)?;
-        key.serialize(IdentifierSerializer::new(self))?;
-        self.formatter.begin_attribute_value(&mut self.writer)?;
-        value.serialize(ValueSerializer::new(self))?;
-        self.formatter.end_attribute(&mut self.writer)?;
-        Ok(())
+        self.serialize_attribute(key, value)
     }
 
     fn end(self) -> Result<()> {
@@ -362,12 +409,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_object_key(&mut self.writer)?;
-        key.serialize(IdentifierSerializer::new(self))?;
-        self.formatter.begin_object_value(&mut self.writer)?;
-        value.serialize(ValueSerializer::new(self))?;
-        self.formatter.end_object_value(&mut self.writer)?;
-        Ok(())
+        self.serialize_attribute(key, value)
     }
 
     fn end(self) -> Result<()> {
@@ -399,12 +441,10 @@ where
         match self {
             StructureSerializer::Attribute { ser } => match key {
                 private::IDENT_FIELD => {
-                    ser.formatter.begin_attribute(&mut ser.writer)?;
-                    value.serialize(IdentifierSerializer::new(ser))?;
+                    ser.serialize_attribute_key(value)?;
                 }
                 private::EXPRESSION_FIELD => {
-                    ser.formatter.begin_attribute_value(&mut ser.writer)?;
-                    value.serialize(ValueSerializer::new(ser))?;
+                    ser.serialize_attribute_value(value)?;
                     ser.formatter.end_attribute(&mut ser.writer)?;
                 }
                 _ => return Err(Error::new("not an attribute")),
@@ -424,11 +464,7 @@ where
                 _ => return Err(Error::new("not a block")),
             },
             StructureSerializer::Map { ser } => {
-                ser.formatter.begin_attribute(&mut ser.writer)?;
-                key.serialize(IdentifierSerializer::new(ser))?;
-                ser.formatter.begin_attribute_value(&mut ser.writer)?;
-                value.serialize(ValueSerializer::new(ser))?;
-                ser.formatter.end_attribute(&mut ser.writer)?;
+                ser.serialize_attribute(key, value)?;
             }
         }
 
@@ -470,13 +506,8 @@ where
         match self {
             StructureSerializer::Attribute { .. } => unreachable!(),
             StructureSerializer::Block { .. } => unreachable!(),
-            StructureSerializer::Map { ser } => {
-                ser.formatter.begin_attribute(&mut ser.writer)?;
-                key.serialize(IdentifierSerializer::new(ser))?;
-            }
+            StructureSerializer::Map { ser } => ser.serialize_attribute_key(key),
         }
-
-        Ok(())
     }
 
     // It doesn't make a difference whether the colon is printed at the end of
@@ -490,8 +521,7 @@ where
             StructureSerializer::Attribute { .. } => unreachable!(),
             StructureSerializer::Block { .. } => unreachable!(),
             StructureSerializer::Map { ser } => {
-                ser.formatter.begin_attribute_value(&mut ser.writer)?;
-                value.serialize(ValueSerializer::new(ser))?;
+                ser.serialize_attribute_value(value)?;
                 ser.formatter.end_attribute(&mut ser.writer)?;
             }
         }
@@ -1268,13 +1298,7 @@ where
         T: ?Sized + Serialize,
     {
         self.ser.formatter.begin_object(&mut self.ser.writer)?;
-        self.ser.formatter.begin_object_key(&mut self.ser.writer)?;
-        variant.serialize(ObjectKeySerializer::new(self.ser))?;
-        self.ser
-            .formatter
-            .begin_object_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_object_value(&mut self.ser.writer)?;
+        self.ser.serialize_object_key_value(variant, value)?;
         self.ser.formatter.end_object(&mut self.ser.writer)?;
         Ok(())
     }
@@ -1321,8 +1345,7 @@ where
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         self.ser.formatter.begin_object(&mut self.ser.writer)?;
-        self.ser.formatter.begin_object_key(&mut self.ser.writer)?;
-        variant.serialize(ObjectKeySerializer::new(self.ser))?;
+        self.ser.serialize_object_key(variant)?;
         self.ser
             .formatter
             .begin_object_value(&mut self.ser.writer)?;
@@ -1363,8 +1386,7 @@ where
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         self.ser.formatter.begin_object(&mut self.ser.writer)?;
-        self.ser.formatter.begin_object_key(&mut self.ser.writer)?;
-        variant.serialize(ObjectKeySerializer::new(self.ser))?;
+        self.ser.serialize_object_key(variant)?;
         self.ser
             .formatter
             .begin_object_value(&mut self.ser.writer)?;
@@ -1385,10 +1407,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_array_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_array_value(&mut self.ser.writer)?;
-        Ok(())
+        self.ser.serialize_array_value(value)
     }
 
     fn end(self) -> Result<()> {
@@ -1409,10 +1428,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_array_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_array_value(&mut self.ser.writer)?;
-        Ok(())
+        self.ser.serialize_array_value(value)
     }
 
     fn end(self) -> Result<()> {
@@ -1433,10 +1449,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_array_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_array_value(&mut self.ser.writer)?;
-        Ok(())
+        self.ser.serialize_array_value(value)
     }
 
     fn end(self) -> Result<()> {
@@ -1457,10 +1470,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_array_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_array_value(&mut self.ser.writer)?;
-        Ok(())
+        self.ser.serialize_array_value(value)
     }
 
     fn end(self) -> Result<()> {
@@ -1491,8 +1501,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_object_key(&mut self.ser.writer)?;
-        key.serialize(ObjectKeySerializer::new(self.ser))
+        self.ser.serialize_object_key(key)
     }
 
     // It doesn't make a difference whether the colon is printed at the end of
@@ -1502,12 +1511,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser
-            .formatter
-            .begin_object_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_object_value(&mut self.ser.writer)?;
-        Ok(())
+        self.ser.serialize_object_value(value)
     }
 
     fn end(self) -> Result<()> {
@@ -1530,14 +1534,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_object_key(&mut self.ser.writer)?;
-        key.serialize(ObjectKeySerializer::new(self.ser))?;
-        self.ser
-            .formatter
-            .begin_object_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_object_value(&mut self.ser.writer)?;
-        Ok(())
+        self.ser.serialize_object_key_value(key, value)
     }
 
     fn end(self) -> Result<()> {
@@ -1566,22 +1563,12 @@ where
         T: ?Sized + Serialize,
     {
         match self {
-            StructValueSerializer::Object { ser } => {
-                ser.formatter.begin_object_key(&mut ser.writer)?;
-                key.serialize(ObjectKeySerializer::new(ser))?;
-                ser.formatter.begin_object_value(&mut ser.writer)?;
-                value.serialize(ValueSerializer::new(ser))?;
-                ser.formatter.end_object_value(&mut ser.writer)?;
-            }
+            StructValueSerializer::Object { ser } => ser.serialize_object_key_value(key, value),
             StructValueSerializer::RawExpression { ser } => match key {
-                private::RAW_EXPRESSION_FIELD => {
-                    value.serialize(IdentifierSerializer::new(ser))?;
-                }
-                _ => return Err(not_an_identifier()),
+                private::RAW_EXPRESSION_FIELD => value.serialize(IdentifierSerializer::new(ser)),
+                _ => Err(not_an_identifier()),
             },
         }
-
-        Ok(())
     }
 
     fn end(self) -> Result<()> {
