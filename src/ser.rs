@@ -50,9 +50,9 @@ where
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = Impossible<(), Error>;
-    type SerializeTuple = Impossible<(), Error>;
-    type SerializeTupleStruct = Impossible<(), Error>;
+    type SerializeSeq = Self;
+    type SerializeTuple = Self;
+    type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
     type SerializeStruct = Self;
@@ -167,19 +167,19 @@ where
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Err(structure_expected())
+        Ok(self)
     }
 
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple> {
-        Err(structure_expected())
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+        self.serialize_seq(Some(len))
     }
 
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
-        _len: usize,
+        len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        Err(structure_expected())
+        self.serialize_seq(Some(len))
     }
 
     fn serialize_tuple_variant(
@@ -214,6 +214,67 @@ where
         self.writer.write_all(b" = ")?;
         self.formatter.begin_object(&mut self.writer)?;
         Ok(self)
+    }
+}
+
+impl<'a, W, F> ser::SerializeSeq for &'a mut Serializer<W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut **self)?;
+        Ok(())
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W, F> ser::SerializeTuple for &'a mut Serializer<W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W, F> ser::SerializeTupleStruct for &'a mut Serializer<W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(&mut **self)
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -297,16 +358,14 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.formatter.begin_object_key(&mut self.writer)?;
         key.serialize(AttributeKeySerializer::new(self))?;
-        self.formatter.begin_object_value(&mut self.writer)?;
+        self.writer.write_all(b" = ")?;
         value.serialize(ValueSerializer::new(self))?;
-        self.formatter.end_object_value(&mut self.writer)?;
+        self.writer.write_all(b"\n")?;
         Ok(())
     }
 
     fn end(self) -> Result<()> {
-        self.formatter.end_object(&mut self.writer)?;
         Ok(())
     }
 }
@@ -1311,7 +1370,73 @@ mod test {
     use serde_json::json;
 
     #[test]
-    fn test_to_string() {
+    fn test_struct() {
+        #[derive(serde::Serialize)]
+        struct Test {
+            foo: u32,
+        }
+
+        let v = Test { foo: 1 };
+        let expected = "foo = 1\n";
+        assert_eq!(&to_string(&v).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_tuple_struct() {
+        #[derive(serde::Serialize)]
+        struct Test1 {
+            foo: u32,
+        }
+
+        #[derive(serde::Serialize)]
+        struct Test2 {
+            bar: &'static str,
+        }
+
+        #[derive(serde::Serialize)]
+        struct TupleStruct(Test1, Test2);
+
+        let v = TupleStruct(Test1 { foo: 1 }, Test2 { bar: "baz" });
+        let expected = "foo = 1\nbar = \"baz\"\n";
+        assert_eq!(&to_string(&v).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_enum() {
+        #[derive(serde::Serialize, PartialEq, Debug)]
+        enum E {
+            Unit,
+            Newtype(u32),
+            Tuple(u32, u32),
+            Struct { a: u32 },
+        }
+
+        #[derive(serde::Serialize, PartialEq, Debug)]
+        struct Test {
+            value: E,
+        }
+
+        let v = Test { value: E::Unit };
+        let expected = "value = \"Unit\"\n";
+        assert_eq!(&to_string(&v).unwrap(), expected);
+
+        let v = E::Newtype(1);
+        let expected = "Newtype = 1\n";
+        assert_eq!(&to_string(&v).unwrap(), expected);
+
+        let v = E::Tuple(1, 2);
+        let expected = "Tuple = [\n  1,\n  2\n]\n";
+        assert_eq!(&to_string(&v).unwrap(), expected);
+
+        let v = Test {
+            value: E::Struct { a: 1 },
+        };
+        let expected = "value = {\n  \"Struct\" = {\n    \"a\" = 1\n  }\n}\n";
+        assert_eq!(&to_string(&v).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_object() {
         let value = json!({
             "foo": [1, 2, 3],
             "bar": "baz",
@@ -1320,6 +1445,36 @@ mod test {
                 "baz": "qux"
             }
         });
+
+        let expected = r#"foo = [
+  1,
+  2,
+  3
+]
+bar = "baz"
+qux = {
+  "foo" = "bar"
+  "baz" = "qux"
+}
+"#;
+
+        assert_eq!(to_string(&value).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_array() {
+        let value = json!([
+            {
+                "foo": [1, 2, 3],
+            },
+            {
+                "bar": "baz",
+                "qux": {
+                    "foo": "bar",
+                    "baz": "qux"
+                }
+            }
+        ]);
 
         let expected = r#"foo = [
   1,
