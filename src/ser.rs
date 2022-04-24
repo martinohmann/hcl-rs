@@ -129,7 +129,7 @@ where
     {
         self.formatter.begin_attribute(&mut self.writer)?;
         variant.serialize(IdentifierSerializer::new(self))?;
-        self.writer.write_all(b" = ")?;
+        self.formatter.begin_attribute_value(&mut self.writer)?;
         value.serialize(ValueSerializer::new(self))?;
         self.formatter.end_attribute(&mut self.writer)?;
         Ok(())
@@ -160,7 +160,7 @@ where
     ) -> Result<Self::SerializeTupleVariant> {
         self.formatter.begin_attribute(&mut self.writer)?;
         variant.serialize(IdentifierSerializer::new(self))?;
-        self.writer.write_all(b" = ")?;
+        self.formatter.begin_attribute_value(&mut self.writer)?;
         self.formatter.begin_array(&mut self.writer)?;
         Ok(self)
     }
@@ -170,12 +170,10 @@ where
     }
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        let ser = if name == private::ATTRIBUTE_NAME {
-            StructureSerializer::Attribute { ser: self }
-        } else if name == private::BLOCK_NAME {
-            StructureSerializer::Block { ser: self }
-        } else {
-            StructureSerializer::Map { ser: self }
+        let ser = match name {
+            private::ATTRIBUTE_NAME => StructureSerializer::Attribute { ser: self },
+            private::BLOCK_NAME => StructureSerializer::Block { ser: self },
+            _ => StructureSerializer::Map { ser: self },
         };
 
         Ok(ser)
@@ -190,7 +188,7 @@ where
     ) -> Result<Self::SerializeStructVariant> {
         self.formatter.begin_attribute(&mut self.writer)?;
         variant.serialize(IdentifierSerializer::new(self))?;
-        self.writer.write_all(b" = ")?;
+        self.formatter.begin_attribute_value(&mut self.writer)?;
         self.formatter.begin_object(&mut self.writer)?;
         Ok(self)
     }
@@ -312,7 +310,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.writer.write_all(b" = ")?;
+        self.formatter.begin_attribute_value(&mut self.writer)?;
         value.serialize(ValueSerializer::new(self))?;
         self.formatter.end_attribute(&mut self.writer)?;
         Ok(())
@@ -339,7 +337,7 @@ where
     {
         self.formatter.begin_attribute(&mut self.writer)?;
         key.serialize(IdentifierSerializer::new(self))?;
-        self.writer.write_all(b" = ")?;
+        self.formatter.begin_attribute_value(&mut self.writer)?;
         value.serialize(ValueSerializer::new(self))?;
         self.formatter.end_attribute(&mut self.writer)?;
         Ok(())
@@ -399,36 +397,36 @@ where
         T: ?Sized + Serialize,
     {
         match self {
-            StructureSerializer::Attribute { ser } => {
-                if key == private::IDENT_FIELD {
+            StructureSerializer::Attribute { ser } => match key {
+                private::IDENT_FIELD => {
                     ser.formatter.begin_attribute(&mut ser.writer)?;
                     value.serialize(IdentifierSerializer::new(ser))?;
-                } else if key == private::EXPRESSION_FIELD {
-                    ser.writer.write_all(b" = ")?;
+                }
+                private::EXPRESSION_FIELD => {
+                    ser.formatter.begin_attribute_value(&mut ser.writer)?;
                     value.serialize(ValueSerializer::new(ser))?;
                     ser.formatter.end_attribute(&mut ser.writer)?;
-                } else {
-                    return Err(Error::new("not an attribute"));
                 }
-            }
-            StructureSerializer::Block { ser } => {
-                if key == private::IDENT_FIELD {
+                _ => return Err(Error::new("not an attribute")),
+            },
+            StructureSerializer::Block { ser } => match key {
+                private::IDENT_FIELD => {
                     ser.formatter.begin_block(&mut ser.writer)?;
                     value.serialize(IdentifierSerializer::new(ser))?;
-                } else if key == private::BLOCK_LABELS_FIELD {
+                }
+                private::BLOCK_LABELS_FIELD => {
                     value.serialize(BlockLabelSerializer::new(ser))?;
-                } else if key == private::BLOCK_BODY_FIELD {
-                    ser.writer.write_all(b" ")?;
+                }
+                private::BLOCK_BODY_FIELD => {
                     ser.formatter.begin_block_body(&mut ser.writer)?;
                     value.serialize(&mut **ser)?;
-                } else {
-                    return Err(Error::new("not a block"));
                 }
-            }
+                _ => return Err(Error::new("not a block")),
+            },
             StructureSerializer::Map { ser } => {
                 ser.formatter.begin_attribute(&mut ser.writer)?;
                 key.serialize(IdentifierSerializer::new(ser))?;
-                ser.writer.write_all(b" = ")?;
+                ser.formatter.begin_attribute_value(&mut ser.writer)?;
                 value.serialize(ValueSerializer::new(ser))?;
                 ser.formatter.end_attribute(&mut ser.writer)?;
             }
@@ -473,6 +471,7 @@ where
             StructureSerializer::Attribute { .. } => unreachable!(),
             StructureSerializer::Block { .. } => unreachable!(),
             StructureSerializer::Map { ser } => {
+                ser.formatter.begin_attribute(&mut ser.writer)?;
                 key.serialize(IdentifierSerializer::new(ser))?;
             }
         }
@@ -491,9 +490,9 @@ where
             StructureSerializer::Attribute { .. } => unreachable!(),
             StructureSerializer::Block { .. } => unreachable!(),
             StructureSerializer::Map { ser } => {
-                ser.writer.write_all(b" = ")?;
+                ser.formatter.begin_attribute_value(&mut ser.writer)?;
                 value.serialize(ValueSerializer::new(ser))?;
-                ser.writer.write_all(b"\n")?;
+                ser.formatter.end_attribute(&mut ser.writer)?;
             }
         }
 
@@ -861,10 +860,9 @@ where
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        if name == private::IDENT_NAME || name == private::RAW_EXPRESSION_NAME {
-            Ok(self)
-        } else {
-            Err(not_an_object_key())
+        match name {
+            private::IDENT_NAME | private::RAW_EXPRESSION_NAME => Ok(self),
+            _ => Err(not_an_object_key()),
         }
     }
 
@@ -893,16 +891,19 @@ where
     where
         T: ?Sized + Serialize,
     {
-        if key == private::IDENT_FIELD {
-            value.serialize(IdentifierSerializer::new(self.ser))
-        } else if key == private::RAW_EXPRESSION_FIELD {
-            self.ser.writer.write_all(b"\"${")?;
-            value.serialize(IdentifierSerializer::new(self.ser))?;
-            self.ser.writer.write_all(b"}\"")?;
-            Ok(())
-        } else {
-            Err(not_an_identifier())
+        match key {
+            private::IDENT_FIELD => {
+                value.serialize(IdentifierSerializer::new(self.ser))?;
+            }
+            private::RAW_EXPRESSION_FIELD => {
+                self.ser.writer.write_all(b"\"${")?;
+                value.serialize(IdentifierSerializer::new(self.ser))?;
+                self.ser.writer.write_all(b"}\"")?;
+            }
+            _ => return Err(not_an_identifier()),
         }
+
+        Ok(())
     }
 
     fn end(self) -> Result<()> {
@@ -1037,10 +1038,9 @@ where
     }
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        if name == private::IDENT_NAME {
-            Ok(self)
-        } else {
-            Err(not_a_block_label())
+        match name {
+            private::IDENT_NAME => Ok(self),
+            _ => Err(not_a_block_label()),
         }
     }
 
@@ -1089,10 +1089,9 @@ where
     where
         T: ?Sized + Serialize,
     {
-        if key == private::IDENT_FIELD {
-            value.serialize(IdentifierSerializer::new(self.ser))
-        } else {
-            Err(not_an_identifier())
+        match key {
+            private::IDENT_FIELD => value.serialize(IdentifierSerializer::new(self.ser)),
+            _ => Err(not_an_identifier()),
         }
     }
 
@@ -1343,11 +1342,12 @@ where
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        let ser = if name == private::RAW_EXPRESSION_NAME {
-            StructValueSerializer::RawExpression { ser: self.ser }
-        } else {
-            self.ser.formatter.begin_object(&mut self.ser.writer)?;
-            StructValueSerializer::Object { ser: self.ser }
+        let ser = match name {
+            private::RAW_EXPRESSION_NAME => StructValueSerializer::RawExpression { ser: self.ser },
+            _ => {
+                self.ser.formatter.begin_object(&mut self.ser.writer)?;
+                StructValueSerializer::Object { ser: self.ser }
+            }
         };
 
         Ok(ser)
@@ -1573,13 +1573,12 @@ where
                 value.serialize(ValueSerializer::new(ser))?;
                 ser.formatter.end_object_value(&mut ser.writer)?;
             }
-            StructValueSerializer::RawExpression { ser } => {
-                if key == private::RAW_EXPRESSION_FIELD {
+            StructValueSerializer::RawExpression { ser } => match key {
+                private::RAW_EXPRESSION_FIELD => {
                     value.serialize(IdentifierSerializer::new(ser))?;
-                } else {
-                    return Err(Error::new("not a raw expression"));
                 }
-            }
+                _ => return Err(not_an_identifier()),
+            },
         }
 
         Ok(())

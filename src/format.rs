@@ -103,6 +103,13 @@ pub trait Format {
     where
         W: ?Sized + io::Write;
 
+    fn begin_attribute_value<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        writer.write_all(b" = ")
+    }
+
     fn end_attribute<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write;
@@ -257,7 +264,7 @@ impl<'a> Format for PrettyFormatter<'a> {
         W: ?Sized + io::Write,
     {
         self.current_indent += 1;
-        writer.write_all(b"{\n")
+        writer.write_all(b" {\n")
     }
 
     fn end_block<W>(&mut self, writer: &mut W) -> io::Result<()>

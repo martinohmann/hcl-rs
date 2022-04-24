@@ -251,14 +251,14 @@ impl Node {
 
 #[doc(hidden)]
 pub(crate) mod private {
-    pub static ATTRIBUTE_NAME: &str = "$__hcl_private_Attribute";
-    pub static BLOCK_NAME: &str = "$__hcl_private_Block";
-    pub static IDENT_NAME: &str = "$__hcl_private_Identifier";
-    pub static RAW_EXPRESSION_NAME: &str = "$__hcl_private_RawExpression";
+    pub const ATTRIBUTE_NAME: &str = "$__hcl_private_Attribute";
+    pub const BLOCK_NAME: &str = "$__hcl_private_Block";
+    pub const IDENT_NAME: &str = "$__hcl_private_Identifier";
+    pub const RAW_EXPRESSION_NAME: &str = "$__hcl_private_RawExpression";
 
-    pub static BLOCK_BODY_FIELD: &str = "$__hcl_private_block_body";
-    pub static BLOCK_LABELS_FIELD: &str = "$__hcl_private_block_labels";
-    pub static EXPRESSION_FIELD: &str = "$__hcl_private_expression";
-    pub static IDENT_FIELD: &str = "$__hcl_private_identifier";
-    pub static RAW_EXPRESSION_FIELD: &str = "$__hcl_private_raw_expression";
+    pub const BLOCK_BODY_FIELD: &str = "$__hcl_private_block_body";
+    pub const BLOCK_LABELS_FIELD: &str = "$__hcl_private_block_labels";
+    pub const EXPRESSION_FIELD: &str = "$__hcl_private_expression";
+    pub const IDENT_FIELD: &str = "$__hcl_private_identifier";
+    pub const RAW_EXPRESSION_FIELD: &str = "$__hcl_private_raw_expression";
 }
