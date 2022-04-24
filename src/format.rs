@@ -98,6 +98,26 @@ pub trait Format {
     fn end_object_value<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write;
+
+    fn begin_attribute<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write;
+
+    fn end_attribute<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write;
+
+    fn begin_block<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write;
+
+    fn begin_block_body<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write;
+
+    fn end_block<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write;
 }
 
 /// A pretty printing HCL formatter.
@@ -210,89 +230,43 @@ impl<'a> Format for PrettyFormatter<'a> {
         self.has_value = true;
         Ok(())
     }
-}
 
-/// A compact HCL formatter.
-#[derive(Default)]
-pub struct CompactFormatter {
-    first_element: bool,
-    has_value: bool,
-}
-
-impl Format for CompactFormatter {
-    fn begin_array<W>(&mut self, writer: &mut W) -> io::Result<()>
+    fn begin_attribute<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
-        self.first_element = true;
-        writer.write_all(b"[")
+        indent(writer, self.current_indent, self.indent)
     }
 
-    fn end_array<W>(&mut self, writer: &mut W) -> io::Result<()>
+    fn end_attribute<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
-        writer.write_all(b"]")
+        writer.write_all(b"\n")
     }
 
-    fn begin_array_value<W>(&mut self, writer: &mut W) -> io::Result<()>
+    fn begin_block<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
-        if self.first_element {
-            self.first_element = false;
-        } else {
-            writer.write_all(b", ")?;
-        }
-
-        Ok(())
+        indent(writer, self.current_indent, self.indent)
     }
 
-    fn end_array_value<W>(&mut self, _writer: &mut W) -> io::Result<()>
+    fn begin_block_body<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
-        Ok(())
+        self.current_indent += 1;
+        writer.write_all(b"{\n")
     }
 
-    fn begin_object<W>(&mut self, writer: &mut W) -> io::Result<()>
+    fn end_block<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
-        self.has_value = false;
-        self.first_element = true;
-        writer.write_all(b"{")
-    }
-
-    fn end_object<W>(&mut self, writer: &mut W) -> io::Result<()>
-    where
-        W: ?Sized + io::Write,
-    {
-        if self.has_value {
-            writer.write_all(b" ")?;
-        }
-
-        writer.write_all(b"}")
-    }
-
-    fn begin_object_key<W>(&mut self, writer: &mut W) -> io::Result<()>
-    where
-        W: ?Sized + io::Write,
-    {
-        if self.first_element {
-            self.first_element = false;
-            writer.write_all(b" ")
-        } else {
-            writer.write_all(b", ")
-        }
-    }
-
-    fn end_object_value<W>(&mut self, _writer: &mut W) -> io::Result<()>
-    where
-        W: ?Sized + io::Write,
-    {
-        self.has_value = true;
-        Ok(())
+        self.current_indent -= 1;
+        indent(writer, self.current_indent, self.indent)?;
+        writer.write_all(b"}\n")
     }
 }
 

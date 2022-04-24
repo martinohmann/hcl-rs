@@ -49,6 +49,7 @@ pub mod attribute;
 pub mod block;
 pub mod body;
 pub mod expression;
+mod ser;
 
 pub use self::{
     attribute::Attribute,
@@ -246,4 +247,18 @@ impl Node {
             (lhs, rhs) => *lhs = rhs.take(),
         }
     }
+}
+
+#[doc(hidden)]
+pub(crate) mod private {
+    pub static ATTRIBUTE_NAME: &str = "$__hcl_private_Attribute";
+    pub static BLOCK_NAME: &str = "$__hcl_private_Block";
+    pub static IDENT_NAME: &str = "$__hcl_private_Identifier";
+    pub static RAW_EXPRESSION_NAME: &str = "$__hcl_private_RawExpression";
+
+    pub static BLOCK_BODY_FIELD: &str = "$__hcl_private_block_body";
+    pub static BLOCK_LABELS_FIELD: &str = "$__hcl_private_block_labels";
+    pub static EXPRESSION_FIELD: &str = "$__hcl_private_expression";
+    pub static IDENT_FIELD: &str = "$__hcl_private_identifier";
+    pub static RAW_EXPRESSION_FIELD: &str = "$__hcl_private_raw_expression";
 }
