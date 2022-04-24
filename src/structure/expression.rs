@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
 
 /// The object type used in the expression sub-language.
-pub type Object<K, V> = indexmap::IndexMap<K, V>;
+pub type Object<K = ObjectKey, V = Expression> = indexmap::IndexMap<K, V>;
 
 /// A type representing the expression sub-language is used within attribute definitions to specify
 /// values.
@@ -164,6 +164,32 @@ pub enum ObjectKey {
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     RawExpression(RawExpression),
+}
+
+impl ObjectKey {
+    /// Creates a new bare `ObjectKey` identifier.
+    pub fn identifier<I>(identifier: I) -> Self
+    where
+        I: Into<String>,
+    {
+        ObjectKey::Identifier(identifier.into())
+    }
+
+    /// Creates a new quoted string `ObjectKey`.
+    pub fn string<S>(string: S) -> Self
+    where
+        S: Into<String>,
+    {
+        ObjectKey::String(string.into())
+    }
+
+    /// Creates a new raw expression `ObjectKey`.
+    pub fn raw_expression<E>(expr: E) -> Self
+    where
+        E: Into<RawExpression>,
+    {
+        ObjectKey::RawExpression(expr.into())
+    }
 }
 
 impl From<&str> for ObjectKey {

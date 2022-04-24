@@ -789,7 +789,7 @@ where
     type SerializeTupleStruct = Impossible<(), Error>;
     type SerializeTupleVariant = Impossible<(), Error>;
     type SerializeMap = Impossible<(), Error>;
-    type SerializeStruct = Impossible<(), Error>;
+    type SerializeStruct = Self;
     type SerializeStructVariant = Impossible<(), Error>;
 
     fn serialize_bool(self, _v: bool) -> Result<()> {
@@ -966,8 +966,12 @@ where
     // omit the field names when serializing structs because the corresponding
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Err(not_an_object_key())
+    fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        if name == private::IDENT_NAME || name == private::RAW_EXPRESSION_NAME {
+            Ok(self)
+        } else {
+            Err(not_an_object_key())
+        }
     }
 
     // Struct variants are represented in HCL as `{ NAME = { K = V, ... } }`.
@@ -980,6 +984,35 @@ where
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         Err(not_an_object_key())
+    }
+}
+
+impl<'a, W, F> ser::SerializeStruct for ObjectKeySerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        if key == private::IDENT_FIELD {
+            value.serialize(IdentifierSerializer::new(self.ser))
+        } else if key == private::RAW_EXPRESSION_FIELD {
+            self.ser.writer.write_all(b"\"${")?;
+            value.serialize(IdentifierSerializer::new(self.ser))?;
+            self.ser.writer.write_all(b"}\"")?;
+            Ok(())
+        } else {
+            Err(not_an_identifier())
+        }
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -1232,7 +1265,7 @@ where
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
-    type SerializeStruct = Self;
+    type SerializeStruct = StructValueSerializer<'a, W, F>;
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
@@ -1450,8 +1483,15 @@ where
     // omit the field names when serializing structs because the corresponding
     // Deserialize implementation is required to know what the keys are without
     // looking at the serialized data.
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        self.serialize_map(Some(len))
+    fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        let ser = if name == private::RAW_EXPRESSION_NAME {
+            StructValueSerializer::RawExpression { ser: self.ser }
+        } else {
+            self.ser.formatter.begin_object(&mut self.ser.writer)?;
+            StructValueSerializer::Object { ser: self.ser }
+        };
+
+        Ok(ser)
     }
 
     // Struct variants are represented in HCL as `{ NAME = { K = V, ... } }`.
@@ -1617,36 +1657,6 @@ where
     }
 }
 
-// Structs are like maps in which the keys are constrained to be compile-time
-// constant strings.
-impl<'a, W, F> ser::SerializeStruct for ValueSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.ser.formatter.begin_object_key(&mut self.ser.writer)?;
-        key.serialize(ObjectKeySerializer::new(self.ser))?;
-        self.ser
-            .formatter
-            .begin_object_value(&mut self.ser.writer)?;
-        value.serialize(ValueSerializer::new(self.ser))?;
-        self.ser.formatter.end_object_value(&mut self.ser.writer)?;
-        Ok(())
-    }
-
-    fn end(self) -> Result<()> {
-        self.ser.formatter.end_object(&mut self.ser.writer)?;
-        Ok(())
-    }
-}
-
 // Similar to `SerializeTupleVariant`, here the `end` method is responsible for
 // closing both of the curly braces opened by `serialize_struct_variant`.
 impl<'a, W, F> ser::SerializeStructVariant for ValueSerializer<'a, W, F>
@@ -1675,6 +1685,54 @@ where
         self.ser.formatter.end_object(&mut self.ser.writer)?;
         self.ser.formatter.end_object_value(&mut self.ser.writer)?;
         self.ser.formatter.end_object(&mut self.ser.writer)?;
+        Ok(())
+    }
+}
+
+enum StructValueSerializer<'a, W: 'a, F: 'a> {
+    Object { ser: &'a mut Serializer<W, F> },
+    RawExpression { ser: &'a mut Serializer<W, F> },
+}
+
+impl<'a, W, F> ser::SerializeStruct for StructValueSerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        match self {
+            StructValueSerializer::Object { ser } => {
+                ser.formatter.begin_object_key(&mut ser.writer)?;
+                key.serialize(ObjectKeySerializer::new(ser))?;
+                ser.formatter.begin_object_value(&mut ser.writer)?;
+                value.serialize(ValueSerializer::new(ser))?;
+                ser.formatter.end_object_value(&mut ser.writer)?;
+            }
+            StructValueSerializer::RawExpression { ser } => {
+                if key == private::RAW_EXPRESSION_FIELD {
+                    value.serialize(IdentifierSerializer::new(ser))?;
+                } else {
+                    return Err(Error::new("not a raw expression"));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn end(self) -> Result<()> {
+        match self {
+            StructValueSerializer::Object { ser } => {
+                ser.formatter.end_object(&mut ser.writer)?;
+            }
+            StructValueSerializer::RawExpression { .. } => {}
+        }
         Ok(())
     }
 }
@@ -1735,7 +1793,7 @@ fn not_a_block_label() -> Error {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Block, BlockLabel, Body};
+    use crate::{Attribute, Block, BlockLabel, Body, Object, ObjectKey, RawExpression};
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
@@ -1820,6 +1878,14 @@ mod test {
                             .add_attribute(("baz", vec![1u64, 2u64, 3u64]))
                             .build(),
                     )
+                    .add_attribute(Attribute::new("an_object", {
+                        let mut object = Object::new();
+
+                        object.insert(ObjectKey::identifier("foo"), "bar".into());
+                        object.insert("enabled".into(), RawExpression::new("var.enabled").into());
+                        object.insert(ObjectKey::raw_expression("var.name"), "the value".into());
+                        object
+                    }))
                     .build(),
             )
             .build();
@@ -1834,6 +1900,11 @@ qux {
       2,
       3
     ]
+  }
+  an_object = {
+    foo = "bar"
+    "enabled" = var.enabled
+    "${var.name}" = "the value"
   }
 }
 "#;
