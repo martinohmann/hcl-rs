@@ -128,7 +128,7 @@ where
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
-    type SerializeStruct = StructureSerializer<'a, W, F>;
+    type SerializeStruct = Structure<'a, W, F>;
     type SerializeStructVariant = Self;
 
     unsupported_type!(bool, serialize_bool, structure_expected);
@@ -229,9 +229,9 @@ where
 
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let ser = match name {
-            marker::ATTRIBUTE_NAME => StructureSerializer::Attribute { ser: self },
-            marker::BLOCK_NAME => StructureSerializer::Block { ser: self },
-            _ => StructureSerializer::Map { ser: self },
+            marker::ATTRIBUTE_NAME => Structure::new(StructureKind::Attribute, self),
+            marker::BLOCK_NAME => Structure::new(StructureKind::Block, self),
+            _ => Structure::new(StructureKind::Generic, self),
         };
 
         Ok(ser)
@@ -397,14 +397,25 @@ where
     }
 }
 
-#[doc(hidden)]
-pub enum StructureSerializer<'a, W: 'a, F: 'a> {
-    Attribute { ser: &'a mut Serializer<W, F> },
-    Block { ser: &'a mut Serializer<W, F> },
-    Map { ser: &'a mut Serializer<W, F> },
+enum StructureKind {
+    Attribute,
+    Block,
+    Generic,
 }
 
-impl<'a, W, F> ser::SerializeStruct for StructureSerializer<'a, W, F>
+#[doc(hidden)]
+pub struct Structure<'a, W: 'a, F: 'a> {
+    kind: StructureKind,
+    ser: &'a mut Serializer<W, F>,
+}
+
+impl<'a, W, F> Structure<'a, W, F> {
+    fn new(kind: StructureKind, ser: &'a mut Serializer<W, F>) -> Structure<'a, W, F> {
+        Structure { kind, ser }
+    }
+}
+
+impl<'a, W, F> ser::SerializeStruct for Structure<'a, W, F>
 where
     W: io::Write,
     F: Format,
@@ -416,33 +427,34 @@ where
     where
         T: ?Sized + Serialize,
     {
-        match self {
-            StructureSerializer::Attribute { ser } => match key {
+        match self.kind {
+            StructureKind::Attribute => match key {
                 marker::IDENT_FIELD => {
-                    ser.serialize_attribute_key(value)?;
+                    self.ser.serialize_attribute_key(value)?;
                 }
                 marker::EXPRESSION_FIELD => {
-                    ser.serialize_attribute_value(value)?;
-                    ser.formatter.end_attribute(&mut ser.writer)?;
+                    self.ser.serialize_attribute_value(value)?;
+                    self.ser.formatter.end_attribute(&mut self.ser.writer)?;
                 }
                 _ => return Err(Error::new("not an attribute")),
             },
-            StructureSerializer::Block { ser } => match key {
+            StructureKind::Block => match key {
                 marker::IDENT_FIELD => {
-                    ser.formatter.begin_block(&mut ser.writer)?;
-                    value.serialize(IdentifierSerializer::new(ser))?;
+                    self.ser.formatter.begin_block(&mut self.ser.writer)?;
+                    value.serialize(IdentifierSerializer::new(self.ser))?;
                 }
                 marker::BLOCK_LABELS_FIELD => {
-                    value.serialize(BlockLabelSerializer::new(ser))?;
+                    value.serialize(BlockLabelSerializer::new(self.ser))?;
                 }
                 marker::BLOCK_BODY_FIELD => {
-                    ser.formatter.begin_block_body(&mut ser.writer)?;
-                    value.serialize(&mut **ser)?;
+                    self.ser.formatter.begin_block_body(&mut self.ser.writer)?;
+                    value.serialize(&mut *self.ser)?;
+                    self.ser.formatter.end_block(&mut self.ser.writer)?;
                 }
                 _ => return Err(Error::new("not a block")),
             },
-            StructureSerializer::Map { ser } => {
-                ser.serialize_attribute(key, value)?;
+            StructureKind::Generic => {
+                self.ser.serialize_attribute(key, value)?;
             }
         }
 
@@ -450,13 +462,6 @@ where
     }
 
     fn end(self) -> Result<()> {
-        match self {
-            StructureSerializer::Attribute { .. } => {}
-            StructureSerializer::Block { ser } => {
-                ser.formatter.end_block(&mut ser.writer)?;
-            }
-            StructureSerializer::Map { .. } => {}
-        }
         Ok(())
     }
 }
