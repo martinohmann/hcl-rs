@@ -254,11 +254,11 @@ where
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
     fn end(self) -> Result<()> {
-        Ok(())
+        ser::SerializeSeq::end(self)
     }
 }
 
@@ -274,11 +274,11 @@ where
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
     fn end(self) -> Result<()> {
-        Ok(())
+        ser::SerializeSeq::end(self)
     }
 }
 
@@ -1028,12 +1028,11 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.serialize_array_value(value)
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
     fn end(self) -> Result<()> {
-        self.ser.formatter.end_array(&mut self.ser.writer)?;
-        Ok(())
+        ser::SerializeSeq::end(self)
     }
 }
 
@@ -1049,12 +1048,11 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.serialize_array_value(value)
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
     fn end(self) -> Result<()> {
-        self.ser.formatter.end_array(&mut self.ser.writer)?;
-        Ok(())
+        ser::SerializeSeq::end(self)
     }
 }
 
@@ -1070,7 +1068,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.serialize_array_value(value)
+        ser::SerializeSeq::serialize_element(self, value)
     }
 
     fn end(self) -> Result<()> {
