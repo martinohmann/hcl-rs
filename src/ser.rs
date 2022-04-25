@@ -493,6 +493,73 @@ where
     }
 }
 
+struct RawExpressionSerializer<'a, W: 'a, F: 'a> {
+    ser: &'a mut Serializer<W, F>,
+}
+
+impl<'a, W, F> RawExpressionSerializer<'a, W, F> {
+    fn new(ser: &'a mut Serializer<W, F>) -> RawExpressionSerializer<'a, W, F> {
+        RawExpressionSerializer { ser }
+    }
+}
+
+impl<'a, W, F> ser::Serializer for RawExpressionSerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    type SerializeSeq = Impossible<(), Error>;
+    type SerializeTuple = Impossible<(), Error>;
+    type SerializeTupleStruct = Impossible<(), Error>;
+    type SerializeTupleVariant = Impossible<(), Error>;
+    type SerializeMap = Impossible<(), Error>;
+    type SerializeStruct = Impossible<(), Error>;
+    type SerializeStructVariant = Impossible<(), Error>;
+
+    serialize_unsupported! {
+        not_an_identifier
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        bytes none unit unit_struct newtype_variant
+        seq tuple tuple_struct tuple_variant
+        map struct struct_variant
+    }
+
+    fn serialize_char(self, v: char) -> Result<()> {
+        self.serialize_str(&v.to_string())
+    }
+
+    fn serialize_str(self, v: &str) -> Result<()> {
+        self.ser.writer.write_all(v.as_bytes())?;
+        Ok(())
+    }
+
+    fn serialize_some<T>(self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        self.serialize_str(variant)
+    }
+
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+}
+
 struct ObjectKeySerializer<'a, W: 'a, F: 'a> {
     ser: &'a mut Serializer<W, F>,
 }
@@ -594,7 +661,7 @@ where
             ObjectKey::RawExpression(ser) => match key {
                 marker::RAW_EXPRESSION_FIELD => {
                     ser.writer.write_all(b"\"${")?;
-                    value.serialize(IdentifierSerializer::new(ser))?;
+                    value.serialize(RawExpressionSerializer::new(ser))?;
                     ser.writer.write_all(b"}\"")?;
                     Ok(())
                 }
@@ -1163,7 +1230,7 @@ where
         match self {
             StructValue::Object(ser) => ser.serialize_object_key_value(key, value),
             StructValue::RawExpression(ser) => match key {
-                marker::RAW_EXPRESSION_FIELD => value.serialize(IdentifierSerializer::new(ser)),
+                marker::RAW_EXPRESSION_FIELD => value.serialize(RawExpressionSerializer::new(ser)),
                 _ => Err(not_an_identifier()),
             },
         }
