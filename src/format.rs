@@ -1,4 +1,5 @@
 use std::io;
+use unicode_xid::UnicodeXID;
 
 /// This trait abstracts away serializing the HCL control characters, which allows the user to
 /// optionally pretty print the HCL output.
@@ -52,11 +53,31 @@ pub trait Format {
         writer.write_all(b"\"")
     }
 
+    /// Ensures that `ident` is valid according to the [Unicode Standard Annex
+    /// #31][unicode-standard] before writing it to the writer.
+    ///
+    /// [unicode-standard]: http://www.unicode.org/reports/tr31/
     fn write_ident<W>(&mut self, writer: &mut W, ident: &str) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
-        // @TODO(mohmann): validate chars
+        if ident.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "identifiers must not be empty",
+            ));
+        }
+
+        let mut chars = ident.chars();
+        let first = chars.next().unwrap();
+
+        if !first.is_xid_start() || !chars.all(UnicodeXID::is_xid_continue) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "invalid identifier",
+            ));
+        }
+
         writer.write_all(ident.as_bytes())
     }
 

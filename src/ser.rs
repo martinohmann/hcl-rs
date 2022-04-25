@@ -765,8 +765,7 @@ where
         T: ?Sized + Serialize,
     {
         self.ser.writer.write_all(b" ")?;
-        value.serialize(BlockLabelSerializer::new(self.ser))?;
-        Ok(())
+        value.serialize(BlockLabelSerializer::new(self.ser))
     }
 
     fn end(self) -> Result<()> {
@@ -1476,5 +1475,10 @@ qux = {
 "#;
 
         assert_eq!(to_string(&value).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_errors() {
+        assert!(to_string(&json!({"\"": "unvalid attribute name"})).is_err())
     }
 }

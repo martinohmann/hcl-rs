@@ -5,7 +5,7 @@
 pub mod de;
 pub mod error;
 #[allow(missing_docs)]
-mod format;
+pub mod format;
 #[allow(missing_docs)]
 #[macro_use]
 mod macros;
