@@ -598,7 +598,9 @@ where
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.ser.formatter.write_str(&mut self.ser.writer, v)?;
+        self.ser
+            .formatter
+            .write_quoted_string(&mut self.ser.writer, v)?;
         Ok(())
     }
 
@@ -713,7 +715,9 @@ where
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.ser.formatter.write_str(&mut self.ser.writer, v)?;
+        self.ser
+            .formatter
+            .write_quoted_string(&mut self.ser.writer, v)?;
         Ok(())
     }
 
@@ -880,7 +884,9 @@ where
     // get the idea. For example it would emit invalid HCL if the input string
     // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
-        self.ser.formatter.write_str(&mut self.ser.writer, v)?;
+        self.ser
+            .formatter
+            .write_quoted_string(&mut self.ser.writer, v)?;
         Ok(())
     }
 

@@ -43,14 +43,20 @@ pub trait Format {
         writer.write_all(s.as_bytes())
     }
 
-    fn write_str<W>(&mut self, writer: &mut W, s: &str) -> io::Result<()>
+    fn write_quoted_string<W>(&mut self, writer: &mut W, s: &str) -> io::Result<()>
     where
         W: ?Sized + io::Write,
     {
         writer.write_all(b"\"")?;
-        // @TODO(mohmann): handle escaping
-        writer.write_all(s.as_bytes())?;
+        self.write_string_fragment(writer, s)?;
         writer.write_all(b"\"")
+    }
+
+    fn write_string_fragment<W>(&mut self, writer: &mut W, s: &str) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        writer.write_all(s.as_bytes())
     }
 
     /// Ensures that `ident` is valid according to the [Unicode Standard Annex
@@ -78,7 +84,7 @@ pub trait Format {
             ));
         }
 
-        writer.write_all(ident.as_bytes())
+        self.write_string_fragment(writer, ident)
     }
 
     fn begin_array<W>(&mut self, writer: &mut W) -> io::Result<()>
