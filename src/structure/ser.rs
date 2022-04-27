@@ -1,14 +1,12 @@
 use super::marker;
 use super::{Attribute, Block, BlockLabel, Expression, ObjectKey, RawExpression, Structure};
-use serde::{Serialize, Serializer};
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 impl Serialize for RawExpression {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        use serde::ser::SerializeStruct;
-
         let mut s = serializer.serialize_struct(marker::RAW_EXPRESSION_NAME, 1)?;
         s.serialize_field(marker::RAW_EXPRESSION_FIELD, self.as_str())?;
         s.end()
@@ -23,8 +21,6 @@ impl Serialize for ObjectKey {
         match self {
             ObjectKey::String(s) => s.serialize(serializer),
             ObjectKey::Identifier(ident) => {
-                use serde::ser::SerializeStruct;
-
                 let mut s = serializer.serialize_struct(marker::IDENT_NAME, 1)?;
                 s.serialize_field(marker::IDENT_FIELD, &ident)?;
                 s.end()
@@ -56,8 +52,6 @@ impl Serialize for Attribute {
     where
         S: Serializer,
     {
-        use serde::ser::SerializeStruct;
-
         let mut s = serializer.serialize_struct(marker::ATTRIBUTE_NAME, 2)?;
         s.serialize_field(marker::IDENT_FIELD, self.key())?;
         s.serialize_field(marker::EXPRESSION_FIELD, self.expr())?;
@@ -70,17 +64,9 @@ impl Serialize for Block {
     where
         S: Serializer,
     {
-        use serde::ser::SerializeStruct;
-
-        let len = if self.labels().is_empty() { 2 } else { 3 };
-
-        let mut s = serializer.serialize_struct(marker::BLOCK_NAME, len)?;
+        let mut s = serializer.serialize_struct(marker::BLOCK_NAME, 3)?;
         s.serialize_field(marker::IDENT_FIELD, self.identifier())?;
-
-        if !self.labels.is_empty() {
-            s.serialize_field(marker::BLOCK_LABELS_FIELD, self.labels())?;
-        }
-
+        s.serialize_field(marker::BLOCK_LABELS_FIELD, self.labels())?;
         s.serialize_field(marker::BLOCK_BODY_FIELD, self.body())?;
         s.end()
     }
@@ -94,8 +80,6 @@ impl Serialize for BlockLabel {
         match self {
             BlockLabel::StringLit(s) => s.serialize(serializer),
             BlockLabel::Identifier(ident) => {
-                use serde::ser::SerializeStruct;
-
                 let mut s = serializer.serialize_struct(marker::IDENT_NAME, 1)?;
                 s.serialize_field(marker::IDENT_FIELD, &ident)?;
                 s.end()
