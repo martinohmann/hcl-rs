@@ -1389,7 +1389,7 @@ mod test {
                     .add_block(
                         Block::builder("with_labels")
                             .add_label(BlockLabel::identifier("label1"))
-                            .add_label("label2")
+                            .add_label("lab\"el2")
                             .add_attribute(("baz", vec![1u64, 2u64, 3u64]))
                             .build(),
                     )
@@ -1409,7 +1409,7 @@ mod test {
 bar = "baz"
 qux {
   foo = "bar"
-  with_labels label1 "label2" {
+  with_labels label1 "lab\"el2" {
     baz = [
       1,
       2,
@@ -1485,6 +1485,6 @@ qux = {
 
     #[test]
     fn test_errors() {
-        assert!(to_string(&json!({"\"": "unvalid attribute name"})).is_err())
+        assert!(to_string(&json!({"\"": "invalid attribute name"})).is_err())
     }
 }

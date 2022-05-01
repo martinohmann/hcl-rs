@@ -1,3 +1,4 @@
+use super::escape::{CharEscape, ESCAPE};
 use std::io;
 use unicode_xid::UnicodeXID;
 
@@ -48,7 +49,7 @@ pub trait Format {
         W: ?Sized + io::Write,
     {
         writer.write_all(b"\"")?;
-        self.write_string_fragment(writer, s)?;
+        self.write_escaped_string(writer, s)?;
         writer.write_all(b"\"")
     }
 
@@ -85,6 +86,37 @@ pub trait Format {
         }
 
         self.write_string_fragment(writer, ident)
+    }
+
+    fn write_escaped_string<W>(&mut self, writer: &mut W, value: &str) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        let bytes = value.as_bytes();
+
+        let mut start = 0;
+
+        for (i, &byte) in bytes.iter().enumerate() {
+            let escape = ESCAPE[byte as usize];
+            if escape == 0 {
+                continue;
+            }
+
+            if start < i {
+                self.write_string_fragment(writer, &value[start..i])?;
+            }
+
+            let char_escape = CharEscape::from_escape_table(escape, byte);
+            char_escape.write_escaped(writer)?;
+
+            start = i + 1;
+        }
+
+        if start != bytes.len() {
+            self.write_string_fragment(writer, &value[start..])?;
+        }
+
+        Ok(())
     }
 
     fn begin_array<W>(&mut self, writer: &mut W) -> io::Result<()>

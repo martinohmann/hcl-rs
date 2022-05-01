@@ -4,6 +4,7 @@
 
 pub mod de;
 pub mod error;
+mod escape;
 #[allow(missing_docs)]
 pub mod format;
 #[allow(missing_docs)]
