@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0](https://github.com/martinohmann/hcl-rs/compare/v0.3.3...v0.4.0) (2022-05-04)
+
+
+### Features
+
+* **structure:** add `Expression` type ([#20](https://github.com/martinohmann/hcl-rs/issues/20)) ([2661f30](https://github.com/martinohmann/hcl-rs/commit/2661f309a57ed79bcf8a6744632589243e5f46fa))
+
+
+### Bug Fixes
+
+* **expression:** rename `Tuple` variant to `Array` ([72306f2](https://github.com/martinohmann/hcl-rs/commit/72306f27a164e2aa2e7febe6210ba4f586b4822e))
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 2 to 3.0.1 ([#18](https://github.com/martinohmann/hcl-rs/issues/18)) ([6c1ea15](https://github.com/martinohmann/hcl-rs/commit/6c1ea15c90860902d7eca178faec0527acf25ce2))
+* **deps:** bump actions/cache from 3.0.1 to 3.0.2 ([#23](https://github.com/martinohmann/hcl-rs/issues/23)) ([d7198d9](https://github.com/martinohmann/hcl-rs/commit/d7198d9fa5895c6957f442f4397e379d435e0950))
+
 ### [0.3.3](https://github.com/martinohmann/hcl-rs/compare/v0.3.2...v0.3.3) (2022-03-26)
 
 
