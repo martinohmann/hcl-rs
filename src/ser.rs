@@ -1428,6 +1428,143 @@ qux {
     }
 
     #[test]
+    fn test_custom_type() {
+        use crate::Map;
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize, Clone)]
+        struct TlsConfigs {
+            #[serde(flatten)]
+            inner: Map<String, TlsConfig>,
+        }
+
+        #[derive(Serialize, Deserialize, Clone)]
+        #[serde(into = "Body")]
+        struct TlsConfig {
+            key_path: String,
+            cert_path: String,
+        }
+
+        impl From<TlsConfig> for Body {
+            fn from(config: TlsConfig) -> Body {
+                Body::builder()
+                    .add_attribute(("key_path", config.key_path))
+                    .add_attribute(("cert_path", config.cert_path))
+                    .build()
+            }
+        }
+
+        #[derive(Serialize, Deserialize, Clone)]
+        #[serde(into = "Body")]
+        struct Config {
+            host: String,
+            port: u16,
+            tls: TlsConfigs,
+        }
+
+        impl From<Config> for Body {
+            fn from(config: Config) -> Body {
+                Body::builder()
+                    .add_attribute(("host", config.host))
+                    .add_attribute(("port", config.port))
+                    .add_blocks(config.tls.inner.into_iter().map(|(name, tls_config)| {
+                        Block::builder("tls")
+                            .add_label(name)
+                            .with_body(tls_config)
+                            .build()
+                    }))
+                    .build()
+            }
+        }
+
+        let expected = r#"host = "localhost"
+port = 3333
+tls "foo" {
+  key_path = "key.pem"
+  cert_path = "cert.pem"
+}
+tls "bar" {
+  key_path = "key.pem"
+  cert_path = "cert.pem"
+}
+"#;
+        let value: Config = crate::from_str(expected).unwrap();
+
+        assert_eq!(to_string(&value).unwrap(), expected);
+    }
+
+    #[test]
+    fn test_terraform() {
+        use crate::{Map, Value};
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Serialize, Deserialize, Clone)]
+        #[serde(transparent)]
+        struct Resources(Map<String, ProviderResources>);
+
+        impl From<Resources> for Body {
+            fn from(resources: Resources) -> Body {
+                Body::builder()
+                    .add_blocks(
+                        resources
+                            .0
+                            .into_iter()
+                            .flat_map(|(kind, provider_resources)| {
+                                provider_resources
+                                    .0
+                                    .into_iter()
+                                    .map(|(name, resource)| {
+                                        Block::builder("resource")
+                                            .add_label(kind.clone())
+                                            .add_label(name)
+                                            .add_attributes(resource.attributes)
+                                            .build()
+                                    })
+                                    .collect::<Vec<Block>>()
+                            }),
+                    )
+                    .build()
+            }
+        }
+
+        #[derive(Serialize, Deserialize, Clone)]
+        #[serde(transparent)]
+        struct ProviderResources(Map<String, Resource>);
+
+        #[derive(Serialize, Deserialize, Clone)]
+        #[serde(transparent)]
+        struct Resource {
+            attributes: Map<String, Value>,
+        }
+
+        #[derive(Serialize, Deserialize, Clone)]
+        #[serde(into = "Body")]
+        struct Config {
+            #[serde(rename(deserialize = "resource"))]
+            resources: Resources,
+        }
+
+        impl From<Config> for Body {
+            fn from(config: Config) -> Body {
+                config.resources.into()
+            }
+        }
+
+        let expected = r#"resource "aws_s3_bucket" "my-bucket" {
+  name = "my-bucket"
+  foo = "bar"
+}
+resource "aws_s3_bucket" "other-bucket" {
+  name = "other-bucket"
+}
+"#;
+
+        let value: Config = crate::from_str(expected).unwrap();
+
+        assert_eq!(to_string(&value).unwrap(), expected);
+    }
+
+    #[test]
     fn test_object() {
         let value = json!({
             "foo": [1, 2, 3],

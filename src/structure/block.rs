@@ -74,14 +74,13 @@ impl From<Block> for Value {
 impl<I, B> From<(I, B)> for Block
 where
     I: Into<String>,
-    B: IntoIterator,
-    B::Item: Into<Structure>,
+    B: Into<Body>,
 {
     fn from(pair: (I, B)) -> Block {
         Block {
             identifier: pair.0.into(),
             labels: Vec::new(),
-            body: pair.1.into_iter().collect(),
+            body: pair.1.into(),
         }
     }
 }
@@ -281,6 +280,17 @@ impl BlockBuilder {
         I::Item: Into<Structure>,
     {
         self.body = self.body.add_structures(iter.into_iter().map(Into::into));
+        self
+    }
+
+    /// Sets the block's `Body`.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    pub fn with_body<B>(mut self, body: B) -> BlockBuilder
+    where
+        B: Into<Body>,
+    {
+        self.body = Body::builder().add_structures(body.into());
         self
     }
 
