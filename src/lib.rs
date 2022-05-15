@@ -18,3 +18,17 @@ pub use structure::{
     RawExpression, Structure,
 };
 pub use value::{Map, Value};
+
+trait OptionExt<T> {
+    /// Takes the value out of an `Option` and leaves `None` in place. This is a shorthand for the
+    /// pattern `.take().unwrap()`.
+    ///
+    /// Panics if the `Option` is `None`.
+    fn consume(&mut self) -> T;
+}
+
+impl<T> OptionExt<T> for Option<T> {
+    fn consume(&mut self) -> T {
+        self.take().unwrap()
+    }
+}

@@ -1,14 +1,14 @@
 //! Types to represent and build HCL body structures.
 
 use super::{Attribute, Block, IntoNodeMap, Structure};
-use crate::Value;
+use crate::{Map, Value};
 use std::vec::IntoIter;
 
 /// Represents an HCL config file body.
 ///
 /// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
 #[derive(Debug, PartialEq, Default, Clone)]
-pub struct Body(Vec<Structure>);
+pub struct Body(pub Vec<Structure>);
 
 impl Body {
     /// Consumes `self` and returns the wrapped `Vec<Structure>`.
@@ -178,7 +178,16 @@ impl<'a> Iterator for BlockIterMut<'a> {
 
 impl From<Body> for Value {
     fn from(body: Body) -> Value {
-        Value::from_iter(body.into_node_map())
+        Value::Object(body.into())
+    }
+}
+
+impl From<Body> for Map<String, Value> {
+    fn from(body: Body) -> Map<String, Value> {
+        body.into_node_map()
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect()
     }
 }
 

@@ -48,6 +48,7 @@
 pub mod attribute;
 pub mod block;
 pub mod body;
+pub(crate) mod de;
 pub mod expression;
 
 pub use self::{
@@ -246,4 +247,22 @@ impl Node {
             (lhs, rhs) => *lhs = rhs.take(),
         }
     }
+}
+
+/// Special marker strings used as field/struct names during deserialization of HCL structure
+/// types. They are an internal implementation detail should not be leaked outside of the
+/// deserializer.
+pub(crate) mod marker {
+    // Marker for the `Body` type.
+    pub const BODY_NAME: &str = "$hcl::Body";
+
+    // Markers for HCL structure fields.
+    pub const ATTRIBUTE_FIELD: &str = "$hcl::attribute";
+    pub const BLOCK_FIELD: &str = "$hcl::block";
+    pub const BODY_FIELD: &str = "$hcl::body";
+    pub const IDENT_FIELD: &str = "$hcl::ident";
+    pub const LABELS_FIELD: &str = "$hcl::labels";
+    pub const RAW_FIELD: &str = "$hcl::raw";
+    pub const STRING_FIELD: &str = "$hcl::string";
+    pub const VALUE_FIELD: &str = "$hcl::value";
 }
