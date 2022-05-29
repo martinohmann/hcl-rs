@@ -5,18 +5,19 @@
 //!
 //! [hcl-json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md
 
-use crate::{parser, Error, Number, Result, Value};
-use indexmap::{map, IndexMap};
-use serde::de::{
-    self, value::StringDeserializer, DeserializeOwned, DeserializeSeed, EnumAccess,
-    IntoDeserializer, MapAccess, SeqAccess, VariantAccess, Visitor,
+use crate::{
+    parser,
+    structure::{de::BodyDeserializer, marker},
+    Body, Error, Map, Number, OptionExt, Result, Value,
 };
-use serde::{forward_to_deserialize_any, Deserialize};
+use indexmap::map;
+use serde::de::{self, value::StringDeserializer, IntoDeserializer};
+use serde::forward_to_deserialize_any;
 use std::vec;
 
 /// A structure that deserializes HCL into Rust values.
 pub struct Deserializer {
-    value: Value,
+    body: Option<Body>,
 }
 
 impl Deserializer {
@@ -29,19 +30,24 @@ impl Deserializer {
     /// [Error]: ../error/enum.Error.html
     pub fn from_str(input: &str) -> Result<Self> {
         let body = parser::parse(input)?;
-        Ok(Deserializer::from_value(body.into()))
+        Ok(Deserializer { body: Some(body) })
     }
 
-    fn from_value(value: Value) -> Self {
-        Deserializer { value }
+    /// Consumes the wrapped `Body` and converts it into a map that is compatible with the HCL
+    /// JSON Specification.
+    fn consume_value_map(&mut self) -> Map<String, Value> {
+        self.body.consume().into()
     }
 }
 
 /// Deserialize an instance of type `T` from a string of HCL text.
 ///
-/// If preserving HCL semantics is required consider using [`hcl::parse`][parse] to parse the
-/// input into a [`Body`][Body].
+/// By default, the deserialization will follow the [HCL JSON Specification][hcl-json-spec].
 ///
+/// If preserving HCL semantics is required consider deserializing into a [`Body`][Body] instead or
+/// use [`hcl::parse`][parse] to directly parse the input into a [`Body`][Body].
+///
+/// [hcl-json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md
 /// [parse]: ../fn.parse.html
 /// [Body]: ../struct.Body.html
 ///
@@ -87,7 +93,7 @@ impl Deserializer {
 /// This functions fails with an error if the data does not match the structure of `T`.
 pub fn from_str<'de, T>(s: &'de str) -> Result<T>
 where
-    T: Deserialize<'de>,
+    T: de::Deserialize<'de>,
 {
     let mut deserializer = Deserializer::from_str(s)?;
     T::deserialize(&mut deserializer)
@@ -95,12 +101,8 @@ where
 
 /// Deserialize an instance of type `T` from an IO stream of HCL.
 ///
-/// If preserving HCL semantics is required consider using [`hcl::parse`][parse] to parse the
-/// input into a [`Body`][Body].
+/// See the documentation of [`from_str`][from_str] for more information.
 ///
-/// [parse]: ../fn.parse.html
-/// [Body]: ../struct.Body.html
-/////
 /// ## Example
 ///
 /// ```
@@ -144,7 +146,7 @@ where
 /// match the structure of `T`.
 pub fn from_reader<T, R>(mut reader: R) -> Result<T>
 where
-    T: DeserializeOwned,
+    T: de::DeserializeOwned,
     R: std::io::Read,
 {
     let mut s = String::new();
@@ -155,13 +157,15 @@ where
 
 /// Deserialize an instance of type `T` from a byte slice.
 ///
+/// See the documentation of [`from_str`][from_str] for more information.
+///
 /// ## Errors
 ///
 /// This functions fails with an error if `buf` does not contain valid UTF-8 or if the data does
 /// not match the structure of `T`.
 pub fn from_slice<'de, T>(buf: &'de [u8]) -> Result<T>
 where
-    T: Deserialize<'de>,
+    T: de::Deserialize<'de>,
 {
     let s = std::str::from_utf8(buf)?;
     from_str(s)
@@ -172,19 +176,26 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer {
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
-        V: Visitor<'de>,
+        V: de::Visitor<'de>,
     {
-        match self.value.take() {
-            Value::Null => visitor.visit_unit(),
-            Value::Bool(b) => visitor.visit_bool(b),
-            Value::Number(n) => match n {
-                Number::PosInt(i) => visitor.visit_u64(i),
-                Number::NegInt(i) => visitor.visit_i64(i),
-                Number::Float(f) => visitor.visit_f64(f),
-            },
-            Value::String(s) => visitor.visit_string(s),
-            Value::Array(array) => visitor.visit_seq(Seq::new(array)),
-            Value::Object(object) => visitor.visit_map(Map::new(object)),
+        visitor.visit_map(MapAccess::new(self.consume_value_map()))
+    }
+
+    fn deserialize_newtype_struct<V>(
+        self,
+        name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        if let marker::BODY_NAME = name {
+            // Specialized handling of `hcl::Body`.
+            let mut de = BodyDeserializer::new(self.body.consume());
+            de.deserialize_any(visitor)
+        } else {
+            // Generic deserialization according to the HCL JSON spec.
+            self.deserialize_any(visitor)
         }
     }
 
@@ -195,44 +206,40 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer {
         visitor: V,
     ) -> Result<V::Value>
     where
-        V: Visitor<'de>,
+        V: de::Visitor<'de>,
     {
-        match self.value.take() {
-            Value::String(s) => visitor.visit_enum(s.into_deserializer()),
-            Value::Object(object) => visitor.visit_enum(Enum::new(object)),
-            _ => Err(Error::expected("enum")),
-        }
+        visitor.visit_enum(EnumAccess::new(self.consume_value_map()))
     }
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        bytes byte_buf option unit unit_struct seq tuple
         tuple_struct map struct identifier ignored_any
     }
 }
 
-struct Seq {
+struct SeqAccess {
     iter: vec::IntoIter<Value>,
 }
 
-impl Seq {
+impl SeqAccess {
     fn new(vec: Vec<Value>) -> Self {
-        Self {
+        SeqAccess {
             iter: vec.into_iter(),
         }
     }
 }
 
-impl<'de> SeqAccess<'de> for Seq {
+impl<'de> de::SeqAccess<'de> for SeqAccess {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
     where
-        T: DeserializeSeed<'de>,
+        T: de::DeserializeSeed<'de>,
     {
         match self.iter.next() {
             Some(value) => seed
-                .deserialize(&mut Deserializer::from_value(value))
+                .deserialize(&mut ValueDeserializer::new(value))
                 .map(Some),
             None => Ok(None),
         }
@@ -243,26 +250,26 @@ impl<'de> SeqAccess<'de> for Seq {
     }
 }
 
-struct Map {
+struct MapAccess {
     iter: map::IntoIter<String, Value>,
     value: Value,
 }
 
-impl Map {
-    fn new(map: IndexMap<String, Value>) -> Self {
-        Self {
+impl MapAccess {
+    fn new(map: Map<String, Value>) -> Self {
+        MapAccess {
             iter: map.into_iter(),
             value: Value::Null,
         }
     }
 }
 
-impl<'de> MapAccess<'de> for Map {
+impl<'de> de::MapAccess<'de> for MapAccess {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
-        K: DeserializeSeed<'de>,
+        K: de::DeserializeSeed<'de>,
     {
         match self.iter.next() {
             Some((key, value)) => {
@@ -275,9 +282,9 @@ impl<'de> MapAccess<'de> for Map {
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value>
     where
-        V: DeserializeSeed<'de>,
+        V: de::DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut Deserializer::from_value(self.value.take()))
+        seed.deserialize(&mut ValueDeserializer::new(self.value.take()))
     }
 
     fn size_hint(&self) -> Option<usize> {
@@ -285,72 +292,126 @@ impl<'de> MapAccess<'de> for Map {
     }
 }
 
-struct Enum {
+struct EnumAccess {
     iter: map::IntoIter<String, Value>,
 }
 
-impl Enum {
-    fn new(map: IndexMap<String, Value>) -> Self {
-        Self {
+impl EnumAccess {
+    fn new(map: Map<String, Value>) -> Self {
+        EnumAccess {
             iter: map.into_iter(),
         }
     }
 }
 
-impl<'de> EnumAccess<'de> for Enum {
+impl<'de> de::EnumAccess<'de> for EnumAccess {
     type Error = Error;
-    type Variant = EnumVariant;
+    type Variant = VariantAccess;
 
     fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, Self::Variant)>
     where
-        V: DeserializeSeed<'de>,
+        V: de::DeserializeSeed<'de>,
     {
         match self.iter.next() {
             Some((value, variant)) => Ok((
                 seed.deserialize::<StringDeserializer<Error>>(value.into_deserializer())?,
-                EnumVariant::new(variant),
+                VariantAccess::new(variant),
             )),
-            None => Err(Error::expected("variant")),
+            None => Err(de::Error::custom("expected an enum variant")),
         }
     }
 }
 
-struct EnumVariant {
+struct VariantAccess {
     value: Value,
 }
 
-impl EnumVariant {
+impl VariantAccess {
     fn new(value: Value) -> Self {
-        Self { value }
+        VariantAccess { value }
     }
 }
 
-impl<'de> VariantAccess<'de> for EnumVariant {
+impl<'de> de::VariantAccess<'de> for VariantAccess {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
-        Err(Error::expected("string"))
+        Err(de::Error::custom("expected a string"))
     }
 
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
     where
-        T: DeserializeSeed<'de>,
+        T: de::DeserializeSeed<'de>,
     {
-        seed.deserialize(&mut Deserializer::from_value(self.value))
+        seed.deserialize(&mut ValueDeserializer::new(self.value))
     }
 
     fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
     where
-        V: Visitor<'de>,
+        V: de::Visitor<'de>,
     {
-        de::Deserializer::deserialize_seq(&mut Deserializer::from_value(self.value), visitor)
+        de::Deserializer::deserialize_seq(&mut ValueDeserializer::new(self.value), visitor)
     }
 
     fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
-        V: Visitor<'de>,
+        V: de::Visitor<'de>,
     {
-        de::Deserializer::deserialize_map(&mut Deserializer::from_value(self.value), visitor)
+        de::Deserializer::deserialize_map(&mut ValueDeserializer::new(self.value), visitor)
+    }
+}
+
+struct ValueDeserializer {
+    value: Value,
+}
+
+impl ValueDeserializer {
+    fn new(value: Value) -> ValueDeserializer {
+        ValueDeserializer { value }
+    }
+}
+
+impl<'de, 'a> de::Deserializer<'de> for &'a mut ValueDeserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value.take() {
+            Value::Null => visitor.visit_unit(),
+            Value::Bool(b) => visitor.visit_bool(b),
+            Value::Number(n) => match n {
+                Number::PosInt(i) => visitor.visit_u64(i),
+                Number::NegInt(i) => visitor.visit_i64(i),
+                Number::Float(f) => visitor.visit_f64(f),
+            },
+            Value::String(s) => visitor.visit_string(s),
+            Value::Array(array) => visitor.visit_seq(SeqAccess::new(array)),
+            Value::Object(object) => visitor.visit_map(MapAccess::new(object)),
+        }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value.take() {
+            Value::String(s) => visitor.visit_enum(s.into_deserializer()),
+            Value::Object(object) => visitor.visit_enum(EnumAccess::new(object)),
+            _ => Err(de::Error::custom("expected an enum")),
+        }
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct identifier ignored_any
     }
 }
 
@@ -358,6 +419,7 @@ impl<'de> VariantAccess<'de> for EnumVariant {
 mod test {
     use super::*;
     use pretty_assertions::assert_eq;
+    use serde::Deserialize;
     use serde_json::{json, Value};
 
     #[test]

@@ -48,6 +48,7 @@
 pub mod attribute;
 pub mod block;
 pub mod body;
+pub(crate) mod de;
 pub mod expression;
 mod ser;
 
@@ -249,16 +250,30 @@ impl Node {
     }
 }
 
-#[doc(hidden)]
+/// Special marker strings used as field/struct names during deserialization of HCL structure
+/// types. They are an internal implementation detail should not be leaked outside of the
+/// deserializer.
 pub(crate) mod marker {
-    pub const ATTRIBUTE_NAME: &str = "$__hcl_private_Attribute";
-    pub const BLOCK_NAME: &str = "$__hcl_private_Block";
-    pub const IDENT_NAME: &str = "$__hcl_private_Identifier";
-    pub const RAW_EXPRESSION_NAME: &str = "$__hcl_private_RawExpression";
+    // Marker for the `Body` type.
+    pub const BODY_NAME: &str = "$hcl::Body";
 
-    pub const BLOCK_BODY_FIELD: &str = "$__hcl_private_block_body";
-    pub const BLOCK_LABELS_FIELD: &str = "$__hcl_private_block_labels";
-    pub const EXPRESSION_FIELD: &str = "$__hcl_private_expression";
-    pub const IDENT_FIELD: &str = "$__hcl_private_identifier";
-    pub const RAW_EXPRESSION_FIELD: &str = "$__hcl_private_raw_expression";
+    // Markers for HCL structure fields.
+    pub const ATTRIBUTE_FIELD: &str = "$hcl::attribute";
+    pub const BLOCK_FIELD: &str = "$hcl::block";
+    pub const BODY_FIELD: &str = "$hcl::body";
+    pub const IDENT_FIELD: &str = "$hcl::ident";
+    pub const LABELS_FIELD: &str = "$hcl::labels";
+    pub const RAW_FIELD: &str = "$hcl::raw";
+    pub const STRING_FIELD: &str = "$hcl::string";
+    pub const VALUE_FIELD: &str = "$hcl::value";
+
+    pub const ATTRIBUTE_NAME: &str = "$hcl::Attribute";
+    pub const BLOCK_NAME: &str = "$hcl::Block";
+    pub const IDENT_NAME: &str = "$hcl::Identifier";
+    pub const RAW_EXPRESSION_NAME: &str = "$hcl::RawExpression";
+
+    pub const BLOCK_BODY_FIELD: &str = "$hcl::block_body";
+    pub const BLOCK_LABELS_FIELD: &str = "$hcl::block_labels";
+    pub const EXPRESSION_FIELD: &str = "$hcl::expression";
+    pub const RAW_EXPRESSION_FIELD: &str = "$hcl::raw_expression";
 }
