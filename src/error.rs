@@ -42,13 +42,6 @@ impl Error {
         }
     }
 
-    pub(crate) fn expected<T>(token: T) -> Error
-    where
-        T: Display,
-    {
-        Error::new(format!("expected `{}`", token))
-    }
-
     /// Returns the `Location` in the input where the error happened, if available.
     pub fn location(&self) -> Option<&Location> {
         match self {
