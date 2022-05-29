@@ -1,6 +1,6 @@
 use super::escape::{CharEscape, ESCAPE};
 use std::io;
-use unicode_xid::UnicodeXID;
+use unicode_ident::{is_xid_continue, is_xid_start};
 
 /// This trait abstracts away serializing the HCL control characters, which allows the user to
 /// optionally pretty print the HCL output.
@@ -78,7 +78,7 @@ pub trait Format {
         let mut chars = ident.chars();
         let first = chars.next().unwrap();
 
-        if !first.is_xid_start() || !chars.all(UnicodeXID::is_xid_continue) {
+        if !is_xid_start(first) || !chars.all(is_xid_continue) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid identifier",
