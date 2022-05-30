@@ -94,7 +94,7 @@ fn parse_block(pair: Pair<Rule>) -> Block {
 fn parse_block_label(pair: Pair<Rule>) -> BlockLabel {
     match pair.as_rule() {
         Rule::Identifier => BlockLabel::Identifier(parse_string(pair)),
-        Rule::StringLit => BlockLabel::StringLit(parse_string(inner(pair))),
+        Rule::StringLit => BlockLabel::String(parse_string(inner(pair))),
         rule => unexpected_rule(rule),
     }
 }

@@ -126,7 +126,7 @@ impl<'de> de::Deserialize<'de> for BlockLabel {
             {
                 match visitor.next_key()? {
                     Some(marker::IDENT_FIELD) => Ok(BlockLabel::Identifier(visitor.next_value()?)),
-                    Some(marker::STRING_FIELD) => Ok(BlockLabel::StringLit(visitor.next_value()?)),
+                    Some(marker::STRING_FIELD) => Ok(BlockLabel::String(visitor.next_value()?)),
                     _ => Err(expected_one_of(&[
                         marker::IDENT_FIELD,
                         marker::STRING_FIELD,
@@ -666,7 +666,7 @@ impl<'de> de::SeqAccess<'de> for BlockLabelSeqAccess {
             .next()
             .map(|value| match value {
                 BlockLabel::Identifier(identifier) => (marker::IDENT_FIELD, identifier),
-                BlockLabel::StringLit(string) => (marker::STRING_FIELD, string),
+                BlockLabel::String(string) => (marker::STRING_FIELD, string),
             })
             .map(|(field, value)| {
                 seed.deserialize(MapAccessDeserializer::new(StringFieldAccess::new(

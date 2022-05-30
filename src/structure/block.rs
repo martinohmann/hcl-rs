@@ -109,7 +109,7 @@ pub enum BlockLabel {
     /// A bare HCL block label.
     Identifier(String),
     /// A quoted string literal.
-    StringLit(String),
+    String(String),
 }
 
 impl BlockLabel {
@@ -122,11 +122,11 @@ impl BlockLabel {
     }
 
     /// Creates a new quoted string `BlockLabel`.
-    pub fn string_lit<S>(string: S) -> Self
+    pub fn string<S>(string: S) -> Self
     where
         S: Into<String>,
     {
-        BlockLabel::StringLit(string.into())
+        BlockLabel::String(string.into())
     }
 
     /// Consumes `self` and returns the `String` wrapped by the `BlockLabel`.
@@ -136,7 +136,7 @@ impl BlockLabel {
     pub fn into_inner(self) -> String {
         match self {
             BlockLabel::Identifier(ident) => ident,
-            BlockLabel::StringLit(string) => string,
+            BlockLabel::String(string) => string,
         }
     }
 }
@@ -146,7 +146,7 @@ where
     T: Into<String>,
 {
     fn from(v: T) -> BlockLabel {
-        BlockLabel::string_lit(v)
+        BlockLabel::string(v)
     }
 }
 
