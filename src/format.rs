@@ -184,6 +184,20 @@ pub trait Format {
     fn end_block<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
         W: ?Sized + io::Write;
+
+    fn begin_interpolated_string<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        writer.write_all(b"\"${")
+    }
+
+    fn end_interpolated_string<W>(&mut self, writer: &mut W) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        writer.write_all(b"}\"")
+    }
 }
 
 /// A pretty printing HCL formatter.

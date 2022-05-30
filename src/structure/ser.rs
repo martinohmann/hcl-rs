@@ -1,15 +1,34 @@
 use super::marker;
 use super::{Attribute, Block, BlockLabel, Expression, ObjectKey, RawExpression, Structure};
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{Serialize, SerializeMap, SerializeStruct, Serializer};
+
+enum Marker<'a> {
+    Raw(&'a RawExpression),
+    Ident(&'a str),
+    Attribute(&'a Attribute),
+    Block(&'a Block),
+}
+
+impl<'a> Serialize for Marker<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Marker::Raw(v) => serializer.serialize_newtype_struct(marker::RAW_NAME, v.as_str()),
+            Marker::Ident(v) => serializer.serialize_newtype_struct(marker::IDENT_NAME, v),
+            Marker::Attribute(v) => serializer.serialize_newtype_struct(marker::ATTRIBUTE_NAME, v),
+            Marker::Block(v) => serializer.serialize_newtype_struct(marker::BLOCK_NAME, v),
+        }
+    }
+}
 
 impl Serialize for RawExpression {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct(marker::RAW_EXPRESSION_NAME, 1)?;
-        s.serialize_field(marker::RAW_EXPRESSION_FIELD, self.as_str())?;
-        s.end()
+        self.as_str().serialize(serializer)
     }
 }
 
@@ -20,12 +39,8 @@ impl Serialize for ObjectKey {
     {
         match self {
             ObjectKey::String(s) => s.serialize(serializer),
-            ObjectKey::Identifier(ident) => {
-                let mut s = serializer.serialize_struct(marker::IDENT_NAME, 1)?;
-                s.serialize_field(marker::IDENT_FIELD, &ident)?;
-                s.end()
-            }
-            ObjectKey::RawExpression(expr) => expr.serialize(serializer),
+            ObjectKey::Identifier(ident) => Marker::Ident(ident).serialize(serializer),
+            ObjectKey::RawExpression(expr) => Marker::Raw(expr).serialize(serializer),
         }
     }
 }
@@ -42,7 +57,7 @@ impl Serialize for Expression {
             Expression::String(s) => serializer.serialize_str(s),
             Expression::Array(v) => v.serialize(serializer),
             Expression::Object(v) => v.serialize(serializer),
-            Expression::Raw(expr) => expr.serialize(serializer),
+            Expression::Raw(expr) => Marker::Raw(expr).serialize(serializer),
         }
     }
 }
@@ -52,9 +67,8 @@ impl Serialize for Attribute {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct(marker::ATTRIBUTE_NAME, 2)?;
-        s.serialize_field(marker::IDENT_FIELD, self.key())?;
-        s.serialize_field(marker::EXPRESSION_FIELD, self.expr())?;
+        let mut s = serializer.serialize_map(Some(1))?;
+        s.serialize_entry(self.key(), self.expr())?;
         s.end()
     }
 }
@@ -66,8 +80,8 @@ impl Serialize for Block {
     {
         let mut s = serializer.serialize_struct(marker::BLOCK_NAME, 3)?;
         s.serialize_field(marker::IDENT_FIELD, self.identifier())?;
-        s.serialize_field(marker::BLOCK_LABELS_FIELD, self.labels())?;
-        s.serialize_field(marker::BLOCK_BODY_FIELD, self.body())?;
+        s.serialize_field(marker::LABELS_FIELD, self.labels())?;
+        s.serialize_field(marker::BODY_FIELD, self.body())?;
         s.end()
     }
 }
@@ -79,11 +93,7 @@ impl Serialize for BlockLabel {
     {
         match self {
             BlockLabel::StringLit(s) => s.serialize(serializer),
-            BlockLabel::Identifier(ident) => {
-                let mut s = serializer.serialize_struct(marker::IDENT_NAME, 1)?;
-                s.serialize_field(marker::IDENT_FIELD, &ident)?;
-                s.end()
-            }
+            BlockLabel::Identifier(ident) => Marker::Ident(ident).serialize(serializer),
         }
     }
 }
@@ -94,8 +104,8 @@ impl Serialize for Structure {
         S: Serializer,
     {
         match self {
-            Structure::Attribute(attr) => attr.serialize(serializer),
-            Structure::Block(block) => block.serialize(serializer),
+            Structure::Attribute(attr) => Marker::Attribute(attr).serialize(serializer),
+            Structure::Block(block) => Marker::Block(block).serialize(serializer),
         }
     }
 }
