@@ -189,7 +189,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        if let marker::BODY_NAME = name {
+        if let marker::BODY = name {
             // Specialized handling of `hcl::Body`.
             let mut de = BodyDeserializer::new(self.body.consume());
             de.deserialize_any(visitor)

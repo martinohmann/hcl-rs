@@ -67,7 +67,7 @@ impl<'de> de::Deserialize<'de> for Body {
             }
         }
 
-        deserializer.deserialize_newtype_struct(marker::BODY_NAME, BodyVisitor)
+        deserializer.deserialize_newtype_struct(marker::BODY, BodyVisitor)
     }
 }
 
@@ -90,14 +90,9 @@ impl<'de> de::Deserialize<'de> for Structure {
                 V: de::MapAccess<'de>,
             {
                 match visitor.next_key()? {
-                    Some(marker::ATTRIBUTE_FIELD) => {
-                        Ok(Structure::Attribute(visitor.next_value()?))
-                    }
-                    Some(marker::BLOCK_FIELD) => Ok(Structure::Block(visitor.next_value()?)),
-                    _ => Err(expected_one_of(&[
-                        marker::ATTRIBUTE_FIELD,
-                        marker::BLOCK_FIELD,
-                    ])),
+                    Some(marker::ATTRIBUTE) => Ok(Structure::Attribute(visitor.next_value()?)),
+                    Some(marker::BLOCK) => Ok(Structure::Block(visitor.next_value()?)),
+                    _ => Err(expected_one_of(&[marker::ATTRIBUTE, marker::BLOCK])),
                 }
             }
         }
@@ -125,12 +120,9 @@ impl<'de> de::Deserialize<'de> for BlockLabel {
                 V: de::MapAccess<'de>,
             {
                 match visitor.next_key()? {
-                    Some(marker::IDENT_FIELD) => Ok(BlockLabel::Identifier(visitor.next_value()?)),
-                    Some(marker::STRING_FIELD) => Ok(BlockLabel::String(visitor.next_value()?)),
-                    _ => Err(expected_one_of(&[
-                        marker::IDENT_FIELD,
-                        marker::STRING_FIELD,
-                    ])),
+                    Some(marker::IDENT) => Ok(BlockLabel::Identifier(visitor.next_value()?)),
+                    Some(marker::STRING) => Ok(BlockLabel::String(visitor.next_value()?)),
+                    _ => Err(expected_one_of(&[marker::IDENT, marker::STRING])),
                 }
             }
         }
@@ -158,12 +150,12 @@ impl<'de> de::Deserialize<'de> for Expression {
                 V: de::MapAccess<'de>,
             {
                 match visitor.next_key()? {
-                    Some(marker::VALUE_FIELD) => {
+                    Some(marker::VALUE) => {
                         let value: ValueExpression = visitor.next_value()?;
                         Ok(value.expr)
                     }
-                    Some(marker::RAW_FIELD) => Ok(Expression::Raw(visitor.next_value()?)),
-                    _ => Err(expected_one_of(&[marker::VALUE_FIELD, marker::RAW_FIELD])),
+                    Some(marker::RAW) => Ok(Expression::Raw(visitor.next_value()?)),
+                    _ => Err(expected_one_of(&[marker::VALUE, marker::RAW])),
                 }
             }
         }
@@ -273,13 +265,13 @@ impl<'de> de::Deserialize<'de> for ObjectKey {
                 V: de::MapAccess<'de>,
             {
                 match visitor.next_key()? {
-                    Some(marker::IDENT_FIELD) => Ok(ObjectKey::Identifier(visitor.next_value()?)),
-                    Some(marker::STRING_FIELD) => Ok(ObjectKey::String(visitor.next_value()?)),
-                    Some(marker::RAW_FIELD) => Ok(ObjectKey::RawExpression(visitor.next_value()?)),
+                    Some(marker::IDENT) => Ok(ObjectKey::Identifier(visitor.next_value()?)),
+                    Some(marker::STRING) => Ok(ObjectKey::String(visitor.next_value()?)),
+                    Some(marker::RAW) => Ok(ObjectKey::RawExpression(visitor.next_value()?)),
                     _ => Err(expected_one_of(&[
-                        marker::IDENT_FIELD,
-                        marker::STRING_FIELD,
-                        marker::RAW_FIELD,
+                        marker::IDENT,
+                        marker::STRING,
+                        marker::RAW,
                     ])),
                 }
             }
@@ -399,9 +391,9 @@ impl<'de> de::MapAccess<'de> for ExpressionMapAccess {
                 self.value = Some(value);
 
                 match key {
-                    ObjectKey::Identifier(identifier) => (marker::IDENT_FIELD, identifier),
-                    ObjectKey::String(string) => (marker::STRING_FIELD, string),
-                    ObjectKey::RawExpression(expr) => (marker::RAW_FIELD, expr.into_inner()),
+                    ObjectKey::Identifier(identifier) => (marker::IDENT, identifier),
+                    ObjectKey::String(string) => (marker::STRING, string),
+                    ObjectKey::RawExpression(expr) => (marker::RAW, expr.into_inner()),
                 }
             })
             .map(|(field, value)| {
@@ -493,8 +485,8 @@ impl<'de> de::MapAccess<'de> for StructureAccess {
         self.value
             .as_ref()
             .map(|value| match value {
-                Structure::Attribute(_) => marker::ATTRIBUTE_FIELD,
-                Structure::Block(_) => marker::BLOCK_FIELD,
+                Structure::Attribute(_) => marker::ATTRIBUTE,
+                Structure::Block(_) => marker::BLOCK,
             })
             .map(|field| seed.deserialize(FieldDeserializer(field)))
             .transpose()
@@ -665,8 +657,8 @@ impl<'de> de::SeqAccess<'de> for BlockLabelSeqAccess {
         self.iter
             .next()
             .map(|value| match value {
-                BlockLabel::Identifier(identifier) => (marker::IDENT_FIELD, identifier),
-                BlockLabel::String(string) => (marker::STRING_FIELD, string),
+                BlockLabel::Identifier(identifier) => (marker::IDENT, identifier),
+                BlockLabel::String(string) => (marker::STRING, string),
             })
             .map(|(field, value)| {
                 seed.deserialize(MapAccessDeserializer::new(StringFieldAccess::new(
@@ -700,7 +692,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut ExpressionDeserializer {
     {
         match self.value.consume() {
             Expression::Raw(expr) => {
-                visitor.visit_map(StringFieldAccess::new(marker::RAW_FIELD, expr.into_inner()))
+                visitor.visit_map(StringFieldAccess::new(marker::RAW, expr.into_inner()))
             }
             value => visitor.visit_map(ExpressionValueAccess::new(value)),
         }
@@ -730,8 +722,7 @@ impl<'de> de::MapAccess<'de> for ExpressionValueAccess {
     where
         K: de::DeserializeSeed<'de>,
     {
-        seed.deserialize(FieldDeserializer(marker::VALUE_FIELD))
-            .map(Some)
+        seed.deserialize(FieldDeserializer(marker::VALUE)).map(Some)
     }
 
     fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
