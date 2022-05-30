@@ -41,7 +41,7 @@
 //! assert_eq!(block.identifier(), "resource");
 //! assert_eq!(
 //!     block.labels().first(),
-//!     Some(&BlockLabel::StringLit("aws_s3_bucket".into())),
+//!     Some(&BlockLabel::string("aws_s3_bucket")),
 //! );
 //! ```
 
@@ -254,20 +254,11 @@ impl Node {
 /// HCL structure types. They are an internal implementation detail should not be leaked outside
 /// of a serializer or deserializer.
 pub(crate) mod marker {
-    // Marker for the HCL structure types.
-    pub const ATTRIBUTE_NAME: &str = "$hcl::Attribute";
-    pub const BLOCK_NAME: &str = "$hcl::Block";
-    pub const BODY_NAME: &str = "$hcl::Body";
-    pub const IDENT_NAME: &str = "$hcl::Ident";
-    pub const RAW_NAME: &str = "$hcl::Raw";
-
-    // Markers for HCL structure fields.
-    pub const ATTRIBUTE_FIELD: &str = "$hcl::attribute";
-    pub const BLOCK_FIELD: &str = "$hcl::block";
-    pub const BODY_FIELD: &str = "$hcl::body";
-    pub const IDENT_FIELD: &str = "$hcl::ident";
-    pub const LABELS_FIELD: &str = "$hcl::labels";
-    pub const RAW_FIELD: &str = "$hcl::raw";
-    pub const STRING_FIELD: &str = "$hcl::string";
-    pub const VALUE_FIELD: &str = "$hcl::value";
+    pub const ATTRIBUTE: &str = "$hcl::attribute";
+    pub const BLOCK: &str = "$hcl::block";
+    pub const BODY: &str = "$hcl::body";
+    pub const IDENT: &str = "$hcl::ident";
+    pub const RAW: &str = "$hcl::raw";
+    pub const STRING: &str = "$hcl::string";
+    pub const VALUE: &str = "$hcl::value";
 }

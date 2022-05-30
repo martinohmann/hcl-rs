@@ -15,10 +15,10 @@ impl<'a> Serialize for Marker<'a> {
         S: Serializer,
     {
         match self {
-            Marker::Raw(v) => serializer.serialize_newtype_struct(marker::RAW_NAME, v.as_str()),
-            Marker::Ident(v) => serializer.serialize_newtype_struct(marker::IDENT_NAME, v),
-            Marker::Attribute(v) => serializer.serialize_newtype_struct(marker::ATTRIBUTE_NAME, v),
-            Marker::Block(v) => serializer.serialize_newtype_struct(marker::BLOCK_NAME, v),
+            Marker::Raw(v) => serializer.serialize_newtype_struct(marker::RAW, v.as_str()),
+            Marker::Ident(v) => serializer.serialize_newtype_struct(marker::IDENT, v),
+            Marker::Attribute(v) => serializer.serialize_newtype_struct(marker::ATTRIBUTE, v),
+            Marker::Block(v) => serializer.serialize_newtype_struct(marker::BLOCK, v),
         }
     }
 }
@@ -78,10 +78,10 @@ impl Serialize for Block {
     where
         S: Serializer,
     {
-        let mut s = serializer.serialize_struct(marker::BLOCK_NAME, 3)?;
-        s.serialize_field(marker::IDENT_FIELD, self.identifier())?;
-        s.serialize_field(marker::LABELS_FIELD, self.labels())?;
-        s.serialize_field(marker::BODY_FIELD, self.body())?;
+        let mut s = serializer.serialize_struct(marker::BLOCK, 3)?;
+        s.serialize_field("identifier", self.identifier())?;
+        s.serialize_field("labels", self.labels())?;
+        s.serialize_field("body", self.body())?;
         s.end()
     }
 }
@@ -92,7 +92,7 @@ impl Serialize for BlockLabel {
         S: Serializer,
     {
         match self {
-            BlockLabel::StringLit(s) => s.serialize(serializer),
+            BlockLabel::String(s) => s.serialize(serializer),
             BlockLabel::Identifier(ident) => Marker::Ident(ident).serialize(serializer),
         }
     }

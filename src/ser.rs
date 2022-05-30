@@ -150,8 +150,8 @@ where
         T: ?Sized + Serialize,
     {
         match name {
-            marker::ATTRIBUTE_NAME => value.serialize(AttributeSerializer::new(self)),
-            marker::BLOCK_NAME => value.serialize(BlockSerializer::new(self)),
+            marker::ATTRIBUTE => value.serialize(AttributeSerializer::new(self)),
+            marker::BLOCK => value.serialize(BlockSerializer::new(self)),
             _ => value.serialize(self),
         }
     }
@@ -517,12 +517,12 @@ where
         T: ?Sized + Serialize,
     {
         match key {
-            marker::IDENT_FIELD => {
+            "identifier" => {
                 self.ser.formatter.begin_block(&mut self.ser.writer)?;
                 value.serialize(IdentifierSerializer::new(self.ser))
             }
-            marker::LABELS_FIELD => value.serialize(BlockLabelSerializer::new(self.ser)),
-            marker::BODY_FIELD => {
+            "labels" => value.serialize(BlockLabelSerializer::new(self.ser)),
+            "body" => {
                 self.ser.formatter.begin_block_body(&mut self.ser.writer)?;
                 value.serialize(&mut *self.ser)?;
                 self.ser.formatter.end_block(&mut self.ser.writer)?;
@@ -736,8 +736,8 @@ where
         T: ?Sized + Serialize,
     {
         match name {
-            marker::IDENT_NAME => value.serialize(IdentifierSerializer::new(self.ser)),
-            marker::RAW_NAME => {
+            marker::IDENT => value.serialize(IdentifierSerializer::new(self.ser)),
+            marker::RAW => {
                 self.ser
                     .formatter
                     .begin_interpolated_string(&mut self.ser.writer)?;
@@ -817,7 +817,7 @@ where
         T: ?Sized + Serialize,
     {
         match name {
-            marker::IDENT_NAME => value.serialize(IdentifierSerializer::new(self.ser)),
+            marker::IDENT => value.serialize(IdentifierSerializer::new(self.ser)),
             _ => value.serialize(self),
         }
     }
@@ -1000,7 +1000,7 @@ where
         T: ?Sized + Serialize,
     {
         match name {
-            marker::RAW_NAME => value.serialize(RawExpressionSerializer::new(self.ser)),
+            marker::RAW => value.serialize(RawExpressionSerializer::new(self.ser)),
             _ => value.serialize(self),
         }
     }
