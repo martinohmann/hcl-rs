@@ -259,9 +259,7 @@ pub(crate) mod marker {
     // Markers for HCL structure fields.
     pub const ATTRIBUTE_FIELD: &str = "$hcl::attribute";
     pub const BLOCK_FIELD: &str = "$hcl::block";
-    pub const BODY_FIELD: &str = "$hcl::body";
     pub const IDENT_FIELD: &str = "$hcl::ident";
-    pub const LABELS_FIELD: &str = "$hcl::labels";
     pub const RAW_FIELD: &str = "$hcl::raw";
     pub const STRING_FIELD: &str = "$hcl::string";
     pub const VALUE_FIELD: &str = "$hcl::value";

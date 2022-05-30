@@ -2,6 +2,7 @@
 
 use super::{Attribute, Body, BodyBuilder, IntoNodeMap, Structure};
 use crate::Value;
+use serde::Deserialize;
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a
 /// block body.
@@ -13,7 +14,7 @@ use crate::Value;
 ///   body
 /// }
 /// ```
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub struct Block {
     /// The block identifier.
     pub identifier: String,

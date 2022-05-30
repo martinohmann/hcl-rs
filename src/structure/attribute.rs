@@ -1,6 +1,7 @@
 //! Types to represent and build HCL attributes.
 
 use super::{Expression, Value};
+use serde::Deserialize;
 use std::iter;
 
 /// Represents an HCL attribute which consists of an attribute key and a value expression.
@@ -13,7 +14,7 @@ use std::iter;
 ///
 /// Use [`Attribute::new`] to construct an [`Attribute`] from a value that is convertible to this
 /// crate's [`Expression`] type.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub struct Attribute {
     /// The HCL attribute's key.
     pub key: String,
