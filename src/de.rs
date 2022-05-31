@@ -191,7 +191,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer {
     {
         if let marker::BODY = name {
             // Specialized handling of `hcl::Body`.
-            let mut de = BodyDeserializer::new(self.body.consume());
+            let de = BodyDeserializer::new(self.body.consume());
             de.deserialize_any(visitor)
         } else {
             // Generic deserialization according to the HCL JSON spec.

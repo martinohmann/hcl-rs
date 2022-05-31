@@ -104,7 +104,7 @@ where
 ///   body
 /// }
 /// ```
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub enum BlockLabel {
     /// A bare HCL block label.
     Identifier(String),
