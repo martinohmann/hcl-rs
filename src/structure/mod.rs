@@ -58,11 +58,12 @@ pub use self::{
     expression::{Expression, Object, ObjectKey, RawExpression},
 };
 use crate::{Map, Value};
+use serde::Deserialize;
 
 /// Represents an HCL structure.
 ///
 /// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Clone)]
 pub enum Structure {
     /// Represents an HCL attribute.
     Attribute(Attribute),
@@ -253,11 +254,5 @@ impl Node {
 /// types. They are an internal implementation detail should not be leaked outside of the
 /// deserializer.
 pub(crate) mod marker {
-    pub const ATTRIBUTE: &str = "$hcl::attribute";
-    pub const BLOCK: &str = "$hcl::block";
     pub const BODY: &str = "$hcl::body";
-    pub const IDENT: &str = "$hcl::ident";
-    pub const RAW: &str = "$hcl::raw";
-    pub const STRING: &str = "$hcl::string";
-    pub const VALUE: &str = "$hcl::value";
 }

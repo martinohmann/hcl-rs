@@ -1,6 +1,7 @@
 //! Types to represent HCL attribute value expressions.
 
 use crate::{Number, Value};
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
 
@@ -9,7 +10,7 @@ pub type Object<K, V> = indexmap::IndexMap<K, V>;
 
 /// A type representing the expression sub-language is used within attribute definitions to specify
 /// values.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Expression {
     /// Represents a null value.
@@ -154,7 +155,7 @@ impl From<RawExpression> for Expression {
 }
 
 /// Represents an object key.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ObjectKey {
     /// Represents a bare unquoted identifer used as object key.
@@ -204,7 +205,7 @@ impl Display for ObjectKey {
 /// As of now, anthing that is not a null value, a boolean, number, string, array or object is
 /// treated as raw expression and is not further parsed. This includes conditionals, operations,
 /// function calls, for expressions and variable expressions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RawExpression(String);
 
 impl RawExpression {
