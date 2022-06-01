@@ -4,11 +4,7 @@ use super::{
     Attribute, Block, BlockLabel, Body, Expression, Identifier, ObjectKey, RawExpression, Structure,
 };
 use crate::{Error, Number, Result};
-use serde::de::{
-    self,
-    value::{BorrowedStrDeserializer, MapDeserializer, SeqDeserializer},
-    IntoDeserializer,
-};
+use serde::de::{self, value::BorrowedStrDeserializer, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 
 pub struct BodyDeserializer {
@@ -253,7 +249,7 @@ impl<'de> de::MapAccess<'de> for BlockAccess {
         if let Some(identifier) = self.identifier.take() {
             seed.deserialize(identifier.into_deserializer())
         } else if let Some(labels) = self.labels.take() {
-            seed.deserialize(SeqDeserializer::new(labels.into_iter()))
+            seed.deserialize(labels.into_deserializer())
         } else if let Some(body) = self.body.take() {
             seed.deserialize(body.into_deserializer())
         } else {
@@ -358,10 +354,8 @@ impl<'de, 'a> de::Deserializer<'de> for ExpressionDeserializer {
                 Number::Float(f) => visitor.visit_f64(f),
             },
             Expression::String(s) => visitor.visit_string(s),
-            Expression::Array(array) => visitor.visit_seq(SeqDeserializer::new(array.into_iter())),
-            Expression::Object(object) => {
-                visitor.visit_map(MapDeserializer::new(object.into_iter()))
-            }
+            Expression::Array(array) => visitor.visit_seq(array.into_deserializer()),
+            Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
