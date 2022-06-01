@@ -1,6 +1,6 @@
 //! The Value enum, a loosely typed way of representing any valid HCL value.
 
-mod de;
+pub(crate) mod de;
 mod from;
 mod ser;
 

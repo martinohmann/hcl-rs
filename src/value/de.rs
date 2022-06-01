@@ -1,6 +1,12 @@
 use super::{Map, Value};
-use serde::de::{self, Visitor};
-use serde::{Deserialize, Deserializer};
+use crate::{Error, Number, Result};
+use indexmap::map;
+use serde::de::{
+    self,
+    value::{MapDeserializer, SeqDeserializer, StringDeserializer},
+    IntoDeserializer, Visitor,
+};
+use serde::{forward_to_deserialize_any, Deserialize, Deserializer};
 use std::fmt;
 
 impl<'de> Deserialize<'de> for Value {
@@ -87,5 +93,136 @@ impl<'de> Deserialize<'de> for Value {
         }
 
         deserializer.deserialize_any(ValueVisitor)
+    }
+}
+
+pub struct ValueDeserializer {
+    value: Value,
+}
+
+impl ValueDeserializer {
+    pub fn new(value: Value) -> ValueDeserializer {
+        ValueDeserializer { value }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Value {
+    type Deserializer = ValueDeserializer;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        ValueDeserializer { value: self }
+    }
+}
+
+impl<'de, 'a> de::Deserializer<'de> for ValueDeserializer {
+    type Error = Error;
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value {
+            Value::Null => visitor.visit_unit(),
+            Value::Bool(b) => visitor.visit_bool(b),
+            Value::Number(n) => match n {
+                Number::PosInt(i) => visitor.visit_u64(i),
+                Number::NegInt(i) => visitor.visit_i64(i),
+                Number::Float(f) => visitor.visit_f64(f),
+            },
+            Value::String(s) => visitor.visit_string(s),
+            Value::Array(array) => visitor.visit_seq(SeqDeserializer::new(array.into_iter())),
+            Value::Object(object) => visitor.visit_map(MapDeserializer::new(object.into_iter())),
+        }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value {
+            Value::String(s) => visitor.visit_enum(s.into_deserializer()),
+            Value::Object(object) => visitor.visit_enum(EnumAccess::new(object)),
+            _ => Err(de::Error::custom("expected an enum")),
+        }
+    }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct identifier ignored_any
+    }
+}
+
+struct EnumAccess {
+    iter: map::IntoIter<String, Value>,
+}
+
+impl EnumAccess {
+    fn new(map: Map<String, Value>) -> Self {
+        EnumAccess {
+            iter: map.into_iter(),
+        }
+    }
+}
+
+impl<'de> de::EnumAccess<'de> for EnumAccess {
+    type Error = Error;
+    type Variant = VariantAccess;
+
+    fn variant_seed<V>(mut self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        match self.iter.next() {
+            Some((value, variant)) => Ok((
+                seed.deserialize::<StringDeserializer<Error>>(value.into_deserializer())?,
+                VariantAccess::new(variant),
+            )),
+            None => Err(de::Error::custom("expected an enum variant")),
+        }
+    }
+}
+
+struct VariantAccess {
+    value: Value,
+}
+
+impl VariantAccess {
+    fn new(value: Value) -> Self {
+        VariantAccess { value }
+    }
+}
+
+impl<'de> de::VariantAccess<'de> for VariantAccess {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<()> {
+        Err(de::Error::custom("expected a string"))
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(ValueDeserializer::new(self.value))
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        de::Deserializer::deserialize_seq(ValueDeserializer::new(self.value), visitor)
+    }
+
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: de::Visitor<'de>,
+    {
+        de::Deserializer::deserialize_map(ValueDeserializer::new(self.value), visitor)
     }
 }
