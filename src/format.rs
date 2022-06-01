@@ -210,19 +210,42 @@ pub struct PrettyFormatter<'a> {
 
 impl<'a> Default for PrettyFormatter<'a> {
     fn default() -> Self {
-        PrettyFormatter::with_indent(b"  ")
+        PrettyFormatter::builder().build()
     }
 }
 
-impl<'a> PrettyFormatter<'a> {
-    /// Creates a `Formater` which will use the given indent for indenting nested HCL structures.
-    pub fn with_indent(indent: &'a [u8]) -> Self {
+/// A builder to create a `PrettyFormatter`.
+pub struct PrettyFormatterBuilder<'a> {
+    indent: &'a [u8],
+}
+
+impl<'a> PrettyFormatterBuilder<'a> {
+    /// Provides a builder to create a `PrettyFormatter`.
+    pub fn new() -> Self {
+        PrettyFormatterBuilder { indent: b"  " }
+    }
+
+    /// Set the indent for indenting nested HCL structures.
+    pub fn indent(mut self, indent: &'a [u8]) -> Self {
+        self.indent = indent;
+        self
+    }
+
+    /// Consumes the `PrettyFormatterBuilder` and turns it into a `PrettyFormatter`.
+    pub fn build(self) -> PrettyFormatter<'a> {
         PrettyFormatter {
             first_element: false,
             current_indent: 0,
             has_value: false,
-            indent,
+            indent: self.indent,
         }
+    }
+}
+
+impl<'a> PrettyFormatter<'a> {
+    /// Provides a builder to create a `PrettyFormatter`.
+    pub fn builder() -> PrettyFormatterBuilder<'a> {
+        PrettyFormatterBuilder::new()
     }
 }
 
