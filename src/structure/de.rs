@@ -3,7 +3,7 @@
 use super::{
     Attribute, Block, BlockLabel, Body, Expression, Identifier, ObjectKey, RawExpression, Structure,
 };
-use crate::{Error, Number, OptionExt, Result};
+use crate::{Error, Number, Result};
 use serde::de::{
     self,
     value::{BorrowedStrDeserializer, MapDeserializer, SeqDeserializer},
@@ -173,10 +173,10 @@ impl<'de> de::MapAccess<'de> for AttributeAccess {
     where
         V: de::DeserializeSeed<'de>,
     {
-        if self.key.is_some() {
-            seed.deserialize(self.key.consume().into_deserializer())
-        } else if self.expr.is_some() {
-            seed.deserialize(self.expr.consume().into_deserializer())
+        if let Some(key) = self.key.take() {
+            seed.deserialize(key.into_deserializer())
+        } else if let Some(expr) = self.expr.take() {
+            seed.deserialize(expr.into_deserializer())
         } else {
             Err(de::Error::custom("invalid HCL attribute"))
         }
@@ -250,12 +250,12 @@ impl<'de> de::MapAccess<'de> for BlockAccess {
     where
         V: de::DeserializeSeed<'de>,
     {
-        if self.identifier.is_some() {
-            seed.deserialize(self.identifier.consume().into_deserializer())
-        } else if self.labels.is_some() {
-            seed.deserialize(SeqDeserializer::new(self.labels.consume().into_iter()))
-        } else if self.body.is_some() {
-            seed.deserialize(self.body.consume().into_deserializer())
+        if let Some(identifier) = self.identifier.take() {
+            seed.deserialize(identifier.into_deserializer())
+        } else if let Some(labels) = self.labels.take() {
+            seed.deserialize(SeqDeserializer::new(labels.into_iter()))
+        } else if let Some(body) = self.body.take() {
+            seed.deserialize(body.into_deserializer())
         } else {
             Err(de::Error::custom("invalid HCL block"))
         }
