@@ -1,5 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
+use super::Identifier;
 use crate::{Number, Value};
 use serde::Deserialize;
 use std::borrow::Cow;
@@ -159,12 +160,38 @@ impl From<RawExpression> for Expression {
 #[non_exhaustive]
 pub enum ObjectKey {
     /// Represents a bare unquoted identifer used as object key.
-    Identifier(String),
+    Identifier(Identifier),
     /// Represents a quoted string used as object key.
     String(String),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     RawExpression(RawExpression),
+}
+
+impl ObjectKey {
+    /// Creates a new bare `ObjectKey` identifier.
+    pub fn identifier<I>(identifier: I) -> Self
+    where
+        I: Into<Identifier>,
+    {
+        ObjectKey::Identifier(identifier.into())
+    }
+
+    /// Creates a new quoted string `ObjectKey`.
+    pub fn string<S>(string: S) -> Self
+    where
+        S: Into<String>,
+    {
+        ObjectKey::String(string.into())
+    }
+
+    /// Creates a new raw expression `ObjectKey`.
+    pub fn raw_expression<E>(expr: E) -> Self
+    where
+        E: Into<RawExpression>,
+    {
+        ObjectKey::RawExpression(expr.into())
+    }
 }
 
 impl From<&str> for ObjectKey {
@@ -194,7 +221,8 @@ impl From<ObjectKey> for String {
 impl Display for ObjectKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ObjectKey::Identifier(k) | ObjectKey::String(k) => Display::fmt(k, f),
+            ObjectKey::Identifier(k) => Display::fmt(k.as_str(), f),
+            ObjectKey::String(k) => Display::fmt(k, f),
             ObjectKey::RawExpression(raw) => Display::fmt(raw, f),
         }
     }
