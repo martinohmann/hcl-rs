@@ -1,8 +1,8 @@
 //! Types to represent and build HCL blocks.
 
-use super::{Attribute, Body, BodyBuilder, IntoNodeMap, Structure};
+use super::{Attribute, Body, BodyBuilder, Identifier, IntoNodeMap, Structure};
 use crate::Value;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a
 /// block body.
@@ -14,7 +14,8 @@ use serde::Deserialize;
 ///   body
 /// }
 /// ```
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename = "$hcl::block")]
 pub struct Block {
     /// The block identifier.
     pub identifier: String,
@@ -103,10 +104,11 @@ where
 ///   body
 /// }
 /// ```
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename = "$hcl::block_label")]
 pub enum BlockLabel {
     /// A bare HCL block label.
-    Identifier(String),
+    Identifier(Identifier),
     /// A quoted string literal.
     String(String),
 }
@@ -115,7 +117,7 @@ impl BlockLabel {
     /// Creates a new bare `BlockLabel` identifier.
     pub fn identifier<I>(identifier: I) -> Self
     where
-        I: Into<String>,
+        I: Into<Identifier>,
     {
         BlockLabel::Identifier(identifier.into())
     }
@@ -134,7 +136,7 @@ impl BlockLabel {
     /// `String` resembles a quoted string or bare identifer.
     pub fn into_inner(self) -> String {
         match self {
-            BlockLabel::Identifier(ident) => ident,
+            BlockLabel::Identifier(ident) => ident.into_inner(),
             BlockLabel::String(string) => string,
         }
     }

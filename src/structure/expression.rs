@@ -1,7 +1,8 @@
 //! Types to represent HCL attribute value expressions.
 
+use super::Identifier;
 use crate::{Number, Value};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
 
@@ -10,7 +11,8 @@ pub type Object<K = ObjectKey, V = Expression> = indexmap::IndexMap<K, V>;
 
 /// A type representing the expression sub-language is used within attribute definitions to specify
 /// values.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename = "$hcl::expression")]
 #[non_exhaustive]
 pub enum Expression {
     /// Represents a null value.
@@ -155,11 +157,12 @@ impl From<RawExpression> for Expression {
 }
 
 /// Represents an object key.
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename = "$hcl::object_key")]
 #[non_exhaustive]
 pub enum ObjectKey {
     /// Represents a bare unquoted identifer used as object key.
-    Identifier(String),
+    Identifier(Identifier),
     /// Represents a quoted string used as object key.
     String(String),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
@@ -171,7 +174,7 @@ impl ObjectKey {
     /// Creates a new bare `ObjectKey` identifier.
     pub fn identifier<I>(identifier: I) -> Self
     where
-        I: Into<String>,
+        I: Into<Identifier>,
     {
         ObjectKey::Identifier(identifier.into())
     }
@@ -220,7 +223,8 @@ impl From<ObjectKey> for String {
 impl Display for ObjectKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ObjectKey::Identifier(k) | ObjectKey::String(k) => Display::fmt(k, f),
+            ObjectKey::Identifier(k) => Display::fmt(k.as_str(), f),
+            ObjectKey::String(k) => Display::fmt(k, f),
             ObjectKey::RawExpression(raw) => Display::fmt(raw, f),
         }
     }
@@ -231,7 +235,8 @@ impl Display for ObjectKey {
 /// As of now, anthing that is not a null value, a boolean, number, string, array or object is
 /// treated as raw expression and is not further parsed. This includes conditionals, operations,
 /// function calls, for expressions and variable expressions.
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename = "$hcl::raw_expression")]
 pub struct RawExpression(String);
 
 impl RawExpression {

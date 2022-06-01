@@ -2,7 +2,6 @@
 
 use crate::{
     format::{Format, PrettyFormatter},
-    structure::marker,
     Error, Result,
 };
 use serde::ser::{self, Impossible, Serialize, SerializeSeq};
@@ -120,7 +119,7 @@ where
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
-    type SerializeStruct = Self;
+    type SerializeStruct = SerializeStruct<'a, W, F>;
     type SerializeStructVariant = Self;
 
     serialize_unsupported! {
@@ -145,20 +144,16 @@ where
         self.serialize_str(variant)
     }
 
-    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        match name {
-            marker::ATTRIBUTE => value.serialize(AttributeSerializer::new(self)),
-            marker::BLOCK => value.serialize(BlockSerializer::new(self)),
-            _ => value.serialize(self),
-        }
+        value.serialize(self)
     }
 
     fn serialize_newtype_variant<T>(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         value: &T,
@@ -166,7 +161,11 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.serialize_attribute(variant, value)
+        if name == "$hcl::structure" {
+            value.serialize(self)
+        } else {
+            self.serialize_attribute(variant, value)
+        }
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -202,8 +201,14 @@ where
         Ok(self)
     }
 
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Ok(self)
+    fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        let kind = match name {
+            "$hcl::attribute" => StructKind::Attribute,
+            "$hcl::block" => StructKind::Block,
+            _ => StructKind::Other,
+        };
+
+        Ok(SerializeStruct::new(kind, self))
     }
 
     fn serialize_struct_variant(
@@ -386,157 +391,6 @@ where
     }
 }
 
-struct AttributeSerializer<'a, W: 'a, F: 'a> {
-    ser: &'a mut Serializer<W, F>,
-}
-
-impl<'a, W, F> AttributeSerializer<'a, W, F> {
-    fn new(ser: &'a mut Serializer<W, F>) -> AttributeSerializer<'a, W, F> {
-        AttributeSerializer { ser }
-    }
-}
-
-impl<'a, W, F> ser::Serializer for AttributeSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    type SerializeSeq = Impossible<(), Error>;
-    type SerializeTuple = Impossible<(), Error>;
-    type SerializeTupleStruct = Impossible<(), Error>;
-    type SerializeTupleVariant = Impossible<(), Error>;
-    type SerializeMap = Self;
-    type SerializeStruct = Impossible<(), Error>;
-    type SerializeStructVariant = Impossible<(), Error>;
-
-    serialize_unsupported! {
-        not_an_attribute
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        char str bytes none unit unit_struct unit_variant newtype_struct newtype_variant
-        tuple tuple_struct tuple_variant seq struct struct_variant
-    }
-
-    fn serialize_some<T>(self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Ok(self)
-    }
-}
-
-impl<'a, W, F> ser::SerializeMap for AttributeSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.ser.serialize_attribute_key(key)
-    }
-
-    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.ser.serialize_attribute_value(value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.ser.formatter.end_attribute(&mut self.ser.writer)?;
-        Ok(())
-    }
-}
-
-struct BlockSerializer<'a, W: 'a, F: 'a> {
-    ser: &'a mut Serializer<W, F>,
-}
-
-impl<'a, W, F> BlockSerializer<'a, W, F> {
-    fn new(ser: &'a mut Serializer<W, F>) -> BlockSerializer<'a, W, F> {
-        BlockSerializer { ser }
-    }
-}
-
-impl<'a, W, F> ser::Serializer for BlockSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    type SerializeSeq = Impossible<(), Error>;
-    type SerializeTuple = Impossible<(), Error>;
-    type SerializeTupleStruct = Impossible<(), Error>;
-    type SerializeTupleVariant = Impossible<(), Error>;
-    type SerializeMap = Impossible<(), Error>;
-    type SerializeStruct = Self;
-    type SerializeStructVariant = Impossible<(), Error>;
-
-    serialize_unsupported! {
-        not_a_block
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        char str bytes none unit unit_struct unit_variant newtype_struct newtype_variant
-        tuple tuple_struct tuple_variant seq map struct_variant
-    }
-
-    fn serialize_some<T>(self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
-
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Ok(self)
-    }
-}
-
-impl<'a, W, F> ser::SerializeStruct for BlockSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        match key {
-            "identifier" => {
-                self.ser.formatter.begin_block(&mut self.ser.writer)?;
-                value.serialize(IdentifierSerializer::new(self.ser))
-            }
-            "labels" => value.serialize(BlockLabelSerializer::new(self.ser)),
-            "body" => {
-                self.ser.formatter.begin_block_body(&mut self.ser.writer)?;
-                value.serialize(&mut *self.ser)?;
-                self.ser.formatter.end_block(&mut self.ser.writer)?;
-                Ok(())
-            }
-            _ => Err(ser::Error::custom("not a block")),
-        }
-    }
-
-    fn end(self) -> Result<()> {
-        Ok(())
-    }
-}
-
 struct IdentifierSerializer<'a, W: 'a, F: 'a> {
     ser: &'a mut Serializer<W, F>,
 }
@@ -700,7 +554,7 @@ where
     serialize_unsupported! {
         not_an_object_key
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        bytes none unit unit_struct newtype_variant
+        bytes none unit unit_struct
         seq tuple tuple_struct tuple_variant map struct struct_variant
     }
 
@@ -731,13 +585,26 @@ where
         self.serialize_str(variant)
     }
 
+    fn serialize_newtype_variant<T>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        value: &T,
+    ) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
         match name {
-            marker::IDENT => value.serialize(IdentifierSerializer::new(self.ser)),
-            marker::RAW => {
+            "$hcl::identifier" => value.serialize(IdentifierSerializer::new(self.ser)),
+            "$hcl::raw_expression" => {
                 self.ser
                     .formatter
                     .begin_interpolated_string(&mut self.ser.writer)?;
@@ -781,7 +648,7 @@ where
     serialize_unsupported! {
         not_a_block_label
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        bytes none unit unit_struct newtype_variant
+        bytes none unit unit_struct
         tuple tuple_struct tuple_variant map struct struct_variant
     }
 
@@ -812,13 +679,27 @@ where
         self.serialize_str(variant)
     }
 
+    fn serialize_newtype_variant<T>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        value: &T,
+    ) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        match name {
-            marker::IDENT => value.serialize(IdentifierSerializer::new(self.ser)),
-            _ => value.serialize(self),
+        if name == "$hcl::identifier" {
+            value.serialize(IdentifierSerializer::new(self.ser))
+        } else {
+            value.serialize(self)
         }
     }
 
@@ -999,9 +880,10 @@ where
     where
         T: ?Sized + Serialize,
     {
-        match name {
-            marker::RAW => value.serialize(RawExpressionSerializer::new(self.ser)),
-            _ => value.serialize(self),
+        if name == "$hcl::raw_expression" {
+            value.serialize(RawExpressionSerializer::new(self.ser))
+        } else {
+            value.serialize(self)
         }
     }
 
@@ -1012,7 +894,7 @@ where
     // Serialize this to HCL in externally tagged form as `{ NAME = VALUE }`.
     fn serialize_newtype_variant<T>(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         value: &T,
@@ -1020,10 +902,14 @@ where
     where
         T: ?Sized + Serialize,
     {
-        self.ser.formatter.begin_object(&mut self.ser.writer)?;
-        self.ser.serialize_object_key_value(variant, value)?;
-        self.ser.formatter.end_object(&mut self.ser.writer)?;
-        Ok(())
+        if name == "$hcl::expression" {
+            value.serialize(self)
+        } else {
+            self.ser.formatter.begin_object(&mut self.ser.writer)?;
+            self.ser.serialize_object_key_value(variant, value)?;
+            self.ser.formatter.end_object(&mut self.ser.writer)?;
+            Ok(())
+        }
     }
 
     // Now we get to the serialization of compound types.
@@ -1279,6 +1165,69 @@ where
     }
 }
 
+enum StructKind {
+    Attribute,
+    Block,
+    Other,
+}
+
+#[doc(hidden)]
+pub struct SerializeStruct<'a, W, F> {
+    kind: StructKind,
+    ser: &'a mut Serializer<W, F>,
+}
+
+impl<'a, W, F> SerializeStruct<'a, W, F> {
+    fn new(kind: StructKind, ser: &'a mut Serializer<W, F>) -> Self {
+        SerializeStruct { kind, ser }
+    }
+}
+
+impl<'a, W, F> ser::SerializeStruct for SerializeStruct<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        match self.kind {
+            StructKind::Attribute => match key {
+                "key" => self.ser.serialize_attribute_key(value),
+                "expr" => self.ser.serialize_attribute_value(value),
+                _ => Ok(()),
+            },
+            StructKind::Block => match key {
+                "identifier" => {
+                    self.ser.formatter.begin_block(&mut self.ser.writer)?;
+                    value.serialize(IdentifierSerializer::new(self.ser))
+                }
+                "labels" => value.serialize(BlockLabelSerializer::new(self.ser)),
+                "body" => {
+                    self.ser.formatter.begin_block_body(&mut self.ser.writer)?;
+                    value.serialize(&mut *self.ser)?;
+                    self.ser.formatter.end_block(&mut self.ser.writer)?;
+                    Ok(())
+                }
+                _ => Ok(()),
+            },
+            StructKind::Other => self.ser.serialize_attribute(key, value),
+        }
+    }
+
+    fn end(self) -> Result<()> {
+        if let StructKind::Attribute = self.kind {
+            self.ser.formatter.end_attribute(&mut self.ser.writer)?;
+        }
+
+        Ok(())
+    }
+}
+
 /// Serialize the given value as an HCL byte vector.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
@@ -1316,10 +1265,6 @@ where
     value.serialize(&mut serializer)
 }
 
-fn not_an_attribute() -> Error {
-    ser::Error::custom("not an attribute")
-}
-
 fn not_a_structure() -> Error {
     ser::Error::custom("not a structure")
 }
@@ -1330,10 +1275,6 @@ fn not_an_identifier() -> Error {
 
 fn not_an_object_key() -> Error {
     ser::Error::custom("not an object key")
-}
-
-fn not_a_block() -> Error {
-    ser::Error::custom("not a block")
 }
 
 fn not_a_block_label() -> Error {

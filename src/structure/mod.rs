@@ -50,7 +50,6 @@ pub mod block;
 pub mod body;
 pub(crate) mod de;
 pub mod expression;
-mod ser;
 
 pub use self::{
     attribute::Attribute,
@@ -59,12 +58,63 @@ pub use self::{
     expression::{Expression, Object, ObjectKey, RawExpression},
 };
 use crate::{Map, Value};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+
+/// Represents an HCL identifier inside of a [`BlockLabel`] or [`ObjectKey`].
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename = "$hcl::identifier")]
+pub struct Identifier(pub String);
+
+impl Identifier {
+    /// Creates a new `Identifier` from something that can be converted to a `String`.
+    pub fn new<E>(ident: E) -> Self
+    where
+        E: Into<String>,
+    {
+        Identifier(ident.into())
+    }
+
+    /// Consumes `self` and returns the `Identifier` as a `String`.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+
+    /// Returns the `Identifier` as a `&str`.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for Identifier {
+    fn from(expr: String) -> Self {
+        Identifier::new(expr)
+    }
+}
+
+impl From<&str> for Identifier {
+    fn from(expr: &str) -> Self {
+        Identifier::new(expr)
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Identifier {
+    fn from(expr: Cow<'a, str>) -> Self {
+        Identifier::new(expr)
+    }
+}
+
+impl From<Identifier> for String {
+    fn from(expr: Identifier) -> Self {
+        expr.0
+    }
+}
 
 /// Represents an HCL structure.
 ///
 /// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename = "$hcl::structure")]
 pub enum Structure {
     /// Represents an HCL attribute.
     Attribute(Attribute),
@@ -249,12 +299,4 @@ impl Node {
             (lhs, rhs) => *lhs = rhs.take(),
         }
     }
-}
-
-// @TODO(mohmann): remove these
-pub(crate) mod marker {
-    pub const ATTRIBUTE: &str = "$hcl::attribute";
-    pub const BLOCK: &str = "$hcl::block";
-    pub const IDENT: &str = "$hcl::ident";
-    pub const RAW: &str = "$hcl::raw";
 }
