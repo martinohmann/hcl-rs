@@ -6,9 +6,7 @@
 //! [hcl-json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md
 
 use crate::{
-    parser,
-    structure::{de::BodyDeserializer, marker},
-    Body, Error, Map, Number, OptionExt, Result, Value,
+    parser, structure::de::BodyDeserializer, Body, Error, Map, Number, OptionExt, Result, Value,
 };
 use indexmap::map;
 use serde::de::{self, value::StringDeserializer, IntoDeserializer};
@@ -189,7 +187,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        if let marker::BODY = name {
+        if name == "$hcl::body" {
             // Specialized handling of `hcl::Body`.
             let de = BodyDeserializer::new(self.body.consume());
             de.deserialize_any(visitor)

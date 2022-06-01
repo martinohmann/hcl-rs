@@ -251,13 +251,8 @@ impl Node {
     }
 }
 
-/// Special marker strings used as field/struct names during serialization and deserialization of
-/// HCL structure types. They are an internal implementation detail should not be leaked outside
-/// of a serializer or deserializer.
+// @TODO(mohmann): remove these
 pub(crate) mod marker {
-    pub const BODY: &str = "$hcl::body";
-
-    // @TODO(mohmann): remove these
     pub const ATTRIBUTE: &str = "$hcl::attribute";
     pub const BLOCK: &str = "$hcl::block";
     pub const IDENT: &str = "$hcl::ident";
