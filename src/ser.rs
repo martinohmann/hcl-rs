@@ -1282,8 +1282,10 @@ mod test {
 
         let expected = r#"foo = 1
 bar = "baz"
+
 qux {
   foo = "bar"
+
   with_labels label1 "lab\"el2" {
     baz = [
       1,
@@ -1291,6 +1293,7 @@ qux {
       3
     ]
   }
+
   an_object = {
     foo = "bar"
     "enabled" = var.enabled
@@ -1363,6 +1366,58 @@ qux = {
         assert!(to_string(&true).is_err());
         assert!(to_string("foo").is_err());
         assert!(to_string(&json!({"\"": "invalid attribute name"})).is_err())
+    }
+
+    #[test]
+    fn test_custom_formatter() {
+        let body = Body::builder()
+            .add_attribute(("foo", 1u64))
+            .add_attribute(("bar", "baz"))
+            .add_block(
+                Block::builder("qux")
+                    .add_attribute(("foo", "bar"))
+                    .add_block(Block::builder("baz").add_attribute(("qux", true)).build())
+                    .add_attribute(("baz", "qux"))
+                    .build(),
+            )
+            .build();
+
+        let default_expected = r#"foo = 1
+bar = "baz"
+
+qux {
+  foo = "bar"
+
+  baz {
+    qux = true
+  }
+
+  baz = "qux"
+}
+"#;
+
+        let custom_expected = r#"foo = 1
+bar = "baz"
+qux {
+    foo = "bar"
+    baz {
+        qux = true
+    }
+    baz = "qux"
+}
+"#;
+
+        assert_eq!(to_string(&body).unwrap(), default_expected);
+
+        let formatter = PrettyFormatter::builder()
+            .indent(b"    ")
+            .dense(true)
+            .build();
+        let mut buf = Vec::new();
+        let mut ser = Serializer::with_formatter(&mut buf, formatter);
+        body.serialize(&mut ser).unwrap();
+
+        assert_eq!(String::from_utf8(buf).unwrap(), custom_expected);
     }
 
     #[test]
