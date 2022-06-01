@@ -123,7 +123,6 @@ where
     type SerializeStructVariant = Self;
 
     serialize_unsupported! {
-        not_a_structure
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         char str bytes none unit unit_struct
     }
@@ -405,7 +404,6 @@ where
     type SerializeStructVariant = Impossible<(), Error>;
 
     serialize_unsupported! {
-        not_an_identifier
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         bytes none unit unit_struct newtype_variant
         seq tuple tuple_struct tuple_variant
@@ -472,7 +470,6 @@ where
     type SerializeStructVariant = Impossible<(), Error>;
 
     serialize_unsupported! {
-        not_an_identifier
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         bytes none unit unit_struct newtype_variant
         seq tuple tuple_struct tuple_variant
@@ -539,7 +536,6 @@ where
     type SerializeStructVariant = Impossible<(), Error>;
 
     serialize_unsupported! {
-        not_an_object_key
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         bytes none unit unit_struct
         seq tuple tuple_struct tuple_variant map struct struct_variant
@@ -633,7 +629,6 @@ where
     type SerializeStructVariant = Impossible<(), Error>;
 
     serialize_unsupported! {
-        not_a_block_label
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         bytes none unit unit_struct
         tuple tuple_struct tuple_variant map struct struct_variant
@@ -1184,22 +1179,6 @@ where
     value.serialize(&mut serializer)
 }
 
-fn not_a_structure() -> Error {
-    ser::Error::custom("not a structure")
-}
-
-fn not_an_identifier() -> Error {
-    ser::Error::custom("not an identifier")
-}
-
-fn not_an_object_key() -> Error {
-    ser::Error::custom("not an object key")
-}
-
-fn not_a_block_label() -> Error {
-    ser::Error::custom("not a block label")
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1212,10 +1191,11 @@ mod test {
         #[derive(serde::Serialize)]
         struct Test {
             foo: u32,
+            bar: bool,
         }
 
-        let v = Test { foo: 1 };
-        let expected = "foo = 1\n";
+        let v = Test { foo: 1, bar: true };
+        let expected = "foo = 1\nbar = true\n";
         assert_eq!(&to_string(&v).unwrap(), expected);
     }
 
@@ -1323,143 +1303,6 @@ qux {
     }
 
     #[test]
-    fn test_custom_type() {
-        use crate::Map;
-        use serde::{Deserialize, Serialize};
-
-        #[derive(Serialize, Deserialize, Clone)]
-        struct TlsConfigs {
-            #[serde(flatten)]
-            inner: Map<String, TlsConfig>,
-        }
-
-        #[derive(Serialize, Deserialize, Clone)]
-        #[serde(into = "Body")]
-        struct TlsConfig {
-            key_path: String,
-            cert_path: String,
-        }
-
-        impl From<TlsConfig> for Body {
-            fn from(config: TlsConfig) -> Body {
-                Body::builder()
-                    .add_attribute(("key_path", config.key_path))
-                    .add_attribute(("cert_path", config.cert_path))
-                    .build()
-            }
-        }
-
-        #[derive(Serialize, Deserialize, Clone)]
-        #[serde(into = "Body")]
-        struct Config {
-            host: String,
-            port: u16,
-            tls: TlsConfigs,
-        }
-
-        impl From<Config> for Body {
-            fn from(config: Config) -> Body {
-                Body::builder()
-                    .add_attribute(("host", config.host))
-                    .add_attribute(("port", config.port))
-                    .add_blocks(config.tls.inner.into_iter().map(|(name, tls_config)| {
-                        Block::builder("tls")
-                            .add_label(name)
-                            .with_body(tls_config)
-                            .build()
-                    }))
-                    .build()
-            }
-        }
-
-        let expected = r#"host = "localhost"
-port = 3333
-tls "foo" {
-  key_path = "key.pem"
-  cert_path = "cert.pem"
-}
-tls "bar" {
-  key_path = "key.pem"
-  cert_path = "cert.pem"
-}
-"#;
-        let value: Config = crate::from_str(expected).unwrap();
-
-        assert_eq!(to_string(&value).unwrap(), expected);
-    }
-
-    #[test]
-    fn test_terraform() {
-        use crate::{Map, Value};
-        use serde::{Deserialize, Serialize};
-
-        #[derive(Serialize, Deserialize, Clone)]
-        #[serde(transparent)]
-        struct Resources(Map<String, ProviderResources>);
-
-        impl From<Resources> for Body {
-            fn from(resources: Resources) -> Body {
-                Body::builder()
-                    .add_blocks(
-                        resources
-                            .0
-                            .into_iter()
-                            .flat_map(|(kind, provider_resources)| {
-                                provider_resources
-                                    .0
-                                    .into_iter()
-                                    .map(|(name, resource)| {
-                                        Block::builder("resource")
-                                            .add_label(kind.clone())
-                                            .add_label(name)
-                                            .add_attributes(resource.attributes)
-                                            .build()
-                                    })
-                                    .collect::<Vec<Block>>()
-                            }),
-                    )
-                    .build()
-            }
-        }
-
-        #[derive(Serialize, Deserialize, Clone)]
-        #[serde(transparent)]
-        struct ProviderResources(Map<String, Resource>);
-
-        #[derive(Serialize, Deserialize, Clone)]
-        #[serde(transparent)]
-        struct Resource {
-            attributes: Map<String, Value>,
-        }
-
-        #[derive(Serialize, Deserialize, Clone)]
-        #[serde(into = "Body")]
-        struct Config {
-            #[serde(rename(deserialize = "resource"))]
-            resources: Resources,
-        }
-
-        impl From<Config> for Body {
-            fn from(config: Config) -> Body {
-                config.resources.into()
-            }
-        }
-
-        let expected = r#"resource "aws_s3_bucket" "my-bucket" {
-  name = "my-bucket"
-  foo = "bar"
-}
-resource "aws_s3_bucket" "other-bucket" {
-  name = "other-bucket"
-}
-"#;
-
-        let value: Config = crate::from_str(expected).unwrap();
-
-        assert_eq!(to_string(&value).unwrap(), expected);
-    }
-
-    #[test]
     fn test_object() {
         let value = json!({
             "foo": [1, 2, 3],
@@ -1517,6 +1360,8 @@ qux = {
 
     #[test]
     fn test_errors() {
+        assert!(to_string(&true).is_err());
+        assert!(to_string("foo").is_err());
         assert!(to_string(&json!({"\"": "invalid attribute name"})).is_err())
     }
 
@@ -1570,63 +1415,6 @@ qux = {
         let serialized = to_string(&input).unwrap();
 
         let output: Body = crate::from_str(&serialized).unwrap();
-
-        assert_eq!(input, output);
-    }
-
-    #[test]
-    #[ignore]
-    fn test_roundtrip_json() {
-        let input = Body::builder()
-            .add_block(
-                Block::builder("resource")
-                    .add_label("aws_s3_bucket")
-                    .add_label("mybucket")
-                    .add_attribute(("bucket", "mybucket"))
-                    .add_attribute(("force_destroy", true))
-                    .add_block(
-                        Block::builder("server_side_encryption_configuration")
-                            .add_block(
-                                Block::builder("rule")
-                                    .add_block(
-                                        Block::builder("apply_server_side_encryption_by_default")
-                                            .add_attribute((
-                                                "kms_master_key_id",
-                                                RawExpression::new("aws_kms_key.mykey.arn"),
-                                            ))
-                                            .add_attribute(("sse_algorithm", "aws:kms"))
-                                            .build(),
-                                    )
-                                    .build(),
-                            )
-                            .build(),
-                    )
-                    .add_attribute((
-                        "tags",
-                        Expression::from_iter([
-                            (
-                                ObjectKey::String("${var.dynamic}".into()),
-                                Expression::Bool(true),
-                            ),
-                            (
-                                ObjectKey::String("application".into()),
-                                Expression::String("myapp".into()),
-                            ),
-                            (
-                                ObjectKey::Identifier("team".into()),
-                                Expression::String("bar".into()),
-                            ),
-                        ]),
-                    ))
-                    .build(),
-            )
-            .build();
-
-        let serialized = serde_json::to_string(&input).unwrap();
-
-        assert_eq!(serialized, "");
-
-        let output: Body = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(input, output);
     }
