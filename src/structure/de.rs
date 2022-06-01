@@ -1,49 +1,13 @@
 //! Deserialize impls for HCL structure types.
 
-use super::{
-    marker, Attribute, Block, BlockLabel, Body, Expression, ObjectKey, RawExpression, Structure,
-};
+use super::{Attribute, Block, BlockLabel, Body, Expression, ObjectKey, RawExpression, Structure};
 use crate::{Error, Number, OptionExt, Result};
 use serde::de::{
     self,
-    value::{BorrowedStrDeserializer, MapDeserializer, SeqAccessDeserializer, SeqDeserializer},
+    value::{BorrowedStrDeserializer, MapDeserializer, SeqDeserializer},
     IntoDeserializer,
 };
 use serde::forward_to_deserialize_any;
-use std::fmt;
-
-impl<'de> de::Deserialize<'de> for Body {
-    fn deserialize<D>(deserializer: D) -> Result<Body, D::Error>
-    where
-        D: de::Deserializer<'de>,
-    {
-        struct BodyVisitor;
-
-        impl<'de> de::Visitor<'de> for BodyVisitor {
-            type Value = Body;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("an HCL body")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: de::Deserializer<'de>,
-            {
-                deserializer.deserialize_seq(self)
-            }
-
-            fn visit_seq<V>(self, visitor: V) -> Result<Self::Value, V::Error>
-            where
-                V: de::SeqAccess<'de>,
-            {
-                de::Deserialize::deserialize(SeqAccessDeserializer::new(visitor)).map(Body)
-            }
-        }
-
-        deserializer.deserialize_newtype_struct(marker::BODY, BodyVisitor)
-    }
-}
 
 pub struct BodyDeserializer {
     value: Body,
@@ -76,7 +40,7 @@ impl<'de, 'a> de::Deserializer<'de> for BodyDeserializer {
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_seq(SeqDeserializer::new(self.value.into_inner().into_iter()))
+        visitor.visit_newtype_struct(self.value.into_inner().into_deserializer())
     }
 }
 

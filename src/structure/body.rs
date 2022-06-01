@@ -2,12 +2,14 @@
 
 use super::{Attribute, Block, IntoNodeMap, Structure};
 use crate::{Map, Value};
+use serde::Deserialize;
 use std::vec::IntoIter;
 
 /// Represents an HCL config file body.
 ///
 /// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Deserialize, Debug, PartialEq, Default, Clone)]
+#[serde(rename = "$hcl::body")]
 pub struct Body(pub Vec<Structure>);
 
 impl Body {
