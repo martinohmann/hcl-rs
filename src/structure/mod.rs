@@ -59,6 +59,55 @@ pub use self::{
 };
 use crate::{Map, Value};
 use serde::Deserialize;
+use std::borrow::Cow;
+
+/// Represents an HCL identifier inside of a [`BlockLabel`] or [`ObjectKey`].
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Identifier(pub String);
+
+impl Identifier {
+    /// Creates a new `Identifier` from something that can be converted to a `String`.
+    pub fn new<I>(ident: I) -> Self
+    where
+        I: Into<String>,
+    {
+        Identifier(ident.into())
+    }
+
+    /// Consumes `self` and returns the `Identifier` as a `String`.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+
+    /// Returns the `Identifier` as a `&str`.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for Identifier {
+    fn from(s: String) -> Self {
+        Identifier::new(s)
+    }
+}
+
+impl From<&str> for Identifier {
+    fn from(s: &str) -> Self {
+        Identifier::new(s)
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Identifier {
+    fn from(s: Cow<'a, str>) -> Self {
+        Identifier::new(s)
+    }
+}
+
+impl From<Identifier> for String {
+    fn from(ident: Identifier) -> Self {
+        ident.0
+    }
+}
 
 /// Represents an HCL structure.
 ///

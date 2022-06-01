@@ -93,8 +93,8 @@ fn parse_block(pair: Pair<Rule>) -> Block {
 
 fn parse_block_label(pair: Pair<Rule>) -> BlockLabel {
     match pair.as_rule() {
-        Rule::Identifier => BlockLabel::Identifier(parse_string(pair)),
-        Rule::StringLit => BlockLabel::String(parse_string(inner(pair))),
+        Rule::Identifier => BlockLabel::identifier(parse_string(pair)),
+        Rule::StringLit => BlockLabel::string(parse_string(inner(pair))),
         rule => unexpected_rule(rule),
     }
 }
@@ -132,9 +132,9 @@ fn parse_object(pair: Pair<Rule>) -> Object<ObjectKey, Expression> {
 
 fn parse_object_key(pair: Pair<Rule>) -> ObjectKey {
     match pair.as_rule() {
-        Rule::Identifier => ObjectKey::Identifier(parse_string(pair)),
-        Rule::StringLit => ObjectKey::String(parse_string(inner(pair))),
-        _ => ObjectKey::RawExpression(parse_raw_expression(pair)),
+        Rule::Identifier => ObjectKey::identifier(parse_string(pair)),
+        Rule::StringLit => ObjectKey::string(parse_string(inner(pair))),
+        _ => ObjectKey::raw_expression(parse_raw_expression(pair)),
     }
 }
 

@@ -1,6 +1,8 @@
 //! Deserialize impls for HCL structure types.
 
-use super::{Attribute, Block, BlockLabel, Body, Expression, ObjectKey, RawExpression, Structure};
+use super::{
+    Attribute, Block, BlockLabel, Body, Expression, Identifier, ObjectKey, RawExpression, Structure,
+};
 use crate::{Error, Number, OptionExt, Result};
 use serde::de::{
     self,
@@ -287,7 +289,7 @@ impl<'de> de::Deserializer<'de> for BlockLabelDeserializer {
     {
         match self.value {
             BlockLabel::String(string) => visitor.visit_string(string),
-            BlockLabel::Identifier(ident) => visitor.visit_string(ident),
+            BlockLabel::Identifier(ident) => ident.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -427,7 +429,7 @@ impl<'de, 'a> de::Deserializer<'de> for ObjectKeyDeserializer {
     {
         match self.value {
             ObjectKey::String(string) => visitor.visit_string(string),
-            ObjectKey::Identifier(ident) => visitor.visit_string(ident),
+            ObjectKey::Identifier(ident) => ident.into_deserializer().deserialize_any(visitor),
             ObjectKey::RawExpression(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
@@ -477,6 +479,35 @@ impl<'de> IntoDeserializer<'de, Error> for RawExpression {
 }
 
 impl<'de, 'a> de::Deserializer<'de> for RawExpressionDeserializer {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self.value.into_inner().into_deserializer())
+    }
+}
+
+pub struct IdentifierDeserializer {
+    value: Identifier,
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Identifier {
+    type Deserializer = IdentifierDeserializer;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        IdentifierDeserializer { value: self }
+    }
+}
+
+impl<'de, 'a> de::Deserializer<'de> for IdentifierDeserializer {
     type Error = Error;
 
     forward_to_deserialize_any! {
