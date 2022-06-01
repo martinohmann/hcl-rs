@@ -205,7 +205,7 @@ where
         let kind = match name {
             "$hcl::attribute" => StructKind::Attribute,
             "$hcl::block" => StructKind::Block,
-            _ => StructKind::Other,
+            _ => StructKind::Custom,
         };
 
         Ok(SerializeStruct::new(kind, self))
@@ -315,14 +315,6 @@ where
     type Ok = ();
     type Error = Error;
 
-    // The Serde data model allows map keys to be any serializable type. HCL
-    // only allows string keys so the implementation below will produce invalid
-    // HCL if the key serializes as something other than a string.
-    //
-    // A real HCL serializer would need to validate that map keys are strings.
-    // This can be done by using a different Serializer to serialize the key
-    // (instead of `&mut **self`) and having that other serializer only
-    // implement `serialize_str` and return an error on any other data type.
     fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -330,9 +322,6 @@ where
         self.serialize_attribute_key(key)
     }
 
-    // It doesn't make a difference whether the colon is printed at the end of
-    // `serialize_key` or at the beginning of `serialize_value`. In this case
-    // the code is a bit simpler having it here.
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -367,8 +356,6 @@ where
     }
 }
 
-// Similar to `SerializeTupleVariant`, here the `end` method is responsible for
-// closing both of the curly braces opened by `serialize_struct_variant`.
 impl<'a, W, F> ser::SerializeStructVariant for &'a mut Serializer<W, F>
 where
     W: io::Write,
@@ -803,15 +790,10 @@ where
         Ok(())
     }
 
-    // Serialize a char as a single-character string. Other formats may
-    // represent this differently.
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
     }
 
-    // This only works for strings that don't require escape sequences but you
-    // get the idea. For example it would emit invalid HCL if the input string
-    // contains a '"' character.
     fn serialize_str(self, v: &str) -> Result<()> {
         self.ser
             .formatter
@@ -819,9 +801,6 @@ where
         Ok(())
     }
 
-    // Serialize a byte array as an array of bytes. Could also use a base64
-    // string here. Binary formats will typically represent byte arrays more
-    // compactly.
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         let mut seq = self.serialize_seq(Some(v.len()))?;
         for byte in v {
@@ -830,16 +809,10 @@ where
         seq.end()
     }
 
-    // An absent optional is represented as the HCL `null`.
     fn serialize_none(self) -> Result<()> {
         self.serialize_unit()
     }
 
-    // A present optional is represented as just the contained value. Note that
-    // this is a lossy representation. For example the values `Some(())` and
-    // `None` both serialize as just `null`. Unfortunately this is typically
-    // what people expect when working with HCL. Other formats are encouraged
-    // to behave more intelligently if possible.
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -847,24 +820,15 @@ where
         value.serialize(self)
     }
 
-    // In Serde, unit means an anonymous value containing no data. Map this to
-    // HCL as `null`.
     fn serialize_unit(self) -> Result<()> {
         self.ser.formatter.write_null(&mut self.ser.writer)?;
         Ok(())
     }
 
-    // Unit struct means a named value containing no data. Again, since there is
-    // no data, map this to HCL as `null`. There is no need to serialize the
-    // name in most formats.
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         self.serialize_unit()
     }
 
-    // When serializing a unit variant (or any other kind of variant), formats
-    // can choose whether to keep track of it by index or by name. Binary
-    // formats typically use the index of the variant and human-readable formats
-    // typically use the name.
     fn serialize_unit_variant(
         self,
         _name: &'static str,
@@ -874,8 +838,6 @@ where
         self.serialize_str(variant)
     }
 
-    // As is done here, serializers are encouraged to treat newtype structs as
-    // insignificant wrappers around the data they contain.
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -887,11 +849,6 @@ where
         }
     }
 
-    // Note that newtype variant (and all of the other variant serialization
-    // methods) refer exclusively to the "externally tagged" enum
-    // representation.
-    //
-    // Serialize this to HCL in externally tagged form as `{ NAME = VALUE }`.
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
@@ -912,30 +869,15 @@ where
         }
     }
 
-    // Now we get to the serialization of compound types.
-    //
-    // The start of the sequence, each value, and the end are three separate
-    // method calls. This one is responsible only for serializing the start,
-    // which in HCL is `[`.
-    //
-    // The length of the sequence may or may not be known ahead of time. This
-    // doesn't make a difference in HCL because the length is not represented
-    // explicitly in the serialized form. Some serializers may only be able to
-    // support sequences for which the length is known up front.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         self.ser.formatter.begin_array(&mut self.ser.writer)?;
         Ok(self)
     }
 
-    // Tuples look just like sequences in HCL. Some formats may be able to
-    // represent tuples more efficiently by omitting the length, since tuple
-    // means that the corresponding `Deserialize implementation will know the
-    // length without needing to look at the serialized data.
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.serialize_seq(Some(len))
     }
 
-    // Tuple structs look just like sequences in HCL.
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -944,8 +886,6 @@ where
         self.serialize_seq(Some(len))
     }
 
-    // Tuple variants are represented in HCL as `{ NAME = [DATA...] }`. Again
-    // this method is only responsible for the externally tagged representation.
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
@@ -962,23 +902,15 @@ where
         Ok(self)
     }
 
-    // Maps are represented in HCL as `{ K = V, K = V, ... }`.
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.ser.formatter.begin_object(&mut self.ser.writer)?;
         Ok(self)
     }
 
-    // Structs look just like maps in HCL. In particular, HCL requires that we
-    // serialize the field names of the struct. Other formats may be able to
-    // omit the field names when serializing structs because the corresponding
-    // Deserialize implementation is required to know what the keys are without
-    // looking at the serialized data.
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         self.serialize_map(Some(len))
     }
 
-    // Struct variants are represented in HCL as `{ NAME = { K = V, ... } }`.
-    // This is the externally tagged representation.
     fn serialize_struct_variant(
         self,
         _name: &'static str,
@@ -1088,14 +1020,6 @@ where
     type Ok = ();
     type Error = Error;
 
-    // The Serde data model allows map keys to be any serializable type. HCL
-    // only allows string keys so the implementation below will produce invalid
-    // HCL if the key serializes as something other than a string.
-    //
-    // A real HCL serializer would need to validate that map keys are strings.
-    // This can be done by using a different Serializer to serialize the key
-    // (instead of `&mut **self`) and having that other serializer only
-    // implement `serialize_str` and return an error on any other data type.
     fn serialize_key<T>(&mut self, key: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -1103,9 +1027,6 @@ where
         self.ser.serialize_object_key(key)
     }
 
-    // It doesn't make a difference whether the colon is printed at the end of
-    // `serialize_key` or at the beginning of `serialize_value`. In this case
-    // the code is a bit simpler having it here.
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -1140,8 +1061,6 @@ where
     }
 }
 
-// Similar to `SerializeTupleVariant`, here the `end` method is responsible for
-// closing both of the curly braces opened by `serialize_struct_variant`.
 impl<'a, W, F> ser::SerializeStructVariant for ExpressionSerializer<'a, W, F>
 where
     W: io::Write,
@@ -1168,7 +1087,7 @@ where
 enum StructKind {
     Attribute,
     Block,
-    Other,
+    Custom,
 }
 
 #[doc(hidden)]
@@ -1198,7 +1117,11 @@ where
         match self.kind {
             StructKind::Attribute => match key {
                 "key" => self.ser.serialize_attribute_key(value),
-                "expr" => self.ser.serialize_attribute_value(value),
+                "expr" => {
+                    self.ser.serialize_attribute_value(value)?;
+                    self.ser.formatter.end_attribute(&mut self.ser.writer)?;
+                    Ok(())
+                }
                 _ => Ok(()),
             },
             StructKind::Block => match key {
@@ -1215,15 +1138,11 @@ where
                 }
                 _ => Ok(()),
             },
-            StructKind::Other => self.ser.serialize_attribute(key, value),
+            StructKind::Custom => self.ser.serialize_attribute(key, value),
         }
     }
 
     fn end(self) -> Result<()> {
-        if let StructKind::Attribute = self.kind {
-            self.ser.formatter.end_attribute(&mut self.ser.writer)?;
-        }
-
         Ok(())
     }
 }
