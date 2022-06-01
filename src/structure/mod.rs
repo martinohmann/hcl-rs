@@ -68,9 +68,9 @@ pub struct Identifier(pub String);
 
 impl Identifier {
     /// Creates a new `Identifier` from something that can be converted to a `String`.
-    pub fn new<E>(ident: E) -> Self
+    pub fn new<I>(ident: I) -> Self
     where
-        E: Into<String>,
+        I: Into<String>,
     {
         Identifier(ident.into())
     }
@@ -87,26 +87,26 @@ impl Identifier {
 }
 
 impl From<String> for Identifier {
-    fn from(expr: String) -> Self {
-        Identifier::new(expr)
+    fn from(s: String) -> Self {
+        Identifier::new(s)
     }
 }
 
 impl From<&str> for Identifier {
-    fn from(expr: &str) -> Self {
-        Identifier::new(expr)
+    fn from(s: &str) -> Self {
+        Identifier::new(s)
     }
 }
 
 impl<'a> From<Cow<'a, str>> for Identifier {
-    fn from(expr: Cow<'a, str>) -> Self {
-        Identifier::new(expr)
+    fn from(s: Cow<'a, str>) -> Self {
+        Identifier::new(s)
     }
 }
 
 impl From<Identifier> for String {
-    fn from(expr: Identifier) -> Self {
-        expr.0
+    fn from(ident: Identifier) -> Self {
+        ident.0
     }
 }
 
