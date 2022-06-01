@@ -8,8 +8,6 @@ use serde::ser::{self, Impossible, Serialize, SerializeSeq};
 use std::io;
 
 /// A structure for serializing Rust values into HCL.
-///
-/// Please note that as of current, serialization into HCL blocks is not supported.
 pub struct Serializer<W, F> {
     writer: W,
     formatter: F,
@@ -1143,6 +1141,12 @@ where
 }
 
 /// Serialize the given value as an HCL byte vector.
+///
+/// See the documentation of [`to_string`][to_string] for more information.
+///
+/// # Errors
+///
+/// Serialization fails if the type cannot be represented as HCL.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: ?Sized + Serialize,
@@ -1153,6 +1157,52 @@ where
 }
 
 /// Serialize the given value as an HCL string.
+///
+/// ## Example
+///
+/// ```
+/// use hcl::{Block, Body, Expression};
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+///
+/// let body = Body::builder()
+///     .add_attribute((
+///         "some_attr",
+///         Expression::from_iter([
+///             ("foo", Expression::from(vec![1, 2])),
+///             ("bar", Expression::Bool(true)),
+///         ]),
+///     ))
+///     .add_block(
+///         Block::builder("some_block")
+///             .add_label("some_block_label")
+///             .add_attribute(("attr", "value"))
+///             .build(),
+///     )
+///     .build();
+///
+/// let expected = r#"some_attr = {
+///   "foo" = [
+///     1,
+///     2
+///   ]
+///   "bar" = true
+/// }
+///
+/// some_block "some_block_label" {
+///   attr = "value"
+/// }
+/// "#;
+///
+/// assert_eq!(hcl::to_string(&body)?, expected);
+/// #   Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// Serialization fails if the type cannot be represented as HCL.
 pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
@@ -1167,9 +1217,12 @@ where
 
 /// Serialize the given value as HCL into the IO stream.
 ///
+/// See the documentation of [`to_string`][to_string] for more information.
+///
 /// # Errors
 ///
-/// Serialization fails if any operation on the writer fails.
+/// Serialization fails if any operation on the writer fails or if the type cannot be represented
+/// as HCL.
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: io::Write,

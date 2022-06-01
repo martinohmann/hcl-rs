@@ -1,13 +1,12 @@
 //! Formatter implementation used by the [`Serializer`][Serializer] to construct HCL documents.
 //!
-//! [Serializer]: ser/struct.Serializer.html
+//! [Serializer]: ../ser/struct.Serializer.html
 
 use super::escape::{CharEscape, ESCAPE};
 use std::io;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-/// This trait abstracts away serializing the HCL control characters, which allows the user to
-/// optionally pretty print the HCL output.
+/// This trait abstracts away serializing the HCL control characters.
 pub trait Format {
     /// Writes `null` to the writer.
     fn write_null<W>(&mut self, writer: &mut W) -> io::Result<()>
@@ -52,8 +51,7 @@ pub trait Format {
         writer.write_all(s.as_bytes())
     }
 
-    /// Writes a quoted string to the writer. The quoted string will be escaped. See
-    /// [`write_escaped_string`].
+    /// Writes a quoted string to the writer. The quoted string will be escaped.
     fn write_quoted_string<W>(&mut self, writer: &mut W, s: &str) -> io::Result<()>
     where
         W: ?Sized + io::Write,
@@ -241,6 +239,26 @@ enum FormatState {
 }
 
 /// A pretty printing HCL formatter.
+///
+/// ## Example
+///
+/// The `.builder()` method can be used to construct a `PrettyFormatter` for use with a
+/// [`Serializer`][Serializer]:
+///
+/// ```
+/// use hcl::format::PrettyFormatter;
+/// use hcl::ser::Serializer;
+/// # let mut writer = Vec::new();
+///
+/// let formatter = PrettyFormatter::builder()
+///     .indent(b"  ")
+///     .dense(false)
+///     .build();
+///
+/// let ser = Serializer::with_formatter(&mut writer, formatter);
+/// ```
+///
+/// [Serializer]: ser/struct.Serializer.html
 pub struct PrettyFormatter<'a> {
     state: FormatState,
     first_element: bool,
@@ -257,20 +275,14 @@ impl<'a> Default for PrettyFormatter<'a> {
 }
 
 /// A builder to create a `PrettyFormatter`.
+///
+/// See the documentation of [`PrettyFormatter`] for a usage example.
 pub struct PrettyFormatterBuilder<'a> {
     indent: &'a [u8],
     dense: bool,
 }
 
 impl<'a> PrettyFormatterBuilder<'a> {
-    /// Creates a new [`PrettyFormatterBuilder`] to start building a new `PrettyFormatter`.
-    pub fn new() -> Self {
-        PrettyFormatterBuilder {
-            indent: b"  ",
-            dense: false,
-        }
-    }
-
     /// Set the indent for indenting nested HCL structures.
     pub fn indent(mut self, indent: &'a [u8]) -> Self {
         self.indent = indent;
@@ -300,7 +312,10 @@ impl<'a> PrettyFormatterBuilder<'a> {
 impl<'a> PrettyFormatter<'a> {
     /// Creates a new [`PrettyFormatterBuilder`] to start building a new `PrettyFormatter`.
     pub fn builder() -> PrettyFormatterBuilder<'a> {
-        PrettyFormatterBuilder::new()
+        PrettyFormatterBuilder {
+            indent: b"  ",
+            dense: false,
+        }
     }
 }
 
