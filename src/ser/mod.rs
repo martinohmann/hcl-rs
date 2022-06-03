@@ -1,9 +1,12 @@
 //! Serialize a Rust data structure into HCL data.
 
-use crate::{
-    format::{Format, PrettyFormatter},
-    Error, Result,
-};
+mod escape;
+mod format;
+#[macro_use]
+mod macros;
+
+pub use self::format::{Format, PrettyFormatter, PrettyFormatterBuilder};
+use crate::{Error, Result};
 use serde::ser::{self, Impossible, Serialize, SerializeSeq};
 use std::io;
 

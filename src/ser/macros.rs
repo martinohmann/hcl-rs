@@ -13,7 +13,7 @@ macro_rules! serialize_unsupported_method {
         #[inline]
         fn $func<T>(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error>
         where
-            T: ?Sized + Serialize,
+            T: ?Sized + serde::ser::Serialize,
         {
             $(
                 let _ = $arg;

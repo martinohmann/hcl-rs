@@ -4,10 +4,6 @@
 
 pub mod de;
 pub mod error;
-mod escape;
-pub mod format;
-#[macro_use]
-mod macros;
 mod number;
 mod parser;
 pub mod ser;

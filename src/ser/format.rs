@@ -246,8 +246,7 @@ enum FormatState {
 /// [`Serializer`][Serializer]:
 ///
 /// ```
-/// use hcl::format::PrettyFormatter;
-/// use hcl::ser::Serializer;
+/// use hcl::ser::{PrettyFormatter, Serializer};
 /// # let mut writer = Vec::new();
 ///
 /// let formatter = PrettyFormatter::builder()
