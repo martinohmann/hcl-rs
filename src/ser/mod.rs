@@ -1,4 +1,130 @@
 //! Serialize a Rust data structure into HCL data.
+//!
+//! This module provides the [`Serializer`] type and the convienince functions [`to_string`],
+//! [`to_vec`] and [`to_writer`] for serializing data to HCL.
+//!
+//! ## Supported top-level types
+//!
+//! The [`Serializer`] supports serialization to HCL for types that are either structured like
+//! maps or sequences of maps. For example, at the top level a struct with one or more named
+//! fields is supported, while a newtype struct wrapping a primitive type like `u8` is not.
+//!
+//! Other example of supported top-level types:
+//!
+//! - tuple or newtype structs wrapping a map-like type
+//! - enums with newtype or tuple variants wrapping map-like types, or struct variants
+//!
+//! Please note that these restrictions only apply to the top-level type that is serialized.
+//! Nested fields can have any type that is serializable.
+//!
+//! ## Serializing a custom type
+//!
+//! The following example will serialize the data as a deeply nested HCL attribute.
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use serde::Serialize;
+//!
+//! #[derive(Serialize)]
+//! struct User {
+//!     age: u8,
+//!     username: &'static str,
+//!     email: &'static str,
+//! }
+//!
+//! #[derive(Serialize)]
+//! struct Data {
+//!     users: Vec<User>,
+//! }
+//!
+//! let data = Data {
+//!     users: vec![
+//!         User {
+//!             age: 34,
+//!             username: "johndoe",
+//!             email: "johndoe@example.com",
+//!         },
+//!         User {
+//!             age: 27,
+//!             username: "janedoe",
+//!             email: "janedoe@example.com",
+//!         },
+//!     ],
+//! };
+//!
+//! let expected = r#"
+//! users = [
+//!   {
+//!     "age" = 34
+//!     "username" = "johndoe"
+//!     "email" = "johndoe@example.com"
+//!   },
+//!   {
+//!     "age" = 27
+//!     "username" = "janedoe"
+//!     "email" = "janedoe@example.com"
+//!   }
+//! ]
+//! "#.trim_start();
+//!
+//! let serialized = hcl::to_string(&data)?;
+//!
+//! assert_eq!(serialized, expected);
+//! #   Ok(())
+//! # }
+//! ```
+//!
+//! ## Serializing context-aware HCL
+//!
+//! If you need full control over the way data is serialized to HCL, you can make use of the [`Body`][Body] type which can be constructed using the builder pattern.
+//!
+//! The following example uses HCL blocks to format the same data from above in a different way.
+//!
+//! [Body]: ../struct.Body.html
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::{Block, Body};
+//!
+//! let body = Body::builder()
+//!     .add_block(
+//!         Block::builder("user")
+//!             .add_label("johndoe")
+//!             .add_attribute(("age", 34))
+//!             .add_attribute(("email", "johndoe@example.com"))
+//!             .build(),
+//!     )
+//!     .add_block(
+//!         Block::builder("user")
+//!             .add_label("janedoe")
+//!             .add_attribute(("age", 27))
+//!             .add_attribute(("email", "janedoe@example.com"))
+//!             .build(),
+//!     )
+//!     .build();
+//!
+//! let expected = r#"
+//! user "johndoe" {
+//!   age = 34
+//!   email = "johndoe@example.com"
+//! }
+//!
+//! user "janedoe" {
+//!   age = 27
+//!   email = "janedoe@example.com"
+//! }
+//! "#.trim_start();
+//!
+//! let serialized = hcl::to_string(&body)?;
+//!
+//! assert_eq!(serialized, expected);
+//! #   Ok(())
+//! # }
+//! ```
 
 mod escape;
 mod format;
@@ -1145,8 +1271,6 @@ where
 
 /// Serialize the given value as an HCL byte vector.
 ///
-/// See the documentation of [`to_string`][to_string] for more information.
-///
 /// # Errors
 ///
 /// Serialization fails if the type cannot be represented as HCL.
@@ -1160,48 +1284,6 @@ where
 }
 
 /// Serialize the given value as an HCL string.
-///
-/// ## Example
-///
-/// ```
-/// use hcl::{Block, Body, Expression};
-/// # use std::error::Error;
-/// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
-///
-/// let body = Body::builder()
-///     .add_attribute((
-///         "some_attr",
-///         Expression::from_iter([
-///             ("foo", Expression::from(vec![1, 2])),
-///             ("bar", Expression::Bool(true)),
-///         ]),
-///     ))
-///     .add_block(
-///         Block::builder("some_block")
-///             .add_label("some_block_label")
-///             .add_attribute(("attr", "value"))
-///             .build(),
-///     )
-///     .build();
-///
-/// let expected = r#"some_attr = {
-///   "foo" = [
-///     1,
-///     2
-///   ]
-///   "bar" = true
-/// }
-///
-/// some_block "some_block_label" {
-///   attr = "value"
-/// }
-/// "#;
-///
-/// assert_eq!(hcl::to_string(&body)?, expected);
-/// #   Ok(())
-/// # }
-/// ```
 ///
 /// # Errors
 ///
@@ -1219,8 +1301,6 @@ where
 }
 
 /// Serialize the given value as HCL into the IO stream.
-///
-/// See the documentation of [`to_string`][to_string] for more information.
 ///
 /// # Errors
 ///

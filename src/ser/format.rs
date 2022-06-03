@@ -1,6 +1,4 @@
-//! Formatter implementation used by the [`Serializer`][Serializer] to construct HCL documents.
-//!
-//! [Serializer]: ../ser/struct.Serializer.html
+//! Formatter implementation used by the `Serializer` to construct HCL documents.
 
 use super::escape::{CharEscape, ESCAPE};
 use std::io;
@@ -234,7 +232,9 @@ pub trait Format {
 #[derive(PartialEq)]
 enum FormatState {
     Initial,
+    AttributeStart,
     AttributeEnd,
+    BlockStart,
     BlockEnd,
 }
 
@@ -404,6 +404,7 @@ impl<'a> Format for PrettyFormatter<'a> {
             writer.write_all(b"\n")?;
         }
 
+        self.state = FormatState::AttributeStart;
         indent(writer, self.current_indent, self.indent)
     }
 
@@ -428,6 +429,7 @@ impl<'a> Format for PrettyFormatter<'a> {
             writer.write_all(b"\n")?;
         }
 
+        self.state = FormatState::BlockStart;
         indent(writer, self.current_indent, self.indent)
     }
 

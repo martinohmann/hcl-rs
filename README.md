@@ -4,14 +4,13 @@
 [![docs.rs](https://img.shields.io/docsrs/hcl-rs)](https://docs.rs/hcl-rs)
 ![MIT License](https://img.shields.io/github/license/martinohmann/hcl-rs?color=blue)
 
-This crate provides functionality to deserialize and manipulate HCL data.
+This crate provides functionality to deserialize, serialize and manipulate HCL data.
 
-The main types are `Deserializer` for deserializing data and `Value` which can
-be used to deserialize arbitrary HCL data.
+The main types are `Deserializer` for deserializing data, `Serializer` for
+serialization. Furthermore the provided `Body` and `Value` types can be used to
+construct HCL data or as a deserialization target.
 
-**Note**: Serializing to HCL is not supported yet.
-
-## Example
+## Deserialization examples
 
 Deserialize arbitrary HCL according to the [HCL JSON
 Specification](https://github.com/hashicorp/hcl/blob/main/json/spec.md):
@@ -84,6 +83,10 @@ let body: Body = hcl::from_str(input).unwrap();
 
 assert_eq!(body, expected);
 ```
+
+## Serialization examples
+
+Please have a look at examples provided in the [documentation of the `ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html).
 
 ## License
 
