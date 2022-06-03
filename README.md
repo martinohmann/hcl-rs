@@ -86,7 +86,38 @@ assert_eq!(body, expected);
 
 ## Serialization examples
 
-Please have a look at examples provided in the [documentation of the `ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html).
+A simple example to serialize some terraform configuration:
+
+```rust
+use hcl::{Block, Body, RawExpression};
+
+let body = Body::builder()
+    .add_block(
+        Block::builder("resource")
+            .add_label("aws_sns_topic_subscription")
+            .add_label("topic")
+            .add_attribute(("topic_arn", RawExpression::new("aws_sns_topic.queue.arn")))
+            .add_attribute(("protocol", "sqs"))
+            .add_attribute(("endpoint", RawExpression::new("aws_sqs_queue.queue.arn")))
+            .build(),
+    )
+    .build();
+
+let expected = r#"
+resource "aws_sns_topic_subscription" "topic" {
+  topic_arn = aws_sns_topic.queue.arn
+  protocol = "sqs"
+  endpoint = aws_sqs_queue.queue.arn
+}
+"#.trim_start();
+
+let serialized = hcl::to_string(&body).unwrap();
+
+assert_eq!(serialized, expected);
+```
+
+Also have a look at the other examples provided in the [documentation of the
+`ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html).
 
 ## License
 
