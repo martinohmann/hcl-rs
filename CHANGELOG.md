@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/martinohmann/hcl-rs/compare/v0.4.0...v0.5.0) (2022-06-03)
+
+
+### Features
+
+* add HCL serializer ([#30](https://github.com/martinohmann/hcl-rs/issues/30)) ([a9583c9](https://github.com/martinohmann/hcl-rs/commit/a9583c9a457d40b0e685d0e5864ca5146c41c6cc))
+
 ## [0.4.0](https://github.com/martinohmann/hcl-rs/compare/v0.3.3...v0.4.0) (2022-06-03)
 
 
