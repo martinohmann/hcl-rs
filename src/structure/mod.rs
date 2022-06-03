@@ -45,11 +45,11 @@
 //! );
 //! ```
 
-pub mod attribute;
-pub mod block;
-pub mod body;
+mod attribute;
+mod block;
+mod body;
 pub(crate) mod de;
-pub mod expression;
+mod expression;
 
 pub use self::{
     attribute::Attribute,
