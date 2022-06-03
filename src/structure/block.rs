@@ -286,17 +286,6 @@ impl BlockBuilder {
         self
     }
 
-    /// Sets the block's `Body`.
-    ///
-    /// Consumes `self` and returns a new `BlockBuilder`.
-    pub fn with_body<B>(mut self, body: B) -> BlockBuilder
-    where
-        B: Into<Body>,
-    {
-        self.body = Body::builder().add_structures(body.into());
-        self
-    }
-
     /// Consumes `self` and builds the [`Block`] from the items added via the builder methods.
     pub fn build(self) -> Block {
         Block {
