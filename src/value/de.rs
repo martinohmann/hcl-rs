@@ -1,11 +1,7 @@
 use super::{Map, Value};
 use crate::{Error, Number, Result};
 use indexmap::map;
-use serde::de::{
-    self,
-    value::{MapDeserializer, SeqDeserializer, StringDeserializer},
-    IntoDeserializer, Visitor,
-};
+use serde::de::{self, value::StringDeserializer, IntoDeserializer, Visitor};
 use serde::{forward_to_deserialize_any, Deserialize, Deserializer};
 use std::fmt;
 
@@ -130,8 +126,8 @@ impl<'de, 'a> de::Deserializer<'de> for ValueDeserializer {
                 Number::Float(f) => visitor.visit_f64(f),
             },
             Value::String(s) => visitor.visit_string(s),
-            Value::Array(array) => visitor.visit_seq(SeqDeserializer::new(array.into_iter())),
-            Value::Object(object) => visitor.visit_map(MapDeserializer::new(object.into_iter())),
+            Value::Array(array) => visitor.visit_seq(array.into_deserializer()),
+            Value::Object(object) => visitor.visit_map(object.into_deserializer()),
         }
     }
 

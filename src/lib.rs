@@ -14,27 +14,18 @@ pub mod ser;
 pub mod structure;
 pub mod value;
 
+#[doc(inline)]
 pub use de::{from_reader, from_slice, from_str};
+#[doc(inline)]
 pub use error::{Error, Result};
 pub use number::Number;
 pub use parser::parse;
+#[doc(inline)]
 pub use ser::{to_string, to_vec, to_writer};
+#[doc(inline)]
 pub use structure::{
     Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Expression, Object, ObjectKey,
     RawExpression, Structure,
 };
+#[doc(inline)]
 pub use value::{Map, Value};
-
-trait OptionExt<T> {
-    /// Takes the value out of an `Option` and leaves `None` in place. This is a shorthand for the
-    /// pattern `.take().unwrap()`.
-    ///
-    /// Panics if the `Option` is `None`.
-    fn consume(&mut self) -> T;
-}
-
-impl<T> OptionExt<T> for Option<T> {
-    fn consume(&mut self) -> T {
-        self.take().unwrap()
-    }
-}
