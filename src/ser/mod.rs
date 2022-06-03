@@ -268,6 +268,11 @@ where
         value.serialize(self)
     }
 
+    /// Newtype variants have special handling for `hcl::Structure`. For this enum, the inner type
+    /// is serialized, which is either `hcl::Attribute` or `hcl::Block`. These will be handled by
+    /// `serialize_struct` below.
+    ///
+    /// Any other newtype variant is serialized as an HCL attribute (`VARIANT = VALUE`)
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
@@ -285,14 +290,17 @@ where
         }
     }
 
+    /// A sequence of HCL attributes and blocks.
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Ok(self)
     }
 
+    /// A tuple of HCL attributes and blocks.
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.serialize_seq(Some(len))
     }
 
+    /// A tuple of HCL attributes and blocks.
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -301,6 +309,7 @@ where
         self.serialize_seq(Some(len))
     }
 
+    /// Tuple variants are serialized as HCL attributes with an array value (`VARIANT = [...]`).
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
@@ -314,10 +323,16 @@ where
         Ok(self)
     }
 
+    /// Maps are serialized as sequences of HCL attributes (`KEY1 = VALUE1`).
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         Ok(self)
     }
 
+    /// Structs have special handling for `hcl::Attribute` and `hcl::Block`. Attributes are
+    /// serialized as key-expression pairs (`KEY = EXPR`), whereas blocks are serialized as block
+    /// identifier, block labels (if any) and block body.
+    ///
+    /// Any other struct is serialized as a sequence of HCL attributes.
     fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         let kind = match name {
             "$hcl::attribute" => StructKind::Attribute,
@@ -328,6 +343,7 @@ where
         Ok(SerializeStruct::new(kind, self))
     }
 
+    /// Struct variants are serialized as HCL attributes with object value (`VARIANT = {...}`).
     fn serialize_struct_variant(
         self,
         _name: &'static str,
@@ -1299,7 +1315,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Attribute, Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression};
+    use crate::{Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression};
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
@@ -1385,11 +1401,14 @@ mod test {
                             .add_attribute(("baz", vec![1u64, 2u64, 3u64]))
                             .build(),
                     )
-                    .add_attribute(Attribute::new("an_object", {
+                    .add_attribute(("an_object", {
                         let mut object = Object::new();
 
                         object.insert(ObjectKey::identifier("foo"), "bar".into());
-                        object.insert("enabled".into(), RawExpression::new("var.enabled").into());
+                        object.insert(
+                            ObjectKey::string("enabled"),
+                            RawExpression::new("var.enabled").into(),
+                        );
                         object.insert(ObjectKey::raw_expression("var.name"), "the value".into());
                         object
                     }))
