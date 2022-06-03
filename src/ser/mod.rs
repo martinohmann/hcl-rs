@@ -251,7 +251,7 @@ where
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        char str bytes none unit unit_struct
+        char str bytes none unit unit_struct unit_variant
     }
 
     fn serialize_some<T>(self, value: &T) -> Result<()>
@@ -259,15 +259,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<()> {
-        self.serialize_str(variant)
     }
 
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
@@ -532,7 +523,7 @@ where
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        bytes none unit unit_struct newtype_variant
+        bytes none unit unit_struct unit_variant newtype_variant
         seq tuple tuple_struct tuple_variant
         map struct struct_variant
     }
@@ -551,15 +542,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<()> {
-        self.serialize_str(variant)
     }
 
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
@@ -598,7 +580,7 @@ where
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        bytes none unit unit_struct newtype_variant
+        bytes none unit unit_struct unit_variant newtype_variant
         seq tuple tuple_struct tuple_variant
         map struct struct_variant
     }
@@ -617,15 +599,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<()> {
-        self.serialize_str(variant)
     }
 
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
@@ -664,8 +637,9 @@ where
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        bytes none unit unit_struct
-        seq tuple tuple_struct tuple_variant map struct struct_variant
+        bytes none unit unit_struct unit_variant
+        seq tuple tuple_struct tuple_variant
+        map struct struct_variant
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
@@ -684,15 +658,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<()> {
-        self.serialize_str(variant)
     }
 
     fn serialize_newtype_variant<T>(
@@ -748,7 +713,7 @@ where
     type Error = Error;
 
     type SerializeSeq = Self;
-    type SerializeTuple = Impossible<(), Error>;
+    type SerializeTuple = Self;
     type SerializeTupleStruct = Impossible<(), Error>;
     type SerializeTupleVariant = Impossible<(), Error>;
     type SerializeMap = Impossible<(), Error>;
@@ -757,8 +722,9 @@ where
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        bytes none unit unit_struct
-        tuple tuple_struct tuple_variant map struct struct_variant
+        bytes none unit unit_struct unit_variant
+        tuple_struct tuple_variant
+        map struct struct_variant
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
@@ -777,15 +743,6 @@ where
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<()> {
-        self.serialize_str(variant)
     }
 
     fn serialize_newtype_variant<T>(
@@ -815,6 +772,10 @@ where
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Ok(self)
     }
+
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+        self.serialize_seq(Some(len))
+    }
 }
 
 impl<'a, W, F> ser::SerializeSeq for BlockLabelSerializer<'a, W, F>
@@ -835,6 +796,26 @@ where
 
     fn end(self) -> Result<()> {
         Ok(())
+    }
+}
+
+impl<'a, W, F> ser::SerializeTuple for BlockLabelSerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        ser::SerializeSeq::serialize_element(self, value)
+    }
+
+    fn end(self) -> Result<()> {
+        ser::SerializeSeq::end(self)
     }
 }
 
