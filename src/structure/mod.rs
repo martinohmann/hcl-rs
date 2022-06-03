@@ -58,11 +58,12 @@ pub use self::{
     expression::{Expression, Object, ObjectKey, RawExpression},
 };
 use crate::{Map, Value};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
 /// Represents an HCL identifier inside of a [`BlockLabel`] or [`ObjectKey`].
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename = "$hcl::identifier")]
 pub struct Identifier(pub String);
 
 impl Identifier {
@@ -112,7 +113,8 @@ impl From<Identifier> for String {
 /// Represents an HCL structure.
 ///
 /// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename = "$hcl::structure")]
 pub enum Structure {
     /// Represents an HCL attribute.
     Attribute(Attribute),

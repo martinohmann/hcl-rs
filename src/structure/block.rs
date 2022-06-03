@@ -2,7 +2,7 @@
 
 use super::{Attribute, Body, BodyBuilder, Identifier, IntoNodeMap, Structure};
 use crate::Value;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a
 /// block body.
@@ -14,7 +14,8 @@ use serde::Deserialize;
 ///   body
 /// }
 /// ```
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename = "$hcl::block")]
 pub struct Block {
     /// The block identifier.
     pub identifier: String,
@@ -75,14 +76,13 @@ impl From<Block> for Value {
 impl<I, B> From<(I, B)> for Block
 where
     I: Into<String>,
-    B: IntoIterator,
-    B::Item: Into<Structure>,
+    B: Into<Body>,
 {
     fn from(pair: (I, B)) -> Block {
         Block {
             identifier: pair.0.into(),
             labels: Vec::new(),
-            body: pair.1.into_iter().collect(),
+            body: pair.1.into(),
         }
     }
 }
@@ -104,7 +104,8 @@ where
 ///   body
 /// }
 /// ```
-#[derive(Deserialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[serde(rename = "$hcl::block_label")]
 pub enum BlockLabel {
     /// A bare HCL block label.
     Identifier(Identifier),

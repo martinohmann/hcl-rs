@@ -2,7 +2,7 @@
 
 use super::Identifier;
 use crate::{Number, Value};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
 
@@ -11,7 +11,8 @@ pub type Object<K, V> = indexmap::IndexMap<K, V>;
 
 /// A type representing the expression sub-language is used within attribute definitions to specify
 /// values.
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename = "$hcl::expression")]
 #[non_exhaustive]
 pub enum Expression {
     /// Represents a null value.
@@ -156,7 +157,8 @@ impl From<RawExpression> for Expression {
 }
 
 /// Represents an object key.
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename = "$hcl::object_key")]
 #[non_exhaustive]
 pub enum ObjectKey {
     /// Represents a bare unquoted identifer used as object key.
@@ -233,7 +235,8 @@ impl Display for ObjectKey {
 /// As of now, anthing that is not a null value, a boolean, number, string, array or object is
 /// treated as raw expression and is not further parsed. This includes conditionals, operations,
 /// function calls, for expressions and variable expressions.
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(rename = "$hcl::raw_expression")]
 pub struct RawExpression(String);
 
 impl RawExpression {
