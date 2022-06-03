@@ -4,8 +4,15 @@ use super::escape::{CharEscape, ESCAPE};
 use std::io;
 use unicode_ident::{is_xid_continue, is_xid_start};
 
-/// This trait abstracts away serializing the HCL control characters.
-pub trait Format {
+mod private {
+    pub trait Sealed {}
+}
+
+/// Abstracts away serializing the HCL control characters.
+///
+/// This trait is sealed to prevent implementation outside of this crate as its specifics might
+/// change in a breaking way.
+pub trait Format: private::Sealed {
     /// Writes `null` to the writer.
     fn write_null<W>(&mut self, writer: &mut W) -> io::Result<()>
     where
@@ -317,6 +324,8 @@ impl<'a> PrettyFormatter<'a> {
         }
     }
 }
+
+impl<'a> private::Sealed for PrettyFormatter<'a> {}
 
 impl<'a> Format for PrettyFormatter<'a> {
     fn begin_array<W>(&mut self, writer: &mut W) -> io::Result<()>
