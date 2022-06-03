@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
 
 /// The object type used in the expression sub-language.
-pub type Object<K = ObjectKey, V = Expression> = indexmap::IndexMap<K, V>;
+pub type Object<K, V> = indexmap::IndexMap<K, V>;
 
 /// A type representing the expression sub-language is used within attribute definitions to specify
 /// values.
