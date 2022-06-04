@@ -50,6 +50,8 @@ mod block;
 mod body;
 pub(crate) mod de;
 mod expression;
+#[cfg(test)]
+mod tests;
 
 pub use self::{
     attribute::Attribute,
