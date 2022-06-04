@@ -182,6 +182,15 @@ qux = {
 }
 
 #[test]
+fn serialize_empty_block() {
+    let body = Body::builder()
+        .add_block(Block::builder("empty").build())
+        .build();
+
+    assert_eq!(to_string(&body).unwrap(), "empty {}\n");
+}
+
+#[test]
 fn serialize_errors() {
     assert!(to_string(&true).is_err());
     assert!(to_string("foo").is_err());
