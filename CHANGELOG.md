@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/martinohmann/hcl-rs/compare/v0.5.0...v0.5.1) (2022-06-04)
+
+
+### Bug Fixes
+
+* **serializer:** do not emit newline if block body is empty ([#32](https://github.com/martinohmann/hcl-rs/issues/32)) ([a36fa7d](https://github.com/martinohmann/hcl-rs/commit/a36fa7d263647c76725374d1feb63b0824b3789a))
+
 ## [0.5.0](https://github.com/martinohmann/hcl-rs/compare/v0.4.0...v0.5.0) (2022-06-03)
 
 
