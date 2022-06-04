@@ -243,6 +243,7 @@ enum FormatState {
     AttributeEnd,
     BlockStart,
     BlockEnd,
+    BlockBodyStart,
 }
 
 /// A pretty printing HCL formatter.
@@ -409,11 +410,7 @@ impl<'a> Format for PrettyFormatter<'a> {
     where
         W: ?Sized + io::Write,
     {
-        if !self.dense && self.state == FormatState::BlockEnd {
-            writer.write_all(b"\n")?;
-        }
-
-        self.state = FormatState::AttributeStart;
+        self.maybe_write_newline(writer, FormatState::AttributeStart)?;
         indent(writer, self.current_indent, self.indent)
     }
 
@@ -429,16 +426,7 @@ impl<'a> Format for PrettyFormatter<'a> {
     where
         W: ?Sized + io::Write,
     {
-        if !self.dense
-            && matches!(
-                self.state,
-                FormatState::AttributeEnd | FormatState::BlockEnd
-            )
-        {
-            writer.write_all(b"\n")?;
-        }
-
-        self.state = FormatState::BlockStart;
+        self.maybe_write_newline(writer, FormatState::BlockStart)?;
         indent(writer, self.current_indent, self.indent)
     }
 
@@ -447,7 +435,8 @@ impl<'a> Format for PrettyFormatter<'a> {
         W: ?Sized + io::Write,
     {
         self.current_indent += 1;
-        writer.write_all(b" {\n")
+        self.state = FormatState::BlockBodyStart;
+        writer.write_all(b" {")
     }
 
     fn end_block<W>(&mut self, writer: &mut W) -> io::Result<()>
@@ -458,6 +447,35 @@ impl<'a> Format for PrettyFormatter<'a> {
         self.current_indent -= 1;
         indent(writer, self.current_indent, self.indent)?;
         writer.write_all(b"}\n")
+    }
+}
+
+impl<'a> PrettyFormatter<'a> {
+    // Conditionally writes a newline character depending on the formatter configuration and the
+    // current and next state. Updates the state to `next_state`.
+    fn maybe_write_newline<W>(&mut self, writer: &mut W, next_state: FormatState) -> io::Result<()>
+    where
+        W: ?Sized + io::Write,
+    {
+        let newline = match &self.state {
+            FormatState::AttributeEnd if !self.dense => {
+                matches!(next_state, FormatState::BlockStart)
+            }
+            FormatState::BlockEnd if !self.dense => {
+                matches!(
+                    next_state,
+                    FormatState::BlockStart | FormatState::AttributeStart
+                )
+            }
+            other => matches!(other, FormatState::BlockBodyStart),
+        };
+
+        if newline {
+            writer.write_all(b"\n")?;
+        }
+
+        self.state = next_state;
+        Ok(())
     }
 }
 
