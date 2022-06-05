@@ -29,6 +29,14 @@ pub enum Error {
 
     /// Represents generic IO errors.
     Io(io::Error),
+
+    /// Represents errors due to invalid escape characters that may occur when unescaping
+    /// user-provided strings.
+    InvalidEscape(char),
+
+    /// Represents errors due to invalid unicode code points that may occur when unescaping
+    /// user-provided strings.
+    InvalidUnicodeCodePoint(String),
 }
 
 impl Error {
@@ -63,6 +71,10 @@ impl Display for Error {
                 }
                 None => write!(f, "{}", msg),
             },
+            Error::InvalidEscape(c) => write!(f, "invalid escape sequence '\\{}'", c),
+            Error::InvalidUnicodeCodePoint(u) => {
+                write!(f, "invalid unicode code point '\\u{}'", u)
+            }
         }
     }
 }
