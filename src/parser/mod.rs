@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests;
+mod unescape;
 
 use crate::{
     Attribute, Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression, Result,
@@ -11,6 +12,7 @@ use pest::{
 };
 use pest_derive::Parser;
 use std::str::FromStr;
+use unescape::unescape;
 
 #[derive(Parser)]
 #[grammar = "parser/grammar/hcl.pest"]
@@ -55,89 +57,92 @@ struct HclParser;
 /// ```
 pub fn parse(input: &str) -> Result<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-    Ok(parse_body(pair))
+    parse_body(pair)
 }
 
-fn parse_body(pair: Pair<Rule>) -> Body {
+fn parse_body(pair: Pair<Rule>) -> Result<Body> {
     pair.into_inner().map(parse_structure).collect()
 }
 
-fn parse_structure(pair: Pair<Rule>) -> Structure {
+fn parse_structure(pair: Pair<Rule>) -> Result<Structure> {
     match pair.as_rule() {
-        Rule::Attribute => Structure::Attribute(parse_attribute(pair)),
-        Rule::Block => Structure::Block(parse_block(pair)),
+        Rule::Attribute => parse_attribute(pair).map(Structure::Attribute),
+        Rule::Block => parse_block(pair).map(Structure::Block),
         rule => unexpected_rule(rule),
     }
 }
 
-fn parse_attribute(pair: Pair<Rule>) -> Attribute {
+fn parse_attribute(pair: Pair<Rule>) -> Result<Attribute> {
     let mut pairs = pair.into_inner();
 
-    Attribute {
-        key: parse_string(pairs.next().unwrap()),
-        expr: parse_expression(pairs.next().unwrap()),
-    }
+    Ok(Attribute {
+        key: parse_ident(pairs.next().unwrap()),
+        expr: parse_expression(pairs.next().unwrap())?,
+    })
 }
 
-fn parse_block(pair: Pair<Rule>) -> Block {
+fn parse_block(pair: Pair<Rule>) -> Result<Block> {
     let mut pairs = pair.into_inner();
 
-    let identifier = parse_string(pairs.next().unwrap());
+    let identifier = parse_ident(pairs.next().unwrap());
 
     let (labels, block_body): (Vec<Pair<Rule>>, Vec<Pair<Rule>>) =
         pairs.partition(|pair| pair.as_rule() != Rule::BlockBody);
 
-    Block {
+    Ok(Block {
         identifier,
-        labels: labels.into_iter().map(parse_block_label).collect(),
-        body: parse_block_body(block_body.into_iter().next().unwrap()),
-    }
+        labels: labels
+            .into_iter()
+            .map(parse_block_label)
+            .collect::<Result<_>>()?,
+        body: parse_block_body(block_body.into_iter().next().unwrap())?,
+    })
 }
 
-fn parse_block_label(pair: Pair<Rule>) -> BlockLabel {
+fn parse_block_label(pair: Pair<Rule>) -> Result<BlockLabel> {
     match pair.as_rule() {
-        Rule::Identifier => BlockLabel::identifier(parse_string(pair)),
-        Rule::StringLit => BlockLabel::string(parse_string(inner(pair))),
+        Rule::Identifier => Ok(BlockLabel::identifier(parse_ident(pair))),
+        Rule::StringLit => parse_string(inner(pair)).map(BlockLabel::String),
         rule => unexpected_rule(rule),
     }
 }
 
-fn parse_block_body(pair: Pair<Rule>) -> Body {
+fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
     match pair.as_rule() {
         Rule::BlockBody => parse_body(inner(pair)),
         rule => unexpected_rule(rule),
     }
 }
 
-fn parse_expression(pair: Pair<Rule>) -> Expression {
+fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
     match pair.as_rule() {
-        Rule::BooleanLit => Expression::Bool(parse_primitive(pair)),
-        Rule::Float => Expression::Number(parse_primitive::<f64>(pair).into()),
-        Rule::Heredoc => Expression::String(parse_heredoc(pair)),
-        Rule::Int => Expression::Number(parse_primitive::<i64>(pair).into()),
-        Rule::NullLit => Expression::Null,
-        Rule::StringLit => Expression::String(parse_string(inner(pair))),
-        Rule::Tuple => Expression::Array(parse_expressions(pair)),
-        Rule::Object => Expression::Object(parse_object(pair)),
-        _ => Expression::Raw(parse_raw_expression(pair)),
+        Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
+        Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
+        Rule::Heredoc => parse_heredoc(pair).map(Expression::String),
+        Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
+        Rule::NullLit => Ok(Expression::Null),
+        Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
+        Rule::Tuple => parse_expressions(pair).map(Expression::Array),
+        Rule::Object => parse_object(pair).map(Expression::Object),
+        _ => Ok(Expression::Raw(parse_raw_expression(pair))),
     }
 }
 
-fn parse_expressions(pair: Pair<Rule>) -> Vec<Expression> {
+fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {
     pair.into_inner().map(parse_expression).collect()
 }
 
-fn parse_object(pair: Pair<Rule>) -> Object<ObjectKey, Expression> {
+fn parse_object(pair: Pair<Rule>) -> Result<Object<ObjectKey, Expression>> {
     ObjectIter::new(pair)
-        .map(|(k, v)| (parse_object_key(k), parse_expression(v)))
+        .map(|(k, v)| Ok((parse_object_key(k)?, parse_expression(v)?)))
         .collect()
 }
 
-fn parse_object_key(pair: Pair<Rule>) -> ObjectKey {
+fn parse_object_key(pair: Pair<Rule>) -> Result<ObjectKey> {
     match pair.as_rule() {
-        Rule::Identifier => ObjectKey::identifier(parse_string(pair)),
-        Rule::StringLit => ObjectKey::string(parse_string(inner(pair))),
-        _ => ObjectKey::raw_expression(parse_raw_expression(pair)),
+        Rule::Identifier => Ok(ObjectKey::identifier(parse_ident(pair))),
+        Rule::StringLit => parse_string(inner(pair)).map(ObjectKey::String),
+        _ => Ok(ObjectKey::raw_expression(parse_raw_expression(pair))),
     }
 }
 
@@ -153,7 +158,11 @@ fn inner(pair: Pair<Rule>) -> Pair<Rule> {
     pair.into_inner().next().unwrap()
 }
 
-fn parse_string(pair: Pair<Rule>) -> String {
+fn parse_string(pair: Pair<Rule>) -> Result<String> {
+    unescape(pair.as_str())
+}
+
+fn parse_ident(pair: Pair<Rule>) -> String {
     pair.as_str().to_owned()
 }
 
@@ -161,14 +170,17 @@ fn parse_raw_expression(pair: Pair<Rule>) -> RawExpression {
     pair.as_str().into()
 }
 
-fn parse_heredoc(pair: Pair<Rule>) -> String {
+fn parse_heredoc(pair: Pair<Rule>) -> Result<String> {
     let mut pairs = pair.into_inner();
     let intro = pairs.next().unwrap();
     let content = pairs.nth(1).unwrap();
 
     match intro.as_rule() {
         Rule::HeredocIntroNormal => parse_string(content),
-        Rule::HeredocIntroIndent => dedent_string(content.as_str()),
+        Rule::HeredocIntroIndent => {
+            let dedented = dedent_string(content.as_str());
+            unescape(&dedented)
+        }
         rule => unexpected_rule(rule),
     }
 }

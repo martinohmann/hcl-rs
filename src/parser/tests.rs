@@ -413,3 +413,33 @@ fn parse_hcl() {
 
     assert_eq!(body, expected);
 }
+
+#[test]
+fn unescape_strings() {
+    let input = r#"
+        block "label\\with\\backslashes" {
+          string_attr = "I \u2665 unicode"
+
+          object_attr = {
+            "key\nwith\nnewlines" = true
+          }
+        }
+    "#;
+
+    let body = parse(input).unwrap();
+
+    let expected = Body::builder()
+        .add_block(
+            Block::builder("block")
+                .add_label("label\\with\\backslashes")
+                .add_attribute(("string_attr", "I \u{2665} unicode"))
+                .add_attribute((
+                    "object_attr",
+                    Expression::from_iter([("key\nwith\nnewlines", true)]),
+                ))
+                .build(),
+        )
+        .build();
+
+    assert_eq!(body, expected);
+}
