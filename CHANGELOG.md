@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/martinohmann/hcl-rs/compare/v0.5.1...v0.5.2) (2022-06-06)
+
+
+### Bug Fixes
+
+* unescape strings while parsing ([#34](https://github.com/martinohmann/hcl-rs/issues/34)) ([6fcc332](https://github.com/martinohmann/hcl-rs/commit/6fcc332cbbba02f7dd0d405543a92829ffa57b08))
+
 ## [0.5.1](https://github.com/martinohmann/hcl-rs/compare/v0.5.0...v0.5.1) (2022-06-04)
 
 
