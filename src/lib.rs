@@ -4,6 +4,7 @@
 
 pub mod de;
 pub mod error;
+mod macros;
 mod number;
 mod parser;
 pub mod ser;
@@ -20,8 +21,8 @@ pub use parser::parse;
 pub use ser::{to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{
-    Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Expression, Object, ObjectKey,
-    RawExpression, Structure,
+    ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Expression,
+    Object, ObjectKey, RawExpression, Structure,
 };
 #[doc(inline)]
 pub use value::{Map, Value};
