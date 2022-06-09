@@ -6,7 +6,7 @@
 /// Unsupported syntax:
 ///
 /// - Raw HCL expressions in attribute values and object keys
-/// - A mix of identifier and string block labels
+/// - Heredocs
 ///
 /// [BlockBuilder]: ./struct.BlockBuilder.html
 ///
@@ -30,7 +30,8 @@
 /// assert_eq!(body, expected);
 /// ```
 ///
-/// Attribute keys and block identifiers can be expressions:
+/// Attribute keys, block identifiers and object keys can be expressions by wrapping them in
+/// parenthesis:
 ///
 /// ```
 /// use hcl::{Block, Body};
@@ -340,20 +341,52 @@ macro_rules! block_label {
     };
 }
 
+/// Construct an `hcl::ObjectKey`.
+///
+/// ```
+/// use hcl::ObjectKey;
+///
+/// assert_eq!(hcl::object_key!(some_identifier), ObjectKey::identifier("some_identifier"));
+/// assert_eq!(hcl::object_key!("some string"), ObjectKey::string("some string"));
+///
+/// let key = "some expression";
+///
+/// assert_eq!(hcl::object_key!((key)), ObjectKey::string("some expression"));
+/// ```
+#[macro_export]
+#[doc(hidden)]
+macro_rules! object_key {
+    ($ident:ident) => {
+        $crate::ObjectKey::Identifier(std::stringify!($ident).into())
+    };
+
+    (($expr:expr)) => {
+        $crate::ObjectKey::String(($expr).into())
+    };
+
+    ($literal:literal) => {
+        $crate::ObjectKey::String($literal.into())
+    };
+}
+
 /// Construct an `hcl::Expression` from an HCL attribute value expression literal.
 ///
 /// ```
-/// use hcl::{Expression, Object};
+/// use hcl::{Expression, Object, ObjectKey};
+///
+/// let other = "hello";
 ///
 /// let expression = hcl::expression!({
-///     "foo" = "bar"
-///     "baz" = [1, 2]
+///     foo       = true
+///     "baz qux" = [1, 2]
+///     (other)   = "world"
 /// });
 ///
 /// let expected = Expression::Object({
 ///     let mut object = Object::new();
-///     object.insert("foo".into(), "bar".into());
-///     object.insert("baz".into(), vec![1u64, 2].into());
+///     object.insert(ObjectKey::identifier("foo"), true.into());
+///     object.insert(ObjectKey::string("baz qux"), vec![1u64, 2].into());
+///     object.insert(ObjectKey::string("hello"), "world".into());
 ///     object
 /// });
 ///
@@ -371,8 +404,9 @@ macro_rules! expression {
 #[doc(hidden)]
 macro_rules! expression_internal {
     //////////////////////////////////////////////////////////////////////////
-    // TT muncher for parsing the inside of an array [...]. Produces a vec![...]
-    // of the elements.
+    // TT muncher for parsing the inside of an array [...].
+    //
+    // Produces a vec![...] of the elements.
     //
     // Must be invoked as: expression_internal!(@array [] $($tt)*)
     //////////////////////////////////////////////////////////////////////////
@@ -446,71 +480,71 @@ macro_rules! expression_internal {
     (@object $object:ident () () ()) => {};
 
     // Insert the current entry followed by trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
-        let _ = $object.insert(($($key)+).into(), $value);
+    (@object $object:ident [$key:expr] ($value:expr) , $($rest:tt)*) => {
+        let _ = $object.insert($key, $value);
         $crate::expression_internal!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Insert the current entry not followed by trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr) $($rest:tt)*) => {
-        let _ = $object.insert(($($key)+).into(), $value);
+    (@object $object:ident [$key:expr] ($value:expr) $($rest:tt)*) => {
+        let _ = $object.insert($key, $value);
         $crate::expression_internal!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Insert the last entry without trailing comma.
-    (@object $object:ident [$($key:tt)+] ($value:expr)) => {
-        let _ = $object.insert(($($key)+).into(), $value);
+    (@object $object:ident [$key:expr] ($value:expr)) => {
+        let _ = $object.insert($key, $value);
     };
 
     // Next value is `null`.
-    (@object $object:ident ($($key:tt)+) (= null $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!(null)) $($rest)*);
+    (@object $object:ident ($key:expr) (= null $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!(null)) $($rest)*);
     };
 
     // Next value is `true`.
-    (@object $object:ident ($($key:tt)+) (= true $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!(true)) $($rest)*);
+    (@object $object:ident ($key:expr) (= true $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!(true)) $($rest)*);
     };
 
     // Next value is `false`.
-    (@object $object:ident ($($key:tt)+) (= false $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!(false)) $($rest)*);
+    (@object $object:ident ($key:expr) (= false $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!(false)) $($rest)*);
     };
 
     // Next value is an array.
-    (@object $object:ident ($($key:tt)+) (= [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!([$($array)*])) $($rest)*);
+    (@object $object:ident ($key:expr) (= [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!([$($array)*])) $($rest)*);
     };
 
     // Next value is a map.
-    (@object $object:ident ($($key:tt)+) (= {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!({$($map)*})) $($rest)*);
+    (@object $object:ident ($key:expr) (= {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!({$($map)*})) $($rest)*);
     };
 
     // Next value is an expression followed by comma.
-    (@object $object:ident ($($key:tt)+) (= $value:expr , $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)) , $($rest)*);
+    (@object $object:ident ($key:expr) (= $value:expr , $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!($value)) , $($rest)*);
     };
 
     // Next value is an expression not followed by comma.
-    (@object $object:ident ($($key:tt)+) (= $value:tt $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)) $($rest)*);
+    (@object $object:ident ($key:expr) (= $value:tt $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!($value)) $($rest)*);
     };
 
     // Last value is an expression with no trailing comma.
-    (@object $object:ident ($($key:tt)+) (= $value:expr) $copy:tt) => {
-        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)));
+    (@object $object:ident ($key:expr) (= $value:expr) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$key] ($crate::expression_internal!($value)));
     };
 
     // Missing value for last entry. Trigger a reasonable error message.
-    (@object $object:ident ($($key:tt)+) (=) $copy:tt) => {
+    (@object $object:ident ($key:expr) (=) $copy:tt) => {
         // "unexpected end of macro invocation"
         $crate::expression_internal!();
     };
 
     // Missing equals and value for last entry. Trigger a reasonable error
     // message.
-    (@object $object:ident ($($key:tt)+) () $copy:tt) => {
+    (@object $object:ident ($key:expr) () $copy:tt) => {
         // "unexpected end of macro invocation"
         $crate::expression_internal!();
     };
@@ -522,25 +556,29 @@ macro_rules! expression_internal {
     };
 
     // Found a comma inside a key. Trigger a reasonable error message.
-    (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
+    (@object $object:ident ($key:expr) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `,`".
         $crate::hcl_unexpected!($comma);
     };
 
-    // Key is fully parenthesized. This avoids clippy double_parens false
-    // positives because the parenthesization may be necessary here.
-    (@object $object:ident () (($key:expr) = $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object ($key) (= $($rest)*) (= $($rest)*));
-    };
-
     // Refuse to absorb equals token into key expression.
-    (@object $object:ident ($($key:tt)*) (= $($unexpected:tt)+) $copy:tt) => {
+    (@object $object:ident ($key:expr) (= $($unexpected:tt)+) $copy:tt) => {
         $crate::hcl_expect_expr_comma!($($unexpected)+);
     };
 
-    // Munch a token into the current key.
-    (@object $object:ident ($($key:tt)*) ($tt:tt $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
+    // Munch an identifier key.
+    (@object $object:ident () ($key:ident $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object ($crate::object_key!($key)) ($($rest)*) ($($rest)*));
+    };
+
+    // Munch a literal key.
+    (@object $object:ident () ($key:literal $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object ($crate::object_key!($key)) ($($rest)*) ($($rest)*));
+    };
+
+    // Munch a parenthesized expression key.
+    (@object $object:ident () (($key:expr) $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object ($crate::object_key!(($key))) ($($rest)*) ($($rest)*));
     };
 
     //////////////////////////////////////////////////////////////////////////
