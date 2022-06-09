@@ -429,7 +429,7 @@ macro_rules! expression_internal {
 
     // Unexpected token after most recent element.
     (@array [$($elems:expr),*] $unexpected:tt $($rest:tt)*) => {
-        $crate::expression_unexpected!($unexpected)
+        $crate::hcl_unexpected!($unexpected)
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -518,13 +518,13 @@ macro_rules! expression_internal {
     // Misplaced equals. Trigger a reasonable error message.
     (@object $object:ident () (= $($rest:tt)*) ($equals:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `:`".
-        $crate::expression_unexpected!($equals);
+        $crate::hcl_unexpected!($equals);
     };
 
     // Found a comma inside a key. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `,`".
-        $crate::expression_unexpected!($comma);
+        $crate::hcl_unexpected!($comma);
     };
 
     // Key is fully parenthesized. This avoids clippy double_parens false
@@ -535,7 +535,7 @@ macro_rules! expression_internal {
 
     // Refuse to absorb equals token into key expression.
     (@object $object:ident ($($key:tt)*) (= $($unexpected:tt)+) $copy:tt) => {
-        $crate::expression_expect_expression_comma!($($unexpected)+);
+        $crate::hcl_expect_expr_comma!($($unexpected)+);
     };
 
     // Munch a token into the current key.
@@ -590,12 +590,12 @@ macro_rules! expression_internal {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! expression_unexpected {
+macro_rules! hcl_unexpected {
     () => {};
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! expression_expect_expression_comma {
+macro_rules! hcl_expect_expr_comma {
     ($e:expr , $($tt:tt)*) => {};
 }
