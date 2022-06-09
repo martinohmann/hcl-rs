@@ -180,60 +180,52 @@ macro_rules! attr {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! block {
-    // Block in braces.
-    ({ $($rest:tt)+ }) => {
-        $crate::block_internal!($($rest)+)
-    };
-
-    ($($rest:tt)+) => {
-        $crate::block_internal!($($rest)+)
+    // Hide distracting implementation details from the generated rustdoc.
+    ($($block:tt)+) => {
+        $crate::block_internal!($($block)+)
     };
 }
 
 #[macro_export]
 #[doc(hidden)]
 macro_rules! block_internal {
-    // Normal block identifier.
-    ($ident:ident $($rest:tt)+) => {
-        $crate::block_internal!([std::stringify!($ident)] [] [$($rest)+])
-    };
-
-    // Expression as block identifier.
-    (($ident:expr) $($rest:tt)+) => {
-        $crate::block_internal!([$ident] [] [$($rest)+])
+    // Block in curly braces.
+    ({ $($tt:tt)+ }) => {
+        $crate::block_internal!($($tt)+)
     };
 
     // Munch an identifier label.
-    ([$ident:expr] [$(($labels:expr))*] [$label:ident $($rest:tt)+]) => {
-        $crate::block_internal!([$ident] [$(($labels))* ($crate::block_label!($label))] [$($rest)+])
+    (($ident:expr) [$(($labels:expr))*] $label:ident $($rest:tt)+) => {
+        $crate::block_internal!(($ident) [$(($labels))* ($crate::block_label!($label))] $($rest)+)
     };
 
     // Munch a literal expression label.
-    ([$ident:expr] [$(($labels:expr))*] [$label:literal $($rest:tt)+]) => {
-        $crate::block_internal!([$ident] [$(($labels))* ($crate::block_label!($label))] [$($rest)+])
+    (($ident:expr) [$(($labels:expr))*] $label:literal $($rest:tt)+) => {
+        $crate::block_internal!(($ident) [$(($labels))* ($crate::block_label!($label))] $($rest)+)
     };
 
     // Munch an expression label.
-    ([$ident:expr] [$(($labels:expr))*] [($label:expr) $($rest:tt)+]) => {
-        $crate::block_internal!([$ident] [$(($labels))* ($crate::block_label!(($label)))] [$($rest)+])
+    (($ident:expr) [$(($labels:expr))*] ($label:expr) $($rest:tt)+) => {
+        $crate::block_internal!(($ident) [$(($labels))* ($crate::block_label!(($label)))] $($rest)+)
     };
 
-    // Done, no block labels.
-    ([$ident:expr] [] [{$($body:tt)*}]) => {
-        $crate::Block {
-            identifier: ($ident).into(),
-            labels: std::vec![],
-            body: $crate::body!($($body)*),
-        }
-    };
-
-    // Done, with block labels.
-    ([$ident:expr] [$(($labels:expr))+] [{$($body:tt)*}]) => {
+    // Found block body, done.
+    (($ident:expr) [$(($labels:expr))*] {$($body:tt)*}) => {
         $crate::Block {
             identifier: ($ident).into(),
             labels: std::vec![$($labels),*],
             body: $crate::body!($($body)*),
         }
+    };
+
+    // Munch expression as block identifier.
+    (($ident:expr) $($rest:tt)+) => {
+        $crate::block_internal!(($ident) [] $($rest)+)
+    };
+
+    // Munch normal block identifier.
+    ($ident:ident $($rest:tt)+) => {
+        $crate::block_internal!((std::stringify!($ident)) [] $($rest)+)
     };
 }
 
