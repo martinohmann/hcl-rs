@@ -33,6 +33,8 @@
 /// Attribute keys and block identifiers can be expressions:
 ///
 /// ```
+/// use hcl::{Block, Body};
+///
 /// let block_identifier = "resource";
 /// let attribute_key = "name";
 ///
@@ -42,9 +44,9 @@
 ///     }
 /// });
 ///
-/// let expected = hcl::Body::builder()
+/// let expected = Body::builder()
 ///     .add_block(
-///         hcl::Block::builder(block_identifier)
+///         Block::builder(block_identifier)
 ///             .add_label("aws_sns_topic")
 ///             .add_label("topic")
 ///             .add_attribute((attribute_key, "my-topic"))
@@ -56,83 +58,126 @@
 /// ```
 #[macro_export]
 macro_rules! body {
-    // Empty body.
-    () => {
-        $crate::Body::default()
-    };
-
-    // Body in braces.
-    ({$($rest:tt)*}) => {
-        $crate::body!($($rest)*)
-    };
-
-    // Consumes all tokens and adds matched attributes and blocks to the body builder.
-    ($($rest:tt)*) => {
-        {
-            let mut builder = $crate::Body::builder();
-            $crate::body_internal!(@any builder $($rest)*);
-            builder.build()
-        }
+    // Hide distracting implementation details from the generated rustdoc.
+    ($($body:tt)*) => {
+        $crate::body_internal!($($body)*)
     };
 }
 
 #[macro_export]
 #[doc(hidden)]
 macro_rules! body_internal {
-    // Add attribute to the builder and consume remaining structures.
-    (@attr $builder:ident ($attr:expr) ($($rest:tt)*)) => {
-        $builder = $builder.add_attribute($attr);
-        $crate::body_internal!(@any $builder $($rest)*);
+    //////////////////////////////////////////////////////////////////////////
+    // TT muncher for parsing zero or more HCL structures (attributes and blocks).
+    //
+    // Produces a vec![...] of the elements.
+    //
+    // Must be invoked as: body_internal!(@structures [] $($tt)*)
+    //////////////////////////////////////////////////////////////////////////
+
+    // No tokens left, done.
+    (@structures [$(($elems:expr))*]) => {
+        std::vec![$($elems),*]
     };
 
-    // Add block to the builder and consume remaining structures.
-    (@block $builder:ident ($block:expr) ($($rest:tt)*)) => {
-        $builder = $builder.add_block($block);
-        $crate::body_internal!(@any $builder $($rest)*);
+    // Next element is an attribute, munch into elems and prceed with next structure.
+    (@structures [$(($elems:expr))*] $key:tt = $expr:tt $($rest:tt)*) => {
+        $crate::body_internal!(@structures [$(($elems))* ($crate::body_internal!(@attribute $key = $expr))] $($rest)*)
     };
 
-    // Consume attribute.
-    (@any $builder:ident $key:tt = $expr:tt $($rest:tt)*) => {
-        $crate::body_internal!(@attr $builder ($crate::attr!($key = $expr)) ($($rest)*))
+    // Next element must be a block, invoke block muncher.
+    (@structures [$(($elems:expr))*] $ident:tt $($rest:tt)+) => {
+        $crate::body_internal!(@block [$(($elems))*] $ident $($rest)+)
     };
 
-    // Consume block with with identifiers as labels.
-    (@any $builder:ident $ident:ident $($label:ident)* {$($body:tt)*} $($rest:tt)*) => {
-        $crate::body_internal!(@block $builder ($crate::block!($ident $($label)* {$($body)*})) ($($rest)*))
+    //////////////////////////////////////////////////////////////////////////
+    // TT muncher for parsing an HCL block.
+    //
+    // Must be invoked as: body_internal!(@block [$(($elems))*] $ident $($rest)*)
+    //////////////////////////////////////////////////////////////////////////
+
+    // Found block body, munch block into elems and proceed with next structure.
+    (@block [$(($elems:expr))*] ($ident:expr) [$(($labels:expr))*] { $($body:tt)* } $($rest:tt)*) => {
+        $crate::body_internal!(@structures [$(($elems))* ($crate::body_internal!(@block ($ident) [$(($labels))*] { $($body)* }))] $($rest)*)
     };
 
-    // Consume block with with literals as labels.
-    (@any $builder:ident $ident:ident $($label:literal)* {$($body:tt)*} $($rest:tt)*) => {
-        $crate::body_internal!(@block $builder ($crate::block!($ident $($label)* {$($body)*})) ($($rest)*))
+    // Munch an identifier block label.
+    (@block [$(($elems:expr))*] ($ident:expr) [$(($labels:expr))*] $label:ident $($rest:tt)+) => {
+        $crate::body_internal!(@block [$(($elems))*] ($ident) [$(($labels))* ($crate::block_label!($label))] $($rest)+)
     };
 
-    // Consume block labels from expressions.
-    (@any $builder:ident $ident:ident $(($label:expr))* {$($body:tt)*} $($rest:tt)*) => {
-        $crate::body_internal!(@block $builder ($crate::block!($ident $(($label))* {$($body)*})) ($($rest)*))
+    // Munch a literal expression block label.
+    (@block [$(($elems:expr))*] ($ident:expr) [$(($labels:expr))*] $label:literal $($rest:tt)+) => {
+        $crate::body_internal!(@block [$(($elems))*] ($ident) [$(($labels))* ($crate::block_label!($label))] $($rest)+)
     };
 
-    // Consume block with identifier from expression and identifiers as labels.
-    (@any $builder:ident ($ident:expr) $($label:ident)* {$($body:tt)*} $($rest:tt)*) => {
-        $crate::body_internal!(@block $builder ($crate::block!(($ident) $($label)* {$($body)*})) ($($rest)*))
+    // Munch an expression block label.
+    (@block [$(($elems:expr))*] ($ident:expr) [$(($labels:expr))*] ($label:expr) $($rest:tt)+) => {
+        $crate::body_internal!(@block [$(($elems))*] ($ident) [$(($labels))* ($crate::block_label!(($label)))] $($rest)+)
     };
 
-    // Consume block with identifier from expression and literals as labels.
-    (@any $builder:ident ($ident:expr) $($label:literal)* {$($body:tt)*} $($rest:tt)*) => {
-        $crate::body_internal!(@block $builder ($crate::block!(($ident) $($label)* {$($body)*})) ($($rest)*))
+    // Block with identifier.
+    (@block [$(($elems:expr))*] $ident:ident $($rest:tt)+) => {
+        $crate::body_internal!(@block [$(($elems))*] (std::stringify!($ident)) [] $($rest)+)
     };
 
-    // Consume block with identifier from expression and labels from expressions.
-    (@any $builder:ident ($ident:expr) $(($label:expr))* {$($body:tt)*} $($rest:tt)*) => {
-        $crate::body_internal!(@block $builder ($crate::block!(($ident) $(($label))* {$($body)*})) ($($rest)*))
+    // Block with expression as identifier.
+    (@block [$(($elems:expr))*] ($ident:expr) $($rest:tt)+) => {
+        $crate::body_internal!(@block [$(($elems))*] ($ident) [] $($rest)+)
     };
 
-    // Done, no more tokens to consume.
-    (@any $builder:ident) => {};
+    //////////////////////////////////////////////////////////////////////////
+    // The main implementation.
+    //
+    // Must be invoked as: body_internal!($($tt)+)
+    //////////////////////////////////////////////////////////////////////////
+
+    // Attribute structure.
+    (@attribute $key:tt = $expr:tt) => {
+        $crate::Structure::Attribute($crate::attribute_internal!($key = $expr))
+    };
+
+    // Block structure.
+    (@block ($ident:expr) [$(($labels:expr))*] { $($body:tt)* }) => {
+        $crate::Structure::Block($crate::block_internal!(($ident) [$(($labels))*] { $($body)* }))
+    };
+
+    // Body in braces.
+    ({ $($tt:tt)* }) => {
+        $crate::body_internal!($($tt)*)
+    };
+
+    // Invoke structure muncher.
+    ($($tt:tt)*) => {
+        $crate::Body($crate::body_internal!(@structures [] $($tt)*))
+    };
 }
 
 /// Construct an `hcl::Structure` which may be either an HCL attribute or block.
+///
+/// ```
+/// use hcl::{Attribute, Block, Structure};
+///
+/// assert_eq!(
+///     hcl::structure!(foo = "bar"),
+///     Structure::Attribute(Attribute::new("foo", "bar")),
+/// );
+///
+/// assert_eq!(
+///     hcl::structure!(
+///         resource "aws_s3_bucket" "bucket" {
+///             name = "the-bucket"
+///         }
+///     ),
+///     Structure::Block(
+///         Block::builder("resource")
+///             .add_labels(["aws_s3_bucket", "bucket"])
+///             .add_attribute(("name", "the-bucket"))
+///             .build()
+///     ),
+/// );
+/// ```
 #[macro_export]
-#[doc(hidden)]
 macro_rules! structure {
     // Hide distracting implementation details from the generated rustdoc.
     ($($structure:tt)+) => {
@@ -145,34 +190,48 @@ macro_rules! structure {
 macro_rules! structure_internal {
     // Structure in braces.
     ({ $($structure:tt)+ }) => {
-        $crate::structure!($($structure)+)
+        $crate::structure_internal!($($structure)+)
     };
 
     // An attribute structure.
     ($key:tt = $($expr:tt)+) => {
-        $crate::Structure::Attribute($crate::attr!($key = $($expr)+))
+        $crate::Structure::Attribute($crate::attribute_internal!($key = $($expr)+))
     };
 
     // A block structure.
     ($($block:tt)+) => {
-        $crate::Structure::Block($crate::block!($($block)+))
+        $crate::Structure::Block($crate::block_internal!($($block)+))
     };
 }
 
 /// Construct an `hcl::Attribute` from a key and a value expression.
+///
+/// ```
+/// use hcl::Attribute;
+///
+/// assert_eq!(hcl::attribute!(foo = "bar"), Attribute::new("foo", "bar"));
+/// ```
+#[macro_export]
+macro_rules! attribute {
+    // Hide distracting implementation details from the generated rustdoc.
+    ($($attr:tt)+) => {
+        $crate::attribute_internal!($($attr)+)
+    };
+}
+
 #[macro_export]
 #[doc(hidden)]
-macro_rules! attr {
-    // Attribute in braces.
-    ({ $($rest:tt)+ }) => {
-        $crate::attr!($($rest)+)
+macro_rules! attribute_internal {
+    // Attribute in curly braces.
+    ({ $($attribute:tt)+ }) => {
+        $crate::attribute_internal!($($attribute)+)
     };
 
     // Attribute with identifier as key.
     ($key:ident = $($expr:tt)+) => {
         $crate::Attribute {
             key: std::stringify!($key).to_owned(),
-            expr: $crate::expr!($($expr)+),
+            expr: $crate::expression_internal!($($expr)+),
         }
     };
 
@@ -180,14 +239,29 @@ macro_rules! attr {
     (($key:expr) = $($expr:tt)+) => {
         $crate::Attribute {
             key: ($key).into(),
-            expr: $crate::expr!($($expr)+),
+            expr: $crate::expression_internal!($($expr)+),
         }
     };
 }
 
 /// Construct an `hcl::Block` from a block identifier, optional block labels and a block body.
+///
+/// ```
+/// use hcl::Block;
+///
+/// assert_eq!(
+///     hcl::block!(
+///         resource "aws_s3_bucket" "bucket" {
+///             name = "the-bucket"
+///         }
+///     ),
+///     Block::builder("resource")
+///         .add_labels(["aws_s3_bucket", "bucket"])
+///         .add_attribute(("name", "the-bucket"))
+///         .build(),
+/// );
+/// ```
 #[macro_export]
-#[doc(hidden)]
 macro_rules! block {
     // Hide distracting implementation details from the generated rustdoc.
     ($($block:tt)+) => {
@@ -199,8 +273,8 @@ macro_rules! block {
 #[doc(hidden)]
 macro_rules! block_internal {
     // Block in curly braces.
-    ({ $($tt:tt)+ }) => {
-        $crate::block_internal!($($tt)+)
+    ({ $($block:tt)+ }) => {
+        $crate::block_internal!($($block)+)
     };
 
     // Munch an identifier label.
@@ -239,6 +313,17 @@ macro_rules! block_internal {
 }
 
 /// Construct an `hcl::BlockLabel`.
+///
+/// ```
+/// use hcl::BlockLabel;
+///
+/// assert_eq!(hcl::block_label!(some_identifier), BlockLabel::identifier("some_identifier"));
+/// assert_eq!(hcl::block_label!("some string"), BlockLabel::string("some string"));
+///
+/// let label = "some expression";
+///
+/// assert_eq!(hcl::block_label!((label)), BlockLabel::string("some expression"));
+/// ```
 #[macro_export]
 #[doc(hidden)]
 macro_rules! block_label {
@@ -256,23 +341,40 @@ macro_rules! block_label {
 }
 
 /// Construct an `hcl::Expression` from an HCL attribute value expression literal.
+///
+/// ```
+/// use hcl::{Expression, Object};
+///
+/// let expression = hcl::expression!({
+///     "foo" = "bar",
+///     "baz" = [1, 2],
+/// });
+///
+/// let expected = Expression::Object({
+///     let mut object = Object::new();
+///     object.insert("foo".into(), "bar".into());
+///     object.insert("baz".into(), vec![1u64, 2].into());
+///     object
+/// });
+///
+/// assert_eq!(expression, expected);
+/// ```
 #[macro_export]
-#[doc(hidden)]
-macro_rules! expr {
+macro_rules! expression {
     // Hide distracting implementation details from the generated rustdoc.
     ($($expr:tt)+) => {
-        $crate::expr_internal!($($expr)+)
+        $crate::expression_internal!($($expr)+)
     };
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! expr_internal {
+macro_rules! expression_internal {
     //////////////////////////////////////////////////////////////////////////
     // TT muncher for parsing the inside of an array [...]. Produces a vec![...]
     // of the elements.
     //
-    // Must be invoked as: expr_internal!(@array [] $($tt)*)
+    // Must be invoked as: expression_internal!(@array [] $($tt)*)
     //////////////////////////////////////////////////////////////////////////
 
     // Done with trailing comma.
@@ -287,54 +389,54 @@ macro_rules! expr_internal {
 
     // Next element is `null`.
     (@array [$($elems:expr,)*] null $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!(null)] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!(null)] $($rest)*)
     };
 
     // Next element is `true`.
     (@array [$($elems:expr,)*] true $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!(true)] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!(true)] $($rest)*)
     };
 
     // Next element is `false`.
     (@array [$($elems:expr,)*] false $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!(false)] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!(false)] $($rest)*)
     };
 
     // Next element is an array.
     (@array [$($elems:expr,)*] [$($array:tt)*] $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!([$($array)*])] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!([$($array)*])] $($rest)*)
     };
 
     // Next element is a map.
     (@array [$($elems:expr,)*] {$($map:tt)*} $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!({$($map)*})] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!({$($map)*})] $($rest)*)
     };
 
     // Next element is an expression followed by comma.
     (@array [$($elems:expr,)*] $next:expr, $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!($next),] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!($next),] $($rest)*)
     };
 
     // Last element is an expression with no trailing comma.
     (@array [$($elems:expr,)*] $last:expr) => {
-        $crate::expr_internal!(@array [$($elems,)* $crate::expr_internal!($last)])
+        $crate::expression_internal!(@array [$($elems,)* $crate::expression_internal!($last)])
     };
 
     // Comma after the most recent element.
     (@array [$($elems:expr),*] , $($rest:tt)*) => {
-        $crate::expr_internal!(@array [$($elems,)*] $($rest)*)
+        $crate::expression_internal!(@array [$($elems,)*] $($rest)*)
     };
 
     // Unexpected token after most recent element.
     (@array [$($elems:expr),*] $unexpected:tt $($rest:tt)*) => {
-        $crate::expr_unexpected!($unexpected)
+        $crate::expression_unexpected!($unexpected)
     };
 
     //////////////////////////////////////////////////////////////////////////
     // TT muncher for parsing the inside of an object {...}. Each entry is
     // inserted into the given map variable.
     //
-    // Must be invoked as: expr_internal!(@object $map () ($($tt)*) ($($tt)*))
+    // Must be invoked as: expression_internal!(@object $map () ($($tt)*) ($($tt)*))
     //
     // We require two copies of the input tokens so that we can match on one
     // copy and trigger errors on the other copy.
@@ -346,12 +448,12 @@ macro_rules! expr_internal {
     // Insert the current entry followed by trailing comma.
     (@object $object:ident [$($key:tt)+] ($value:expr) , $($rest:tt)*) => {
         let _ = $object.insert(($($key)+).into(), $value);
-        $crate::expr_internal!(@object $object () ($($rest)*) ($($rest)*));
+        $crate::expression_internal!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Current entry followed by unexpected token.
     (@object $object:ident [$($key:tt)+] ($value:expr) $unexpected:tt $($rest:tt)*) => {
-        $crate::expr_unexpected!($unexpected);
+        $crate::expression_unexpected!($unexpected);
     };
 
     // Insert the last entry without trailing comma.
@@ -361,84 +463,84 @@ macro_rules! expr_internal {
 
     // Next value is `null`.
     (@object $object:ident ($($key:tt)+) (= null $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!(null)) $($rest)*);
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!(null)) $($rest)*);
     };
 
     // Next value is `true`.
     (@object $object:ident ($($key:tt)+) (= true $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!(true)) $($rest)*);
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!(true)) $($rest)*);
     };
 
     // Next value is `false`.
     (@object $object:ident ($($key:tt)+) (= false $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!(false)) $($rest)*);
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!(false)) $($rest)*);
     };
 
     // Next value is an array.
     (@object $object:ident ($($key:tt)+) (= [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!([$($array)*])) $($rest)*);
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!([$($array)*])) $($rest)*);
     };
 
     // Next value is a map.
     (@object $object:ident ($($key:tt)+) (= {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!({$($map)*})) $($rest)*);
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!({$($map)*})) $($rest)*);
     };
 
     // Next value is an expression followed by comma.
     (@object $object:ident ($($key:tt)+) (= $value:expr , $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!($value)) , $($rest)*);
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)) , $($rest)*);
     };
 
     // Last value is an expression with no trailing comma.
     (@object $object:ident ($($key:tt)+) (= $value:expr) $copy:tt) => {
-        $crate::expr_internal!(@object $object [$($key)+] ($crate::expr_internal!($value)));
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)));
     };
 
     // Missing value for last entry. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)+) (=) $copy:tt) => {
         // "unexpected end of macro invocation"
-        $crate::expr_internal!();
+        $crate::expression_internal!();
     };
 
     // Missing equals and value for last entry. Trigger a reasonable error
     // message.
     (@object $object:ident ($($key:tt)+) () $copy:tt) => {
         // "unexpected end of macro invocation"
-        $crate::expr_internal!();
+        $crate::expression_internal!();
     };
 
     // Misplaced equals. Trigger a reasonable error message.
     (@object $object:ident () (= $($rest:tt)*) ($equals:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `:`".
-        $crate::expr_unexpected!($equals);
+        $crate::expression_unexpected!($equals);
     };
 
     // Found a comma inside a key. Trigger a reasonable error message.
     (@object $object:ident ($($key:tt)*) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
         // Takes no arguments so "no rules expected the token `,`".
-        $crate::expr_unexpected!($comma);
+        $crate::expression_unexpected!($comma);
     };
 
     // Key is fully parenthesized. This avoids clippy double_parens false
     // positives because the parenthesization may be necessary here.
     (@object $object:ident () (($key:expr) = $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object ($key) (= $($rest)*) (= $($rest)*));
+        $crate::expression_internal!(@object $object ($key) (= $($rest)*) (= $($rest)*));
     };
 
     // Refuse to absorb equals token into key expression.
     (@object $object:ident ($($key:tt)*) (= $($unexpected:tt)+) $copy:tt) => {
-        $crate::expr_expect_expr_comma!($($unexpected)+);
+        $crate::expression_expect_expression_comma!($($unexpected)+);
     };
 
     // Munch a token into the current key.
     (@object $object:ident ($($key:tt)*) ($tt:tt $($rest:tt)*) $copy:tt) => {
-        $crate::expr_internal!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
+        $crate::expression_internal!(@object $object ($($key)* $tt) ($($rest)*) ($($rest)*));
     };
 
     //////////////////////////////////////////////////////////////////////////
     // The main implementation.
     //
-    // Must be invoked as: expr_internal!($($expr)+)
+    // Must be invoked as: expression_internal!($($expr)+)
     //////////////////////////////////////////////////////////////////////////
 
     (null) => {
@@ -458,7 +560,7 @@ macro_rules! expr_internal {
     };
 
     ([ $($tt:tt)+ ]) => {
-        $crate::Expression::Array($crate::expr_internal!(@array [] $($tt)+))
+        $crate::Expression::Array($crate::expression_internal!(@array [] $($tt)+))
     };
 
     ({}) => {
@@ -468,7 +570,7 @@ macro_rules! expr_internal {
     ({ $($tt:tt)+ }) => {
         $crate::Expression::Object({
             let mut object = $crate::Object::new();
-            $crate::expr_internal!(@object object () ($($tt)+) ($($tt)+));
+            $crate::expression_internal!(@object object () ($($tt)+) ($($tt)+));
             object
         })
     };
@@ -482,12 +584,12 @@ macro_rules! expr_internal {
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! expr_unexpected {
+macro_rules! expression_unexpected {
     () => {};
 }
 
 #[macro_export]
 #[doc(hidden)]
-macro_rules! expr_expect_expr_comma {
+macro_rules! expression_expect_expression_comma {
     ($e:expr , $($tt:tt)*) => {};
 }

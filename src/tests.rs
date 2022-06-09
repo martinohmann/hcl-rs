@@ -3,18 +3,18 @@ use pretty_assertions::assert_eq;
 
 #[test]
 fn expr_macro_primitives() {
-    assert_eq!(expr!(null), Expression::Null);
-    assert_eq!(expr!(true), Expression::Bool(true));
-    assert_eq!(expr!(false), Expression::Bool(false));
-    assert_eq!(expr!(0), Expression::Number(Number::from(0)));
-    assert_eq!(expr!(1.5), Expression::Number(Number::from(1.5)));
-    assert_eq!(expr!("foo"), Expression::String("foo".into()));
+    assert_eq!(expression!(null), Expression::Null);
+    assert_eq!(expression!(true), Expression::Bool(true));
+    assert_eq!(expression!(false), Expression::Bool(false));
+    assert_eq!(expression!(0), Expression::Number(Number::from(0)));
+    assert_eq!(expression!(1.5), Expression::Number(Number::from(1.5)));
+    assert_eq!(expression!("foo"), Expression::String("foo".into()));
 }
 
 #[test]
 fn expr_macro_arrays() {
     assert_eq!(
-        expr!(["foo", 42]),
+        expression!(["foo", 42]),
         Expression::Array(vec![
             Expression::String("foo".into()),
             Expression::Number(Number::from(42))
@@ -33,7 +33,7 @@ fn expr_macro_objects() {
     });
 
     assert_eq!(
-        expr!({
+        expression!({
             "foo" = "bar",
             "baz" = true,
             "qux" = [1, 2, 3]
@@ -43,16 +43,16 @@ fn expr_macro_objects() {
 }
 
 #[test]
-fn attr_macro() {
+fn attribute_macro() {
     assert_eq!(
-        attr!(foo = {}),
+        attribute!(foo = {}),
         Attribute::new("foo", Expression::Object(Object::new()))
     );
 
     let foo = "bar";
 
     assert_eq!(
-        attr!((foo) = {}),
+        attribute!((foo) = {}),
         Attribute::new("bar", Expression::Object(Object::new()))
     );
 }
@@ -91,11 +91,12 @@ fn block_macro() {
 #[test]
 fn body_macro() {
     assert_eq!(body!({}), Body::builder().build());
+    let bar = "foo";
     assert_eq!(
         body!({
             foo = "bar"
             baz = "qux"
-            qux "foo" {
+            qux "foo" (bar) {
                 bar = 42
             }
         }),
@@ -104,6 +105,7 @@ fn body_macro() {
             .add_attribute(("baz", "qux"))
             .add_block(
                 Block::builder("qux")
+                    .add_label("foo")
                     .add_label("foo")
                     .add_attribute(("bar", 42))
                     .build()
