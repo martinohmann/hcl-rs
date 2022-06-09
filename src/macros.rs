@@ -346,8 +346,8 @@ macro_rules! block_label {
 /// use hcl::{Expression, Object};
 ///
 /// let expression = hcl::expression!({
-///     "foo" = "bar",
-///     "baz" = [1, 2],
+///     "foo" = "bar"
+///     "baz" = [1, 2]
 /// });
 ///
 /// let expected = Expression::Object({
@@ -451,9 +451,10 @@ macro_rules! expression_internal {
         $crate::expression_internal!(@object $object () ($($rest)*) ($($rest)*));
     };
 
-    // Current entry followed by unexpected token.
-    (@object $object:ident [$($key:tt)+] ($value:expr) $unexpected:tt $($rest:tt)*) => {
-        $crate::expression_unexpected!($unexpected);
+    // Insert the current entry not followed by trailing comma.
+    (@object $object:ident [$($key:tt)+] ($value:expr) $($rest:tt)*) => {
+        let _ = $object.insert(($($key)+).into(), $value);
+        $crate::expression_internal!(@object $object () ($($rest)*) ($($rest)*));
     };
 
     // Insert the last entry without trailing comma.
@@ -489,6 +490,11 @@ macro_rules! expression_internal {
     // Next value is an expression followed by comma.
     (@object $object:ident ($($key:tt)+) (= $value:expr , $($rest:tt)*) $copy:tt) => {
         $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)) , $($rest)*);
+    };
+
+    // Next value is an expression not followed by comma.
+    (@object $object:ident ($($key:tt)+) (= $value:tt $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object [$($key)+] ($crate::expression_internal!($value)) $($rest)*);
     };
 
     // Last value is an expression with no trailing comma.
