@@ -134,19 +134,28 @@ macro_rules! body_internal {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! structure {
+    // Hide distracting implementation details from the generated rustdoc.
+    ($($structure:tt)+) => {
+        $crate::structure_internal!($($structure)+)
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! structure_internal {
     // Structure in braces.
-    ({ $($rest:tt)+ }) => {
-        $crate::structure!($($rest)+)
+    ({ $($structure:tt)+ }) => {
+        $crate::structure!($($structure)+)
     };
 
     // An attribute structure.
-    ($key:tt = $($rest:tt)+) => {
-        $crate::Structure::Attribute($crate::attr!($key = $($rest)+))
+    ($key:tt = $($expr:tt)+) => {
+        $crate::Structure::Attribute($crate::attr!($key = $($expr)+))
     };
 
     // A block structure.
-    ($($rest:tt)+) => {
-        $crate::Structure::Block($crate::block!($($rest)+))
+    ($($block:tt)+) => {
+        $crate::Structure::Block($crate::block!($($block)+))
     };
 }
 
