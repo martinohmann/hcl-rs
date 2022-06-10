@@ -2,7 +2,7 @@ use super::*;
 use pretty_assertions::assert_eq;
 
 #[test]
-fn expr_macro_primitives() {
+fn expression_macro_primitives() {
     assert_eq!(expression!(null), Expression::Null);
     assert_eq!(expression!(true), Expression::Bool(true));
     assert_eq!(expression!(false), Expression::Bool(false));
@@ -12,7 +12,7 @@ fn expr_macro_primitives() {
 }
 
 #[test]
-fn expr_macro_arrays() {
+fn expression_macro_arrays() {
     assert_eq!(
         expression!(["foo", 42]),
         Expression::Array(vec![
@@ -23,7 +23,7 @@ fn expr_macro_arrays() {
 }
 
 #[test]
-fn expr_macro_objects() {
+fn expression_macro_objects() {
     let expected = Expression::Object({
         let mut object = Object::new();
         object.insert("foo".into(), "bar".into());
@@ -40,13 +40,32 @@ fn expr_macro_objects() {
         }),
         expected
     );
+
+    let expected = Expression::Object({
+        let mut object = Object::new();
+        object.insert(ObjectKey::identifier("foo"), "bar".into());
+        object.insert("bar".into(), true.into());
+        object.insert(ObjectKey::raw_expression("qux"), vec![1, 2, 3].into());
+        object
+    });
+
+    let baz = "bar";
+
+    assert_eq!(
+        expression!({
+            foo = (baz)
+            (baz) = true
+            #{"qux"} = [1, 2, 3]
+        }),
+        expected
+    );
 }
 
 #[test]
 fn attribute_macro() {
     assert_eq!(
-        attribute!(foo = {}),
-        Attribute::new("foo", Expression::Object(Object::new()))
+        attribute!(foo = 1),
+        Attribute::new("foo", Expression::Number(1.into()))
     );
 
     let foo = "bar";
@@ -132,5 +151,9 @@ fn structure_macro() {
     assert_eq!(
         structure!((foo) = "bar"),
         Structure::Attribute(Attribute::new("bar", "bar"))
+    );
+    assert_eq!(
+        structure!((foo) = #{"raw"}),
+        Structure::Attribute(Attribute::new("bar", RawExpression::new("raw")))
     );
 }

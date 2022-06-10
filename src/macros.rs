@@ -3,12 +3,28 @@
 /// The macro supports a subset of the HCL syntax. If you need more flexibility, use the
 /// [`BlockBuilder`][BlockBuilder] instead.
 ///
-/// Unsupported syntax:
-///
-/// - Raw HCL expressions in attribute values and object keys
-/// - Heredocs
-///
 /// [BlockBuilder]: ./struct.BlockBuilder.html
+///
+/// ## Supported Syntax
+///
+/// - Attribute keys and block identifiers can be raw identifiers (`identifier`) or parenthesized
+///   expressions (`(expr)`).
+/// - Block labels can be string literals (`"label"`), raw identifiers (`label`) or parenthesized
+///   expressions (`(label_expr)`).
+/// - Object keys can be string literals (`"key"`), raw identifiers (`key`), parenthesized
+///   expressions (`(key_expr)`) or raw HCL expressions (`#{raw_expr}`).
+/// - Attribute expression values can be any valid primitive, collection, expression or raw HCL
+///   expression (`#{raw_expr}`).
+///
+/// Please note that HCL actually uses `${}` for interpolating raw expressions, but since rust
+/// macros do not support matching on `$` it was chosen to use `#{}` instead to support raw
+/// expressions.
+///
+/// ## Unsupported syntax:
+///
+/// Heredocs are not supported by the `hcl::body` macro.
+///
+/// ## Examples
 ///
 /// ```
 /// let body = hcl::body!({
@@ -81,7 +97,7 @@ macro_rules! body_internal {
         std::vec![$($elems),*]
     };
 
-    // Next element is an attribute, munch into elems and prceed with next structure.
+    // Next element is an attribute, munch into elems and proceed with next structure.
     (@structures [$(($elems:expr))*] $key:tt = $expr:tt $($rest:tt)*) => {
         $crate::body_internal!(@structures [$(($elems))* ($crate::body_internal!(@attribute $key = $expr))] $($rest)*)
     };
@@ -135,15 +151,15 @@ macro_rules! body_internal {
 
     // Attribute structure.
     (@attribute $key:tt = $expr:tt) => {
-        $crate::Structure::Attribute($crate::attribute_internal!($key = $expr))
+        $crate::Structure::Attribute($crate::attribute!($key = $expr))
     };
 
     // Block structure.
     (@block ($ident:expr) [$(($labels:expr))*] { $($body:tt)* }) => {
-        $crate::Structure::Block($crate::block_internal!(($ident) [$(($labels))*] { $($body)* }))
+        $crate::Structure::Block($crate::block!(($ident) [$(($labels))*] { $($body)* }))
     };
 
-    // Body in braces.
+    // Body in curly braces.
     ({ $($tt:tt)* }) => {
         $crate::body_internal!($($tt)*)
     };
@@ -196,12 +212,12 @@ macro_rules! structure_internal {
 
     // An attribute structure.
     ($key:tt = $($expr:tt)+) => {
-        $crate::Structure::Attribute($crate::attribute_internal!($key = $($expr)+))
+        $crate::Structure::Attribute($crate::attribute!($key = $($expr)+))
     };
 
     // A block structure.
     ($($block:tt)+) => {
-        $crate::Structure::Block($crate::block_internal!($($block)+))
+        $crate::Structure::Block($crate::block!($($block)+))
     };
 }
 
@@ -228,20 +244,17 @@ macro_rules! attribute_internal {
         $crate::attribute_internal!($($attribute)+)
     };
 
-    // Attribute with identifier as key.
-    ($key:ident = $($expr:tt)+) => {
-        $crate::Attribute {
-            key: std::stringify!($key).to_owned(),
-            expr: $crate::expression_internal!($($expr)+),
-        }
-    };
-
     // Attribute with expression as key.
     (($key:expr) = $($expr:tt)+) => {
         $crate::Attribute {
             key: ($key).into(),
             expr: $crate::expression_internal!($($expr)+),
         }
+    };
+
+    // Attribute with identifier as key.
+    ($key:ident = $($expr:tt)+) => {
+        $crate::attribute_internal!((std::stringify!($key)) = $($expr)+)
     };
 }
 
@@ -337,7 +350,7 @@ macro_rules! block_label {
     };
 
     ($literal:literal) => {
-        $crate::BlockLabel::String($literal.into())
+        $crate::block_label!(($literal))
     };
 }
 
@@ -360,12 +373,16 @@ macro_rules! object_key {
         $crate::ObjectKey::Identifier(std::stringify!($ident).into())
     };
 
+    (#{$expr:expr}) => {
+        $crate::ObjectKey::RawExpression(($expr).into())
+    };
+
     (($expr:expr)) => {
         $crate::ObjectKey::String(($expr).into())
     };
 
     ($literal:literal) => {
-        $crate::ObjectKey::String($literal.into())
+        $crate::object_key!(($literal))
     };
 }
 
@@ -576,6 +593,11 @@ macro_rules! expression_internal {
         $crate::expression_internal!(@object $object ($crate::object_key!($key)) ($($rest)*) ($($rest)*));
     };
 
+    // Munch a raw expression key.
+    (@object $object:ident () (#{$key:expr} $($rest:tt)*) $copy:tt) => {
+        $crate::expression_internal!(@object $object ($crate::object_key!(#{$key})) ($($rest)*) ($($rest)*));
+    };
+
     // Munch a parenthesized expression key.
     (@object $object:ident () (($key:expr) $($rest:tt)*) $copy:tt) => {
         $crate::expression_internal!(@object $object ($crate::object_key!(($key))) ($($rest)*) ($($rest)*));
@@ -597,6 +619,10 @@ macro_rules! expression_internal {
 
     (false) => {
         $crate::Expression::Bool(false)
+    };
+
+    (#{$expr:expr}) => {
+        $crate::Expression::Raw(($expr).into())
     };
 
     ([]) => {
