@@ -50,6 +50,7 @@ mod block;
 mod body;
 pub(crate) mod de;
 mod expression;
+pub(crate) mod ser;
 #[cfg(test)]
 mod tests;
 
