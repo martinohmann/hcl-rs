@@ -125,6 +125,66 @@
 //! #   Ok(())
 //! # }
 //! ```
+//!
+//! The same result could be acheived using the [`block!`] macro:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use serde::Serialize;
+//!
+//! #[derive(Serialize)]
+//! struct User {
+//!     age: u8,
+//!     username: &'static str,
+//!     email: &'static str,
+//! }
+//!
+//! let users = vec![
+//!     User {
+//!         age: 34,
+//!         username: "johndoe",
+//!         email: "johndoe@example.com",
+//!     },
+//!     User {
+//!         age: 27,
+//!         username: "janedoe",
+//!         email: "janedoe@example.com",
+//!     },
+//! ];
+//!
+//! let body: hcl::Body = users
+//!     .into_iter()
+//!     .map(|user| {
+//!         hcl::block! {
+//!             user (user.username) {
+//!                 age = (user.age)
+//!                 email = (user.email)
+//!             }
+//!         }
+//!     })
+//!     .collect();
+//!
+//! let expected = r#"
+//! user "johndoe" {
+//!   age = 34
+//!   email = "johndoe@example.com"
+//! }
+//!
+//! user "janedoe" {
+//!   age = 27
+//!   email = "janedoe@example.com"
+//! }
+//! "#
+//! .trim_start();
+//!
+//! let serialized = hcl::to_string(&body).unwrap();
+//!
+//! assert_eq!(serialized, expected);
+//! #   Ok(())
+//! # }
+//! ```
 
 mod escape;
 mod format;
