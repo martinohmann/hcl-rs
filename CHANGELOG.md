@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/martinohmann/hcl-rs/compare/v0.5.2...v0.6.0) (2022-06-10)
+
+
+### Features
+
+* add `hcl::body!` macro and others ([#36](https://github.com/martinohmann/hcl-rs/issues/36)) ([987f8fc](https://github.com/martinohmann/hcl-rs/commit/987f8fc01c33a9cfae8d41dd29aca85cad2a3f80))
+
 ## [0.5.2](https://github.com/martinohmann/hcl-rs/compare/v0.5.1...v0.5.2) (2022-06-06)
 
 
