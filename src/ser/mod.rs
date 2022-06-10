@@ -128,8 +128,6 @@
 
 mod escape;
 mod format;
-#[macro_use]
-mod macros;
 #[cfg(test)]
 mod tests;
 

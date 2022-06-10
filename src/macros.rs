@@ -706,3 +706,145 @@ macro_rules! hcl_unexpected {
 macro_rules! hcl_expect_expr_comma {
     ($e:expr , $($tt:tt)*) => {};
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! serialize_unsupported {
+    ($($func:ident)*) => {
+        $($crate::serialize_unsupported_helper!{$func})*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! serialize_unsupported_method {
+    ($func:ident<T>($($arg:ident : $ty:ty),*)) => {
+        #[inline]
+        fn $func<T>(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            $(
+                let _ = $arg;
+            )*
+            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
+        }
+    };
+    ($func:ident($($arg:ident : $ty:ty),*) -> Result<$rty:ident>) => {
+        #[inline]
+        fn $func(self, $($arg: $ty,)*) -> $crate::Result<Self::$rty, Self::Error> {
+            $(
+                let _ = $arg;
+            )*
+            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
+        }
+    };
+    ($func:ident($($arg:ident : $ty:ty),*)) => {
+        #[inline]
+        fn $func(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error> {
+            $(
+                let _ = $arg;
+            )*
+            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! serialize_unsupported_helper {
+    (bool) => {
+        $crate::serialize_unsupported_method!{serialize_bool(v: bool)}
+    };
+    (i8) => {
+        $crate::serialize_unsupported_method!{serialize_i8(v: i8)}
+    };
+    (i16) => {
+        $crate::serialize_unsupported_method!{serialize_i16(v: i16)}
+    };
+    (i32) => {
+        $crate::serialize_unsupported_method!{serialize_i32(v: i32)}
+    };
+    (i64) => {
+        $crate::serialize_unsupported_method!{serialize_i64(v: i64)}
+    };
+    (i128) => {
+        serde::serde_if_integer128! {
+            $crate::serialize_unsupported_method!{serialize_i128(v: i128)}
+        }
+    };
+    (u8) => {
+        $crate::serialize_unsupported_method!{serialize_u8(v: u8)}
+    };
+    (u16) => {
+        $crate::serialize_unsupported_method!{serialize_u16(v: u16)}
+    };
+    (u32) => {
+        $crate::serialize_unsupported_method!{serialize_u32(v: u32)}
+    };
+    (u64) => {
+        $crate::serialize_unsupported_method!{serialize_u64(v: u64)}
+    };
+    (u128) => {
+        serde::serde_if_integer128! {
+            $crate::serialize_unsupported_method!{serialize_u128(v: u128)}
+        }
+    };
+    (f32) => {
+        $crate::serialize_unsupported_method!{serialize_f32(v: f32)}
+    };
+    (f64) => {
+        $crate::serialize_unsupported_method!{serialize_f64(v: f64)}
+    };
+    (char) => {
+        $crate::serialize_unsupported_method!{serialize_char(v: char)}
+    };
+    (str) => {
+        $crate::serialize_unsupported_method!{serialize_str(v: &str)}
+    };
+    (bytes) => {
+        $crate::serialize_unsupported_method!{serialize_bytes(v: &[u8])}
+    };
+    (some) => {
+        $crate::serialize_unsupported_method!{serialize_some<T>(value: &T)}
+    };
+    (none) => {
+        $crate::serialize_unsupported_method!{serialize_none()}
+    };
+    (unit) => {
+        $crate::serialize_unsupported_method!{serialize_unit()}
+    };
+    (unit_struct) => {
+        $crate::serialize_unsupported_method!{serialize_unit_struct(name: &'static str)}
+    };
+    (unit_variant) => {
+        $crate::serialize_unsupported_method!{serialize_unit_variant(name: &'static str, variant_index: u32, variant: &'static str)}
+    };
+    (newtype_struct) => {
+        $crate::serialize_unsupported_method!{serialize_newtype_struct<T>(name: &'static str, value: &T)}
+    };
+    (newtype_variant) => {
+        $crate::serialize_unsupported_method!{serialize_newtype_variant<T>(name: &'static str, variant_index: u32, variant: &'static str, value: &T)}
+    };
+    (seq) => {
+        $crate::serialize_unsupported_method!{serialize_seq(len: Option<usize>) -> Result<SerializeSeq>}
+    };
+    (tuple) => {
+        $crate::serialize_unsupported_method!{serialize_tuple(len: usize) -> Result<SerializeTuple>}
+    };
+    (tuple_struct) => {
+        $crate::serialize_unsupported_method!{serialize_tuple_struct(name: &'static str, len: usize) -> Result<SerializeTupleStruct>}
+    };
+    (tuple_variant) => {
+        $crate::serialize_unsupported_method!{serialize_tuple_variant(name: &'static str, variant_index: u32, variant: &'static str, len: usize) -> Result<SerializeTupleVariant>}
+    };
+    (map) => {
+        $crate::serialize_unsupported_method!{serialize_map(len: Option<usize>) -> Result<SerializeMap>}
+    };
+    (struct) => {
+        $crate::serialize_unsupported_method!{serialize_struct(name: &'static str, len: usize) -> Result<SerializeStruct>}
+    };
+    (struct_variant) => {
+        $crate::serialize_unsupported_method!{serialize_struct_variant(name: &'static str, variant_index: u32, variant: &'static str, len: usize) -> Result<SerializeStructVariant>}
+    };
+}
