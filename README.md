@@ -10,6 +10,9 @@ The main types are `Deserializer` for deserializing data, `Serializer` for
 serialization. Furthermore the provided `Body` and `Value` types can be used to
 construct HCL data or as a deserialization target.
 
+Some supporting macros like `body!` to build HCL data structures are provided
+as well.
+
 ## Deserialization examples
 
 Deserialize arbitrary HCL according to the [HCL JSON
@@ -118,6 +121,13 @@ assert_eq!(serialized, expected);
 
 Also have a look at the other examples provided in the [documentation of the
 `ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html).
+
+## Macros
+
+This crate provides a couple of macros to ease building HCL data structures.
+Have a look at [their
+documentation](https://docs.rs/hcl-rs/latest/hcl/macro.body.html) for usage
+examples.
 
 ## License
 

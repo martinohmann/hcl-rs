@@ -24,18 +24,39 @@
 ///
 /// Heredocs are not supported by the `hcl::body` macro.
 ///
+/// ## Related macros
+///
+/// The `body!` macro is composed out of different other macros that can be used on their own to
+/// construct HCL data structures:
+///
+/// - [`attribute!`]: constructs an [`Attribute`][Attribute]
+/// - [`block!`]: constructs a [`Block`][Block]
+/// - [`block_label!`]: constructs a [`BlockLabel`][BlockLabel]
+/// - [`expression!`]: constructs an [`Expression`][Expression]
+/// - [`object_key!`]: constructs an [`ObjectKey`][ObjectKey]
+/// - [`structure!`]: constructs a [`Structure`][Structure]
+///
+/// [Attribute]: ./struct.Attribute.html
+/// [Block]: ./struct.Block.html
+/// [BlockLabel]: ./enum.BlockLabel.html
+/// [Expression]: ./enum.Expression.html
+/// [ObjectKey]: ./enum.ObjectKey.html
+/// [Structure]: ./enum.Structure.html
+///
 /// ## Examples
 ///
 /// ```
+/// use hcl::{Block, Body};
+///
 /// let body = hcl::body!({
 ///     resource "aws_sns_topic" "topic" {
 ///         name = "my-topic"
 ///     }
 /// });
 ///
-/// let expected = hcl::Body::builder()
+/// let expected = Body::builder()
 ///     .add_block(
-///         hcl::Block::builder("resource")
+///         Block::builder("resource")
 ///             .add_label("aws_sns_topic")
 ///             .add_label("topic")
 ///             .add_attribute(("name", "my-topic"))
@@ -172,6 +193,10 @@ macro_rules! body_internal {
 
 /// Construct an `hcl::Structure` which may be either an HCL attribute or block.
 ///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// ## Examples
+///
 /// ```
 /// use hcl::{Attribute, Block, Structure};
 ///
@@ -223,6 +248,10 @@ macro_rules! structure_internal {
 
 /// Construct an `hcl::Attribute` from a key and a value expression.
 ///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// ## Examples
+///
 /// ```
 /// use hcl::Attribute;
 ///
@@ -259,6 +288,10 @@ macro_rules! attribute_internal {
 }
 
 /// Construct an `hcl::Block` from a block identifier, optional block labels and a block body.
+///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// ## Examples
 ///
 /// ```
 /// use hcl::Block;
@@ -328,6 +361,10 @@ macro_rules! block_internal {
 
 /// Construct an `hcl::BlockLabel`.
 ///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// ## Examples
+///
 /// ```
 /// use hcl::BlockLabel;
 ///
@@ -339,7 +376,6 @@ macro_rules! block_internal {
 /// assert_eq!(hcl::block_label!((label)), BlockLabel::string("some expression"));
 /// ```
 #[macro_export]
-#[doc(hidden)]
 macro_rules! block_label {
     ($ident:ident) => {
         $crate::BlockLabel::Identifier(std::stringify!($ident).into())
@@ -356,6 +392,10 @@ macro_rules! block_label {
 
 /// Construct an `hcl::ObjectKey`.
 ///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// ## Examples
+///
 /// ```
 /// use hcl::ObjectKey;
 ///
@@ -367,7 +407,6 @@ macro_rules! block_label {
 /// assert_eq!(hcl::object_key!((key)), ObjectKey::string("some expression"));
 /// ```
 #[macro_export]
-#[doc(hidden)]
 macro_rules! object_key {
     ($ident:ident) => {
         $crate::ObjectKey::Identifier(std::stringify!($ident).into())
@@ -387,6 +426,10 @@ macro_rules! object_key {
 }
 
 /// Construct an `hcl::Expression` from an HCL attribute value expression literal.
+///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// ## Examples
 ///
 /// ```
 /// use hcl::{Expression, Object, ObjectKey};
