@@ -61,9 +61,7 @@ impl ser::Serializer for ExpressionSerializer {
     }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
-        let mut s = String::new();
-        s.push(value);
-        Ok(Expression::String(s))
+        Ok(Expression::String(value.to_string()))
     }
 
     fn serialize_str(self, value: &str) -> Result<Self::Ok> {
@@ -112,9 +110,9 @@ impl ser::Serializer for ExpressionSerializer {
     where
         T: ?Sized + ser::Serialize,
     {
-        let mut values = Object::new();
-        values.insert(ObjectKey::string(variant), to_expression(&value)?);
-        Ok(Expression::Object(values))
+        let mut object = Object::new();
+        object.insert(ObjectKey::string(variant), to_expression(&value)?);
+        Ok(Expression::Object(object))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -154,7 +152,7 @@ impl ser::Serializer for ExpressionSerializer {
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
         Ok(SerializeExpressionTupleVariant {
-            name: String::from(variant),
+            name: variant.to_owned(),
             vec: Vec::with_capacity(len),
         })
     }
@@ -178,7 +176,7 @@ impl ser::Serializer for ExpressionSerializer {
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
         Ok(SerializeExpressionStructVariant {
-            name: String::from(variant),
+            name: variant.to_owned(),
             map: Object::new(),
         })
     }
@@ -262,9 +260,7 @@ impl ser::SerializeTupleVariant for SerializeExpressionTupleVariant {
 
     fn end(self) -> Result<Self::Ok> {
         let mut object = Object::new();
-
-        object.insert(ObjectKey::string(self.name), Expression::Array(self.vec));
-
+        object.insert(ObjectKey::String(self.name), Expression::Array(self.vec));
         Ok(Expression::Object(object))
     }
 }
@@ -337,9 +333,7 @@ impl ser::SerializeStructVariant for SerializeExpressionStructVariant {
 
     fn end(self) -> Result<Self::Ok> {
         let mut object = Object::new();
-
-        object.insert(ObjectKey::string(self.name), Expression::Object(self.map));
-
+        object.insert(ObjectKey::String(self.name), Expression::Object(self.map));
         Ok(Expression::Object(object))
     }
 }
@@ -363,43 +357,43 @@ impl ser::Serializer for ObjectKeySerializer {
         some seq tuple tuple_struct tuple_variant map struct struct_variant
     }
 
-    fn serialize_i8(self, value: i8) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i8(self, value: i8) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_i16(self, value: i16) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i16(self, value: i16) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_i32(self, value: i32) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i32(self, value: i32) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_i64(self, value: i64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_i64(self, value: i64) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_u8(self, value: u8) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u8(self, value: u8) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_u16(self, value: u16) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u16(self, value: u16) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_u32(self, value: u32) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u32(self, value: u32) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_u64(self, value: u64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_u64(self, value: u64) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_char(self, value: char) -> Result<Self::Ok, Self::Error> {
+    fn serialize_char(self, value: char) -> Result<Self::Ok> {
         Ok(ObjectKey::String(value.to_string()))
     }
 
-    fn serialize_str(self, value: &str) -> Result<Self::Ok, Self::Error> {
+    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
         Ok(ObjectKey::string(value))
     }
 
@@ -412,18 +406,14 @@ impl ser::Serializer for ObjectKeySerializer {
         Ok(ObjectKey::identifier(variant))
     }
 
-    fn serialize_newtype_struct<T>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<Self::Ok, Self::Error>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + ser::Serialize,
     {
         value.serialize(self)
     }
 
-    fn collect_str<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + Display,
     {
@@ -432,7 +422,7 @@ impl ser::Serializer for ObjectKeySerializer {
 }
 
 /// Convert a `T` into `hcl::Expression` which is an enum that can represent any valid HCL
-/// attribute value.
+/// attribute value expression.
 ///
 /// # Errors
 ///
