@@ -120,7 +120,7 @@ macro_rules! body_internal {
 
     // Next element is an attribute, munch into elems and proceed with next structure.
     (@structures [$(($elems:expr))*] $key:tt = $expr:tt $($rest:tt)*) => {
-        $crate::body_internal!(@structures [$(($elems))* ($crate::body_internal!(@attribute $key = $expr))] $($rest)*)
+        $crate::body_internal!(@structures [$(($elems))* ($crate::structure!($key = $expr))] $($rest)*)
     };
 
     // Next element must be a block, invoke block muncher.
@@ -131,12 +131,12 @@ macro_rules! body_internal {
     //////////////////////////////////////////////////////////////////////////
     // TT muncher for parsing an HCL block.
     //
-    // Must be invoked as: body_internal!(@block [$(($elems))*] $ident $($rest)*)
+    // Must be invoked as: body_internal!(@block [$(($elems))*] $ident $($rest)+)
     //////////////////////////////////////////////////////////////////////////
 
     // Found block body, munch block into elems and proceed with next structure.
     (@block [$(($elems:expr))*] ($ident:expr) [$(($labels:expr))*] { $($body:tt)* } $($rest:tt)*) => {
-        $crate::body_internal!(@structures [$(($elems))* ($crate::body_internal!(@block ($ident) [$(($labels))*] { $($body)* }))] $($rest)*)
+        $crate::body_internal!(@structures [$(($elems))* ($crate::structure!(($ident) [$(($labels))*] { $($body)* }))] $($rest)*)
     };
 
     // Munch an identifier block label.
@@ -169,16 +169,6 @@ macro_rules! body_internal {
     //
     // Must be invoked as: body_internal!($($tt)+)
     //////////////////////////////////////////////////////////////////////////
-
-    // Attribute structure.
-    (@attribute $key:tt = $expr:tt) => {
-        $crate::Structure::Attribute($crate::attribute!($key = $expr))
-    };
-
-    // Block structure.
-    (@block ($ident:expr) [$(($labels:expr))*] { $($body:tt)* }) => {
-        $crate::Structure::Block($crate::block!(($ident) [$(($labels))*] { $($body)* }))
-    };
 
     // Body in curly braces.
     ({ $($tt:tt)* }) => {
