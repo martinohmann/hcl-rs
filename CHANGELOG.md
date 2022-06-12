@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/martinohmann/hcl-rs/compare/v0.6.0...v0.6.1) (2022-06-12)
+
+
+### Bug Fixes
+
+* **macros:** use `structure!` macro inside of `body!` macro ([1d9a00c](https://github.com/martinohmann/hcl-rs/commit/1d9a00c114ab5ae16c50697d4ae0a1c1d5e91eba))
+
 ## [0.6.0](https://github.com/martinohmann/hcl-rs/compare/v0.5.2...v0.6.0) (2022-06-10)
 
 
