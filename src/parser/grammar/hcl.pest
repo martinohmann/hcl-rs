@@ -10,8 +10,9 @@ Block     = { Identifier ~ (StringLit | Identifier)* ~ BlockBody }
 BlockBody = { "{" ~ Body ~ "}" }
 
 // Expressions
-Expression = _{ Operation | Conditional | ExprTerm }
-ExprTerm   = _{ Value | FunctionCall | ForExpr | VariableExpr | ("(" ~ Expression ~ ")") }
+Expression    = _{ Conditional | Operation | ExprTerm }
+ExprTerm      =  { ExprTermInner ~ (Splat | GetAttr | Index)* }
+ExprTermInner = _{ Value | FunctionCall | VariableExpr | ForExpr | ("(" ~ Expression ~ ")") }
 
 // Values
 Value = _{ LiteralValue | CollectionValue | Heredoc }
@@ -97,8 +98,7 @@ FunctionCall = @{
     WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
     Arguments ~
     WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
-    ")" ~
-    ElementAccess
+    ")"
 }
 
 Arguments = !{ (Expression ~ ("," ~ Expression)* ~ ("," | "...")?)? }
@@ -111,23 +111,19 @@ ForIntro      = { "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~
 ForCond       = { "if" ~ Expression }
 
 // Variables and variable expressions
-VariableExpr = @{ Identifier ~ ElementAccess }
+VariableExpr = @{ Identifier }
 
 // Index operator
-Index       = @{ ("[" ~ IndexExpr ~ "]") | LegacyIndex }
-LegacyIndex = @{ "." ~ Decimal+ }
-IndexExpr   = !{ Expression }
+Index       =  { ("[" ~ Expression ~ "]") | LegacyIndex }
+LegacyIndex = ${ "." ~ Decimal+ }
 
 // Attribute access operator
-GetAttr = @{ "." ~ Identifier }
+GetAttr = ${ "." ~ Identifier }
 
 // Splat operators
-Splat     =  { AttrSplat | FullSplat }
-AttrSplat = @{ "." ~ "*" }
-FullSplat = @{ "[" ~ "*" ~ "]" }
-
-// Element access
-ElementAccess = { (Splat | GetAttr | Index)* }
+Splat     = _{ (AttrSplat ~ GetAttr*) | (FullSplat ~ (GetAttr | Index)*) }
+AttrSplat =  { ".*" }
+FullSplat =  { "[*]" }
 
 // Operations
 Operation          = { UnaryOp | BinaryOp }

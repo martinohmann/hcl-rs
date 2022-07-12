@@ -115,21 +115,42 @@ fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
 }
 
 fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
-    match pair.as_rule() {
-        Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
-        Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
-        Rule::Heredoc => parse_heredoc(pair).map(Expression::String),
-        Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
-        Rule::NullLit => Ok(Expression::Null),
-        Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
-        Rule::Tuple => parse_expressions(pair).map(Expression::Array),
-        Rule::Object => parse_object(pair).map(Expression::Object),
-        _ => Ok(Expression::Raw(parse_raw_expression(pair))),
+    if let Rule::ExprTerm = pair.as_rule() {
+        parse_expr_term(pair)
+    } else {
+        // @TODO(mohmann): Process Conditional and Operation at one point. This will require a
+        // PrecClimber to get precedence right though.
+        Ok(Expression::Raw(raw_expression(pair.as_str())))
     }
 }
 
 fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {
     pair.into_inner().map(parse_expression).collect()
+}
+
+fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
+    let raw = pair.as_str();
+    let mut pairs = pair.into_inner();
+    let pair = pairs.next().unwrap();
+
+    if pairs.peek().is_some() {
+        // @TODO(mohmann): ExprTerm is followed by an traversal like Splat, GetAttr or Index.
+        // For now we treat these as raw expressions and not further process these.
+        Ok(Expression::Raw(raw_expression(raw)))
+    } else {
+        match pair.as_rule() {
+            Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
+            Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
+            Rule::Heredoc => parse_heredoc(pair).map(Expression::String),
+            Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
+            Rule::NullLit => Ok(Expression::Null),
+            Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
+            Rule::Tuple => parse_expressions(pair).map(Expression::Array),
+            Rule::Object => parse_object(pair).map(Expression::Object),
+            // @TODO(mohmann): Process ForExpr, VariableExpr etc.
+            _ => Ok(Expression::Raw(raw_expression(pair.as_str()))),
+        }
+    }
 }
 
 fn parse_object(pair: Pair<Rule>) -> Result<Object<ObjectKey, Expression>> {
@@ -139,10 +160,17 @@ fn parse_object(pair: Pair<Rule>) -> Result<Object<ObjectKey, Expression>> {
 }
 
 fn parse_object_key(pair: Pair<Rule>) -> Result<ObjectKey> {
+    let raw = pair.as_str();
+
+    // @FIXME(mohmann): according to the HCL spec, any expression is a valid object key. Fixing
+    // this requires some breaking changes to the Object and ObjectKey types though.
     match pair.as_rule() {
         Rule::Identifier => Ok(ObjectKey::identifier(parse_ident(pair))),
-        Rule::StringLit => parse_string(inner(pair)).map(ObjectKey::String),
-        _ => Ok(ObjectKey::raw_expression(parse_raw_expression(pair))),
+        Rule::ExprTerm => match parse_expr_term(pair)? {
+            Expression::String(s) => Ok(ObjectKey::String(s)),
+            _ => Ok(ObjectKey::RawExpression(raw_expression(raw))),
+        },
+        _ => Ok(ObjectKey::RawExpression(raw_expression(raw))),
     }
 }
 
@@ -166,8 +194,8 @@ fn parse_ident(pair: Pair<Rule>) -> String {
     pair.as_str().to_owned()
 }
 
-fn parse_raw_expression(pair: Pair<Rule>) -> RawExpression {
-    pair.as_str().into()
+fn raw_expression(raw: &str) -> RawExpression {
+    RawExpression::new(raw.trim_end())
 }
 
 fn parse_heredoc(pair: Pair<Rule>) -> Result<String> {

@@ -58,8 +58,10 @@ fn parse_attr() {
         tokens: [
             Attribute(0, 11, [
                 Identifier(0, 3),
-                StringLit(6, 11, [
-                    String(7, 10)
+                ExprTerm(6, 11, [
+                    StringLit(6, 11, [
+                        String(7, 10)
+                    ])
                 ])
             ])
         ]
@@ -75,10 +77,19 @@ fn conditional() {
         tokens: [
             Conditional(0, 19, [
                 CondExpr(0, 11, [
-                    VariableExpr(0, 11)
+                    ExprTerm(0, 11, [
+                        VariableExpr(0, 3),
+                        GetAttr(3, 11, [
+                            Identifier(4, 11)
+                        ])
+                    ])
                 ]),
-                Int(14, 15),
-                Int(18, 19)
+                ExprTerm(14, 16, [
+                    Int(14, 15)
+                ]),
+                ExprTerm(18, 19, [
+                    Int(18, 19)
+                ])
             ])
         ]
     };
@@ -116,15 +127,19 @@ resource "aws_s3_bucket" "mybucket" {
                     ]),
                     BlockBody(37, 299, [
                         Body(41, 297, [
-                            Attribute(41, 67, [
+                            Attribute(41, 70, [
                                 Identifier(41, 47),
-                                StringLit(57, 67, [
-                                    String(58, 66)
+                                ExprTerm(57, 70, [
+                                    StringLit(57, 67, [
+                                        String(58, 66)
+                                    ])
                                 ])
                             ]),
-                            Attribute(70, 90, [
+                            Attribute(70, 94, [
                                 Identifier(70, 83),
-                                BooleanLit(86, 90)
+                                ExprTerm(86, 94, [
+                                    BooleanLit(86, 90)
+                                ])
                             ]),
                             Block(94, 297, [
                                 Identifier(94, 130),
@@ -137,15 +152,25 @@ resource "aws_s3_bucket" "mybucket" {
                                                     Block(150, 287, [
                                                         Identifier(150, 189),
                                                         BlockBody(190, 287, [
-                                                            Body(200, 279, [
+                                                            Body(200, 286, [
                                                                 Attribute(200, 241, [
                                                                     Identifier(200, 217),
-                                                                    VariableExpr(220, 241)
+                                                                    ExprTerm(220, 241, [
+                                                                        VariableExpr(220, 231),
+                                                                        GetAttr(231, 237, [
+                                                                            Identifier(232, 237)
+                                                                        ]),
+                                                                        GetAttr(237, 241, [
+                                                                            Identifier(238, 241)
+                                                                        ])
+                                                                    ])
                                                                 ]),
-                                                                Attribute(250, 279, [
+                                                                Attribute(250, 286, [
                                                                     Identifier(250, 263),
-                                                                    StringLit(270, 279, [
-                                                                        String(271, 278)
+                                                                    ExprTerm(270, 286, [
+                                                                        StringLit(270, 279, [
+                                                                            String(271, 278)
+                                                                        ])
                                                                     ])
                                                                 ])
                                                             ])
@@ -174,13 +199,21 @@ fn parse_collections() {
         tokens: [
             Attribute(0, 22, [
                 Identifier(0, 3),
-                Tuple(6, 22, [
-                    StringLit(7, 12, [
-                        String(8, 11)
-                    ]),
-                    Tuple(14, 21, [
-                        StringLit(15, 20, [
-                            String(16, 19)
+                ExprTerm(6, 22, [
+                    Tuple(6, 22, [
+                        ExprTerm(7, 12, [
+                            StringLit(7, 12, [
+                                String(8, 11)
+                            ])
+                        ]),
+                        ExprTerm(14, 21, [
+                            Tuple(14, 21, [
+                                ExprTerm(15, 20, [
+                                    StringLit(15, 20, [
+                                        String(16, 19)
+                                    ])
+                                ])
+                            ])
                         ])
                     ])
                 ])
@@ -195,17 +228,27 @@ fn parse_collections() {
         tokens: [
             Attribute(0, 36, [
                 Identifier(0, 3),
-                Object(6, 36, [
-                    StringLit(7, 12, [
-                        String(8, 11)
-                    ]),
-                    StringLit(15, 20, [
-                        String(16, 19)
-                    ]),
-                    StringLit(21, 26, [
-                        String(22, 25)
-                    ]),
-                    VariableExpr(29, 34)
+                ExprTerm(6, 36, [
+                    Object(6, 36, [
+                        ExprTerm(7, 13, [
+                            StringLit(7, 12, [
+                                String(8, 11)
+                            ])
+                        ]),
+                        ExprTerm(15, 20, [
+                            StringLit(15, 20, [
+                                String(16, 19)
+                            ])
+                        ]),
+                        ExprTerm(21, 27, [
+                            StringLit(21, 26, [
+                                String(22, 25)
+                            ])
+                        ]),
+                        ExprTerm(29, 35, [
+                            VariableExpr(29, 34)
+                        ])
+                    ])
                 ])
             ])
         ]
@@ -219,10 +262,12 @@ fn parse_template() {
         input: "<<HEREDOC\n${foo}\n%{if asdf}qux%{endif}\nheredoc\nHEREDOC",
         rule: Rule::ExprTerm,
         tokens: [
-            Heredoc(0, 54, [
-                HeredocIntroNormal(0, 2),
-                Identifier(2, 9),
-                HeredocContent(10, 47)
+            ExprTerm(0, 54, [
+                Heredoc(0, 54, [
+                    HeredocIntroNormal(0, 2),
+                    Identifier(2, 9),
+                    HeredocContent(10, 47)
+                ])
             ])
         ]
     };
@@ -237,18 +282,29 @@ fn parse_cond_in_interpolation() {
         tokens: [
             Attribute(0, 37, [
                 Identifier(0, 4),
-                StringLit(7, 37, [
-                    String(8, 36, [
-                        TemplateInterpolation(8, 36, [
-                            Conditional(10, 35, [
-                                CondExpr(10, 15, [
-                                    VariableExpr(10, 15)
-                                ]),
-                                StringLit(18, 30, [
-                                    String(19, 29)
-                                ]),
-                                StringLit(33, 35, [
-                                    String(34, 34)
+                ExprTerm(7, 37, [
+                    StringLit(7, 37, [
+                        String(8, 36, [
+                            TemplateInterpolation(8, 36, [
+                                Conditional(10, 35, [
+                                    CondExpr(10, 15, [
+                                        ExprTerm(10, 15, [
+                                            VariableExpr(10, 13),
+                                            GetAttr(13, 15, [
+                                                Identifier(14, 15)
+                                            ])
+                                        ])
+                                    ]),
+                                    ExprTerm(18, 31, [
+                                        StringLit(18, 30, [
+                                            String(19, 29)
+                                        ])
+                                    ]),
+                                    ExprTerm(33, 35, [
+                                        StringLit(33, 35, [
+                                            String(34, 34)
+                                        ])
+                                    ])
                                 ])
                             ])
                         ])
@@ -267,18 +323,39 @@ fn parse_object_with_variable_expr_key() {
 providers = {
   aws.eu-central-1 = aws.eu-central-1
   aws.eu-west-1    = aws.eu-west-1
-}
-                "#,
+}"#,
         rule: Rule::Hcl,
         tokens: [
             Body(1, 89, [
                 Attribute(1, 89, [
                     Identifier(1, 10),
-                    Object(13, 89, [
-                        VariableExpr(17, 33),
-                        VariableExpr(36, 52),
-                        VariableExpr(55, 68),
-                        VariableExpr(74, 87)
+                    ExprTerm(13, 89, [
+                        Object(13, 89, [
+                            ExprTerm(17, 33, [
+                                VariableExpr(17, 20),
+                                GetAttr(20, 33, [
+                                    Identifier(21, 33)
+                                ]),
+                            ]),
+                            ExprTerm(36, 52, [
+                                VariableExpr(36, 39),
+                                GetAttr(39, 52, [
+                                    Identifier(40, 52)
+                                ]),
+                            ]),
+                            ExprTerm(55, 68, [
+                                VariableExpr(55, 58),
+                                GetAttr(58, 68, [
+                                    Identifier(59, 68)
+                                ]),
+                            ]),
+                            ExprTerm(74, 87, [
+                                VariableExpr(74, 77),
+                                GetAttr(77, 87, [
+                                    Identifier(78, 87)
+                                ])
+                            ])
+                        ])
                     ])
                 ])
             ])
@@ -295,13 +372,35 @@ fn parse_nested_function_call_with_splat() {
         tokens: [
             FunctionCall(0, 72, [
                 Arguments(8, 71, [
-                    FunctionCall(8, 68, [
-                        Arguments(15, 67, [
-                            VariableExpr(15, 40),
-                            VariableExpr(42, 67)
+                    ExprTerm(8, 68, [
+                        FunctionCall(8, 68, [
+                            Arguments(15, 67, [
+                                ExprTerm(15, 40, [
+                                    VariableExpr(15, 26),
+                                    GetAttr(26, 34, [
+                                        Identifier(27, 34)
+                                    ]),
+                                    AttrSplat(34, 36),
+                                    GetAttr(36, 40, [
+                                        Identifier(37, 40)
+                                    ]),
+                                ]),
+                                ExprTerm(42, 67, [
+                                    VariableExpr(42, 53),
+                                    GetAttr(53, 61, [
+                                        Identifier(54, 61)
+                                    ]),
+                                    AttrSplat(61, 63),
+                                    GetAttr(63, 67, [
+                                        Identifier(64, 67)
+                                    ])
+                                ])
+                            ])
                         ])
                     ]),
-                    Int(70, 71)
+                    ExprTerm(70, 71, [
+                        Int(70, 71)
+                    ])
                 ])
             ])
         ]
@@ -317,17 +416,34 @@ fn parse_element_access_with_expression() {
         tokens: [
             Attribute(0, 86, [
                 Identifier(0, 14),
-                VariableExpr(17, 86, [
-                    IndexExpr(41, 82, [
+                ExprTerm(17, 86, [
+                    VariableExpr(17, 32),
+                    GetAttr(32, 40, [
+                        Identifier(33, 40)
+                    ]),
+                    Index(40, 83, [
                         Operation(41, 82, [
                             BinaryOp(41, 82, [
-                                VariableExpr(41, 52),
+                                ExprTerm(41, 52, [
+                                    VariableExpr(41, 46),
+                                    GetAttr(46, 52, [
+                                        Identifier(47, 52)
+                                    ]),
+                                ]),
                                 BinaryOperator(53, 54, [
                                     ArithmeticOperator(53, 54)
                                 ]),
-                                VariableExpr(55, 82)
+                                ExprTerm(55, 82, [
+                                    VariableExpr(55, 58),
+                                    GetAttr(58, 82, [
+                                        Identifier(59, 82)
+                                    ]),
+                                ])
                             ])
                         ])
+                    ]),
+                    GetAttr(83, 86, [
+                        Identifier(84, 86)
                     ])
                 ])
             ])
@@ -344,7 +460,9 @@ fn parse_null_in_variable_expr() {
         tokens: [
             Attribute(0, 14, [
                 Identifier(0, 3),
-                VariableExpr(6, 14)
+                ExprTerm(6, 14, [
+                    VariableExpr(6, 14)
+                ])
             ])
         ]
     };
