@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.2](https://github.com/martinohmann/hcl-rs/compare/v0.6.1...v0.6.2) (2022-07-13)
+
+
+### Bug Fixes
+
+* handle escaped newlines in heredocs ([#41](https://github.com/martinohmann/hcl-rs/issues/41)) ([82849f1](https://github.com/martinohmann/hcl-rs/commit/82849f1cb380524949cf208a79ab36cd052268c7))
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.3 to 3.0.4 ([#39](https://github.com/martinohmann/hcl-rs/issues/39)) ([1ba1301](https://github.com/martinohmann/hcl-rs/commit/1ba13015c4667cfebe0d1bc9b3f186815c89ee65))
+
 ## [0.6.1](https://github.com/martinohmann/hcl-rs/compare/v0.6.0...v0.6.1) (2022-06-12)
 
 
