@@ -20,6 +20,7 @@ pub fn unescape(s: &str) -> Result<String> {
         }
 
         let c = match chars.next() {
+            Some('\n') => continue,
             Some('b') => '\u{0008}',
             Some('f') => '\u{000C}',
             Some('n') => '\n',

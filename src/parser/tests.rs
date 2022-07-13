@@ -423,6 +423,11 @@ fn unescape_strings() {
           object_attr = {
             "key\nwith\nnewlines" = true
           }
+
+          heredoc = <<-EOS
+            some string with \
+            escaped newline
+          EOS
         }
     "#;
 
@@ -437,6 +442,7 @@ fn unescape_strings() {
                     "object_attr",
                     Expression::from_iter([("key\nwith\nnewlines", true)]),
                 ))
+                .add_attribute(("heredoc", "some string with escaped newline\n"))
                 .build(),
         )
         .build();
