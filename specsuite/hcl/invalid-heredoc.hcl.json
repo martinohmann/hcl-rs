@@ -1,6 +1,6 @@
 {
   "message": "EOF must be immediately followed by a newline",
   "body": {
-    "message": " --> 2:12\n  |\n2 |   source = <<-EOF # This is invalid␊\n  |            ^---\n  |\n  = expected BooleanLit, NullLit, Float, Int, Tuple, Object, Heredoc, StringLit, FunctionCall, ForExpr, VariableExpr, Operation, or CondExpr"
+    "message": " --> 2:12\n  |\n2 |   source = <<-EOF # This is invalid␊\n  |            ^---\n  |\n  = expected ExprTerm, Operation, or CondExpr"
   }
 }
