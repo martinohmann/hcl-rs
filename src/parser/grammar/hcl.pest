@@ -132,7 +132,8 @@ BinaryOp           = { ExprTerm ~ BinaryOperator ~ Expression }
 BinaryOperator     = { CompareOperator | ArithmeticOperator | LogicOperator }
 CompareOperator    = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
 ArithmeticOperator = { "+" | "-" | "*" | "/" | "%" }
-LogicOperator      = { "&&" | "||" | "!" }
+LogicOperator      = { "&&" | "||" }
+
 
 // Conditional operator
 CondExpr    = { ExprTerm | Operation }
