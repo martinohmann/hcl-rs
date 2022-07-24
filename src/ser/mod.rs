@@ -1023,6 +1023,8 @@ where
     {
         if name == "$hcl::raw_expression" {
             value.serialize(RawExpressionSerializer::new(self.ser))
+        } else if name == "$hcl::identifier" {
+            value.serialize(IdentifierSerializer::new(self.ser))
         } else {
             value.serialize(self)
         }

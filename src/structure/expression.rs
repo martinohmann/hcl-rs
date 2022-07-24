@@ -27,6 +27,8 @@ pub enum Expression {
     Array(Vec<Expression>),
     /// Represents an object.
     Object(Object<ObjectKey, Expression>),
+    /// Represents a variable name identfier.
+    VariableExpr(Identifier),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -42,6 +44,7 @@ impl From<Expression> for Value {
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::Raw(raw) => Value::String(raw.into()),
+            Expression::VariableExpr(ident) => Value::String(RawExpression(ident.0).into()),
         }
     }
 }

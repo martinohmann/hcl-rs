@@ -25,7 +25,7 @@ pub use ser::{to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{
     ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Expression,
-    Object, ObjectKey, RawExpression, Structure,
+    Identifier, Object, ObjectKey, RawExpression, Structure,
 };
 #[doc(inline)]
 pub use value::{Map, Value};

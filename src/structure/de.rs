@@ -357,6 +357,7 @@ impl<'de, 'a> de::Deserializer<'de> for ExpressionDeserializer {
             Expression::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::VariableExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -389,6 +390,7 @@ impl<'de> de::EnumAccess<'de> for ExpressionDeserializer {
             Expression::Array(_) => "Array",
             Expression::Object(_) => "Object",
             Expression::Raw(_) => "Raw",
+            Expression::VariableExpr(_) => "VariableExpr",
         };
 
         seed.deserialize(BorrowedStrDeserializer::new(variant))

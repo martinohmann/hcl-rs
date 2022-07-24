@@ -290,6 +290,10 @@ fn roundtrip() {
                             ObjectKey::Identifier("team".into()),
                             Expression::String("bar".into()),
                         ),
+                        (
+                            ObjectKey::Identifier("environment".into()),
+                            Expression::VariableExpr("environment".into()),
+                        ),
                     ]),
                 ))
                 .build(),
