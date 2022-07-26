@@ -516,7 +516,13 @@ fn parse_hcl() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute(Attribute::new(
                                             "kms_master_key_id",
-                                            RawExpression::new("aws_kms_key.mykey.arn"),
+                                            ElementAccess::new(
+                                                Expression::VariableExpr("aws_kms_key".into()),
+                                                vec![
+                                                    ElementAccessOperator::GetAttr("mykey".into()),
+                                                    ElementAccessOperator::GetAttr("arn".into()),
+                                                ],
+                                            ),
                                         ))
                                         .add_attribute(Attribute::new("sse_algorithm", "aws:kms"))
                                         .build(),

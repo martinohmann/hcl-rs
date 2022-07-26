@@ -345,6 +345,8 @@ where
     {
         if name == "$hcl::structure" {
             value.serialize(self)
+        } else if name == "$hcl::expression" {
+            value.serialize(ExpressionSerializer::new(self))
         } else {
             self.serialize_attribute(variant, value)
         }
@@ -895,12 +897,12 @@ where
     }
 }
 
-struct ExpressionSerializer<'a, W: 'a, F: 'a> {
+pub(crate) struct ExpressionSerializer<'a, W: 'a, F: 'a> {
     ser: &'a mut Serializer<W, F>,
 }
 
 impl<'a, W, F> ExpressionSerializer<'a, W, F> {
-    fn new(ser: &'a mut Serializer<W, F>) -> ExpressionSerializer<'a, W, F> {
+    pub(crate) fn new(ser: &'a mut Serializer<W, F>) -> ExpressionSerializer<'a, W, F> {
         ExpressionSerializer { ser }
     }
 }
@@ -918,7 +920,7 @@ where
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
     type SerializeMap = Self;
-    type SerializeStruct = Self;
+    type SerializeStruct = SerializeStruct<'a, W, F>;
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<()> {
@@ -1088,8 +1090,15 @@ where
         Ok(self)
     }
 
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        self.serialize_map(Some(len))
+    fn serialize_struct(self, name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        let kind = if name == "$hcl::element_access" {
+            StructKind::ElementAccess
+        } else {
+            self.ser.formatter.begin_object(&mut self.ser.writer)?;
+            StructKind::Expression
+        };
+
+        Ok(SerializeStruct::new(kind, self.ser))
     }
 
     fn serialize_struct_variant(
@@ -1221,27 +1230,6 @@ where
     }
 }
 
-impl<'a, W, F> ser::SerializeStruct for ExpressionSerializer<'a, W, F>
-where
-    W: io::Write,
-    F: Format,
-{
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.ser.serialize_object_key_value(key, value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.ser.formatter.end_object(&mut self.ser.writer)?;
-        Ok(())
-    }
-}
-
 impl<'a, W, F> ser::SerializeStructVariant for ExpressionSerializer<'a, W, F>
 where
     W: io::Write,
@@ -1265,10 +1253,165 @@ where
     }
 }
 
+struct ElementAccessOperatorSerializer<'a, W: 'a, F: 'a> {
+    ser: &'a mut Serializer<W, F>,
+}
+
+impl<'a, W, F> ElementAccessOperatorSerializer<'a, W, F> {
+    fn new(ser: &'a mut Serializer<W, F>) -> ElementAccessOperatorSerializer<'a, W, F> {
+        ElementAccessOperatorSerializer { ser }
+    }
+}
+
+impl<'a, W, F> ser::Serializer for ElementAccessOperatorSerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    type SerializeSeq = Self;
+    type SerializeTuple = Self;
+    type SerializeTupleStruct = Impossible<(), Error>;
+    type SerializeTupleVariant = Impossible<(), Error>;
+    type SerializeMap = Impossible<(), Error>;
+    type SerializeStruct = Impossible<(), Error>;
+    type SerializeStructVariant = Impossible<(), Error>;
+
+    serialize_unsupported! {
+        bool i8 i16 i32 i64 u8 u16 u32 f32 f64
+        char str bytes none unit unit_struct
+        tuple_struct tuple_variant
+        map struct struct_variant
+    }
+
+    fn serialize_u64(self, v: u64) -> Result<()> {
+        self.ser
+            .formatter
+            .write_string_fragment(&mut self.ser.writer, ".")?;
+        self.ser.formatter.write_int(&mut self.ser.writer, v)?;
+        Ok(())
+    }
+
+    fn serialize_some<T>(self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        let splat = match variant {
+            "AttrSplat" => ".*",
+            "FullSplat" => "[*]",
+            _ => unreachable!(),
+        };
+
+        self.ser
+            .formatter
+            .write_string_fragment(&mut self.ser.writer, splat)?;
+        Ok(())
+    }
+
+    fn serialize_newtype_variant<T>(
+        self,
+        name: &'static str,
+        _variant_index: u32,
+        _variant: &'static str,
+        value: &T,
+    ) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        if name == "$hcl::expression" {
+            self.ser
+                .formatter
+                .write_string_fragment(&mut self.ser.writer, "[")?;
+            value.serialize(ExpressionSerializer::new(self.ser))?;
+            self.ser
+                .formatter
+                .write_string_fragment(&mut self.ser.writer, "]")?;
+            Ok(())
+        } else {
+            value.serialize(self)
+        }
+    }
+
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        if name == "$hcl::identifier" {
+            self.ser
+                .formatter
+                .write_string_fragment(&mut self.ser.writer, ".")?;
+            value.serialize(IdentifierSerializer::new(self.ser))
+        } else {
+            value.serialize(self)
+        }
+    }
+
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
+        Ok(self)
+    }
+
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+        self.serialize_seq(Some(len))
+    }
+}
+
+impl<'a, W, F> ser::SerializeSeq for ElementAccessOperatorSerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(ElementAccessOperatorSerializer::new(self.ser))
+    }
+
+    fn end(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a, W, F> ser::SerializeTuple for ElementAccessOperatorSerializer<'a, W, F>
+where
+    W: io::Write,
+    F: Format,
+{
+    type Ok = ();
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        ser::SerializeSeq::serialize_element(self, value)
+    }
+
+    fn end(self) -> Result<()> {
+        ser::SerializeSeq::end(self)
+    }
+}
+
 enum StructKind {
     Attribute,
     Block,
     Custom,
+    ElementAccess,
+    Expression,
 }
 
 #[doc(hidden)]
@@ -1320,10 +1463,19 @@ where
                 _ => Ok(()),
             },
             StructKind::Custom => self.ser.serialize_attribute(key, value),
+            StructKind::ElementAccess => match key {
+                "expr" => value.serialize(ExpressionSerializer::new(self.ser)),
+                "operators" => value.serialize(ElementAccessOperatorSerializer::new(self.ser)),
+                _ => Ok(()),
+            },
+            StructKind::Expression => self.ser.serialize_object_key_value(key, value),
         }
     }
 
     fn end(self) -> Result<()> {
+        if let StructKind::Expression = self.kind {
+            self.ser.formatter.end_object(&mut self.ser.writer)?;
+        }
         Ok(())
     }
 }

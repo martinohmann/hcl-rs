@@ -1,5 +1,8 @@
 use super::*;
-use crate::{Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression};
+use crate::{
+    Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, Identifier, Object,
+    ObjectKey, RawExpression,
+};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -191,6 +194,32 @@ fn serialize_empty_block() {
 }
 
 #[test]
+fn serialize_element_access() {
+    let body = Body::builder()
+        .add_attribute((
+            "attr",
+            ElementAccess::new(
+                Identifier::new("var"),
+                vec![
+                    ElementAccessOperator::GetAttr("foo".into()),
+                    ElementAccessOperator::FullSplat,
+                    ElementAccessOperator::GetAttr("bar".into()),
+                    ElementAccessOperator::Index(1u64.into()),
+                    ElementAccessOperator::AttrSplat,
+                    ElementAccessOperator::GetAttr("baz".into()),
+                    ElementAccessOperator::LegacyIndex(42),
+                ],
+            ),
+        ))
+        .build();
+
+    assert_eq!(
+        to_string(&body).unwrap(),
+        "attr = var.foo[*].bar[1].*.baz.42\n"
+    );
+}
+
+#[test]
 fn serialize_errors() {
     assert!(to_string(&true).is_err());
     assert!(to_string("foo").is_err());
@@ -266,7 +295,13 @@ fn roundtrip() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            RawExpression::new("aws_kms_key.mykey.arn"),
+                                            ElementAccess::new(
+                                                Expression::VariableExpr("aws_kms_key".into()),
+                                                vec![
+                                                    ElementAccessOperator::GetAttr("mykey".into()),
+                                                    ElementAccessOperator::GetAttr("arn".into()),
+                                                ],
+                                            ),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),

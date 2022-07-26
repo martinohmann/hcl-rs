@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Block, Body, Expression, ObjectKey, RawExpression};
+use crate::{Block, Body, ElementAccess, ElementAccessOperator, Expression, ObjectKey};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -235,7 +235,13 @@ fn deserialize_terraform() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            RawExpression::new("aws_kms_key.mykey.arn"),
+                                            ElementAccess::new(
+                                                Expression::VariableExpr("aws_kms_key".into()),
+                                                vec![
+                                                    ElementAccessOperator::GetAttr("mykey".into()),
+                                                    ElementAccessOperator::GetAttr("arn".into()),
+                                                ],
+                                            ),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),

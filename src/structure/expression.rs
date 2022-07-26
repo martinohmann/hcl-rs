@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::Identifier;
+use super::{ElementAccess, Identifier};
 use crate::{Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -29,6 +29,8 @@ pub enum Expression {
     Object(Object<ObjectKey, Expression>),
     /// Represents a variable name identfier.
     VariableExpr(Identifier),
+    /// Represents an attribute or element access.
+    ElementAccess(Box<ElementAccess>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -45,6 +47,7 @@ impl From<Expression> for Value {
             Expression::Object(object) => object.into_iter().collect(),
             Expression::Raw(raw) => Value::String(raw.into()),
             Expression::VariableExpr(ident) => Value::String(RawExpression(ident.0).into()),
+            other => Value::String(RawExpression(other.to_string()).into()),
         }
     }
 }
@@ -156,6 +159,31 @@ impl From<()> for Expression {
 impl From<RawExpression> for Expression {
     fn from(raw: RawExpression) -> Self {
         Expression::Raw(raw)
+    }
+}
+
+impl From<Identifier> for Expression {
+    fn from(ident: Identifier) -> Self {
+        Expression::VariableExpr(ident)
+    }
+}
+
+impl From<ElementAccess> for Expression {
+    fn from(access: ElementAccess) -> Self {
+        Expression::ElementAccess(Box::new(access))
+    }
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match crate::to_string(self) {
+            Ok(s) => f.write_str(&s),
+            Err(err) => {
+                f.write_char('"')?;
+                f.write_str(&err.to_string())?;
+                f.write_char('"')
+            }
+        }
     }
 }
 
