@@ -1,6 +1,7 @@
 # hcl-rs
 
 [![Build Status](https://github.com/martinohmann/hcl-rs/workflows/ci/badge.svg)](https://github.com/martinohmann/hcl-rs/actions?query=workflow%3Aci)
+[![crates.io](https://img.shields.io/crates/v/hcl-rs)](https://crates.io/crates/hcl-rs)
 [![docs.rs](https://img.shields.io/docsrs/hcl-rs)](https://docs.rs/hcl-rs)
 ![MIT License](https://img.shields.io/github/license/martinohmann/hcl-rs?color=blue)
 
