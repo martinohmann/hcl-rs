@@ -269,3 +269,57 @@ fn deserialize_terraform() {
 
     assert_eq!(expected, body);
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/44
+#[test]
+fn issue_44() {
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    pub struct Config {
+        #[serde(rename = "project")]
+        pub projects: HashMap<String, Project>,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    pub struct Project {
+        pub proj_type: String,
+        pub spec: Option<PathBuf>,
+        pub dockerfile: Option<PathBuf>,
+        pub scripts: Option<Vec<Script>>,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    pub struct Script {
+        pub name: String,
+        pub command: String,
+    }
+
+    let input = r#"
+        project "a" {
+            proj_type = "generic"
+            spec = "./test.spec"
+        }
+    "#;
+
+    let config: Config = crate::from_str(input).unwrap();
+
+    let expected = Config {
+        projects: {
+            let mut map = HashMap::new();
+            map.insert(
+                "a".into(),
+                Project {
+                    proj_type: "generic".into(),
+                    spec: Some(PathBuf::from("./test.spec")),
+                    dockerfile: None,
+                    scripts: None,
+                },
+            );
+            map
+        },
+    };
+
+    assert_eq!(config, expected);
+}
