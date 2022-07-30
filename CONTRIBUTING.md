@@ -18,5 +18,5 @@ this project:
   changes should be marked as such by adding a `!` after the type/scope. You
   don't need to use the Conventional Commit format for every commit that is
   included in your PR. PRs will be squash merged.
-- Make sure to run `cargo test`, `cargo clippy` and `rustfmt` before submitting
-  a PR.
+- Make sure to run `cargo test`, `cargo clippy` and `cargo fmt` before
+  submitting a PR.
