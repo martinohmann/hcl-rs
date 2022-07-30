@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.4](https://github.com/martinohmann/hcl-rs/compare/v0.6.3...v0.6.4) (2022-07-30)
+
+
+### Bug Fixes
+
+* parse negate operations on numbers as negative numbers ([#46](https://github.com/martinohmann/hcl-rs/issues/46)) ([74eb690](https://github.com/martinohmann/hcl-rs/commit/74eb6900068caac93e3a42d1ffaeced0a96005d0))
+
+
+### Miscellaneous
+
+* remove unused lifetimes ([62e75f0](https://github.com/martinohmann/hcl-rs/commit/62e75f08d77b98d3a2195f223d363147d6b39f69))
+
 ## [0.6.3](https://github.com/martinohmann/hcl-rs/compare/v0.6.2...v0.6.3) (2022-07-30)
 
 
