@@ -1,5 +1,6 @@
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Display};
+use std::ops::Neg;
 
 /// Represents a HCL number.
 #[derive(Debug, PartialEq, Clone)]
@@ -174,5 +175,24 @@ impl<'de> Deserialize<'de> for Number {
         }
 
         deserializer.deserialize_any(NumberVisitor)
+    }
+}
+
+impl Neg for Number {
+    type Output = Number;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Number::PosInt(value) => Number::NegInt(-(value as i64)),
+            Number::NegInt(value) => {
+                let value = -value;
+                if value < 0 {
+                    Number::NegInt(value)
+                } else {
+                    Number::PosInt(value as u64)
+                }
+            }
+            Number::Float(value) => Number::Float(-value),
+        }
     }
 }

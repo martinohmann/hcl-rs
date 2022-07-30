@@ -32,10 +32,10 @@ fn parse_string() {
 fn parse_number() {
     parses_to! {
         parser: HclParser,
-        input: "-12e+10",
+        input: "12e+10",
         rule: Rule::NumericLit,
         tokens: [
-            Float(0, 7)
+            Float(0, 6)
         ]
     };
 
@@ -563,6 +563,25 @@ fn unescape_strings() {
                 .add_attribute(("heredoc", "some string with escaped newline\n"))
                 .build(),
         )
+        .build();
+
+    assert_eq!(body, expected);
+}
+
+#[test]
+fn negative_numbers() {
+    let input = r#"
+        float = -4.2
+        float_exp = -4.2e10
+        signed = -42
+    "#;
+
+    let body = parse(input).unwrap();
+
+    let expected = Body::builder()
+        .add_attribute(("float", -4.2f64))
+        .add_attribute(("float_exp", -4.2e10f64))
+        .add_attribute(("signed", -42))
         .build();
 
     assert_eq!(body, expected);

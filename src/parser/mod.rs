@@ -3,8 +3,8 @@ mod tests;
 mod unescape;
 
 use crate::{
-    Attribute, Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression, Result,
-    Structure,
+    Attribute, Block, BlockLabel, Body, Expression, Number, Object, ObjectKey, RawExpression,
+    Result, Structure,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -115,13 +115,39 @@ fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
 }
 
 fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
-    if let Rule::ExprTerm = pair.as_rule() {
-        parse_expr_term(pair)
-    } else {
-        // @TODO(mohmann): Process Conditional and Operation at one point. This will require a
-        // PrecClimber to get precedence right though.
-        Ok(Expression::Raw(raw_expression(pair.as_str())))
+    // @TODO(mohmann): Process Conditional and Operation at one point. This will require a
+    // PrecClimber to get precedence right though.
+    match pair.as_rule() {
+        Rule::ExprTerm => parse_expr_term(pair),
+        Rule::Operation => {
+            let raw = pair.as_str();
+            // We only fully parse unary operations representing negative numbers for now.
+            // Everything else will be represented as raw expressions until parsing operations is
+            // fully implemented.
+            match parse_negative_number(inner(pair))? {
+                Some(num) => Ok(Expression::Number(num)),
+                None => Ok(Expression::Raw(raw_expression(raw))),
+            }
+        }
+        Rule::Conditional => Ok(Expression::Raw(raw_expression(pair.as_str()))),
+        rule => unexpected_rule(rule),
     }
+}
+
+fn parse_negative_number(pair: Pair<Rule>) -> Result<Option<Number>> {
+    if let Rule::UnaryOp = pair.as_rule() {
+        let mut pairs = pair.into_inner();
+        let operator = pairs.next().unwrap();
+        let expr = pairs.next().unwrap();
+
+        if let ("-", Rule::ExprTerm) = (operator.as_str(), expr.as_rule()) {
+            if let Expression::Number(num) = parse_expr_term(expr)? {
+                return Ok(Some(-num));
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {
