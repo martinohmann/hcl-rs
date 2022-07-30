@@ -164,7 +164,7 @@ where
     from_str(s)
 }
 
-impl<'de, 'a> de::Deserializer<'de> for Deserializer {
+impl<'de> de::Deserializer<'de> for Deserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>

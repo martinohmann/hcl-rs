@@ -25,7 +25,7 @@ impl<'de> IntoDeserializer<'de, Error> for Body {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for BodyDeserializer {
+impl<'de> de::Deserializer<'de> for BodyDeserializer {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -332,7 +332,7 @@ impl<'de> IntoDeserializer<'de, Error> for Expression {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for ExpressionDeserializer {
+impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -408,7 +408,7 @@ impl<'de> IntoDeserializer<'de, Error> for ObjectKey {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for ObjectKeyDeserializer {
+impl<'de> de::Deserializer<'de> for ObjectKeyDeserializer {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -472,7 +472,7 @@ impl<'de> IntoDeserializer<'de, Error> for RawExpression {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for RawExpressionDeserializer {
+impl<'de> de::Deserializer<'de> for RawExpressionDeserializer {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -501,7 +501,7 @@ impl<'de> IntoDeserializer<'de, Error> for Identifier {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for IdentifierDeserializer {
+impl<'de> de::Deserializer<'de> for IdentifierDeserializer {
     type Error = Error;
 
     forward_to_deserialize_any! {

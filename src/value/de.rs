@@ -110,7 +110,7 @@ impl<'de> IntoDeserializer<'de, Error> for Value {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for ValueDeserializer {
+impl<'de> de::Deserializer<'de> for ValueDeserializer {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
