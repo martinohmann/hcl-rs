@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.3](https://github.com/martinohmann/hcl-rs/compare/v0.6.2...v0.6.3) (2022-07-30)
+
+
+### Bug Fixes
+
+* `!` is not a logic operator ([5012034](https://github.com/martinohmann/hcl-rs/commit/50120341eab72ac42eb3f9b4bfe354562d9df5a5))
+* correctly handle ExprTerm traversal ([#42](https://github.com/martinohmann/hcl-rs/issues/42)) ([8dc0f88](https://github.com/martinohmann/hcl-rs/commit/8dc0f88d039395cbd6e449dd94d06283bc0d88e3))
+* disable flaky specsuite test ([cd19180](https://github.com/martinohmann/hcl-rs/commit/cd191806a8de0da8351f20dca841e3055c4f2d37))
+* implement `deserialize_option` for `ValueDeserializer` ([#45](https://github.com/martinohmann/hcl-rs/issues/45)) ([2ddf40f](https://github.com/martinohmann/hcl-rs/commit/2ddf40fd54d7107c677c0a71cf22bef1efaf9edb))
+
 ## [0.6.2](https://github.com/martinohmann/hcl-rs/compare/v0.6.1...v0.6.2) (2022-07-13)
 
 
