@@ -1,6 +1,8 @@
 {
   "message": "EOF must be immediately followed by a newline",
+  "ignore": true,
   "body": {
+    "comment": "The line feed char after the word `invalid` is present locally, somehow stop showing up in GitHub actions. Needs investigation.",
     "message": " --> 2:12\n  |\n2 |   source = <<-EOF # This is invalid␊\n  |            ^---\n  |\n  = expected ExprTerm, Operation, or CondExpr"
   }
 }
