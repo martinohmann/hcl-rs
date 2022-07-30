@@ -131,6 +131,16 @@ impl<'de, 'a> de::Deserializer<'de> for ValueDeserializer {
         }
     }
 
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.value {
+            Value::Null => visitor.visit_none(),
+            _ => visitor.visit_some(self),
+        }
+    }
+
     fn deserialize_enum<V>(
         self,
         _name: &'static str,
@@ -149,7 +159,7 @@ impl<'de, 'a> de::Deserializer<'de> for ValueDeserializer {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        bytes byte_buf unit unit_struct newtype_struct seq tuple
         tuple_struct map struct identifier ignored_any
     }
 }
