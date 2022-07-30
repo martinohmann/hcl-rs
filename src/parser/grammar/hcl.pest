@@ -36,8 +36,8 @@ Null    =  { "null" }
 
 // Numeric literals
 NumericLit = _{ Float | Int }
-Float      = @{ "-"? ~ Decimal+ ~ (("." ~ Decimal+ ~ (ExpMark ~ Decimal+)?) | (ExpMark ~ Decimal+)) }
-Int        = @{ "-"? ~ Decimal+ }
+Float      = @{ Decimal+ ~ (("." ~ Decimal+ ~ (ExpMark ~ Decimal+)?) | (ExpMark ~ Decimal+)) }
+Int        = @{ Decimal+ }
 ExpMark    =  { ("e" | "E") ~ ("+" | "-")? }
 Decimal    =  { '0'..'9' }
 
@@ -127,7 +127,8 @@ FullSplat =  { "[*]" }
 
 // Operations
 Operation          = { UnaryOp | BinaryOp }
-UnaryOp            = { ("-" | "!") ~ Expression }
+UnaryOp            = { UnaryOperator ~ Expression }
+UnaryOperator      = { "-" | "!" }
 BinaryOp           = { ExprTerm ~ BinaryOperator ~ Expression }
 BinaryOperator     = { CompareOperator | ArithmeticOperator | LogicOperator }
 CompareOperator    = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
