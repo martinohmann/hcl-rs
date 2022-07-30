@@ -129,6 +129,11 @@ Have a look at [their
 documentation](https://docs.rs/hcl-rs/latest/hcl/macro.body.html) for usage
 examples.
 
+## Contributing
+
+Contributions are welcome! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md)
+before creating a PR.
+
 ## License
 
 The source code of hcl-rs is released under the MIT License. See the bundled
