@@ -12,13 +12,13 @@ BlockBody = { "{" ~ Body ~ "}" }
 // Expressions
 Expression    = _{ Conditional | Operation | ExprTerm }
 ExprTerm      =  { ExprTermInner ~ (Splat | GetAttr | Index)* }
-ExprTermInner = _{ Value | FunctionCall | VariableExpr | ForExpr | ("(" ~ Expression ~ ")") }
+ExprTermInner = _{ Value | TemplateExpr | FunctionCall | VariableExpr | ForExpr | ("(" ~ Expression ~ ")") }
 
 // Values
-Value = _{ LiteralValue | CollectionValue | Heredoc }
+Value = _{ LiteralValue | CollectionValue }
 
 // Literal values
-LiteralValue = _{ StringLit | NumericLit | BooleanLit | NullLit }
+LiteralValue = _{ NumericLit | BooleanLit | NullLit | StringLit }
 
 // Identifiers
 Identifier     = @{ IdentFirstChar ~ IdentChar* }
@@ -49,48 +49,38 @@ ObjectItem      = _{ ObjectItemIdent | ObjectItemExpr }
 ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
 ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 
-// Heredoc
-Heredoc = ${
+// TemplateExpr
+TemplateExpr = _ { QuotedStringTemplate | HeredocTemplate }
+
+// HeredocTemplate
+HeredocTemplate = ${
     HeredocIntro ~ PUSH(Identifier) ~ NEWLINE ~
     HeredocContent ~
     SpaceOrTab* ~ POP
 }
-HeredocIntro       = _{ (HeredocIntroIndent | HeredocIntroNormal) }
-HeredocIntroIndent =  { "<<-" }
-HeredocIntroNormal =  { "<<" }
-HeredocContent     = @{ Template ~ NEWLINE }
+HeredocIntro        = _{ (HeredocIntroIndent | HeredocIntroNormal) }
+HeredocIntroIndent  =  { "<<-" }
+HeredocIntroNormal  =  { "<<" }
+HeredocContent      = @{ HeredocContentInner ~ NEWLINE }
+HeredocContentInner = { (!(NEWLINE ~ SpaceOrTab* ~ PEEK) ~ ANY)* }
 
-// Templates
-//
-// @TODO(mohmann): treat everything as template literals for now as it's really hard to get
-// interpolations and directives right recursively. We are not going to consume the tokens anyways
-// right now.
-//
-// Template           =  { TemplateInterpolation | TemplateDirective | TemplateLiteral }
-Template              =  { TemplateLiteral }
-TemplateLiteral       = _{ (!(NEWLINE ~ SpaceOrTab* ~ PEEK) ~ ANY)* }
-TemplateDirective     = _{ TemplateIf | TemplateFor }
-TemplateInterpolation = !{ ("${" | "${~") ~ ("\"" | Expression) ~ ("}" | "~}") }
-
-TemplateIf = {
-    ("%{" | "%{~") ~ "if" ~ Expression ~ ("}" | "~}") ~
-    Template ~
-    (
-        ("%{" | "%{~") ~ "else" ~ ("}" | "~}") ~
-        Template
-    )? ~
-    ("%{" | "%{~") ~ "endif" ~ ("}" | "~}")
+// Quoted string templates
+QuotedStringTemplate      = ${ "\"" ~ QuotedStringTemplateInner ~ "\"" }
+QuotedStringTemplateInner =  {
+    (QuotedStringTemplateLiteral | TemplateInterpolation | TemplateDirective)*
 }
-
-TemplateFor = {
-    ("%{" | "%{~") ~ "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ ("}" | "~}") ~
-    Template ~
-    ("%{" | "%{~") ~ "endfor" ~ ("}" | "~}")
-}
+QuotedStringTemplateLiteral = @{ StringPart+ }
 
 // String literals
-StringLit = ${ "\"" ~ String ~ "\"" }
-String    =  { (TemplateInterpolation | ("\\" ~ ("\"" | "\\")) | (!"\"" ~ ANY))* }
+StringLit  = ${ "\"" ~ String ~ "\"" }
+String     = @{ StringPart* }
+StringPart = {
+    "$${"
+    | "%%{"
+    | !("\"" | "\\" | "${" | "%{") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
 
 // Functions and function calls
 FunctionCall = @{
@@ -149,3 +139,27 @@ EoInlineComment = _{ NEWLINE | EOI }
 // Whitespace
 WHITESPACE = _{ SpaceOrTab | NEWLINE }
 SpaceOrTab = _{ " " | "\t" }
+
+// The template sub-language.
+HclTemplate           = _{ SOI ~ Template ~ EOI }
+
+Template              =  { (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
+TemplateLiteral       =  { ("$${" | "%%{" | (!("${" | "%{") ~ ANY))+ }
+TemplateDirective     = !{ TemplateIf | TemplateFor }
+TemplateInterpolation = !{ ("${~" | "${") ~ Expression ~ ("}" | "~}") }
+
+TemplateIf = {
+    ("%{~" | "%{") ~ "if" ~ Expression ~ ("}" | "~}") ~
+    Template ~
+    (
+        ("%{~" | "%{") ~ "else" ~ ("}" | "~}") ~
+        Template
+    )? ~
+    ("%{~" | "%{") ~ "endif" ~ ("}" | "~}")
+}
+
+TemplateFor = {
+    ("%{~" | "%{") ~ "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ ("}" | "~}") ~
+    Template ~
+    ("%{~" | "%{") ~ "endfor" ~ ("}" | "~}")
+}

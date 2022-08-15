@@ -11,6 +11,8 @@ mod number;
 mod parser;
 pub mod ser;
 pub mod structure;
+#[allow(missing_docs)]
+pub mod template;
 #[cfg(test)]
 mod tests;
 pub mod value;
@@ -26,7 +28,7 @@ pub use ser::{to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{
     ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Expression,
-    Object, ObjectKey, RawExpression, Structure,
+    Object, ObjectKey, RawExpression, Structure, TemplateExpr,
 };
 #[doc(inline)]
 pub use value::{Map, Value};

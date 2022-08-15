@@ -3,8 +3,8 @@ mod tests;
 mod unescape;
 
 use crate::{
-    Attribute, Block, BlockLabel, Body, Expression, Number, Object, ObjectKey, RawExpression,
-    Result, Structure,
+    template::Template, Attribute, Block, BlockLabel, Body, Expression, Number, Object, ObjectKey,
+    RawExpression, Result, Structure, TemplateExpr,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -167,10 +167,14 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         match pair.as_rule() {
             Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
             Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
-            Rule::Heredoc => parse_heredoc(pair).map(Expression::String),
+            Rule::HeredocTemplate => parse_heredoc(pair).map(Expression::String),
             Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
             Rule::NullLit => Ok(Expression::Null),
             Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
+            Rule::QuotedStringTemplate => parse_string(inner(pair)).map(Expression::String),
+            // @TODO(mohmann): fix me
+            // Rule::QuotedStringTemplate => parse_string(inner(pair))
+            //     .map(|s| Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(s)))),
             Rule::Tuple => parse_expressions(pair).map(Expression::Array),
             Rule::Object => parse_object(pair).map(Expression::Object),
             // @TODO(mohmann): Process ForExpr, VariableExpr etc.
@@ -245,7 +249,7 @@ fn parse_heredoc(pair: Pair<Rule>) -> Result<String> {
 // This is how the original HCL spec seems to handle it based on the original specsuite although it
 // is not formally defined. E.g. ' ' (space) and '\u{2003}' (unicode "em-space") are treated as one
 // unit of whitespace even though the former is 1 byte and the latter is 3 bytes long.
-fn dedent_string(s: &str) -> String {
+pub(crate) fn dedent_string(s: &str) -> String {
     if s.is_empty() {
         return String::new();
     }
@@ -285,6 +289,10 @@ fn dedent_string(s: &str) -> String {
     }
 
     dedented
+}
+
+pub(crate) fn parse_template(_input: &str) -> Result<Template> {
+    todo!()
 }
 
 #[track_caller]

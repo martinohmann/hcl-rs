@@ -263,10 +263,41 @@ fn parse_template() {
         rule: Rule::ExprTerm,
         tokens: [
             ExprTerm(0, 54, [
-                Heredoc(0, 54, [
+                HeredocTemplate(0, 54, [
                     HeredocIntroNormal(0, 2),
                     Identifier(2, 9),
                     HeredocContent(10, 47)
+                ])
+            ])
+        ]
+    };
+
+    parses_to! {
+        parser: HclParser,
+        input: r#""foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}""#,
+        rule: Rule::ExprTerm,
+        tokens: [
+            ExprTerm(0, 49, [
+                QuotedStringTemplate(0, 49, [
+                    QuotedStringTemplateInner(1, 48, [
+                        QuotedStringTemplateLiteral(1, 5),
+                        TemplateInterpolation(5, 11, [
+                            ExprTerm(7, 10, [
+                                VariableExpr(7, 10)
+                            ])
+                        ]),
+                        QuotedStringTemplateLiteral(11, 21),
+                        TemplateDirective(21, 48, [
+                            TemplateIf(21, 48, [
+                                ExprTerm(26, 31, [
+                                    VariableExpr(26, 30)
+                                ]),
+                                Template(34, 37, [
+                                    TemplateLiteral(34, 37)
+                                ])
+                            ])
+                        ]),
+                    ])
                 ])
             ])
         ]
@@ -283,8 +314,8 @@ fn parse_cond_in_interpolation() {
             Attribute(0, 37, [
                 Identifier(0, 4),
                 ExprTerm(7, 37, [
-                    StringLit(7, 37, [
-                        String(8, 36, [
+                    QuotedStringTemplate(7, 37, [
+                        QuotedStringTemplateInner(8, 36, [
                             TemplateInterpolation(8, 36, [
                                 Conditional(10, 35, [
                                     CondExpr(10, 15, [
@@ -582,6 +613,26 @@ fn negative_numbers() {
         .add_attribute(("float", -4.2f64))
         .add_attribute(("float_exp", -4.2e10f64))
         .add_attribute(("signed", -42))
+        .build();
+
+    assert_eq!(body, expected);
+}
+
+#[test]
+#[ignore]
+fn templates() {
+    use crate::structure::TemplateExpr;
+
+    let input = r#"foo = "bar ${baz} %{~ if cond}qux%{ endif ~}""#;
+    let body = parse(input).unwrap();
+
+    let expected = Body::builder()
+        .add_attribute((
+            "foo",
+            Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(
+                "bar ${baz} %{~ if cond}qux%{ endif ~}".into(),
+            ))),
+        ))
         .build();
 
     assert_eq!(body, expected);

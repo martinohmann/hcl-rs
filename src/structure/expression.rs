@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::Identifier;
+use super::{Identifier, TemplateExpr};
 use crate::{Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -30,6 +30,9 @@ pub enum Expression {
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
+    /// A template behaves like an expression that always returns a string value. The different
+    /// elements of the template are evaluated and combined into a single string to return.
+    TemplateExpr(Box<TemplateExpr>),
 }
 
 impl From<Expression> for Value {
@@ -42,6 +45,7 @@ impl From<Expression> for Value {
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::Raw(raw) => Value::String(raw.into()),
+            Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
         }
     }
 }

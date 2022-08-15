@@ -1,7 +1,8 @@
 //! Deserialize impls for HCL structure types.
 
 use super::{
-    Attribute, Block, BlockLabel, Body, Expression, Identifier, ObjectKey, RawExpression, Structure,
+    Attribute, Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier,
+    ObjectKey, RawExpression, Structure, TemplateExpr,
 };
 use crate::{Error, Number, Result};
 use serde::de::{self, value::BorrowedStrDeserializer, IntoDeserializer};
@@ -357,6 +358,7 @@ impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
             Expression::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -389,6 +391,7 @@ impl<'de> de::EnumAccess<'de> for ExpressionDeserializer {
             Expression::Array(_) => "Array",
             Expression::Object(_) => "Object",
             Expression::Raw(_) => "Raw",
+            Expression::TemplateExpr(_) => "TemplateExpr",
         };
 
         seed.deserialize(BorrowedStrDeserializer::new(variant))
@@ -486,6 +489,209 @@ impl<'de> de::Deserializer<'de> for RawExpressionDeserializer {
         V: de::Visitor<'de>,
     {
         visitor.visit_newtype_struct(self.value.into_inner().into_deserializer())
+    }
+}
+
+pub struct TemplateExprDeserializer {
+    value: TemplateExpr,
+}
+
+impl<'de> IntoDeserializer<'de, Error> for TemplateExpr {
+    type Deserializer = TemplateExprDeserializer;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        TemplateExprDeserializer { value: self }
+    }
+}
+
+impl<'de> de::Deserializer<'de> for TemplateExprDeserializer {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value {
+            TemplateExpr::QuotedString(string) => visitor.visit_string(string),
+            TemplateExpr::Heredoc(heredoc) => heredoc.into_deserializer().deserialize_any(visitor),
+        }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_enum(self)
+    }
+}
+
+impl<'de> de::EnumAccess<'de> for TemplateExprDeserializer {
+    type Error = Error;
+    type Variant = AnyVariantAccess<Self>;
+
+    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        let variant = match self.value {
+            TemplateExpr::QuotedString(_) => "QuotedString",
+            TemplateExpr::Heredoc(_) => "Heredoc",
+        };
+
+        seed.deserialize(BorrowedStrDeserializer::new(variant))
+            .map(|value| (value, AnyVariantAccess::new(self)))
+    }
+}
+
+pub struct HeredocDeserializer {
+    value: Heredoc,
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Heredoc {
+    type Deserializer = HeredocDeserializer;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        HeredocDeserializer { value: self }
+    }
+}
+
+impl<'de> de::Deserializer<'de> for HeredocDeserializer {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_map(HeredocAccess::new(self.value))
+    }
+}
+
+struct HeredocAccess {
+    delimiter: Option<Identifier>,
+    template: Option<String>,
+    strip: Option<HeredocStripMode>,
+}
+
+impl HeredocAccess {
+    fn new(value: Heredoc) -> Self {
+        HeredocAccess {
+            delimiter: Some(value.delimiter),
+            template: Some(value.template),
+            strip: Some(value.strip),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for HeredocAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.delimiter.is_some() {
+            seed.deserialize("delimiter".into_deserializer()).map(Some)
+        } else if self.template.is_some() {
+            seed.deserialize("template".into_deserializer()).map(Some)
+        } else if self.strip.is_some() {
+            seed.deserialize("strip".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(delimiter) = self.delimiter.take() {
+            seed.deserialize(delimiter.into_deserializer())
+        } else if let Some(template) = self.template.take() {
+            seed.deserialize(template.into_deserializer())
+        } else if let Some(strip) = self.strip.take() {
+            seed.deserialize(strip.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL heredoc"))
+        }
+    }
+}
+
+pub struct HeredocStripModeDeserializer {
+    value: HeredocStripMode,
+}
+
+impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
+    type Deserializer = HeredocStripModeDeserializer;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        HeredocStripModeDeserializer { value: self }
+    }
+}
+
+impl<'de> de::Deserializer<'de> for HeredocStripModeDeserializer {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value {
+            HeredocStripMode::None => visitor.visit_str("None"),
+            HeredocStripMode::Indent => visitor.visit_str("Indent"),
+        }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_enum(self)
+    }
+}
+
+impl<'de> de::EnumAccess<'de> for HeredocStripModeDeserializer {
+    type Error = Error;
+    type Variant = AnyVariantAccess<Self>;
+
+    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        let variant = match self.value {
+            HeredocStripMode::None => "None",
+            HeredocStripMode::Indent => "Indent",
+        };
+
+        seed.deserialize(BorrowedStrDeserializer::new(variant))
+            .map(|value| (value, AnyVariantAccess::new(self)))
     }
 }
 

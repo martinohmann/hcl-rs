@@ -51,6 +51,7 @@ mod body;
 pub(crate) mod de;
 mod expression;
 pub(crate) mod ser;
+mod template;
 #[cfg(test)]
 mod tests;
 
@@ -59,6 +60,7 @@ pub use self::{
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
     expression::{Expression, Object, ObjectKey, RawExpression},
+    template::{Heredoc, HeredocStripMode, TemplateExpr},
 };
 use crate::{Map, Value};
 use serde::{Deserialize, Serialize};
