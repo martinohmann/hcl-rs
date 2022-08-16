@@ -160,6 +160,12 @@ impl From<RawExpression> for Expression {
     }
 }
 
+impl From<TemplateExpr> for Expression {
+    fn from(expr: TemplateExpr) -> Self {
+        Expression::TemplateExpr(Box::new(expr))
+    }
+}
+
 /// Represents an object key.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::object_key")]

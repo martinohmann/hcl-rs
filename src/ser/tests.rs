@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression};
+use crate::{Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression, TemplateExpr};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -281,16 +281,14 @@ fn roundtrip() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::String("${var.dynamic}".into()),
-                            Expression::Bool(true),
-                        ),
-                        (
                             ObjectKey::String("application".into()),
                             Expression::String("myapp".into()),
                         ),
                         (
                             ObjectKey::Identifier("team".into()),
-                            Expression::String("bar".into()),
+                            Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(
+                                "${var.team}".into(),
+                            ))),
                         ),
                     ]),
                 ))

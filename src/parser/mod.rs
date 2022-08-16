@@ -3,8 +3,9 @@ mod tests;
 mod unescape;
 
 use crate::{
-    template::Template, Attribute, Block, BlockLabel, Body, Expression, Number, Object, ObjectKey,
-    RawExpression, Result, Structure, TemplateExpr,
+    structure::Identifier, template::Template, Attribute, Block, BlockLabel, Body, Expression,
+    Heredoc, HeredocStripMode, Number, Object, ObjectKey, RawExpression, Result, Structure,
+    TemplateExpr,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -167,19 +168,23 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         match pair.as_rule() {
             Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
             Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
-            Rule::HeredocTemplate => parse_heredoc(pair).map(Expression::String),
             Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
             Rule::NullLit => Ok(Expression::Null),
             Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
-            Rule::QuotedStringTemplate => parse_string(inner(pair)).map(Expression::String),
-            // @TODO(mohmann): fix me
-            // Rule::QuotedStringTemplate => parse_string(inner(pair))
-            //     .map(|s| Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(s)))),
+            Rule::TemplateExpr => parse_template_expr(inner(pair)).map(Into::into),
             Rule::Tuple => parse_expressions(pair).map(Expression::Array),
             Rule::Object => parse_object(pair).map(Expression::Object),
             // @TODO(mohmann): Process ForExpr, VariableExpr etc.
             _ => Ok(Expression::Raw(raw_expression(pair.as_str()))),
         }
+    }
+}
+
+fn parse_template_expr(pair: Pair<Rule>) -> Result<TemplateExpr> {
+    match pair.as_rule() {
+        Rule::QuotedStringTemplate => parse_string(inner(pair)).map(TemplateExpr::QuotedString),
+        Rule::HeredocTemplate => parse_heredoc(pair).map(TemplateExpr::Heredoc),
+        rule => unexpected_rule(rule),
     }
 }
 
@@ -228,19 +233,23 @@ fn raw_expression(raw: &str) -> RawExpression {
     RawExpression::new(raw.trim_end())
 }
 
-fn parse_heredoc(pair: Pair<Rule>) -> Result<String> {
+fn parse_heredoc(pair: Pair<Rule>) -> Result<Heredoc> {
     let mut pairs = pair.into_inner();
     let intro = pairs.next().unwrap();
-    let content = pairs.nth(1).unwrap();
+    let delimiter = pairs.next().unwrap();
+    let template = pairs.next().unwrap();
 
-    match intro.as_rule() {
-        Rule::HeredocIntroNormal => parse_string(content),
-        Rule::HeredocIntroIndent => {
-            let dedented = dedent_string(content.as_str());
-            unescape(&dedented)
-        }
+    let strip = match intro.as_rule() {
+        Rule::HeredocIntroNormal => HeredocStripMode::None,
+        Rule::HeredocIntroIndent => HeredocStripMode::Indent,
         rule => unexpected_rule(rule),
-    }
+    };
+
+    Ok(Heredoc {
+        strip,
+        delimiter: Identifier::new(delimiter.as_str()),
+        template: template.as_str().to_owned(),
+    })
 }
 
 // String dedent implementation which does not distinguish between spaces, tabs or unicode

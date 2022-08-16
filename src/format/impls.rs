@@ -104,6 +104,7 @@ impl Format for Expression {
             Expression::Array(array) => format_array(fmt, array),
             Expression::Object(object) => format_object(fmt, object),
             Expression::Raw(raw) => raw.format(fmt),
+            Expression::TemplateExpr(_) => todo!(),
         }
     }
 }

@@ -50,7 +50,7 @@ ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
 ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 
 // TemplateExpr
-TemplateExpr = _ { QuotedStringTemplate | HeredocTemplate }
+TemplateExpr = { QuotedStringTemplate | HeredocTemplate }
 
 // HeredocTemplate
 HeredocTemplate = ${
@@ -58,7 +58,7 @@ HeredocTemplate = ${
     HeredocContent ~
     SpaceOrTab* ~ POP
 }
-HeredocIntro        = _{ (HeredocIntroIndent | HeredocIntroNormal) }
+HeredocIntro        = _{ HeredocIntroIndent | HeredocIntroNormal }
 HeredocIntroIndent  =  { "<<-" }
 HeredocIntroNormal  =  { "<<" }
 HeredocContent      = @{ HeredocContentInner ~ NEWLINE }

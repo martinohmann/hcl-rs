@@ -358,7 +358,7 @@ impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
             Expression::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
-            Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::TemplateExpr(expr) => visitor.visit_enum(expr.into_deserializer()),
         }
     }
 
@@ -377,7 +377,7 @@ impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
 
 impl<'de> de::EnumAccess<'de> for ExpressionDeserializer {
     type Error = Error;
-    type Variant = AnyVariantAccess<Self>;
+    type Variant = Self;
 
     fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
     where
@@ -395,7 +395,43 @@ impl<'de> de::EnumAccess<'de> for ExpressionDeserializer {
         };
 
         seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, AnyVariantAccess::new(self)))
+            .map(|value| (value, self))
+    }
+}
+
+impl<'de> de::VariantAccess<'de> for ExpressionDeserializer {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        de::Deserialize::deserialize(self)
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        match self.value {
+            Expression::TemplateExpr(expr) => seed.deserialize(expr.into_deserializer()),
+            value => seed.deserialize(value.into_deserializer()),
+        }
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        de::Deserializer::deserialize_seq(self, visitor)
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        de::Deserializer::deserialize_map(self, visitor)
     }
 }
 

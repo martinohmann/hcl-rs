@@ -263,10 +263,12 @@ fn parse_template() {
         rule: Rule::ExprTerm,
         tokens: [
             ExprTerm(0, 54, [
-                HeredocTemplate(0, 54, [
-                    HeredocIntroNormal(0, 2),
-                    Identifier(2, 9),
-                    HeredocContent(10, 47)
+                TemplateExpr(0, 54, [
+                    HeredocTemplate(0, 54, [
+                        HeredocIntroNormal(0, 2),
+                        Identifier(2, 9),
+                        HeredocContent(10, 47)
+                    ])
                 ])
             ])
         ]
@@ -278,25 +280,27 @@ fn parse_template() {
         rule: Rule::ExprTerm,
         tokens: [
             ExprTerm(0, 49, [
-                QuotedStringTemplate(0, 49, [
-                    QuotedStringTemplateInner(1, 48, [
-                        QuotedStringTemplateLiteral(1, 5),
-                        TemplateInterpolation(5, 11, [
-                            ExprTerm(7, 10, [
-                                VariableExpr(7, 10)
-                            ])
-                        ]),
-                        QuotedStringTemplateLiteral(11, 21),
-                        TemplateDirective(21, 48, [
-                            TemplateIf(21, 48, [
-                                ExprTerm(26, 31, [
-                                    VariableExpr(26, 30)
-                                ]),
-                                Template(34, 37, [
-                                    TemplateLiteral(34, 37)
+                TemplateExpr(0, 49, [
+                    QuotedStringTemplate(0, 49, [
+                        QuotedStringTemplateInner(1, 48, [
+                            QuotedStringTemplateLiteral(1, 5),
+                            TemplateInterpolation(5, 11, [
+                                ExprTerm(7, 10, [
+                                    VariableExpr(7, 10)
+                                ])
+                            ]),
+                            QuotedStringTemplateLiteral(11, 21),
+                            TemplateDirective(21, 48, [
+                                TemplateIf(21, 48, [
+                                    ExprTerm(26, 31, [
+                                        VariableExpr(26, 30)
+                                    ]),
+                                    Template(34, 37, [
+                                        TemplateLiteral(34, 37)
+                                    ])
                                 ])
                             ])
-                        ]),
+                        ])
                     ])
                 ])
             ])
@@ -314,26 +318,28 @@ fn parse_cond_in_interpolation() {
             Attribute(0, 37, [
                 Identifier(0, 4),
                 ExprTerm(7, 37, [
-                    QuotedStringTemplate(7, 37, [
-                        QuotedStringTemplateInner(8, 36, [
-                            TemplateInterpolation(8, 36, [
-                                Conditional(10, 35, [
-                                    CondExpr(10, 15, [
-                                        ExprTerm(10, 15, [
-                                            VariableExpr(10, 13),
-                                            GetAttr(13, 15, [
-                                                Identifier(14, 15)
+                    TemplateExpr(7, 37, [
+                        QuotedStringTemplate(7, 37, [
+                            QuotedStringTemplateInner(8, 36, [
+                                TemplateInterpolation(8, 36, [
+                                    Conditional(10, 35, [
+                                        CondExpr(10, 15, [
+                                            ExprTerm(10, 15, [
+                                                VariableExpr(10, 13),
+                                                GetAttr(13, 15, [
+                                                    Identifier(14, 15)
+                                                ])
                                             ])
-                                        ])
-                                    ]),
-                                    ExprTerm(18, 31, [
-                                        StringLit(18, 30, [
-                                            String(19, 29)
-                                        ])
-                                    ]),
-                                    ExprTerm(33, 35, [
-                                        StringLit(33, 35, [
-                                            String(34, 34)
+                                        ]),
+                                        ExprTerm(18, 31, [
+                                            StringLit(18, 30, [
+                                                String(19, 29)
+                                            ])
+                                        ]),
+                                        ExprTerm(33, 35, [
+                                            StringLit(33, 35, [
+                                                String(34, 34)
+                                            ])
                                         ])
                                     ])
                                 ])
@@ -591,7 +597,16 @@ fn unescape_strings() {
                     "object_attr",
                     Expression::from_iter([("key\nwith\nnewlines", true)]),
                 ))
-                .add_attribute(("heredoc", "some string with escaped newline\n"))
+                .add_attribute((
+                    "heredoc",
+                    TemplateExpr::Heredoc(Heredoc {
+                        delimiter: Identifier::new("EOS"),
+                        strip: HeredocStripMode::Indent,
+                        template: String::from(
+                            "            some string with \\\n            escaped newline\n",
+                        ),
+                    }),
+                ))
                 .build(),
         )
         .build();

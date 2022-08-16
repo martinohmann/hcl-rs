@@ -25,6 +25,18 @@ impl TemplateExpr {
     }
 }
 
+impl From<String> for TemplateExpr {
+    fn from(string: String) -> Self {
+        TemplateExpr::QuotedString(string)
+    }
+}
+
+impl From<Heredoc> for TemplateExpr {
+    fn from(heredoc: Heredoc) -> Self {
+        TemplateExpr::Heredoc(heredoc)
+    }
+}
+
 impl fmt::Display for TemplateExpr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
