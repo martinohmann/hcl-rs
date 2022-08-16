@@ -123,6 +123,9 @@ qux {
 "#;
 
     assert_eq!(to_string(&value).unwrap(), expected);
+
+    // Test the new formatting module and ensure the result is identical.
+    assert_eq!(crate::format::to_string(&value).unwrap(), expected);
 }
 
 #[test]
