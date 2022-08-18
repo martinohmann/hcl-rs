@@ -193,7 +193,6 @@ mod tests;
 
 pub use self::format::{Format, PrettyFormatter, PrettyFormatterBuilder};
 use crate::{
-    format::Format as _,
     structure::ser::{
         AttributeSerializer, BodySerializer, SerializeAttributeStruct,
         SerializeAttributeStructVariant, SerializeAttributeTupleVariant, SerializeBlockStruct,
@@ -236,7 +235,7 @@ where
         self.writer
     }
 
-    fn format<V, S>(&mut self, value: &V, serializer: S) -> Result<()>
+    fn serialize_format<V, S>(&mut self, serializer: S, value: &V) -> Result<()>
     where
         V: ?Sized + Serialize,
         S: ser::Serializer<Error = Error>,
@@ -244,7 +243,14 @@ where
     {
         value
             .serialize(serializer)
-            .and_then(|value| value.format(&mut self.writer, &mut self.formatter))
+            .and_then(|value| self.format(value))
+    }
+
+    fn format<V>(&mut self, value: V) -> Result<()>
+    where
+        V: crate::format::Format,
+    {
+        value.format(&mut self.writer, &mut self.formatter)
     }
 }
 
@@ -281,7 +287,7 @@ where
         T: ?Sized + Serialize,
     {
         if name == "$hcl::body" {
-            self.format(value, BodySerializer)
+            self.serialize_format(BodySerializer, value)
         } else {
             value.serialize(self)
         }
@@ -303,11 +309,11 @@ where
         T: ?Sized + Serialize,
     {
         if name == "$hcl::structure" {
-            self.format(value, StructureSerializer)
+            self.serialize_format(StructureSerializer, value)
         } else {
             AttributeSerializer
                 .serialize_newtype_variant(name, variant_index, variant, value)
-                .and_then(|attr| attr.format(&mut self.writer, &mut self.formatter))
+                .and_then(|attr| self.format(attr))
         }
     }
 
@@ -464,9 +470,7 @@ where
     }
 
     fn end(self) -> Result<()> {
-        self.inner
-            .end()
-            .and_then(|attr| attr.format(&mut self.ser.writer, &mut self.ser.formatter))
+        self.inner.end().and_then(|attr| self.ser.format(attr))
     }
 }
 
@@ -499,9 +503,7 @@ where
     }
 
     fn end(self) -> Result<()> {
-        self.inner
-            .end()
-            .and_then(|body| body.format(&mut self.ser.writer, &mut self.ser.formatter))
+        self.inner.end().and_then(|body| self.ser.format(body))
     }
 }
 
@@ -527,9 +529,7 @@ where
     }
 
     fn end(self) -> Result<()> {
-        self.inner
-            .end()
-            .and_then(|attr| attr.format(&mut self.ser.writer, &mut self.ser.formatter))
+        self.inner.end().and_then(|attr| self.ser.format(attr))
     }
 }
 
@@ -572,15 +572,9 @@ where
 
     fn end(self) -> Result<()> {
         match self.kind {
-            StructKind::Attribute(ser) => ser
-                .end()
-                .and_then(|attr| attr.format(&mut self.ser.writer, &mut self.ser.formatter)),
-            StructKind::Block(ser) => ser
-                .end()
-                .and_then(|block| block.format(&mut self.ser.writer, &mut self.ser.formatter)),
-            StructKind::Other(ser) => ser
-                .end()
-                .and_then(|body| body.format(&mut self.ser.writer, &mut self.ser.formatter)),
+            StructKind::Attribute(ser) => ser.end().and_then(|attr| self.ser.format(attr)),
+            StructKind::Block(ser) => ser.end().and_then(|block| self.ser.format(block)),
+            StructKind::Other(ser) => ser.end().and_then(|body| self.ser.format(body)),
         }
     }
 }
