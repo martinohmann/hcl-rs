@@ -123,7 +123,7 @@ impl ser::SerializeSeq for SerializeAttributeSeq {
         } else if self.expr.is_none() {
             self.expr = Some(value.serialize(ExpressionSerializer)?);
         } else {
-            return Err(ser::Error::custom("expected sequence with 2 items"));
+            return Err(ser::Error::custom("expected sequence with 2 elements"));
         }
 
         Ok(())
@@ -132,8 +132,7 @@ impl ser::SerializeSeq for SerializeAttributeSeq {
     fn end(self) -> Result<Self::Ok> {
         match (self.key, self.expr) {
             (Some(key), Some(expr)) => Ok(Attribute::new(key, expr)),
-            (Some(_), None) => Err(ser::Error::custom("attribute value missing")),
-            (_, _) => Err(ser::Error::custom("expected sequence with 2 items")),
+            (_, _) => Err(ser::Error::custom("expected sequence with 2 elements")),
         }
     }
 }
@@ -223,23 +222,23 @@ impl ser::SerializeMap for SerializeAttributeMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        match self.key {
-            None => self.key = Some(key.serialize(StringSerializer)?),
-            Some(_) => return Err(ser::Error::custom("expected map with 1 entry")),
+        if self.key.is_none() {
+            self.key = Some(key.serialize(StringSerializer)?);
+            Ok(())
+        } else {
+            Err(ser::Error::custom("expected map with 1 entry"))
         }
-
-        Ok(())
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + ser::Serialize,
     {
-        match self.key {
-            Some(_) => self.expr = Some(value.serialize(ExpressionSerializer)?),
-            None => panic!("serialize_value called before serialize_key"),
+        if self.key.is_none() {
+            panic!("serialize_value called before serialize_key");
         }
 
+        self.expr = Some(value.serialize(ExpressionSerializer)?);
         Ok(())
     }
 

@@ -132,7 +132,7 @@ impl ser::SerializeSeq for SerializeBlockSeq {
         } else if self.body.is_none() {
             self.body = Some(value.serialize(BodySerializer)?);
         } else {
-            return Err(ser::Error::custom("expected sequence with 3 items"));
+            return Err(ser::Error::custom("expected sequence with 3 elements"));
         }
 
         Ok(())
@@ -141,7 +141,7 @@ impl ser::SerializeSeq for SerializeBlockSeq {
     fn end(self) -> Result<Self::Ok> {
         match (self.identifier, self.labels, self.body) {
             (Some(ident), Some(labels), Some(body)) => Ok(Block::new(ident, labels, body)),
-            (_, _, _) => Err(ser::Error::custom("expected sequence with 3 items")),
+            (_, _, _) => Err(ser::Error::custom("expected sequence with 3 elements")),
         }
     }
 }
@@ -253,30 +253,29 @@ impl ser::SerializeMap for SerializeBlockMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        match self.identifier {
-            None => self.identifier = Some(key.serialize(StringSerializer)?),
-            Some(_) => return Err(ser::Error::custom("expected map with 1 entry")),
+        if self.identifier.is_none() {
+            self.identifier = Some(key.serialize(StringSerializer)?);
+            Ok(())
+        } else {
+            Err(ser::Error::custom("expected map with 1 entry"))
         }
-
-        Ok(())
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + ser::Serialize,
     {
-        match self.identifier {
-            Some(_) => self.body = Some(value.serialize(BodySerializer)?),
-            None => panic!("serialize_value called before serialize_key"),
+        if self.identifier.is_none() {
+            panic!("serialize_value called before serialize_key");
         }
 
+        self.body = Some(value.serialize(BodySerializer)?);
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
         match (self.identifier, self.body) {
             (Some(ident), Some(body)) => Ok(Block::new(ident, Vec::<BlockLabel>::new(), body)),
-            (Some(_), None) => Err(ser::Error::custom("block body missing")),
             (_, _) => Err(ser::Error::custom("expected map with 1 entry")),
         }
     }
