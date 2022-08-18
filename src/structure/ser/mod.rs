@@ -8,16 +8,16 @@ mod expression;
 mod tests;
 
 pub use self::{
-    attribute::{AttributeSerializer, SerializeAttributeStruct},
+    attribute::{
+        AttributeSerializer, SerializeAttributeStruct, SerializeAttributeStructVariant,
+        SerializeAttributeTupleVariant,
+    },
     block::{BlockSerializer, SerializeBlockStruct},
-    body::BodySerializer,
+    body::{BodySerializer, SerializeBodyMap, SerializeBodySeq},
     expression::{to_expression, ExpressionSerializer},
 };
 use self::{
-    attribute::{
-        SerializeAttributeMap, SerializeAttributeSeq, SerializeAttributeStructVariant,
-        SerializeAttributeTupleVariant,
-    },
+    attribute::{SerializeAttributeMap, SerializeAttributeSeq},
     block::SerializeBlockSeq,
 };
 use super::{Identifier, Structure};
