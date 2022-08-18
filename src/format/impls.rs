@@ -1,9 +1,4 @@
-//! Contains the logic to format HCL data structure.
-
-// @NOTE(mohmann): This module is not exported yet since it is subject to change due to a bigger
-// multi-step refactoring. It will eventually replace the formatting code inside serializer
-// implementations.
-
+use super::{private, Format};
 use crate::{
     ser,
     structure::{
@@ -14,21 +9,10 @@ use crate::{
 };
 use std::io;
 
-/// A trait to format data structures as HCL.
-pub trait Format {
-    /// Formats a HCL structure using a formatter and writes the result to the provided writer.
-    ///
-    /// ## Errors
-    ///
-    /// Formatting the data structure or writing to the writer may fail with an `io::Error`.
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
-    where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format;
-}
+impl private::Sealed for Body {}
 
 impl Format for Body {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
@@ -41,8 +25,10 @@ impl Format for Body {
     }
 }
 
+impl private::Sealed for Structure {}
+
 impl Format for Structure {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
@@ -54,8 +40,10 @@ impl Format for Structure {
     }
 }
 
+impl private::Sealed for Attribute {}
+
 impl Format for Attribute {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
@@ -64,12 +52,15 @@ impl Format for Attribute {
         fmt.write_ident(writer, &self.key)?;
         fmt.begin_attribute_value(writer)?;
         self.expr.format(writer, fmt)?;
-        fmt.end_attribute(writer)
+        fmt.end_attribute(writer)?;
+        Ok(())
     }
 }
 
+impl private::Sealed for Block {}
+
 impl Format for Block {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
@@ -84,12 +75,15 @@ impl Format for Block {
 
         fmt.begin_block_body(writer)?;
         self.body.format(writer, fmt)?;
-        fmt.end_block(writer)
+        fmt.end_block(writer)?;
+        Ok(())
     }
 }
 
+impl private::Sealed for BlockLabel {}
+
 impl Format for BlockLabel {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
@@ -101,15 +95,17 @@ impl Format for BlockLabel {
     }
 }
 
+impl private::Sealed for Expression {}
+
 impl Format for Expression {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
     {
         match self {
-            Expression::Null => fmt.write_null(writer),
-            Expression::Bool(b) => fmt.write_bool(writer, *b),
+            Expression::Null => Ok(fmt.write_null(writer)?),
+            Expression::Bool(b) => Ok(fmt.write_bool(writer, *b)?),
             Expression::Number(num) => num.format(writer, fmt),
             Expression::String(string) => string.format(writer, fmt),
             Expression::Array(array) => format_array(writer, fmt, array),
@@ -119,15 +115,17 @@ impl Format for Expression {
     }
 }
 
+impl private::Sealed for Value {}
+
 impl Format for Value {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
     {
         match self {
-            Value::Null => fmt.write_null(writer),
-            Value::Bool(b) => fmt.write_bool(writer, *b),
+            Value::Null => Ok(fmt.write_null(writer)?),
+            Value::Bool(b) => Ok(fmt.write_bool(writer, *b)?),
             Value::Number(num) => num.format(writer, fmt),
             Value::String(string) => string.format(writer, fmt),
             Value::Array(array) => format_array(writer, fmt, array),
@@ -136,22 +134,28 @@ impl Format for Value {
     }
 }
 
+impl private::Sealed for Number {}
+
 impl Format for Number {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
     {
         match *self {
-            Number::PosInt(pos) => fmt.write_int(writer, pos),
-            Number::NegInt(neg) => fmt.write_int(writer, neg),
-            Number::Float(float) => fmt.write_float(writer, float),
+            Number::PosInt(pos) => fmt.write_int(writer, pos)?,
+            Number::NegInt(neg) => fmt.write_int(writer, neg)?,
+            Number::Float(float) => fmt.write_float(writer, float)?,
         }
+
+        Ok(())
     }
 }
 
+impl private::Sealed for ObjectKey {}
+
 impl Format for ObjectKey {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
@@ -162,43 +166,53 @@ impl Format for ObjectKey {
             ObjectKey::RawExpression(raw) => {
                 fmt.begin_interpolated_string(writer)?;
                 raw.format(writer, fmt)?;
-                fmt.end_interpolated_string(writer)
+                fmt.end_interpolated_string(writer)?;
+                Ok(())
             }
         }
     }
 }
 
+impl private::Sealed for RawExpression {}
+
 impl Format for RawExpression {
-    fn format<W, F>(&self, writer: &mut W, _: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, _: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
     {
-        writer.write_all(self.as_str().as_bytes())
+        writer.write_all(self.as_str().as_bytes())?;
+        Ok(())
     }
 }
+
+impl private::Sealed for Identifier {}
 
 impl Format for Identifier {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
     {
-        fmt.write_ident(writer, self.as_str())
+        fmt.write_ident(writer, self.as_str())?;
+        Ok(())
     }
 }
+
+impl private::Sealed for String {}
 
 impl Format for String {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> io::Result<()>
+    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
     where
         W: ?Sized + io::Write,
         F: ?Sized + ser::Format,
     {
-        fmt.write_quoted_string(writer, self)
+        fmt.write_quoted_string(writer, self)?;
+        Ok(())
     }
 }
 
-fn format_array<W, F, T>(writer: &mut W, fmt: &mut F, array: &[T]) -> io::Result<()>
+fn format_array<W, F, T>(writer: &mut W, fmt: &mut F, array: &[T]) -> Result<()>
 where
     W: ?Sized + io::Write,
     F: ?Sized + ser::Format,
@@ -212,10 +226,11 @@ where
         fmt.end_array_value(writer)?;
     }
 
-    fmt.end_array(writer)
+    fmt.end_array(writer)?;
+    Ok(())
 }
 
-fn format_object<W, F, K, V>(writer: &mut W, fmt: &mut F, object: &Map<K, V>) -> io::Result<()>
+fn format_object<W, F, K, V>(writer: &mut W, fmt: &mut F, object: &Map<K, V>) -> Result<()>
 where
     W: ?Sized + io::Write,
     F: ?Sized + ser::Format,
@@ -232,52 +247,6 @@ where
         fmt.end_object_value(writer)?;
     }
 
-    fmt.end_object(writer)
-}
-
-/// Format the given value as an HCL byte vector.
-///
-/// # Errors
-///
-/// Formatting fails if the data structure contains malformed data in certain fields.
-pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
-where
-    T: ?Sized + Format,
-{
-    let mut vec = Vec::with_capacity(128);
-    to_writer(&mut vec, value)?;
-    Ok(vec)
-}
-
-/// Serialize the given value as an HCL string.
-///
-/// # Errors
-///
-/// Formatting fails if the data structure contains malformed data in certain fields.
-pub fn to_string<T>(value: &T) -> Result<String>
-where
-    T: ?Sized + Format,
-{
-    let vec = to_vec(value)?;
-    let string = unsafe {
-        // We do not emit invalid UTF-8.
-        String::from_utf8_unchecked(vec)
-    };
-    Ok(string)
-}
-
-/// Format the given value as HCL and write it into the IO stream.
-///
-/// # Errors
-///
-/// Formatting fails if the data structure contains malformed data in certain fields or if any
-/// operation on the writer fails.
-pub fn to_writer<W, T>(mut writer: W, value: &T) -> Result<()>
-where
-    W: io::Write,
-    T: ?Sized + Format,
-{
-    let mut fmt = ser::PrettyFormatter::default();
-    value.format(&mut writer, &mut fmt)?;
+    fmt.end_object(writer)?;
     Ok(())
 }

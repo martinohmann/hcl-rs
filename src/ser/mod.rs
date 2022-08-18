@@ -198,8 +198,8 @@ use crate::{
         BodySerializer, ExpressionSerializer, IdentifierSerializer, SerializeAttributeStruct,
         SerializeBlockStruct, StructureSerializer,
     },
+    Error, Result,
 };
-use crate::{Error, Result};
 use serde::ser::{self, Serialize};
 use std::io;
 
