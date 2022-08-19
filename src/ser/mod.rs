@@ -281,11 +281,6 @@ where
             .and_then(|body| self.format(body))
     }
 
-    /// Newtype variants have special handling for `hcl::Structure`. For this enum, the inner type
-    /// is serialized, which is either `hcl::Attribute` or `hcl::Block`. These will be handled by
-    /// `serialize_struct` below.
-    ///
-    /// Any other newtype variant is serialized as an HCL attribute (`VARIANT = VALUE`)
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
@@ -301,19 +296,16 @@ where
             .and_then(|body| self.format(body))
     }
 
-    /// A sequence of HCL attributes and blocks.
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         BodySerializer
             .serialize_seq(len)
             .map(|inner| SerializeSeq { ser: self, inner })
     }
 
-    /// A tuple of HCL attributes and blocks.
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.serialize_seq(Some(len))
     }
 
-    /// A tuple of HCL attributes and blocks.
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -322,7 +314,6 @@ where
         self.serialize_seq(Some(len))
     }
 
-    /// Tuple variants are serialized as HCL attributes with an array value (`VARIANT = [...]`).
     fn serialize_tuple_variant(
         self,
         name: &'static str,
@@ -335,25 +326,18 @@ where
             .map(|inner| SerializeTupleVariant { ser: self, inner })
     }
 
-    /// Maps are serialized as sequences of HCL attributes (`KEY1 = VALUE1`).
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         BodySerializer
             .serialize_map(len)
             .map(|inner| SerializeMap { ser: self, inner })
     }
 
-    /// Structs have special handling for `hcl::Attribute` and `hcl::Block`. Attributes are
-    /// serialized as key-expression pairs (`KEY = EXPR`), whereas blocks are serialized as block
-    /// identifier, block labels (if any) and block body.
-    ///
-    /// Any other struct is serialized as a sequence of HCL attributes.
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         BodySerializer
             .serialize_struct(name, len)
             .map(|inner| SerializeStruct { ser: self, inner })
     }
 
-    /// Struct variants are serialized as HCL attributes with object value (`VARIANT = {...}`).
     fn serialize_struct_variant(
         self,
         name: &'static str,
