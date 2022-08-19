@@ -1,5 +1,8 @@
 use super::{
-    attribute::{SerializeAttributeStructVariant, SerializeAttributeTupleVariant},
+    attribute::{
+        SerializeAttributeStruct, SerializeAttributeStructVariant, SerializeAttributeTupleVariant,
+    },
+    block::SerializeBlockStruct,
     ExpressionSerializer, IdentifierSerializer, StructureSerializer,
 };
 use crate::{serialize_unsupported, Attribute, Body, Error, Result, Structure};
@@ -16,7 +19,7 @@ impl ser::Serializer for BodySerializer {
     type SerializeTupleStruct = SerializeBodySeq;
     type SerializeTupleVariant = SerializeBodyTupleVariant;
     type SerializeMap = SerializeBodyMap;
-    type SerializeStruct = SerializeBodyMap;
+    type SerializeStruct = SerializeBodyStruct;
     type SerializeStructVariant = SerializeBodyStructVariant;
 
     serialize_unsupported! {
@@ -41,17 +44,18 @@ impl ser::Serializer for BodySerializer {
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
+        variant_index: u32,
+        variant: &'static str,
         value: &T,
     ) -> Result<Body>
     where
         T: ?Sized + Serialize,
     {
-        if name == "$hcl::structure" {
-            Ok(Body(vec![value.serialize(StructureSerializer)?]))
-        } else {
-            value.serialize(self)
+        match name {
+            "$hcl::body" => value.serialize(self),
+            _ => StructureSerializer
+                .serialize_newtype_variant(name, variant_index, variant, value)
+                .map(Into::into),
         }
     }
 
@@ -82,9 +86,7 @@ impl ser::Serializer for BodySerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeBodyTupleVariant(
-            SerializeAttributeTupleVariant::new(variant, len),
-        ))
+        Ok(SerializeBodyTupleVariant::new(variant, len))
     }
 
     /// Maps are serialized as sequences of HCL attributes (`KEY1 = VALUE1`).
@@ -97,8 +99,8 @@ impl ser::Serializer for BodySerializer {
     /// identifier, block labels (if any) and block body.
     ///
     /// Any other struct is serialized as a sequence of HCL attributes.
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        self.serialize_map(Some(len))
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        Ok(SerializeBodyStruct::new(name, len))
     }
 
     /// Struct variants are serialized as HCL attributes with object value (`VARIANT = {...}`).
@@ -109,9 +111,7 @@ impl ser::Serializer for BodySerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeBodyStructVariant(
-            SerializeAttributeStructVariant::new(variant, len),
-        ))
+        Ok(SerializeBodyStructVariant::new(variant, len))
     }
 }
 
@@ -176,7 +176,17 @@ impl serde::ser::SerializeTupleStruct for SerializeBodySeq {
     }
 }
 
-pub struct SerializeBodyTupleVariant(SerializeAttributeTupleVariant);
+pub struct SerializeBodyTupleVariant {
+    inner: SerializeAttributeTupleVariant,
+}
+
+impl SerializeBodyTupleVariant {
+    pub fn new(variant: &'static str, len: usize) -> Self {
+        SerializeBodyTupleVariant {
+            inner: SerializeAttributeTupleVariant::new(variant, len),
+        }
+    }
+}
 
 impl ser::SerializeTupleVariant for SerializeBodyTupleVariant {
     type Ok = Body;
@@ -186,12 +196,11 @@ impl ser::SerializeTupleVariant for SerializeBodyTupleVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.0.serialize_field(value)
+        self.inner.serialize_field(value)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        let attr = self.0.end()?;
-        Ok(Body(vec![attr.into()]))
+        self.inner.end().map(Into::into)
     }
 }
 
@@ -253,7 +262,57 @@ impl ser::SerializeStruct for SerializeBodyMap {
     }
 }
 
-pub struct SerializeBodyStructVariant(SerializeAttributeStructVariant);
+pub enum SerializeBodyStruct {
+    Attribute(SerializeAttributeStruct),
+    Block(SerializeBlockStruct),
+    Other(SerializeBodyMap),
+}
+
+impl SerializeBodyStruct {
+    pub fn new(name: &'static str, len: usize) -> Self {
+        match name {
+            "$hcl::attribute" => SerializeBodyStruct::Attribute(SerializeAttributeStruct::new()),
+            "$hcl::block" => SerializeBodyStruct::Block(SerializeBlockStruct::new()),
+            _ => SerializeBodyStruct::Other(SerializeBodyMap::new(Some(len))),
+        }
+    }
+}
+
+impl ser::SerializeStruct for SerializeBodyStruct {
+    type Ok = Body;
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        match self {
+            SerializeBodyStruct::Attribute(ser) => ser.serialize_field(key, value),
+            SerializeBodyStruct::Block(ser) => ser.serialize_field(key, value),
+            SerializeBodyStruct::Other(ser) => ser.serialize_field(key, value),
+        }
+    }
+
+    fn end(self) -> Result<Body> {
+        match self {
+            SerializeBodyStruct::Attribute(ser) => ser.end().map(Into::into),
+            SerializeBodyStruct::Block(ser) => ser.end().map(Into::into),
+            SerializeBodyStruct::Other(ser) => ser.end(),
+        }
+    }
+}
+
+pub struct SerializeBodyStructVariant {
+    inner: SerializeAttributeStructVariant,
+}
+
+impl SerializeBodyStructVariant {
+    pub fn new(variant: &'static str, len: usize) -> Self {
+        SerializeBodyStructVariant {
+            inner: SerializeAttributeStructVariant::new(variant, len),
+        }
+    }
+}
 
 impl ser::SerializeStructVariant for SerializeBodyStructVariant {
     type Ok = Body;
@@ -263,11 +322,10 @@ impl ser::SerializeStructVariant for SerializeBodyStructVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.0.serialize_field(key, value)
+        self.inner.serialize_field(key, value)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        let attr = self.0.end()?;
-        Ok(Body(vec![attr.into()]))
+        self.inner.end().map(Into::into)
     }
 }

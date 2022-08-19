@@ -194,9 +194,8 @@ mod tests;
 pub use self::format::{Format, PrettyFormatter, PrettyFormatterBuilder};
 use crate::{
     structure::ser::{
-        AttributeSerializer, BodySerializer, SerializeAttributeStruct,
-        SerializeAttributeStructVariant, SerializeAttributeTupleVariant, SerializeBlockStruct,
-        SerializeBodyMap, StructureSerializer,
+        BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
+        SerializeBodyStructVariant, SerializeBodyTupleVariant,
     },
     Error, Result,
 };
@@ -235,17 +234,6 @@ where
         self.writer
     }
 
-    fn serialize_format<V, S>(&mut self, serializer: S, value: &V) -> Result<()>
-    where
-        V: ?Sized + Serialize,
-        S: ser::Serializer<Error = Error>,
-        S::Ok: crate::format::Format,
-    {
-        value
-            .serialize(serializer)
-            .and_then(|value| self.format(value))
-    }
-
     fn format<V>(&mut self, value: V) -> Result<()>
     where
         V: crate::format::Format,
@@ -262,9 +250,9 @@ where
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = Self;
-    type SerializeTuple = Self;
-    type SerializeTupleStruct = Self;
+    type SerializeSeq = SerializeSeq<'a, W, F>;
+    type SerializeTuple = SerializeSeq<'a, W, F>;
+    type SerializeTupleStruct = SerializeSeq<'a, W, F>;
     type SerializeTupleVariant = SerializeTupleVariant<'a, W, F>;
     type SerializeMap = SerializeMap<'a, W, F>;
     type SerializeStruct = SerializeStruct<'a, W, F>;
@@ -279,18 +267,18 @@ where
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(self)
+        BodySerializer
+            .serialize_some(value)
+            .and_then(|body| self.format(body))
     }
 
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        if name == "$hcl::body" {
-            self.serialize_format(BodySerializer, value)
-        } else {
-            value.serialize(self)
-        }
+        BodySerializer
+            .serialize_newtype_struct(name, value)
+            .and_then(|body| self.format(body))
     }
 
     /// Newtype variants have special handling for `hcl::Structure`. For this enum, the inner type
@@ -308,18 +296,16 @@ where
     where
         T: ?Sized + Serialize,
     {
-        if name == "$hcl::structure" {
-            self.serialize_format(StructureSerializer, value)
-        } else {
-            AttributeSerializer
-                .serialize_newtype_variant(name, variant_index, variant, value)
-                .and_then(|attr| self.format(attr))
-        }
+        BodySerializer
+            .serialize_newtype_variant(name, variant_index, variant, value)
+            .and_then(|body| self.format(body))
     }
 
     /// A sequence of HCL attributes and blocks.
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Ok(self)
+    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
+        BodySerializer
+            .serialize_seq(len)
+            .map(|inner| SerializeSeq { ser: self, inner })
     }
 
     /// A tuple of HCL attributes and blocks.
@@ -339,23 +325,21 @@ where
     /// Tuple variants are serialized as HCL attributes with an array value (`VARIANT = [...]`).
     fn serialize_tuple_variant(
         self,
-        _name: &'static str,
-        _variant_index: u32,
+        name: &'static str,
+        variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeTupleVariant {
-            ser: self,
-            inner: SerializeAttributeTupleVariant::new(variant, len),
-        })
+        BodySerializer
+            .serialize_tuple_variant(name, variant_index, variant, len)
+            .map(|inner| SerializeTupleVariant { ser: self, inner })
     }
 
     /// Maps are serialized as sequences of HCL attributes (`KEY1 = VALUE1`).
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        Ok(SerializeMap {
-            ser: self,
-            inner: SerializeBodyMap::new(len),
-        })
+        BodySerializer
+            .serialize_map(len)
+            .map(|inner| SerializeMap { ser: self, inner })
     }
 
     /// Structs have special handling for `hcl::Attribute` and `hcl::Block`. Attributes are
@@ -364,31 +348,32 @@ where
     ///
     /// Any other struct is serialized as a sequence of HCL attributes.
     fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        let kind = match name {
-            "$hcl::attribute" => StructKind::Attribute(SerializeAttributeStruct::new()),
-            "$hcl::block" => StructKind::Block(SerializeBlockStruct::new()),
-            _ => StructKind::Other(SerializeBodyMap::new(Some(len))),
-        };
-
-        Ok(SerializeStruct::new(kind, self))
+        BodySerializer
+            .serialize_struct(name, len)
+            .map(|inner| SerializeStruct { ser: self, inner })
     }
 
     /// Struct variants are serialized as HCL attributes with object value (`VARIANT = {...}`).
     fn serialize_struct_variant(
         self,
-        _name: &'static str,
-        _variant_index: u32,
+        name: &'static str,
+        variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeStructVariant {
-            ser: self,
-            inner: SerializeAttributeStructVariant::new(variant, len),
-        })
+        BodySerializer
+            .serialize_struct_variant(name, variant_index, variant, len)
+            .map(|inner| SerializeStructVariant { ser: self, inner })
     }
 }
 
-impl<'a, W, F> ser::SerializeSeq for &'a mut Serializer<W, F>
+#[doc(hidden)]
+pub struct SerializeSeq<'a, W, F> {
+    inner: SerializeBodySeq,
+    ser: &'a mut Serializer<W, F>,
+}
+
+impl<'a, W, F> ser::SerializeSeq for SerializeSeq<'a, W, F>
 where
     W: io::Write,
     F: Format,
@@ -400,15 +385,15 @@ where
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut **self)
+        self.inner.serialize_element(value)
     }
 
     fn end(self) -> Result<()> {
-        Ok(())
+        self.inner.end().and_then(|body| self.ser.format(body))
     }
 }
 
-impl<'a, W, F> ser::SerializeTuple for &'a mut Serializer<W, F>
+impl<'a, W, F> ser::SerializeTuple for SerializeSeq<'a, W, F>
 where
     W: io::Write,
     F: Format,
@@ -428,7 +413,7 @@ where
     }
 }
 
-impl<'a, W, F> ser::SerializeTupleStruct for &'a mut Serializer<W, F>
+impl<'a, W, F> ser::SerializeTupleStruct for SerializeSeq<'a, W, F>
 where
     W: io::Write,
     F: Format,
@@ -450,7 +435,7 @@ where
 
 #[doc(hidden)]
 pub struct SerializeTupleVariant<'a, W, F> {
-    inner: SerializeAttributeTupleVariant,
+    inner: SerializeBodyTupleVariant,
     ser: &'a mut Serializer<W, F>,
 }
 
@@ -470,7 +455,7 @@ where
     }
 
     fn end(self) -> Result<()> {
-        self.inner.end().and_then(|attr| self.ser.format(attr))
+        self.inner.end().and_then(|body| self.ser.format(body))
     }
 }
 
@@ -509,7 +494,7 @@ where
 
 #[doc(hidden)]
 pub struct SerializeStructVariant<'a, W, F> {
-    inner: SerializeAttributeStructVariant,
+    inner: SerializeBodyStructVariant,
     ser: &'a mut Serializer<W, F>,
 }
 
@@ -529,26 +514,14 @@ where
     }
 
     fn end(self) -> Result<()> {
-        self.inner.end().and_then(|attr| self.ser.format(attr))
+        self.inner.end().and_then(|body| self.ser.format(body))
     }
-}
-
-enum StructKind {
-    Attribute(SerializeAttributeStruct),
-    Block(SerializeBlockStruct),
-    Other(SerializeBodyMap),
 }
 
 #[doc(hidden)]
 pub struct SerializeStruct<'a, W, F> {
-    kind: StructKind,
+    inner: SerializeBodyStruct,
     ser: &'a mut Serializer<W, F>,
-}
-
-impl<'a, W, F> SerializeStruct<'a, W, F> {
-    fn new(kind: StructKind, ser: &'a mut Serializer<W, F>) -> Self {
-        SerializeStruct { kind, ser }
-    }
 }
 
 impl<'a, W, F> ser::SerializeStruct for SerializeStruct<'a, W, F>
@@ -563,19 +536,11 @@ where
     where
         T: ?Sized + Serialize,
     {
-        match &mut self.kind {
-            StructKind::Attribute(ser) => ser.serialize_field(key, value),
-            StructKind::Block(ser) => ser.serialize_field(key, value),
-            StructKind::Other(ser) => ser.serialize_field(key, value),
-        }
+        self.inner.serialize_field(key, value)
     }
 
     fn end(self) -> Result<()> {
-        match self.kind {
-            StructKind::Attribute(ser) => ser.end().and_then(|attr| self.ser.format(attr)),
-            StructKind::Block(ser) => ser.end().and_then(|block| self.ser.format(block)),
-            StructKind::Other(ser) => ser.end().and_then(|body| self.ser.format(body)),
-        }
+        self.inner.end().and_then(|body| self.ser.format(body))
     }
 }
 

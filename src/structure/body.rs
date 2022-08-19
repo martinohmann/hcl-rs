@@ -193,6 +193,15 @@ impl From<Body> for Map<String, Value> {
     }
 }
 
+impl<T> From<T> for Body
+where
+    T: Into<Structure>,
+{
+    fn from(value: T) -> Body {
+        Body(vec![value.into()])
+    }
+}
+
 impl<S> FromIterator<S> for Body
 where
     S: Into<Structure>,
