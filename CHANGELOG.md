@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.5](https://github.com/martinohmann/hcl-rs/compare/v0.6.4...v0.6.5) (2022-08-19)
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.4 to 3.0.5 ([#48](https://github.com/martinohmann/hcl-rs/issues/48)) ([530fee4](https://github.com/martinohmann/hcl-rs/commit/530fee4f93dd4dd7b642bf1c0b719b4364166909))
+* **deps:** bump pest from 2.1.3 to 2.2.1 ([#52](https://github.com/martinohmann/hcl-rs/issues/52)) ([555b7e4](https://github.com/martinohmann/hcl-rs/commit/555b7e42a32bfcd005f2d2761d7e5a94c6704098))
+
 ## [0.6.4](https://github.com/martinohmann/hcl-rs/compare/v0.6.3...v0.6.4) (2022-07-30)
 
 
