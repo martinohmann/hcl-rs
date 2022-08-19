@@ -1,14 +1,14 @@
 use super::{
-    attribute::{
-        SerializeAttributeStruct, SerializeAttributeStructVariant, SerializeAttributeTupleVariant,
-    },
+    attribute::SerializeAttributeStruct,
     block::SerializeBlockStruct,
     expression::ExpressionSerializer,
-    structure::StructureSerializer,
+    structure::{
+        SerializeStructureStructVariant, SerializeStructureTupleVariant, StructureSerializer,
+    },
     IdentifierSerializer,
 };
 use crate::{serialize_unsupported, Attribute, Body, Error, Result, Structure};
-use serde::ser::{self, Serialize};
+use serde::ser::{self, Serialize, SerializeMap};
 
 pub struct BodySerializer;
 
@@ -179,13 +179,13 @@ impl serde::ser::SerializeTupleStruct for SerializeBodySeq {
 }
 
 pub struct SerializeBodyTupleVariant {
-    inner: SerializeAttributeTupleVariant,
+    inner: SerializeStructureTupleVariant,
 }
 
 impl SerializeBodyTupleVariant {
     pub fn new(variant: &'static str, len: usize) -> Self {
         SerializeBodyTupleVariant {
-            inner: SerializeAttributeTupleVariant::new(variant, len),
+            inner: SerializeStructureTupleVariant::new(variant, len),
         }
     }
 }
@@ -248,22 +248,6 @@ impl ser::SerializeMap for SerializeBodyMap {
     }
 }
 
-impl ser::SerializeStruct for SerializeBodyMap {
-    type Ok = Body;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeMap::serialize_entry(self, key, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeMap::end(self)
-    }
-}
-
 pub enum SerializeBodyStruct {
     Attribute(SerializeAttributeStruct),
     Block(SerializeBlockStruct),
@@ -291,7 +275,7 @@ impl ser::SerializeStruct for SerializeBodyStruct {
         match self {
             SerializeBodyStruct::Attribute(ser) => ser.serialize_field(key, value),
             SerializeBodyStruct::Block(ser) => ser.serialize_field(key, value),
-            SerializeBodyStruct::Other(ser) => ser.serialize_field(key, value),
+            SerializeBodyStruct::Other(ser) => ser.serialize_entry(key, value),
         }
     }
 
@@ -305,13 +289,13 @@ impl ser::SerializeStruct for SerializeBodyStruct {
 }
 
 pub struct SerializeBodyStructVariant {
-    inner: SerializeAttributeStructVariant,
+    inner: SerializeStructureStructVariant,
 }
 
 impl SerializeBodyStructVariant {
     pub fn new(variant: &'static str, len: usize) -> Self {
         SerializeBodyStructVariant {
-            inner: SerializeAttributeStructVariant::new(variant, len),
+            inner: SerializeStructureStructVariant::new(variant, len),
         }
     }
 }

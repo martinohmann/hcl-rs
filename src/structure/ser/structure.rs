@@ -162,7 +162,7 @@ impl ser::SerializeTuple for SerializeStructureSeq {
     }
 }
 
-impl serde::ser::SerializeTupleStruct for SerializeStructureSeq {
+impl ser::SerializeTupleStruct for SerializeStructureSeq {
     type Ok = Structure;
     type Error = Error;
 
@@ -183,7 +183,7 @@ pub struct SerializeStructureTupleVariant {
 }
 
 impl SerializeStructureTupleVariant {
-    fn new(variant: &'static str, len: usize) -> Self {
+    pub fn new(variant: &'static str, len: usize) -> Self {
         SerializeStructureTupleVariant {
             inner: SerializeAttributeTupleVariant::new(variant, len),
         }
@@ -244,7 +244,7 @@ impl ser::SerializeMap for SerializeStructureMap {
 pub enum SerializeStructureStruct {
     Attribute(SerializeAttributeStruct),
     Block(SerializeBlockStruct),
-    Other(SerializeAttributeMap),
+    Other(SerializeStructureMap),
 }
 
 impl SerializeStructureStruct {
@@ -255,7 +255,7 @@ impl SerializeStructureStruct {
                 SerializeStructureStruct::Attribute(SerializeAttributeStruct::new())
             }
             "$hcl::block" => SerializeStructureStruct::Block(SerializeBlockStruct::new()),
-            _ => SerializeStructureStruct::Other(SerializeAttributeMap::new()),
+            _ => SerializeStructureStruct::Other(SerializeStructureMap::new()),
         }
     }
 }
@@ -279,7 +279,7 @@ impl ser::SerializeStruct for SerializeStructureStruct {
         match self {
             SerializeStructureStruct::Attribute(ser) => ser.end().map(Into::into),
             SerializeStructureStruct::Block(ser) => ser.end().map(Into::into),
-            SerializeStructureStruct::Other(ser) => ser.end().map(Into::into),
+            SerializeStructureStruct::Other(ser) => ser.end(),
         }
     }
 }
@@ -289,7 +289,7 @@ pub struct SerializeStructureStructVariant {
 }
 
 impl SerializeStructureStructVariant {
-    fn new(variant: &'static str, len: usize) -> Self {
+    pub fn new(variant: &'static str, len: usize) -> Self {
         SerializeStructureStructVariant {
             inner: SerializeAttributeStructVariant::new(variant, len),
         }
