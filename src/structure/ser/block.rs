@@ -1,6 +1,6 @@
 use super::{
-    BodySerializer, ExpressionSerializer, IdentifierSerializer, SeqSerializer, StringSerializer,
-    StructureSerializer,
+    body::BodySerializer, expression::ExpressionSerializer, structure::StructureSerializer,
+    IdentifierSerializer, SeqSerializer, StringSerializer,
 };
 use crate::{serialize_unsupported, Attribute, Block, BlockLabel, Body, Error, Result, Structure};
 use serde::ser::{self, Impossible, Serialize};

@@ -193,7 +193,7 @@ mod tests;
 
 pub use self::format::{Format, PrettyFormatter, PrettyFormatterBuilder};
 use crate::{
-    structure::ser::{
+    structure::ser::body::{
         BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
         SerializeBodyStructVariant, SerializeBodyTupleVariant,
     },

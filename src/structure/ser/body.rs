@@ -3,7 +3,9 @@ use super::{
         SerializeAttributeStruct, SerializeAttributeStructVariant, SerializeAttributeTupleVariant,
     },
     block::SerializeBlockStruct,
-    ExpressionSerializer, IdentifierSerializer, StructureSerializer,
+    expression::ExpressionSerializer,
+    structure::StructureSerializer,
+    IdentifierSerializer,
 };
 use crate::{serialize_unsupported, Attribute, Body, Error, Result, Structure};
 use serde::ser::{self, Serialize};

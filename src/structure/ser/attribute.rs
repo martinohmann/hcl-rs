@@ -1,4 +1,4 @@
-use super::{ExpressionSerializer, StringSerializer};
+use super::{expression::ExpressionSerializer, StringSerializer};
 use crate::{serialize_unsupported, Attribute, Error, Expression, Object, ObjectKey, Result};
 use serde::ser::{self, Serialize};
 
