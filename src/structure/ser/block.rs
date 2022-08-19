@@ -322,12 +322,11 @@ impl ser::SerializeStruct for SerializeBlockStruct {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match (self.identifier, self.labels, self.body) {
-            (Some(ident), Some(labels), Some(body)) => Ok(Block::new(ident, labels, body)),
-            (Some(ident), None, Some(body)) => {
-                Ok(Block::new(ident, Vec::<BlockLabel>::new(), body))
+        match (self.identifier, self.body) {
+            (Some(ident), Some(body)) => {
+                Ok(Block::new(ident, self.labels.unwrap_or_default(), body))
             }
-            (_, _, _) => Err(ser::Error::custom(
+            (_, _) => Err(ser::Error::custom(
                 "expected struct with fields `identifier`, `body` and optional `labels`",
             )),
         }

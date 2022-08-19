@@ -289,7 +289,6 @@ impl ser::SerializeStruct for SerializeAttributeStruct {
     fn end(self) -> Result<Self::Ok> {
         match (self.key, self.expr) {
             (Some(key), Some(expr)) => Ok(Attribute::new(key, expr)),
-            (Some(_), None) => Err(ser::Error::custom("`expr` field missing")),
             (_, _) => Err(ser::Error::custom(
                 "expected struct with fields `key` and `expr`",
             )),

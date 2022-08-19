@@ -140,8 +140,8 @@ impl ser::SerializeSeq for SerializeStructureSeq {
 
     fn end(self) -> Result<Self::Ok> {
         match self {
-            SerializeStructureSeq::Attribute(attr) => attr.end().map(Structure::Attribute),
-            SerializeStructureSeq::Block(block) => block.end().map(Structure::Block),
+            SerializeStructureSeq::Attribute(attr) => attr.end().map(Into::into),
+            SerializeStructureSeq::Block(block) => block.end().map(Into::into),
         }
     }
 }
