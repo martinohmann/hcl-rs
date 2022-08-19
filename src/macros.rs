@@ -29,12 +29,12 @@
 /// The `body!` macro is composed out of different other macros that can be used on their own to
 /// construct HCL data structures:
 ///
-/// - [`attribute!`]: constructs an [`Attribute`][Attribute]
-/// - [`block!`]: constructs a [`Block`][Block]
-/// - [`block_label!`]: constructs a [`BlockLabel`][BlockLabel]
-/// - [`expression!`]: constructs an [`Expression`][Expression]
-/// - [`object_key!`]: constructs an [`ObjectKey`][ObjectKey]
-/// - [`structure!`]: constructs a [`Structure`][Structure]
+/// - [`attribute!`][`crate::attribute!`]: constructs an [`Attribute`][Attribute]
+/// - [`block!`][`crate::block!`]: constructs a [`Block`][Block]
+/// - [`block_label!`][`crate::block_label!`]: constructs a [`BlockLabel`][BlockLabel]
+/// - [`expression!`][`crate::expression!`]: constructs an [`Expression`][Expression]
+/// - [`object_key!`][`crate::object_key!`]: constructs an [`ObjectKey`][ObjectKey]
+/// - [`structure!`][`crate::structure!`]: constructs a [`Structure`][Structure]
 ///
 /// [Attribute]: ./struct.Attribute.html
 /// [Block]: ./struct.Block.html
