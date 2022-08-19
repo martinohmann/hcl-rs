@@ -1,17 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use hcl::{Body, Result, Value};
-use serde::{Deserialize, Serialize};
-
-fn roundtrip<'de, T>(input: &'de str) -> Result<String>
-where
-    T: Deserialize<'de> + Serialize,
-{
-    let v = hcl::from_str::<T>(input)?;
-    hcl::to_string(&v)
-}
+use hcl::{Body, Value};
 
 fn benchmark(c: &mut Criterion) {
     let input = std::fs::read_to_string("specsuite/hcl/terraform.hcl").unwrap();
+    let body: Body = hcl::from_str(&input).unwrap();
+    let value: Value = hcl::from_str(&input).unwrap();
 
     c.bench_function("hcl::parse", |b| b.iter(|| hcl::parse(&input)));
 
@@ -23,12 +16,12 @@ fn benchmark(c: &mut Criterion) {
         b.iter(|| hcl::from_str::<Value>(&input))
     });
 
-    c.bench_function("roundtrip::<Body>", |b| {
-        b.iter(|| roundtrip::<Body>(&input))
+    c.bench_function("hcl::to_string(&Body)", |b| {
+        b.iter(|| hcl::to_string(&body))
     });
 
-    c.bench_function("roundtrip::<Value>", |b| {
-        b.iter(|| roundtrip::<Value>(&input))
+    c.bench_function("hcl::to_string(&Value)", |b| {
+        b.iter(|| hcl::to_string(&value))
     });
 }
 
