@@ -28,8 +28,8 @@ path = "specsuite/main.rs"
 harness = false
 
 [dependencies]
-pest = "2.1.3"
-pest_derive = "2.1.0"
+pest = "2.2.1"
+pest_derive = "2.2.1"
 itoa = "1.0.1"
 ryu = "1.0.9"
 unicode-ident = "1.0.0"
