@@ -6,7 +6,7 @@ pub mod de;
 pub mod error;
 #[macro_use]
 mod macros;
-mod format;
+pub mod format;
 mod number;
 mod parser;
 pub mod ser;

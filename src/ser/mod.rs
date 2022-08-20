@@ -186,13 +186,11 @@
 //! # }
 //! ```
 
-mod escape;
-mod format;
 #[cfg(test)]
 mod tests;
 
-pub use self::format::{Format, PrettyFormatter, PrettyFormatterBuilder};
 use crate::{
+    format::{Format, Formatter},
     structure::ser::body::{
         BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
         SerializeBodyStructVariant, SerializeBodyTupleVariant,
@@ -203,60 +201,57 @@ use serde::ser::{self, Serialize};
 use std::io;
 
 /// A structure for serializing Rust values into HCL.
-pub struct Serializer<W, F> {
-    writer: W,
-    formatter: F,
+pub struct Serializer<'a, W> {
+    formatter: Formatter<'a, W>,
 }
 
-impl<'a, W> Serializer<W, PrettyFormatter<'a>>
+impl<'a, W> Serializer<'a, W>
 where
     W: io::Write,
 {
-    /// Creates a new `Serializer` which serializes to the provides writer.
+    /// Creates a new `Serializer` which serializes to the provides writer using the default
+    /// formatter.
     pub fn new(writer: W) -> Self {
-        Serializer::with_formatter(writer, PrettyFormatter::default())
+        Serializer::with_formatter(Formatter::new(writer))
     }
 }
 
-impl<W, F> Serializer<W, F>
+impl<'a, W> Serializer<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
-    /// Creates a new `Serializer` which serializes to the provides writer using the provides
-    /// formatter.
-    pub fn with_formatter(writer: W, formatter: F) -> Serializer<W, F> {
-        Serializer { writer, formatter }
+    /// Creates a new `Serializer` which uses the provides formatter to format the serialized HCL.
+    pub fn with_formatter(formatter: Formatter<'a, W>) -> Serializer<'a, W> {
+        Serializer { formatter }
     }
 
     /// Consumes `self` and returns the wrapped writer.
     pub fn into_inner(self) -> W {
-        self.writer
+        self.formatter.into_inner()
     }
 
     fn format<V>(&mut self, value: V) -> Result<()>
     where
-        V: crate::format::Format,
+        V: Format,
     {
-        value.format(&mut self.writer, &mut self.formatter)
+        value.format(&mut self.formatter)
     }
 }
 
-impl<'a, W, F> ser::Serializer for &'a mut Serializer<W, F>
+impl<'a, W> ser::Serializer for &'a mut Serializer<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
 
-    type SerializeSeq = SerializeSeq<'a, W, F>;
-    type SerializeTuple = SerializeSeq<'a, W, F>;
-    type SerializeTupleStruct = SerializeSeq<'a, W, F>;
-    type SerializeTupleVariant = SerializeTupleVariant<'a, W, F>;
-    type SerializeMap = SerializeMap<'a, W, F>;
-    type SerializeStruct = SerializeStruct<'a, W, F>;
-    type SerializeStructVariant = SerializeStructVariant<'a, W, F>;
+    type SerializeSeq = SerializeSeq<'a, W>;
+    type SerializeTuple = SerializeSeq<'a, W>;
+    type SerializeTupleStruct = SerializeSeq<'a, W>;
+    type SerializeTupleVariant = SerializeTupleVariant<'a, W>;
+    type SerializeMap = SerializeMap<'a, W>;
+    type SerializeStruct = SerializeStruct<'a, W>;
+    type SerializeStructVariant = SerializeStructVariant<'a, W>;
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
@@ -352,15 +347,14 @@ where
 }
 
 #[doc(hidden)]
-pub struct SerializeSeq<'a, W, F> {
+pub struct SerializeSeq<'a, W> {
     inner: SerializeBodySeq,
-    ser: &'a mut Serializer<W, F>,
+    ser: &'a mut Serializer<'a, W>,
 }
 
-impl<'a, W, F> ser::SerializeSeq for SerializeSeq<'a, W, F>
+impl<'a, W> ser::SerializeSeq for SerializeSeq<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -377,10 +371,9 @@ where
     }
 }
 
-impl<'a, W, F> ser::SerializeTuple for SerializeSeq<'a, W, F>
+impl<'a, W> ser::SerializeTuple for SerializeSeq<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -397,10 +390,9 @@ where
     }
 }
 
-impl<'a, W, F> ser::SerializeTupleStruct for SerializeSeq<'a, W, F>
+impl<'a, W> ser::SerializeTupleStruct for SerializeSeq<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -418,15 +410,14 @@ where
 }
 
 #[doc(hidden)]
-pub struct SerializeTupleVariant<'a, W, F> {
+pub struct SerializeTupleVariant<'a, W> {
     inner: SerializeBodyTupleVariant,
-    ser: &'a mut Serializer<W, F>,
+    ser: &'a mut Serializer<'a, W>,
 }
 
-impl<'a, W, F> ser::SerializeTupleVariant for SerializeTupleVariant<'a, W, F>
+impl<'a, W> ser::SerializeTupleVariant for SerializeTupleVariant<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -444,15 +435,14 @@ where
 }
 
 #[doc(hidden)]
-pub struct SerializeMap<'a, W, F> {
+pub struct SerializeMap<'a, W> {
     inner: SerializeBodyMap,
-    ser: &'a mut Serializer<W, F>,
+    ser: &'a mut Serializer<'a, W>,
 }
 
-impl<'a, W, F> ser::SerializeMap for SerializeMap<'a, W, F>
+impl<'a, W> ser::SerializeMap for SerializeMap<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -477,15 +467,14 @@ where
 }
 
 #[doc(hidden)]
-pub struct SerializeStructVariant<'a, W, F> {
+pub struct SerializeStructVariant<'a, W> {
     inner: SerializeBodyStructVariant,
-    ser: &'a mut Serializer<W, F>,
+    ser: &'a mut Serializer<'a, W>,
 }
 
-impl<'a, W, F> ser::SerializeStructVariant for SerializeStructVariant<'a, W, F>
+impl<'a, W> ser::SerializeStructVariant for SerializeStructVariant<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -503,15 +492,14 @@ where
 }
 
 #[doc(hidden)]
-pub struct SerializeStruct<'a, W, F> {
+pub struct SerializeStruct<'a, W> {
     inner: SerializeBodyStruct,
-    ser: &'a mut Serializer<W, F>,
+    ser: &'a mut Serializer<'a, W>,
 }
 
-impl<'a, W, F> ser::SerializeStruct for SerializeStruct<'a, W, F>
+impl<'a, W> ser::SerializeStruct for SerializeStruct<'a, W>
 where
     W: io::Write,
-    F: Format,
 {
     type Ok = ();
     type Error = Error;
@@ -530,6 +518,9 @@ where
 
 /// Serialize the given value as an HCL byte vector.
 ///
+/// If you want to serialize data structures from this crate (e.g. [`Body`](crate::Body)) consider
+/// using [`hcl::format::to_vec`](crate::format::to_vec) instead because it is more efficient.
+///
 /// # Errors
 ///
 /// Serialization fails if the type cannot be represented as HCL.
@@ -543,6 +534,10 @@ where
 }
 
 /// Serialize the given value as an HCL string.
+///
+/// If you want to serialize data structures from this crate (e.g. [`Body`](crate::Body)) consider
+/// using [`hcl::format::to_string`](crate::format::to_string) instead because it is more
+/// efficient.
 ///
 /// # Errors
 ///
@@ -560,6 +555,10 @@ where
 }
 
 /// Serialize the given value as HCL into the IO stream.
+///
+/// If you want to serialize data structures from this crate (e.g. [`Body`](crate::Body)) consider
+/// using [`hcl::format::to_writer`](crate::format::to_writer) instead because it is more
+/// efficient.
 ///
 /// # Errors
 ///

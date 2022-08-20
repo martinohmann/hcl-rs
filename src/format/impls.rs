@@ -1,24 +1,22 @@
-use super::{private, Format};
+use super::{private, Format, Formatter};
 use crate::{
-    ser,
     structure::{
         Attribute, Block, BlockLabel, Body, Expression, Identifier, ObjectKey, RawExpression,
         Structure,
     },
     Map, Number, Result, Value,
 };
-use std::io;
+use std::io::{self, Write};
 
 impl private::Sealed for Body {}
 
 impl Format for Body {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         for structure in self.iter() {
-            structure.format(writer, fmt)?;
+            structure.format(fmt)?;
         }
 
         Ok(())
@@ -28,14 +26,13 @@ impl Format for Body {
 impl private::Sealed for Structure {}
 
 impl Format for Structure {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         match self {
-            Structure::Attribute(attr) => attr.format(writer, fmt),
-            Structure::Block(block) => block.format(writer, fmt),
+            Structure::Attribute(attr) => attr.format(fmt),
+            Structure::Block(block) => block.format(fmt),
         }
     }
 }
@@ -43,16 +40,15 @@ impl Format for Structure {
 impl private::Sealed for Attribute {}
 
 impl Format for Attribute {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
-        fmt.begin_attribute(writer)?;
-        fmt.write_ident(writer, &self.key)?;
-        fmt.begin_attribute_value(writer)?;
-        self.expr.format(writer, fmt)?;
-        fmt.end_attribute(writer)?;
+        fmt.begin_attribute()?;
+        fmt.write_ident(&self.key)?;
+        fmt.begin_attribute_value()?;
+        self.expr.format(fmt)?;
+        fmt.end_attribute()?;
         Ok(())
     }
 }
@@ -60,22 +56,21 @@ impl Format for Attribute {
 impl private::Sealed for Block {}
 
 impl Format for Block {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
-        fmt.begin_block(writer)?;
-        fmt.write_ident(writer, &self.identifier)?;
+        fmt.begin_block()?;
+        fmt.write_ident(&self.identifier)?;
 
         for label in &self.labels {
-            writer.write_all(b" ")?;
-            label.format(writer, fmt)?;
+            fmt.write_all(b" ")?;
+            label.format(fmt)?;
         }
 
-        fmt.begin_block_body(writer)?;
-        self.body.format(writer, fmt)?;
-        fmt.end_block(writer)?;
+        fmt.begin_block_body()?;
+        self.body.format(fmt)?;
+        fmt.end_block()?;
         Ok(())
     }
 }
@@ -83,14 +78,13 @@ impl Format for Block {
 impl private::Sealed for BlockLabel {}
 
 impl Format for BlockLabel {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         match self {
-            BlockLabel::Identifier(ident) => ident.format(writer, fmt),
-            BlockLabel::String(string) => string.format(writer, fmt),
+            BlockLabel::Identifier(ident) => ident.format(fmt),
+            BlockLabel::String(string) => string.format(fmt),
         }
     }
 }
@@ -98,19 +92,18 @@ impl Format for BlockLabel {
 impl private::Sealed for Expression {}
 
 impl Format for Expression {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         match self {
-            Expression::Null => Ok(fmt.write_null(writer)?),
-            Expression::Bool(b) => Ok(fmt.write_bool(writer, *b)?),
-            Expression::Number(num) => num.format(writer, fmt),
-            Expression::String(string) => string.format(writer, fmt),
-            Expression::Array(array) => format_array(writer, fmt, array),
-            Expression::Object(object) => format_object(writer, fmt, object),
-            Expression::Raw(raw) => raw.format(writer, fmt),
+            Expression::Null => Ok(fmt.write_null()?),
+            Expression::Bool(b) => Ok(fmt.write_bool(*b)?),
+            Expression::Number(num) => num.format(fmt),
+            Expression::String(string) => string.format(fmt),
+            Expression::Array(array) => format_array(fmt, array),
+            Expression::Object(object) => format_object(fmt, object),
+            Expression::Raw(raw) => raw.format(fmt),
         }
     }
 }
@@ -118,18 +111,17 @@ impl Format for Expression {
 impl private::Sealed for Value {}
 
 impl Format for Value {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         match self {
-            Value::Null => Ok(fmt.write_null(writer)?),
-            Value::Bool(b) => Ok(fmt.write_bool(writer, *b)?),
-            Value::Number(num) => num.format(writer, fmt),
-            Value::String(string) => string.format(writer, fmt),
-            Value::Array(array) => format_array(writer, fmt, array),
-            Value::Object(object) => format_object(writer, fmt, object),
+            Value::Null => Ok(fmt.write_null()?),
+            Value::Bool(b) => Ok(fmt.write_bool(*b)?),
+            Value::Number(num) => num.format(fmt),
+            Value::String(string) => string.format(fmt),
+            Value::Array(array) => format_array(fmt, array),
+            Value::Object(object) => format_object(fmt, object),
         }
     }
 }
@@ -137,15 +129,14 @@ impl Format for Value {
 impl private::Sealed for Number {}
 
 impl Format for Number {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         match *self {
-            Number::PosInt(pos) => fmt.write_int(writer, pos)?,
-            Number::NegInt(neg) => fmt.write_int(writer, neg)?,
-            Number::Float(float) => fmt.write_float(writer, float)?,
+            Number::PosInt(pos) => fmt.write_int(pos)?,
+            Number::NegInt(neg) => fmt.write_int(neg)?,
+            Number::Float(float) => fmt.write_float(float)?,
         }
 
         Ok(())
@@ -155,18 +146,17 @@ impl Format for Number {
 impl private::Sealed for ObjectKey {}
 
 impl Format for ObjectKey {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
         match self {
-            ObjectKey::Identifier(ident) => ident.format(writer, fmt),
-            ObjectKey::String(string) => string.format(writer, fmt),
+            ObjectKey::Identifier(ident) => ident.format(fmt),
+            ObjectKey::String(string) => string.format(fmt),
             ObjectKey::RawExpression(raw) => {
-                fmt.begin_interpolated_string(writer)?;
-                raw.format(writer, fmt)?;
-                fmt.end_interpolated_string(writer)?;
+                fmt.begin_interpolated_string()?;
+                raw.format(fmt)?;
+                fmt.end_interpolated_string()?;
                 Ok(())
             }
         }
@@ -176,12 +166,11 @@ impl Format for ObjectKey {
 impl private::Sealed for RawExpression {}
 
 impl Format for RawExpression {
-    fn format<W, F>(&self, writer: &mut W, _: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
-        writer.write_all(self.as_str().as_bytes())?;
+        fmt.write_all(self.as_str().as_bytes())?;
         Ok(())
     }
 }
@@ -189,12 +178,11 @@ impl Format for RawExpression {
 impl private::Sealed for Identifier {}
 
 impl Format for Identifier {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
-        fmt.write_ident(writer, self.as_str())?;
+        fmt.write_ident(self.as_str())?;
         Ok(())
     }
 }
@@ -202,51 +190,48 @@ impl Format for Identifier {
 impl private::Sealed for String {}
 
 impl Format for String {
-    fn format<W, F>(&self, writer: &mut W, fmt: &mut F) -> Result<()>
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
-        W: ?Sized + io::Write,
-        F: ?Sized + ser::Format,
+        W: io::Write,
     {
-        fmt.write_quoted_string(writer, self)?;
+        fmt.write_quoted_string(self)?;
         Ok(())
     }
 }
 
-fn format_array<W, F, T>(writer: &mut W, fmt: &mut F, array: &[T]) -> Result<()>
+fn format_array<W, T>(fmt: &mut Formatter<W>, array: &[T]) -> Result<()>
 where
-    W: ?Sized + io::Write,
-    F: ?Sized + ser::Format,
+    W: io::Write,
     T: Format,
 {
-    fmt.begin_array(writer)?;
+    fmt.begin_array()?;
 
     for value in array {
-        fmt.begin_array_value(writer)?;
-        value.format(writer, fmt)?;
-        fmt.end_array_value(writer)?;
+        fmt.begin_array_value()?;
+        value.format(fmt)?;
+        fmt.end_array_value()?;
     }
 
-    fmt.end_array(writer)?;
+    fmt.end_array()?;
     Ok(())
 }
 
-fn format_object<W, F, K, V>(writer: &mut W, fmt: &mut F, object: &Map<K, V>) -> Result<()>
+fn format_object<W, K, V>(fmt: &mut Formatter<W>, object: &Map<K, V>) -> Result<()>
 where
-    W: ?Sized + io::Write,
-    F: ?Sized + ser::Format,
+    W: io::Write,
     K: Format,
     V: Format,
 {
-    fmt.begin_object(writer)?;
+    fmt.begin_object()?;
 
     for (key, value) in object {
-        fmt.begin_object_key(writer)?;
-        key.format(writer, fmt)?;
-        fmt.begin_object_value(writer)?;
-        value.format(writer, fmt)?;
-        fmt.end_object_value(writer)?;
+        fmt.begin_object_key()?;
+        key.format(fmt)?;
+        fmt.begin_object_value()?;
+        value.format(fmt)?;
+        fmt.end_object_value()?;
     }
 
-    fmt.end_object(writer)?;
+    fmt.end_object()?;
     Ok(())
 }

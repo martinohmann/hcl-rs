@@ -240,12 +240,12 @@ qux {
 
     assert_eq!(to_string(&body).unwrap(), default_expected);
 
-    let formatter = PrettyFormatter::builder()
+    let mut buf = Vec::new();
+    let formatter = Formatter::builder()
         .indent(b"    ")
         .dense(true)
-        .build();
-    let mut buf = Vec::new();
-    let mut ser = Serializer::with_formatter(&mut buf, formatter);
+        .build(&mut buf);
+    let mut ser = Serializer::with_formatter(formatter);
     body.serialize(&mut ser).unwrap();
 
     assert_eq!(String::from_utf8(buf).unwrap(), custom_expected);
