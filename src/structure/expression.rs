@@ -253,6 +253,12 @@ impl RawExpression {
     pub fn into_inner(self) -> String {
         self.0
     }
+
+    /// Returns the `RawExpression` as a `&str`. If you want to represent the `RawExpression` as
+    /// an interpolated string, use `.to_string()` instead.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl From<String> for RawExpression {

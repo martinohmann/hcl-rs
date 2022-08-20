@@ -1,3 +1,4 @@
+use super::{IdentifierSerializer, StringSerializer};
 use crate::{serialize_unsupported, Error, Expression, Object, ObjectKey, Result};
 use serde::ser::{self, Impossible};
 use std::fmt::Display;
@@ -93,16 +94,20 @@ impl ser::Serializer for ExpressionSerializer {
         self.serialize_str(variant)
     }
 
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + ser::Serialize,
     {
-        value.serialize(self)
+        if name == "$hcl::raw_expression" {
+            Ok(Expression::Raw(value.serialize(StringSerializer)?.into()))
+        } else {
+            value.serialize(self)
+        }
     }
 
     fn serialize_newtype_variant<T>(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         value: &T,
@@ -110,9 +115,13 @@ impl ser::Serializer for ExpressionSerializer {
     where
         T: ?Sized + ser::Serialize,
     {
-        let mut object = Object::new();
-        object.insert(ObjectKey::string(variant), to_expression(&value)?);
-        Ok(Expression::Object(object))
+        if name == "$hcl::expression" {
+            value.serialize(self)
+        } else {
+            let mut object = Object::new();
+            object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
+            Ok(Expression::Object(object))
+        }
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -127,9 +136,7 @@ impl ser::Serializer for ExpressionSerializer {
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Ok(SerializeExpressionSeq {
-            vec: Vec::with_capacity(len.unwrap_or(0)),
-        })
+        Ok(SerializeExpressionSeq::new(len))
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -151,17 +158,11 @@ impl ser::Serializer for ExpressionSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeExpressionTupleVariant {
-            name: variant.to_owned(),
-            vec: Vec::with_capacity(len),
-        })
+        Ok(SerializeExpressionTupleVariant::new(variant, len))
     }
 
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Ok(SerializeExpressionMap {
-            map: Object::new(),
-            next_key: None,
-        })
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+        Ok(SerializeExpressionMap::new(len))
     }
 
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
@@ -173,12 +174,9 @@ impl ser::Serializer for ExpressionSerializer {
         _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
-        _len: usize,
+        len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeExpressionStructVariant {
-            name: variant.to_owned(),
-            map: Object::new(),
-        })
+        Ok(SerializeExpressionStructVariant::new(variant, len))
     }
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
@@ -188,8 +186,17 @@ impl ser::Serializer for ExpressionSerializer {
         Ok(Expression::String(value.to_string()))
     }
 }
+
 pub struct SerializeExpressionSeq {
     vec: Vec<Expression>,
+}
+
+impl SerializeExpressionSeq {
+    pub fn new(len: Option<usize>) -> Self {
+        SerializeExpressionSeq {
+            vec: Vec::with_capacity(len.unwrap_or(0)),
+        }
+    }
 }
 
 impl ser::SerializeSeq for SerializeExpressionSeq {
@@ -200,7 +207,7 @@ impl ser::SerializeSeq for SerializeExpressionSeq {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.vec.push(to_expression(&value)?);
+        self.vec.push(value.serialize(ExpressionSerializer)?);
         Ok(())
     }
 
@@ -242,8 +249,17 @@ impl serde::ser::SerializeTupleStruct for SerializeExpressionSeq {
 }
 
 pub struct SerializeExpressionTupleVariant {
-    name: String,
+    name: ObjectKey,
     vec: Vec<Expression>,
+}
+
+impl SerializeExpressionTupleVariant {
+    pub fn new(variant: &'static str, len: usize) -> Self {
+        SerializeExpressionTupleVariant {
+            name: ObjectKey::from(variant),
+            vec: Vec::with_capacity(len),
+        }
+    }
 }
 
 impl ser::SerializeTupleVariant for SerializeExpressionTupleVariant {
@@ -254,13 +270,13 @@ impl ser::SerializeTupleVariant for SerializeExpressionTupleVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.vec.push(to_expression(&value)?);
+        self.vec.push(value.serialize(ExpressionSerializer)?);
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
         let mut object = Object::new();
-        object.insert(ObjectKey::String(self.name), Expression::Array(self.vec));
+        object.insert(self.name, self.vec.into());
         Ok(Expression::Object(object))
     }
 }
@@ -268,6 +284,15 @@ impl ser::SerializeTupleVariant for SerializeExpressionTupleVariant {
 pub struct SerializeExpressionMap {
     map: Object<ObjectKey, Expression>,
     next_key: Option<ObjectKey>,
+}
+
+impl SerializeExpressionMap {
+    pub fn new(len: Option<usize>) -> Self {
+        SerializeExpressionMap {
+            map: Object::with_capacity(len.unwrap_or(0)),
+            next_key: None,
+        }
+    }
 }
 
 impl ser::SerializeMap for SerializeExpressionMap {
@@ -288,7 +313,8 @@ impl ser::SerializeMap for SerializeExpressionMap {
     {
         let key = self.next_key.take();
         let key = key.expect("serialize_value called before serialize_key");
-        self.map.insert(key, to_expression(&value)?);
+        let expr = value.serialize(ExpressionSerializer)?;
+        self.map.insert(key, expr);
         Ok(())
     }
 
@@ -314,8 +340,17 @@ impl ser::SerializeStruct for SerializeExpressionMap {
 }
 
 pub struct SerializeExpressionStructVariant {
-    name: String,
+    name: ObjectKey,
     map: Object<ObjectKey, Expression>,
+}
+
+impl SerializeExpressionStructVariant {
+    pub fn new(variant: &'static str, len: usize) -> Self {
+        SerializeExpressionStructVariant {
+            name: ObjectKey::from(variant),
+            map: Object::with_capacity(len),
+        }
+    }
 }
 
 impl ser::SerializeStructVariant for SerializeExpressionStructVariant {
@@ -326,19 +361,19 @@ impl ser::SerializeStructVariant for SerializeExpressionStructVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.map
-            .insert(ObjectKey::string(key), to_expression(&value)?);
+        let expr = value.serialize(ExpressionSerializer)?;
+        self.map.insert(ObjectKey::from(key), expr);
         Ok(())
     }
 
     fn end(self) -> Result<Self::Ok> {
         let mut object = Object::new();
-        object.insert(ObjectKey::String(self.name), Expression::Object(self.map));
+        object.insert(self.name, self.map.into());
         Ok(Expression::Object(object))
     }
 }
 
-struct ObjectKeySerializer;
+pub struct ObjectKeySerializer;
 
 impl ser::Serializer for ObjectKeySerializer {
     type Ok = ObjectKey;
@@ -353,7 +388,7 @@ impl ser::Serializer for ObjectKeySerializer {
     type SerializeStructVariant = Impossible<ObjectKey, Error>;
 
     serialize_unsupported! {
-        bool f32 f64 bytes unit unit_struct newtype_variant none
+        bool f32 f64 bytes unit unit_struct none
         some seq tuple tuple_struct tuple_variant map struct struct_variant
     }
 
@@ -411,6 +446,28 @@ impl ser::Serializer for ObjectKeySerializer {
         T: ?Sized + ser::Serialize,
     {
         value.serialize(self)
+    }
+
+    fn serialize_newtype_variant<T>(
+        self,
+        name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<Self::Ok>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        // Specialization for the `ObjectKey` type itself.
+        match (name, variant) {
+            ("$hcl::object_key", "Identifier") => Ok(ObjectKey::Identifier(
+                value.serialize(IdentifierSerializer)?,
+            )),
+            ("$hcl::object_key", "RawExpression") => Ok(ObjectKey::RawExpression(
+                value.serialize(StringSerializer)?.into(),
+            )),
+            (_, _) => value.serialize(self),
+        }
     }
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok>

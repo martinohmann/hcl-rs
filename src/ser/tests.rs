@@ -159,6 +159,8 @@ fn serialize_array() {
         },
         {
             "bar": "baz",
+        },
+        {
             "qux": {
                 "foo": "bar",
                 "baz": "qux"
