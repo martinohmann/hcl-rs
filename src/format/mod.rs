@@ -71,6 +71,20 @@ enum FormatState {
     BlockBodyStart,
 }
 
+struct FormatConfig<'a> {
+    indent: &'a [u8],
+    dense: bool,
+}
+
+impl<'a> Default for FormatConfig<'a> {
+    fn default() -> Self {
+        FormatConfig {
+            indent: b"  ",
+            dense: false,
+        }
+    }
+}
+
 /// A pretty printing HCL formatter.
 ///
 /// ## Examples
@@ -126,73 +140,60 @@ enum FormatState {
 /// [Serializer]: ../ser/struct.Serializer.html
 pub struct Formatter<'a, W> {
     writer: W,
+    config: FormatConfig<'a>,
     state: FormatState,
     first_element: bool,
     current_indent: usize,
     has_value: bool,
-    indent: &'a [u8],
-    dense: bool,
 }
 
 /// A builder to create a `Formatter`.
 ///
 /// See the documentation of [`Formatter`] for a usage example.
 pub struct FormatterBuilder<'a, W> {
-    indent: &'a [u8],
-    dense: bool,
+    config: FormatConfig<'a>,
     marker: PhantomData<W>,
 }
 
 impl<'a, W> FormatterBuilder<'a, W> {
     /// Set the indent for indenting nested HCL structures.
     pub fn indent(mut self, indent: &'a [u8]) -> Self {
-        self.indent = indent;
+        self.config.indent = indent;
         self
     }
 
     /// If set, blocks are not visually separated by empty lines from attributes and adjacent
     /// blocks.
     pub fn dense(mut self, yes: bool) -> Self {
-        self.dense = yes;
+        self.config.dense = yes;
         self
     }
 
     /// Consumes the `FormatterBuilder` and turns it into a `Formatter` which writes HCL to the
     /// provided writer.
-    pub fn build(self, writer: W) -> Formatter<'a, W>
-    where
-        W: io::Write,
-    {
+    pub fn build(self, writer: W) -> Formatter<'a, W> {
         Formatter {
             writer,
+            config: self.config,
             state: FormatState::Initial,
             first_element: false,
             current_indent: 0,
             has_value: false,
-            indent: self.indent,
-            dense: self.dense,
         }
     }
 }
 
 // Public API.
-impl<'a, W> Formatter<'a, W>
-where
-    W: io::Write,
-{
+impl<'a, W> Formatter<'a, W> {
     /// Creates a new `Formatter` which writes HCL to the provided writer.
     pub fn new(writer: W) -> Formatter<'a, W> {
         Formatter::builder().build(writer)
     }
-}
 
-// Public API.
-impl<'a, W> Formatter<'a, W> {
     /// Creates a new [`FormatterBuilder`] to start building a new `Formatter`.
     pub fn builder() -> FormatterBuilder<'a, W> {
         FormatterBuilder {
-            indent: b"  ",
-            dense: false,
+            config: FormatConfig::default(),
             marker: PhantomData,
         }
     }
@@ -337,7 +338,7 @@ where
             self.write_all(b",\n")?;
         }
 
-        self.write_indent(self.current_indent, self.indent)
+        self.write_indent(self.current_indent, self.config.indent)
     }
 
     /// Signals the end of an array value to the formatter.
@@ -352,7 +353,7 @@ where
 
         if self.has_value {
             self.write_all(b"\n")?;
-            self.write_indent(self.current_indent, self.indent)?;
+            self.write_indent(self.current_indent, self.config.indent)?;
         }
 
         self.write_all(b"]")
@@ -368,7 +369,7 @@ where
     /// Signals the start of an object key to the formatter.
     fn begin_object_key(&mut self) -> io::Result<()> {
         self.write_all(b"\n")?;
-        self.write_indent(self.current_indent, self.indent)
+        self.write_indent(self.current_indent, self.config.indent)
     }
 
     /// Signals the start of an object value to the formatter.
@@ -387,7 +388,7 @@ where
 
         if self.has_value {
             self.write_all(b"\n")?;
-            self.write_indent(self.current_indent, self.indent)?;
+            self.write_indent(self.current_indent, self.config.indent)?;
         }
 
         self.write_all(b"}")
@@ -396,7 +397,7 @@ where
     /// Signals the start of an attribute to the formatter.
     fn begin_attribute(&mut self) -> io::Result<()> {
         self.maybe_write_newline(FormatState::AttributeStart)?;
-        self.write_indent(self.current_indent, self.indent)
+        self.write_indent(self.current_indent, self.config.indent)
     }
 
     /// Signals the start of an attribute value to the formatter.
@@ -413,7 +414,7 @@ where
     /// Signals the start of a block to the formatter.
     fn begin_block(&mut self) -> io::Result<()> {
         self.maybe_write_newline(FormatState::BlockStart)?;
-        self.write_indent(self.current_indent, self.indent)
+        self.write_indent(self.current_indent, self.config.indent)
     }
 
     /// Signals the start of a block body to the formatter.
@@ -427,7 +428,7 @@ where
     fn end_block(&mut self) -> io::Result<()> {
         self.state = FormatState::BlockEnd;
         self.current_indent -= 1;
-        self.write_indent(self.current_indent, self.indent)?;
+        self.write_indent(self.current_indent, self.config.indent)?;
         self.write_all(b"}\n")
     }
 
@@ -435,10 +436,10 @@ where
     // current and next state. Updates the state to `next_state`.
     fn maybe_write_newline(&mut self, next_state: FormatState) -> io::Result<()> {
         let newline = match &self.state {
-            FormatState::AttributeEnd if !self.dense => {
+            FormatState::AttributeEnd if !self.config.dense => {
                 matches!(next_state, FormatState::BlockStart)
             }
-            FormatState::BlockEnd if !self.dense => {
+            FormatState::BlockEnd if !self.config.dense => {
                 matches!(
                     next_state,
                     FormatState::BlockStart | FormatState::AttributeStart

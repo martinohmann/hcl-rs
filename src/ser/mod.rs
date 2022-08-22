@@ -215,15 +215,10 @@ where
 {
     /// Creates a new `Serializer` which serializes to the provides writer using the default
     /// formatter.
-    pub fn new(writer: W) -> Self {
+    pub fn new(writer: W) -> Serializer<'a, W> {
         Serializer::with_formatter(Formatter::new(writer))
     }
-}
 
-impl<'a, W> Serializer<'a, W>
-where
-    W: io::Write,
-{
     /// Creates a new `Serializer` which uses the provides formatter to format the serialized HCL.
     pub fn with_formatter(formatter: Formatter<'a, W>) -> Serializer<'a, W> {
         Serializer { formatter }
