@@ -338,7 +338,7 @@ where
             self.write_all(b",\n")?;
         }
 
-        self.write_indent(self.current_indent, self.config.indent)
+        self.write_indent(self.current_indent)
     }
 
     /// Signals the end of an array value to the formatter.
@@ -353,7 +353,7 @@ where
 
         if self.has_value {
             self.write_all(b"\n")?;
-            self.write_indent(self.current_indent, self.config.indent)?;
+            self.write_indent(self.current_indent)?;
         }
 
         self.write_all(b"]")
@@ -369,7 +369,7 @@ where
     /// Signals the start of an object key to the formatter.
     fn begin_object_key(&mut self) -> io::Result<()> {
         self.write_all(b"\n")?;
-        self.write_indent(self.current_indent, self.config.indent)
+        self.write_indent(self.current_indent)
     }
 
     /// Signals the start of an object value to the formatter.
@@ -388,7 +388,7 @@ where
 
         if self.has_value {
             self.write_all(b"\n")?;
-            self.write_indent(self.current_indent, self.config.indent)?;
+            self.write_indent(self.current_indent)?;
         }
 
         self.write_all(b"}")
@@ -397,7 +397,7 @@ where
     /// Signals the start of an attribute to the formatter.
     fn begin_attribute(&mut self) -> io::Result<()> {
         self.maybe_write_newline(FormatState::AttributeStart)?;
-        self.write_indent(self.current_indent, self.config.indent)
+        self.write_indent(self.current_indent)
     }
 
     /// Signals the start of an attribute value to the formatter.
@@ -414,7 +414,7 @@ where
     /// Signals the start of a block to the formatter.
     fn begin_block(&mut self) -> io::Result<()> {
         self.maybe_write_newline(FormatState::BlockStart)?;
-        self.write_indent(self.current_indent, self.config.indent)
+        self.write_indent(self.current_indent)
     }
 
     /// Signals the start of a block body to the formatter.
@@ -428,7 +428,7 @@ where
     fn end_block(&mut self) -> io::Result<()> {
         self.state = FormatState::BlockEnd;
         self.current_indent -= 1;
-        self.write_indent(self.current_indent, self.config.indent)?;
+        self.write_indent(self.current_indent)?;
         self.write_all(b"}\n")
     }
 
@@ -456,9 +456,26 @@ where
         Ok(())
     }
 
-    fn write_indent(&mut self, n: usize, s: &[u8]) -> io::Result<()> {
+    fn write_indent(&mut self, n: usize) -> io::Result<()> {
         for _ in 0..n {
-            self.write_all(s)?;
+            self.write_all(self.config.indent)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_indented(&mut self, n: usize, s: &str) -> io::Result<()> {
+        for (i, line) in s.lines().enumerate() {
+            if i > 0 {
+                self.write_all(b"\n")?;
+            }
+
+            self.write_indent(n)?;
+            self.write_string_fragment(line)?;
+        }
+
+        if s.ends_with("\n") {
+            self.write_all(b"\n")?;
         }
 
         Ok(())

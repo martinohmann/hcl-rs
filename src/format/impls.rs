@@ -1,8 +1,8 @@
 use super::{private, Format, Formatter};
 use crate::{
     structure::{
-        Attribute, Block, BlockLabel, Body, Expression, Identifier, ObjectKey, RawExpression,
-        Structure,
+        Attribute, Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier,
+        ObjectKey, RawExpression, Structure, TemplateExpr,
     },
     Map, Number, Result, Value,
 };
@@ -104,7 +104,7 @@ impl Format for Expression {
             Expression::Array(array) => format_array(fmt, array),
             Expression::Object(object) => format_object(fmt, object),
             Expression::Raw(raw) => raw.format(fmt),
-            Expression::TemplateExpr(_) => todo!(),
+            Expression::TemplateExpr(expr) => expr.format(fmt),
         }
     }
 }
@@ -172,6 +172,68 @@ impl Format for RawExpression {
         W: io::Write,
     {
         fmt.write_all(self.as_str().as_bytes())?;
+        Ok(())
+    }
+}
+
+impl private::Sealed for TemplateExpr {}
+
+impl Format for TemplateExpr {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        match self {
+            TemplateExpr::QuotedString(string) => string.format(fmt),
+            TemplateExpr::Heredoc(heredoc) => heredoc.format(fmt),
+        }
+    }
+}
+
+impl private::Sealed for Heredoc {}
+
+impl Format for Heredoc {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        self.strip.format(fmt)?;
+        fmt.write_string_fragment(self.delimiter.as_str())?;
+        fmt.write_all(b"\n")?;
+
+        match self.strip {
+            HeredocStripMode::None => {
+                fmt.write_string_fragment(&self.template)?;
+
+                if !self.template.ends_with("\n") {
+                    fmt.write_all(b"\n")?;
+                }
+
+                fmt.write_string_fragment(self.delimiter.as_str())?;
+            }
+            HeredocStripMode::Indent => {
+                fmt.write_indented(fmt.current_indent + 1, &self.template)?;
+
+                if !self.template.ends_with("\n") {
+                    fmt.write_all(b"\n")?;
+                }
+
+                fmt.write_indented(fmt.current_indent, self.delimiter.as_str())?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl private::Sealed for HeredocStripMode {}
+
+impl Format for HeredocStripMode {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_string_fragment(self.as_str())?;
         Ok(())
     }
 }

@@ -1,0 +1,389 @@
+use super::StringSerializer;
+use crate::{
+    serialize_unsupported, structure::Identifier, Error, Heredoc, HeredocStripMode, Result,
+    TemplateExpr,
+};
+use serde::ser::{self, Impossible, Serialize};
+use std::fmt::Display;
+use std::str::FromStr;
+
+pub struct TemplateExprSerializer;
+
+impl ser::Serializer for TemplateExprSerializer {
+    type Ok = TemplateExpr;
+    type Error = Error;
+
+    type SerializeSeq = Impossible<TemplateExpr, Error>;
+    type SerializeTuple = Impossible<TemplateExpr, Error>;
+    type SerializeTupleStruct = Impossible<TemplateExpr, Error>;
+    type SerializeTupleVariant = Impossible<TemplateExpr, Error>;
+    type SerializeMap = Impossible<TemplateExpr, Error>;
+    type SerializeStruct = Impossible<TemplateExpr, Error>;
+    type SerializeStructVariant = Impossible<TemplateExpr, Error>;
+
+    serialize_unsupported! {
+        i8 i16 i32 i64 u8 u16 u32 u64
+        bool f32 f64 bytes unit unit_struct none
+        some seq tuple tuple_struct tuple_variant map struct struct_variant
+    }
+
+    fn serialize_char(self, value: char) -> Result<Self::Ok> {
+        Ok(TemplateExpr::QuotedString(value.to_string()))
+    }
+
+    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
+        Ok(TemplateExpr::QuotedString(value.to_owned()))
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Self::Ok> {
+        Ok(TemplateExpr::QuotedString(variant.to_owned()))
+    }
+
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        value.serialize(self)
+    }
+
+    fn serialize_newtype_variant<T>(
+        self,
+        name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<Self::Ok>
+    where
+        T: ?Sized + Serialize,
+    {
+        // Specialization for the `TemplateExpr` type itself.
+        match (name, variant) {
+            ("$hcl::template_expr", "QuotedString") => Ok(TemplateExpr::QuotedString(
+                value.serialize(StringSerializer)?,
+            )),
+            ("$hcl::template_expr", "Heredoc") => {
+                Ok(TemplateExpr::Heredoc(value.serialize(HeredocSerializer)?))
+            }
+            (_, _) => value.serialize(self),
+        }
+    }
+
+    fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + Display,
+    {
+        Ok(TemplateExpr::QuotedString(value.to_string()))
+    }
+}
+
+pub struct HeredocSerializer;
+
+impl ser::Serializer for HeredocSerializer {
+    type Ok = Heredoc;
+    type Error = Error;
+
+    type SerializeSeq = SerializeHeredocSeq;
+    type SerializeTuple = SerializeHeredocSeq;
+    type SerializeTupleStruct = SerializeHeredocSeq;
+    type SerializeTupleVariant = Impossible<Heredoc, Error>;
+    type SerializeMap = SerializeHeredocMap;
+    type SerializeStruct = SerializeHeredocStruct;
+    type SerializeStructVariant = Impossible<Heredoc, Error>;
+
+    serialize_unsupported! {
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
+        char str bytes none unit unit_struct unit_variant
+        tuple_variant struct_variant
+    }
+
+    fn serialize_some<T>(self, value: &T) -> Result<Heredoc>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Heredoc>
+    where
+        T: ?Sized + Serialize,
+    {
+        value.serialize(self)
+    }
+
+    fn serialize_newtype_variant<T>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<Heredoc>
+    where
+        T: ?Sized + Serialize,
+    {
+        Ok(Heredoc {
+            delimiter: Identifier::new(variant),
+            template: value.serialize(StringSerializer)?,
+            strip: HeredocStripMode::None,
+        })
+    }
+
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
+        Ok(SerializeHeredocSeq::new())
+    }
+
+    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
+        self.serialize_seq(Some(len))
+    }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        len: usize,
+    ) -> Result<Self::SerializeTupleStruct> {
+        self.serialize_seq(Some(len))
+    }
+
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        Ok(SerializeHeredocMap::new())
+    }
+
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        Ok(SerializeHeredocStruct::new())
+    }
+}
+
+pub struct SerializeHeredocSeq {
+    delimiter: Option<Identifier>,
+    template: Option<String>,
+    strip: Option<HeredocStripMode>,
+}
+
+impl SerializeHeredocSeq {
+    pub fn new() -> Self {
+        SerializeHeredocSeq {
+            delimiter: None,
+            template: None,
+            strip: None,
+        }
+    }
+}
+
+impl ser::SerializeSeq for SerializeHeredocSeq {
+    type Ok = Heredoc;
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if self.delimiter.is_none() {
+            self.delimiter = Some(Identifier::from(value.serialize(StringSerializer)?));
+        } else if self.template.is_none() {
+            self.template = Some(value.serialize(StringSerializer)?);
+        } else if self.strip.is_none() {
+            self.strip = Some(value.serialize(HeredocStripModeSerializer)?);
+        } else {
+            return Err(ser::Error::custom("expected sequence with 2 or 3 elements"));
+        }
+
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        match (self.delimiter, self.template) {
+            (Some(delimiter), Some(template)) => Ok(Heredoc {
+                delimiter,
+                template,
+                strip: self.strip.unwrap_or(HeredocStripMode::None),
+            }),
+            (_, _) => Err(ser::Error::custom("expected sequence with 2 or 3 elements")),
+        }
+    }
+}
+
+impl ser::SerializeTuple for SerializeHeredocSeq {
+    type Ok = Heredoc;
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        ser::SerializeSeq::serialize_element(self, value)
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        ser::SerializeSeq::end(self)
+    }
+}
+
+impl serde::ser::SerializeTupleStruct for SerializeHeredocSeq {
+    type Ok = Heredoc;
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        ser::SerializeSeq::serialize_element(self, value)
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        ser::SerializeSeq::end(self)
+    }
+}
+
+pub struct SerializeHeredocMap {
+    delimiter: Option<Identifier>,
+    template: Option<String>,
+}
+
+impl SerializeHeredocMap {
+    pub fn new() -> Self {
+        SerializeHeredocMap {
+            delimiter: None,
+            template: None,
+        }
+    }
+}
+
+impl ser::SerializeMap for SerializeHeredocMap {
+    type Ok = Heredoc;
+    type Error = Error;
+
+    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if self.delimiter.is_none() {
+            self.delimiter = Some(Identifier::from(key.serialize(StringSerializer)?));
+            Ok(())
+        } else {
+            Err(ser::Error::custom("expected map with 1 entry"))
+        }
+    }
+
+    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if self.template.is_none() {
+            panic!("serialize_value called before serialize_key");
+        }
+
+        self.template = Some(value.serialize(StringSerializer)?);
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        match (self.delimiter, self.template) {
+            (Some(delimiter), Some(template)) => Ok(Heredoc {
+                delimiter,
+                template,
+                strip: HeredocStripMode::None,
+            }),
+            (_, _) => Err(ser::Error::custom("expected map with 1 entry")),
+        }
+    }
+}
+
+pub struct SerializeHeredocStruct {
+    delimiter: Option<Identifier>,
+    template: Option<String>,
+    strip: Option<HeredocStripMode>,
+}
+
+impl SerializeHeredocStruct {
+    pub fn new() -> Self {
+        SerializeHeredocStruct {
+            delimiter: None,
+            template: None,
+            strip: None,
+        }
+    }
+}
+
+impl ser::SerializeStruct for SerializeHeredocStruct {
+    type Ok = Heredoc;
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        match key {
+            "delimiter" => {
+                self.delimiter = Some(Identifier::from(value.serialize(StringSerializer)?))
+            }
+            "template" => self.template = Some(value.serialize(StringSerializer)?),
+            "strip" => self.strip = Some(value.serialize(HeredocStripModeSerializer)?),
+            _ => {
+                return Err(ser::Error::custom(
+                    "expected struct with fields `delimiter`, `template` and optional `strip`",
+                ))
+            }
+        };
+
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        match (self.delimiter, self.template) {
+            (Some(delimiter), Some(template)) => Ok(Heredoc {
+                delimiter,
+                template,
+                strip: self.strip.unwrap_or(HeredocStripMode::None),
+            }),
+            (_, _) => Err(ser::Error::custom(
+                "expected struct with fields `delimiter`, `template` and optional `strip`",
+            )),
+        }
+    }
+}
+
+pub struct HeredocStripModeSerializer;
+
+impl ser::Serializer for HeredocStripModeSerializer {
+    type Ok = HeredocStripMode;
+    type Error = Error;
+
+    type SerializeSeq = Impossible<HeredocStripMode, Error>;
+    type SerializeTuple = Impossible<HeredocStripMode, Error>;
+    type SerializeTupleStruct = Impossible<HeredocStripMode, Error>;
+    type SerializeTupleVariant = Impossible<HeredocStripMode, Error>;
+    type SerializeMap = Impossible<HeredocStripMode, Error>;
+    type SerializeStruct = Impossible<HeredocStripMode, Error>;
+    type SerializeStructVariant = Impossible<HeredocStripMode, Error>;
+
+    serialize_unsupported! {
+        i8 i16 i32 i64 u8 u16 u32 u64
+        bool f32 f64 char bytes unit unit_struct none
+        some seq tuple tuple_struct tuple_variant map struct struct_variant
+        newtype_variant
+    }
+
+    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
+        HeredocStripMode::from_str(value)
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Self::Ok> {
+        self.serialize_str(variant)
+    }
+
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        value.serialize(self)
+    }
+}

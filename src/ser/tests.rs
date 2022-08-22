@@ -1,5 +1,7 @@
 use super::*;
-use crate::{Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression, TemplateExpr};
+use crate::{
+    Block, BlockLabel, Body, Expression, Heredoc, Object, ObjectKey, RawExpression, TemplateExpr,
+};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -190,6 +192,48 @@ fn serialize_empty_block() {
         .build();
 
     assert_eq!(to_string(&body).unwrap(), "empty {}\n");
+}
+
+#[test]
+fn serialize_heredoc() {
+    let body = Body::builder()
+        .add_block(
+            Block::builder("content")
+                .add_attribute((
+                    "heredoc",
+                    TemplateExpr::Heredoc(Heredoc {
+                        delimiter: "HEREDOC".into(),
+                        template: "foo\n  bar\nbaz\n".into(),
+                        strip: crate::HeredocStripMode::None,
+                    }),
+                ))
+                .add_attribute((
+                    "heredoc_ident",
+                    TemplateExpr::Heredoc(Heredoc {
+                        delimiter: "HEREDOC".into(),
+                        template: "foo\n  bar\nbaz\n".into(),
+                        strip: crate::HeredocStripMode::Indent,
+                    }),
+                ))
+                .build(),
+        )
+        .build();
+
+    let expected = r#"content {
+  heredoc = <<HEREDOC
+foo
+  bar
+baz
+HEREDOC
+  heredoc_ident = <<-HEREDOC
+    foo
+      bar
+    baz
+  HEREDOC
+}
+"#;
+
+    assert_eq!(to_string(&body).unwrap(), expected);
 }
 
 #[test]

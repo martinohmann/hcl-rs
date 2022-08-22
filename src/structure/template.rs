@@ -1,7 +1,7 @@
 use super::Identifier;
-use crate::{parser::dedent_string, template::Template, Result};
+use crate::{parser::dedent_string, template::Template, Error, Result};
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 /// A quoted template expression is delimited by quote characters (`"`) and defines a template as
 /// a single-line expression with escape characters.
@@ -38,7 +38,7 @@ impl From<Heredoc> for TemplateExpr {
 }
 
 impl fmt::Display for TemplateExpr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TemplateExpr::QuotedString(string) => fmt::Display::fmt(string, f),
             TemplateExpr::Heredoc(heredoc) => fmt::Display::fmt(heredoc, f),
@@ -82,4 +82,27 @@ pub enum HeredocStripMode {
     /// literal strings. The final closing marker may also have an arbitrary number of spaces
     /// preceding it on its line.
     Indent,
+}
+
+impl HeredocStripMode {
+    /// Returns the string representation of the heredoc strip mode. This is the part before the
+    /// delimiter identifier.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            HeredocStripMode::None => "<<",
+            HeredocStripMode::Indent => "<<-",
+        }
+    }
+}
+
+impl FromStr for HeredocStripMode {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "None" | "none" => Ok(HeredocStripMode::None),
+            "Indent" | "indent" => Ok(HeredocStripMode::Indent),
+            _ => Err(Error::new(format!("invalid heredoc strip mode: `{}`", s))),
+        }
+    }
 }
