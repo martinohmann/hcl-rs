@@ -120,7 +120,7 @@ impl de::Error for Error {
 }
 
 /// One-based line and column at which the error was detected.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Location {
     /// The one-based line number of the error.
     pub line: usize,
