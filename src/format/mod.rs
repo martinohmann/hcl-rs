@@ -1,4 +1,38 @@
-//! Contains the logic to format HCL data structures.
+//! Format data structures as HCL.
+//!
+//! This module provides the [`Formatter`] type and the convienince functions [`to_string`],
+//! [`to_vec`] and [`to_writer`] for formatting the data structures provided by this crate as HCL.
+//!
+//! For serialization of other Rust data structures implementing [`serde::Serialize`] refer to the
+//! documentation of the [`ser`](crate::ser) module.
+//!
+//! ## Examples
+//!
+//! Format an HCL block as string:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! let block = hcl::Block::builder("user")
+//!     .add_label("johndoe")
+//!     .add_attribute(("age", 34))
+//!     .add_attribute(("email", "johndoe@example.com"))
+//!     .build();
+//!
+//! let expected = r#"
+//! user "johndoe" {
+//!   age = 34
+//!   email = "johndoe@example.com"
+//! }
+//! "#.trim_start();
+//!
+//! let formatted = hcl::format::to_string(&block)?;
+//!
+//! assert_eq!(formatted, expected);
+//! #   Ok(())
+//! # }
+//! ```
 
 mod escape;
 mod impls;
@@ -39,10 +73,43 @@ enum FormatState {
 
 /// A pretty printing HCL formatter.
 ///
-/// ## Example
+/// ## Examples
 ///
-/// The `.builder()` method can be used to construct a `Formatter` for use with a
-/// [`Serializer`][Serializer]:
+/// Format an HCL block as string:
+///
+/// ```
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// use hcl::format::{Format, Formatter};
+///
+/// let mut buf = Vec::new();
+/// let mut formatter = Formatter::new(&mut buf);
+///
+/// let block = hcl::Block::builder("user")
+///     .add_label("johndoe")
+///     .add_attribute(("age", 34))
+///     .add_attribute(("email", "johndoe@example.com"))
+///     .build();
+///
+/// block.format(&mut formatter)?;
+///
+/// let expected = r#"
+/// user "johndoe" {
+///   age = 34
+///   email = "johndoe@example.com"
+/// }
+/// "#.trim_start();
+///
+/// let formatted = String::from_utf8(buf)?;
+///
+/// assert_eq!(formatted, expected);
+/// #   Ok(())
+/// # }
+/// ```
+///
+/// The [`builder()`](Formatter::builder) method can be used to construct a custom `Formatter` for
+/// use with a [`Serializer`][Serializer]:
 ///
 /// ```
 /// use hcl::{format::Formatter, ser::Serializer};

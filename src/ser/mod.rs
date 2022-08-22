@@ -3,6 +3,10 @@
 //! This module provides the [`Serializer`] type and the convienince functions [`to_string`],
 //! [`to_vec`] and [`to_writer`] for serializing data to HCL.
 //!
+//! If you want to serialize the data structures provided by this crate (e.g.
+//! [`Body`](crate::Body)) consider using the functionality in the [`format`](crate::format) module
+//! instead because it is more efficient.
+//!
 //! ## Supported top-level types
 //!
 //! The [`Serializer`] supports serialization to HCL for types that are either structured like
@@ -179,7 +183,7 @@
 //! "#
 //! .trim_start();
 //!
-//! let serialized = hcl::to_string(&body).unwrap();
+//! let serialized = hcl::to_string(&body)?;
 //!
 //! assert_eq!(serialized, expected);
 //! #   Ok(())
