@@ -474,7 +474,7 @@ where
             self.write_string_fragment(line)?;
         }
 
-        if s.ends_with("\n") {
+        if s.ends_with('\n') {
             self.write_all(b"\n")?;
         }
 

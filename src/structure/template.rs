@@ -5,7 +5,7 @@ use std::{fmt, str::FromStr};
 
 /// A quoted template expression is delimited by quote characters (`"`) and defines a template as
 /// a single-line expression with escape characters.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::template_expr")]
 pub enum TemplateExpr {
     /// A quoted string template.
@@ -48,7 +48,7 @@ impl fmt::Display for TemplateExpr {
 
 /// A heredoc template expression is introduced by a `<<` sequence and defines a template via a
 /// multi-line sequence terminated by a user-chosen delimiter.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::heredoc")]
 pub struct Heredoc {
     /// The delimiter identifier that denotes the heredoc start and end.
@@ -72,7 +72,7 @@ impl fmt::Display for Heredoc {
 }
 
 /// The strip behaviour for the template contained in the heredoc.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::heredoc_strip")]
 pub enum HeredocStripMode {
     /// `<<`: Do not strip leading whitespace.

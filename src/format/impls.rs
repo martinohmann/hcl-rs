@@ -205,7 +205,7 @@ impl Format for Heredoc {
             HeredocStripMode::None => {
                 fmt.write_string_fragment(&self.template)?;
 
-                if !self.template.ends_with("\n") {
+                if !self.template.ends_with('\n') {
                     fmt.write_all(b"\n")?;
                 }
 
@@ -214,7 +214,7 @@ impl Format for Heredoc {
             HeredocStripMode::Indent => {
                 fmt.write_indented(fmt.current_indent + 1, &self.template)?;
 
-                if !self.template.ends_with("\n") {
+                if !self.template.ends_with('\n') {
                     fmt.write_all(b"\n")?;
                 }
 

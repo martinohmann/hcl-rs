@@ -29,12 +29,12 @@ pub struct Interpolation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Directive {
-    If(If),
-    For(For),
+    If(IfDirective),
+    For(ForDirective),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct If {
+pub struct IfDirective {
     pub if_expr: IfExpr,
     pub else_expr: Option<ElseExpr>,
     pub strip: StripMode,
@@ -54,7 +54,7 @@ pub struct ElseExpr {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct For {
+pub struct ForDirective {
     pub for_expr: ForExpr,
     pub strip: StripMode,
 }
@@ -68,7 +68,7 @@ pub struct ForExpr {
     pub strip: StripMode,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StripMode {
     None,
     Start,

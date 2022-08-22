@@ -1,11 +1,11 @@
+mod template;
 #[cfg(test)]
 mod tests;
 mod unescape;
 
 use crate::{
-    structure::Identifier, template::Template, Attribute, Block, BlockLabel, Body, Expression,
-    Heredoc, HeredocStripMode, Number, Object, ObjectKey, RawExpression, Result, Structure,
-    TemplateExpr,
+    structure::Identifier, Attribute, Block, BlockLabel, Body, Expression, Heredoc,
+    HeredocStripMode, Number, Object, ObjectKey, RawExpression, Result, Structure, TemplateExpr,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -13,6 +13,7 @@ use pest::{
 };
 use pest_derive::Parser;
 use std::str::FromStr;
+pub use template::parse_template;
 use unescape::unescape;
 
 #[derive(Parser)]
@@ -298,10 +299,6 @@ pub(crate) fn dedent_string(s: &str) -> String {
     }
 
     dedented
-}
-
-pub(crate) fn parse_template(_input: &str) -> Result<Template> {
-    todo!()
 }
 
 #[track_caller]
