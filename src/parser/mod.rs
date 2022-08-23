@@ -13,7 +13,7 @@ use pest::{
 };
 use pest_derive::Parser;
 use std::str::FromStr;
-pub use template::parse_template;
+pub use template::parse as parse_template;
 use unescape::unescape;
 
 #[derive(Parser)]

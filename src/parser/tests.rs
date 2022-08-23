@@ -285,18 +285,28 @@ fn parse_template() {
                         QuotedStringTemplateInner(1, 48, [
                             QuotedStringTemplateLiteral(1, 5),
                             TemplateInterpolation(5, 11, [
+                                TemplateIExprStartNormal(5, 7),
                                 ExprTerm(7, 10, [
                                     VariableExpr(7, 10)
-                                ])
+                                ]),
+                                TemplateExprEndNormal(10, 11)
                             ]),
                             QuotedStringTemplateLiteral(11, 21),
                             TemplateDirective(21, 48, [
                                 TemplateIf(21, 48, [
-                                    ExprTerm(26, 31, [
-                                        VariableExpr(26, 30)
+                                    TemplateIfExpr(21, 38, [
+                                        TemplateDExprStartNormal(21, 23),
+                                        ExprTerm(26, 31, [
+                                            VariableExpr(26, 30)
+                                        ]),
+                                        TemplateExprEndStrip(31, 33),
+                                        Template(34, 38, [
+                                            TemplateLiteral(34, 38)
+                                        ]),
                                     ]),
-                                    Template(34, 37, [
-                                        TemplateLiteral(34, 37)
+                                    TemplateEndIfExpr(38, 48, [
+                                        TemplateDExprStartStrip(38, 41),
+                                        TemplateExprEndNormal(47, 48),
                                     ])
                                 ])
                             ])
@@ -322,6 +332,7 @@ fn parse_cond_in_interpolation() {
                         QuotedStringTemplate(7, 37, [
                             QuotedStringTemplateInner(8, 36, [
                                 TemplateInterpolation(8, 36, [
+                                    TemplateIExprStartNormal(8, 10),
                                     Conditional(10, 35, [
                                         CondExpr(10, 15, [
                                             ExprTerm(10, 15, [
@@ -341,7 +352,8 @@ fn parse_cond_in_interpolation() {
                                                 String(34, 34)
                                             ])
                                         ])
-                                    ])
+                                    ]),
+                                    TemplateExprEndNormal(35, 36)
                                 ])
                             ])
                         ])
@@ -634,9 +646,11 @@ fn negative_numbers() {
 }
 
 #[test]
-#[ignore]
-fn templates() {
-    use crate::structure::TemplateExpr;
+fn template_expr() {
+    use crate::{
+        structure::TemplateExpr,
+        template::{IfDirective, IfExpr, StripMode, Template},
+    };
 
     let input = r#"foo = "bar ${baz} %{~ if cond}qux%{ endif ~}""#;
     let body = parse(input).unwrap();
@@ -644,11 +658,33 @@ fn templates() {
     let expected = Body::builder()
         .add_attribute((
             "foo",
-            Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(
-                "bar ${baz} %{~ if cond}qux%{ endif ~}".into(),
-            ))),
+            TemplateExpr::QuotedString("bar ${baz} %{~ if cond}qux%{ endif ~}".into()),
         ))
         .build();
 
     assert_eq!(body, expected);
+
+    match body.attributes().next().unwrap().expr() {
+        Expression::TemplateExpr(expr) => {
+            let template = expr.to_template().unwrap();
+
+            let expected_template = Template::new()
+                .add_literal("bar ")
+                .add_interpolation(Expression::Raw("baz".into()))
+                .add_literal(" ")
+                .add_directive(
+                    IfDirective::new(
+                        IfExpr::new(
+                            Expression::Raw("cond".into()),
+                            Template::new().add_literal("qux"),
+                        )
+                        .with_strip_mode(StripMode::Start),
+                    )
+                    .with_strip_mode(StripMode::End),
+                );
+
+            assert_eq!(template, expected_template);
+        }
+        _ => unreachable!(),
+    }
 }

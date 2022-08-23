@@ -141,25 +141,35 @@ WHITESPACE = _{ SpaceOrTab | NEWLINE }
 SpaceOrTab = _{ " " | "\t" }
 
 // The template sub-language.
-HclTemplate           = _{ SOI ~ Template ~ EOI }
+HclTemplate = _{ SOI ~ Template ~ EOI }
 
-Template              =  { (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
-TemplateLiteral       =  { ("$${" | "%%{" | (!("${" | "%{") ~ ANY))+ }
+Template              = ${ (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
+TemplateLiteral       = @{ ("$${" | "%%{" | (!("${" | "%{") ~ ANY))+ }
+TemplateInterpolation = !{ TemplateIExprStart ~ Expression ~ TemplateExprEnd }
 TemplateDirective     = !{ TemplateIf | TemplateFor }
-TemplateInterpolation = !{ ("${~" | "${") ~ Expression ~ ("}" | "~}") }
 
-TemplateIf = {
-    ("%{~" | "%{") ~ "if" ~ Expression ~ ("}" | "~}") ~
-    Template ~
-    (
-        ("%{~" | "%{") ~ "else" ~ ("}" | "~}") ~
-        Template
-    )? ~
-    ("%{~" | "%{") ~ "endif" ~ ("}" | "~}")
-}
+// Interpolation expression start
+TemplateIExprStart       = _{ TemplateIExprStartStrip | TemplateIExprStartNormal }
+TemplateIExprStartNormal =  { "${" }
+TemplateIExprStartStrip  =  { "${~" }
 
-TemplateFor = {
-    ("%{~" | "%{") ~ "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ ("}" | "~}") ~
-    Template ~
-    ("%{~" | "%{") ~ "endfor" ~ ("}" | "~}")
-}
+// Directive expression start
+TemplateDExprStart       = _{ TemplateDExprStartStrip | TemplateDExprStartNormal }
+TemplateDExprStartNormal =  { "%{" }
+TemplateDExprStartStrip  =  { "%{~" }
+
+// Interpolation or directive expression end
+TemplateExprEnd       = _{ TemplateExprEndNormal | TemplateExprEndStrip }
+TemplateExprEndNormal =  { "}" }
+TemplateExprEndStrip  =  { "~}" }
+
+// If directive
+TemplateIf        = { TemplateIfExpr ~ TemplateElseExpr? ~ TemplateEndIfExpr }
+TemplateIfExpr    = { TemplateDExprStart ~ "if" ~ Expression ~ TemplateExprEnd ~ Template }
+TemplateElseExpr  = { TemplateDExprStart ~ "else" ~ TemplateExprEnd ~ Template }
+TemplateEndIfExpr = { TemplateDExprStart ~ "endif" ~ TemplateExprEnd }
+
+// For directive
+TemplateFor        = { TemplateForExpr ~ TemplateEndForExpr }
+TemplateForExpr    = { TemplateDExprStart ~ "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ TemplateExprEnd ~ Template }
+TemplateEndForExpr = { TemplateDExprStart ~ "endfor" ~ TemplateExprEnd }
