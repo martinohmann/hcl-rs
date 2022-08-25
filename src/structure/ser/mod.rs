@@ -10,7 +10,7 @@ mod tests;
 
 pub use self::expression::to_expression;
 use crate::{serialize_unsupported, Error, Result};
-use serde::ser::{self, Impossible, Serialize};
+use serde::ser::{self, Impossible};
 use std::fmt::Display;
 
 pub struct StringSerializer;
@@ -30,8 +30,10 @@ impl ser::Serializer for StringSerializer {
     serialize_unsupported! {
         i8 i16 i32 i64 u8 u16 u32 u64
         bool f32 f64 bytes unit unit_struct newtype_variant none
-        some seq tuple tuple_struct tuple_variant map struct struct_variant
+        seq tuple tuple_struct tuple_variant map struct struct_variant
     }
+
+    serialize_self! { some newtype_struct }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
         Ok(value.to_string())
@@ -48,13 +50,6 @@ impl ser::Serializer for StringSerializer {
         variant: &'static str,
     ) -> Result<Self::Ok> {
         Ok(variant.to_owned())
-    }
-
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        value.serialize(self)
     }
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
@@ -95,39 +90,11 @@ where
         char str bytes none unit newtype_variant unit_struct unit_variant
         tuple_variant map struct struct_variant
     }
-
-    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
-
-    fn serialize_newtype_struct<T>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<Self::Ok, Self::Error>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
+    serialize_self! { some newtype_struct }
+    forward_to_serialize_seq! { tuple tuple_struct }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         Ok(SerializeSeq::new(self.inner, len))
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple, Self::Error> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeTupleStruct, Self::Error> {
-        self.serialize_seq(Some(len))
     }
 }
 

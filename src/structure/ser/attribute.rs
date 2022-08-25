@@ -20,20 +20,8 @@ impl ser::Serializer for AttributeSerializer {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         char str bytes none unit unit_struct unit_variant
     }
-
-    fn serialize_some<T>(self, value: &T) -> Result<Attribute>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
-
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Attribute>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
+    serialize_self! { some newtype_struct }
+    forward_to_serialize_seq! { tuple tuple_struct }
 
     fn serialize_newtype_variant<T>(
         self,
@@ -53,18 +41,6 @@ impl ser::Serializer for AttributeSerializer {
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Ok(SerializeAttributeSeq::new())
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
-        self.serialize_seq(Some(len))
     }
 
     fn serialize_tuple_variant(

@@ -256,24 +256,8 @@ where
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         char str bytes none unit unit_struct unit_variant
     }
-
-    fn serialize_some<T>(self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        BodySerializer
-            .serialize_some(value)
-            .and_then(|body| self.format(body))
-    }
-
-    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        BodySerializer
-            .serialize_newtype_struct(name, value)
-            .and_then(|body| self.format(body))
-    }
+    serialize_self! { some newtype_struct }
+    forward_to_serialize_seq! { tuple tuple_struct }
 
     fn serialize_newtype_variant<T>(
         self,
@@ -294,18 +278,6 @@ where
         BodySerializer
             .serialize_seq(len)
             .map(|inner| SerializeSeq { ser: self, inner })
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
-        self.serialize_seq(Some(len))
     }
 
     fn serialize_tuple_variant(
