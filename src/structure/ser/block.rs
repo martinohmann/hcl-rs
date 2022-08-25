@@ -1,6 +1,6 @@
 use super::{
     body::BodySerializer, expression::ExpressionSerializer, structure::StructureSerializer,
-    IdentifierSerializer, SeqSerializer, StringSerializer,
+    SeqSerializer, StringSerializer,
 };
 use crate::{serialize_unsupported, Attribute, Block, BlockLabel, Body, Error, Result, Structure};
 use serde::ser::{self, Impossible, Serialize};
@@ -390,7 +390,7 @@ impl ser::Serializer for BlockLabelSerializer {
     }
 
     fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        Ok(BlockLabel::string(value))
+        Ok(BlockLabel::String(value.to_string()))
     }
 
     fn serialize_unit_variant(
@@ -421,11 +421,8 @@ impl ser::Serializer for BlockLabelSerializer {
     {
         // Specialization for the `BlockLabel` type itself.
         match (name, variant) {
-            ("$hcl::block_label", "Identifier") => Ok(BlockLabel::Identifier(
-                value.serialize(IdentifierSerializer)?,
-            )),
-            ("$hcl::block_label", "String") => {
-                Ok(BlockLabel::String(value.serialize(StringSerializer)?))
+            ("$hcl::block_label", "Identifier") => {
+                Ok(BlockLabel::identifier(value.serialize(StringSerializer)?))
             }
             (_, _) => value.serialize(self),
         }

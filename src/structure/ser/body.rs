@@ -5,7 +5,7 @@ use super::{
     structure::{
         SerializeStructureStructVariant, SerializeStructureTupleVariant, StructureSerializer,
     },
-    IdentifierSerializer,
+    StringSerializer,
 };
 use crate::{serialize_unsupported, Attribute, Body, Error, Result, Structure};
 use serde::ser::{self, Serialize, SerializeMap};
@@ -217,7 +217,7 @@ impl ser::SerializeMap for SerializeBodyMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.next_key = Some(key.serialize(IdentifierSerializer)?.into_inner());
+        self.next_key = Some(key.serialize(StringSerializer)?);
         Ok(())
     }
 

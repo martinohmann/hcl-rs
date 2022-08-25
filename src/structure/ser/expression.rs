@@ -1,5 +1,5 @@
-use super::{IdentifierSerializer, StringSerializer};
-use crate::{serialize_unsupported, Error, Expression, Object, ObjectKey, Result};
+use super::StringSerializer;
+use crate::{serialize_unsupported, Error, Expression, Object, ObjectKey, RawExpression, Result};
 use serde::ser::{self, Impossible};
 use std::fmt::Display;
 
@@ -99,7 +99,9 @@ impl ser::Serializer for ExpressionSerializer {
         T: ?Sized + ser::Serialize,
     {
         if name == "$hcl::raw_expression" {
-            Ok(Expression::Raw(value.serialize(StringSerializer)?.into()))
+            Ok(Expression::Raw(RawExpression::from(
+                value.serialize(StringSerializer)?,
+            )))
         } else {
             value.serialize(self)
         }
@@ -460,11 +462,11 @@ impl ser::Serializer for ObjectKeySerializer {
     {
         // Specialization for the `ObjectKey` type itself.
         match (name, variant) {
-            ("$hcl::object_key", "Identifier") => Ok(ObjectKey::Identifier(
-                value.serialize(IdentifierSerializer)?,
-            )),
-            ("$hcl::object_key", "RawExpression") => Ok(ObjectKey::RawExpression(
-                value.serialize(StringSerializer)?.into(),
+            ("$hcl::object_key", "Identifier") => {
+                Ok(ObjectKey::identifier(value.serialize(StringSerializer)?))
+            }
+            ("$hcl::object_key", "RawExpression") => Ok(ObjectKey::raw_expression(
+                value.serialize(StringSerializer)?,
             )),
             (_, _) => value.serialize(self),
         }
