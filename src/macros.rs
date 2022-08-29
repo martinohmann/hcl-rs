@@ -700,49 +700,6 @@ macro_rules! hcl_expect_expr_comma {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! serialize_unsupported {
-    ($($func:ident)*) => {
-        $($crate::serialize_unsupported_helper!{$func})*
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! serialize_unsupported_method {
-    ($func:ident<T>($($arg:ident : $ty:ty),*)) => {
-        #[inline]
-        fn $func<T>(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error>
-        where
-            T: ?Sized + serde::ser::Serialize,
-        {
-            $(
-                let _ = $arg;
-            )*
-            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
-        }
-    };
-    ($func:ident($($arg:ident : $ty:ty),*) -> Result<$rty:ident>) => {
-        #[inline]
-        fn $func(self, $($arg: $ty,)*) -> $crate::Result<Self::$rty, Self::Error> {
-            $(
-                let _ = $arg;
-            )*
-            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
-        }
-    };
-    ($func:ident($($arg:ident : $ty:ty),*)) => {
-        #[inline]
-        fn $func(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error> {
-            $(
-                let _ = $arg;
-            )*
-            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
-        }
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! serialize_unsupported_helper {
     (bool) => {
         $crate::serialize_unsupported_method!{serialize_bool(v: bool)}
     };
@@ -836,5 +793,130 @@ macro_rules! serialize_unsupported_helper {
     };
     (struct_variant) => {
         $crate::serialize_unsupported_method!{serialize_struct_variant(name: &'static str, variant_index: u32, variant: &'static str, len: usize) -> Result<SerializeStructVariant>}
+    };
+    ($($func:ident)*) => {
+        $($crate::serialize_unsupported!{$func})*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! serialize_unsupported_method {
+    ($func:ident<T>($($arg:ident : $ty:ty),*)) => {
+        #[inline]
+        fn $func<T>(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            $(
+                let _ = $arg;
+            )*
+            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
+        }
+    };
+    ($func:ident($($arg:ident : $ty:ty),*) -> Result<$rty:ident>) => {
+        #[inline]
+        fn $func(self, $($arg: $ty,)*) -> $crate::Result<Self::$rty, Self::Error> {
+            $(
+                let _ = $arg;
+            )*
+            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
+        }
+    };
+    ($func:ident($($arg:ident : $ty:ty),*)) => {
+        #[inline]
+        fn $func(self, $($arg: $ty,)*) -> $crate::Result<Self::Ok, Self::Error> {
+            $(
+                let _ = $arg;
+            )*
+            Err(serde::ser::Error::custom(std::format!("`{}` not supported", std::stringify!($func))))
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! serialize_self {
+    (some) => {
+        $crate::serialize_self_method!{serialize_some()}
+    };
+    (newtype_struct) => {
+        $crate::serialize_self_method!{serialize_newtype_struct(name: &'static str)}
+    };
+    (newtype_variant) => {
+        $crate::serialize_self_method!{serialize_newtype_variant(name: &'static str, variant_index: u32, variant: &'static str)}
+    };
+    ($($func:ident)*) => {
+        $($crate::serialize_self!{$func})*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! serialize_self_method {
+    ($func:ident($($arg:ident : $ty:ty),*)) => {
+        #[inline]
+        fn $func<T>(self, $($arg: $ty,)* value: &T) -> $crate::Result<Self::Ok, Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            $(
+                let _ = $arg;
+            )*
+            value.serialize(self)
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! forward_to_serialize_seq {
+    (tuple) => {
+        $crate::forward_to_serialize_seq_method!{serialize_tuple() -> Result<SerializeTuple>}
+    };
+    (tuple_struct) => {
+        $crate::forward_to_serialize_seq_method!{serialize_tuple_struct(name: &'static str) -> Result<SerializeTupleStruct>}
+    };
+    ($($func:ident)*) => {
+        $($crate::forward_to_serialize_seq!{$func})*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! forward_to_serialize_seq_method {
+    ($func:ident($($arg:ident : $ty:ty),*) -> Result<$rty:ident>) => {
+        #[inline]
+        fn $func(self, $($arg: $ty,)* len: usize) -> $crate::Result<Self::$rty, Self::Error> {
+            $(
+                let _ = $arg;
+            )*
+            self.serialize_seq(Some(len))
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_forward_to_serialize_seq {
+    ($method:ident, $ok:ty, $error:ty) => {
+        type Ok = $ok;
+        type Error = $error;
+        impl_forward_to_serialize_seq!($method);
+    };
+    ($method:ident, $ok:ty) => {
+        impl_forward_to_serialize_seq!($method, $ok, $crate::Error);
+    };
+    ($method:ident) => {
+        fn $method<T>(&mut self, value: &T) -> $crate::Result<(), Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            serde::ser::SerializeSeq::serialize_element(self, value)
+        }
+
+        fn end(self) -> $crate::Result<Self::Ok, Self::Error> {
+            serde::ser::SerializeSeq::end(self)
+        }
     };
 }
