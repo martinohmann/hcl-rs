@@ -203,35 +203,11 @@ impl ser::SerializeSeq for SerializeExpressionSeq {
 }
 
 impl ser::SerializeTuple for SerializeExpressionSeq {
-    type Ok = Expression;
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_element, Expression);
 }
 
-impl serde::ser::SerializeTupleStruct for SerializeExpressionSeq {
-    type Ok = Expression;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+impl ser::SerializeTupleStruct for SerializeExpressionSeq {
+    impl_forward_to_serialize_seq!(serialize_field, Expression);
 }
 
 pub struct SerializeExpressionTupleVariant {

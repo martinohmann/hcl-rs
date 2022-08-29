@@ -895,3 +895,28 @@ macro_rules! forward_to_serialize_seq_method {
         }
     };
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_forward_to_serialize_seq {
+    ($method:ident, $ok:ty, $error:ty) => {
+        type Ok = $ok;
+        type Error = $error;
+        impl_forward_to_serialize_seq!($method);
+    };
+    ($method:ident, $ok:ty) => {
+        impl_forward_to_serialize_seq!($method, $ok, $crate::Error);
+    };
+    ($method:ident) => {
+        fn $method<T>(&mut self, value: &T) -> $crate::Result<(), Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            serde::ser::SerializeSeq::serialize_element(self, value)
+        }
+
+        fn end(self) -> $crate::Result<Self::Ok, Self::Error> {
+            serde::ser::SerializeSeq::end(self)
+        }
+    };
+}

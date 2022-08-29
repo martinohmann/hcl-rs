@@ -112,35 +112,11 @@ impl ser::SerializeSeq for SerializeBodySeq {
 }
 
 impl ser::SerializeTuple for SerializeBodySeq {
-    type Ok = Body;
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_element, Body);
 }
 
-impl serde::ser::SerializeTupleStruct for SerializeBodySeq {
-    type Ok = Body;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+impl ser::SerializeTupleStruct for SerializeBodySeq {
+    impl_forward_to_serialize_seq!(serialize_field, Body);
 }
 
 pub struct SerializeBodyTupleVariant {

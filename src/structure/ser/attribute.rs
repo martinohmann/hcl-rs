@@ -114,35 +114,11 @@ impl ser::SerializeSeq for SerializeAttributeSeq {
 }
 
 impl ser::SerializeTuple for SerializeAttributeSeq {
-    type Ok = Attribute;
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_element, Attribute);
 }
 
-impl serde::ser::SerializeTupleStruct for SerializeAttributeSeq {
-    type Ok = Attribute;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+impl ser::SerializeTupleStruct for SerializeAttributeSeq {
+    impl_forward_to_serialize_seq!(serialize_field, Attribute);
 }
 
 pub struct SerializeAttributeTupleVariant {

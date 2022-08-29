@@ -123,35 +123,11 @@ impl ser::SerializeSeq for SerializeStructureSeq {
 }
 
 impl ser::SerializeTuple for SerializeStructureSeq {
-    type Ok = Structure;
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_element, Structure);
 }
 
 impl ser::SerializeTupleStruct for SerializeStructureSeq {
-    type Ok = Structure;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_field, Structure);
 }
 
 pub struct SerializeStructureTupleVariant {

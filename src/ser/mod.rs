@@ -317,6 +317,36 @@ where
     }
 }
 
+macro_rules! impl_forward_to_inner {
+    ($($tt:tt)+) => {
+        type Ok = ();
+        type Error = $crate::Error;
+
+        impl_forward_to_inner_internal!($($tt)+);
+
+        fn end(self) -> $crate::Result<Self::Ok, Self::Error> {
+            self.inner.end().and_then(|body| self.ser.format(body))
+        }
+    };
+}
+
+macro_rules! impl_forward_to_inner_internal {
+    ($method:ident($($arg:ident: $ty:ty),*) $(,$rest:tt)*) => {
+        fn $method<T>(&mut self, $($arg: $ty,)* value: &T) -> $crate::Result<(), Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            self.inner.$method($($arg,)* value)
+        }
+
+        impl_forward_to_inner_internal!($($rest),*);
+    };
+    ($method:ident $(,$rest:tt)*) => {
+        impl_forward_to_inner_internal!($method() $(,$rest)*);
+    };
+    () => {};
+}
+
 #[doc(hidden)]
 pub struct SerializeSeq<'a, W> {
     inner: SerializeBodySeq,
@@ -327,57 +357,21 @@ impl<'a, W> ser::SerializeSeq for SerializeSeq<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.inner.serialize_element(value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.inner.end().and_then(|body| self.ser.format(body))
-    }
+    impl_forward_to_inner!(serialize_element);
 }
 
 impl<'a, W> ser::SerializeTuple for SerializeSeq<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<()> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_inner!(serialize_element);
 }
 
 impl<'a, W> ser::SerializeTupleStruct for SerializeSeq<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<()> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_inner!(serialize_field);
 }
 
 #[doc(hidden)]
@@ -390,19 +384,7 @@ impl<'a, W> ser::SerializeTupleVariant for SerializeTupleVariant<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.inner.serialize_field(value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.inner.end().and_then(|body| self.ser.format(body))
-    }
+    impl_forward_to_inner!(serialize_field);
 }
 
 #[doc(hidden)]
@@ -415,26 +397,7 @@ impl<'a, W> ser::SerializeMap for SerializeMap<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.inner.serialize_key(key)
-    }
-
-    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.inner.serialize_value(value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.inner.end().and_then(|body| self.ser.format(body))
-    }
+    impl_forward_to_inner!(serialize_key, serialize_value);
 }
 
 #[doc(hidden)]
@@ -447,19 +410,7 @@ impl<'a, W> ser::SerializeStructVariant for SerializeStructVariant<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.inner.serialize_field(key, value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.inner.end().and_then(|body| self.ser.format(body))
-    }
+    impl_forward_to_inner!(serialize_field(key: &'static str));
 }
 
 #[doc(hidden)]
@@ -472,19 +423,7 @@ impl<'a, W> ser::SerializeStruct for SerializeStruct<'a, W>
 where
     W: io::Write,
 {
-    type Ok = ();
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        self.inner.serialize_field(key, value)
-    }
-
-    fn end(self) -> Result<()> {
-        self.inner.end().and_then(|body| self.ser.format(body))
-    }
+    impl_forward_to_inner!(serialize_field(key: &'static str));
 }
 
 /// Serialize the given value as an HCL byte vector.

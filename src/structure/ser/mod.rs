@@ -32,7 +32,6 @@ impl ser::Serializer for StringSerializer {
         bool f32 f64 bytes unit unit_struct newtype_variant none
         seq tuple tuple_struct tuple_variant map struct struct_variant
     }
-
     serialize_self! { some newtype_struct }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
@@ -142,36 +141,12 @@ impl<S> ser::SerializeTuple for SerializeSeq<S>
 where
     S: ser::Serializer + Clone,
 {
-    type Ok = Vec<S::Ok>;
-    type Error = S::Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_element, Vec<S::Ok>, S::Error);
 }
 
 impl<S> serde::ser::SerializeTupleStruct for SerializeSeq<S>
 where
     S: ser::Serializer + Clone,
 {
-    type Ok = Vec<S::Ok>;
-    type Error = S::Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_field, Vec<S::Ok>, S::Error);
 }
