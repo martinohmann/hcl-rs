@@ -24,8 +24,9 @@ impl ser::Serializer for TemplateExprSerializer {
     serialize_unsupported! {
         i8 i16 i32 i64 u8 u16 u32 u64
         bool f32 f64 bytes unit unit_struct none
-        some seq tuple tuple_struct tuple_variant map struct struct_variant
+        seq tuple tuple_struct tuple_variant map struct struct_variant
     }
+    serialize_self! { some newtype_struct }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
         Ok(TemplateExpr::QuotedString(value.to_string()))
@@ -42,13 +43,6 @@ impl ser::Serializer for TemplateExprSerializer {
         variant: &'static str,
     ) -> Result<Self::Ok> {
         Ok(TemplateExpr::QuotedString(variant.to_owned()))
-    }
-
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        value.serialize(self)
     }
 
     fn serialize_newtype_variant<T>(
@@ -100,20 +94,8 @@ impl ser::Serializer for HeredocSerializer {
         char str bytes none unit unit_struct unit_variant
         tuple_variant struct_variant
     }
-
-    fn serialize_some<T>(self, value: &T) -> Result<Heredoc>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
-
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Heredoc>
-    where
-        T: ?Sized + Serialize,
-    {
-        value.serialize(self)
-    }
+    serialize_self! { some newtype_struct }
+    forward_to_serialize_seq! { tuple tuple_struct }
 
     fn serialize_newtype_variant<T>(
         self,
@@ -134,18 +116,6 @@ impl ser::Serializer for HeredocSerializer {
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
         Ok(SerializeHeredocSeq::new())
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeTupleStruct> {
-        self.serialize_seq(Some(len))
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -207,35 +177,11 @@ impl ser::SerializeSeq for SerializeHeredocSeq {
 }
 
 impl ser::SerializeTuple for SerializeHeredocSeq {
-    type Ok = Heredoc;
-    type Error = Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_element, Heredoc);
 }
 
 impl serde::ser::SerializeTupleStruct for SerializeHeredocSeq {
-    type Ok = Heredoc;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        ser::SerializeSeq::end(self)
-    }
+    impl_forward_to_serialize_seq!(serialize_field, Heredoc);
 }
 
 pub struct SerializeHeredocMap {
@@ -363,9 +309,10 @@ impl ser::Serializer for HeredocStripModeSerializer {
     serialize_unsupported! {
         i8 i16 i32 i64 u8 u16 u32 u64
         bool f32 f64 char bytes unit unit_struct none
-        some seq tuple tuple_struct tuple_variant map struct struct_variant
+        seq tuple tuple_struct tuple_variant map struct struct_variant
         newtype_variant
     }
+    serialize_self! { some newtype_struct }
 
     fn serialize_str(self, value: &str) -> Result<Self::Ok> {
         HeredocStripMode::from_str(value)
@@ -378,12 +325,5 @@ impl ser::Serializer for HeredocStripModeSerializer {
         variant: &'static str,
     ) -> Result<Self::Ok> {
         self.serialize_str(variant)
-    }
-
-    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        value.serialize(self)
     }
 }
