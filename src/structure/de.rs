@@ -5,57 +5,48 @@ use super::{
     ObjectKey, RawExpression, Structure, TemplateExpr,
 };
 use crate::{Error, Number, Result};
-use serde::de::{self, value::BorrowedStrDeserializer, IntoDeserializer};
-use serde::forward_to_deserialize_any;
+use serde::de::{self, value::MapAccessDeserializer, IntoDeserializer};
+use serde::{forward_to_deserialize_any, Deserializer};
+use std::marker::PhantomData;
 
-pub struct BodyDeserializer {
-    value: Body,
+// A trait that allows enum types to report the name of their variant.
+trait VariantName {
+    fn variant_name(&self) -> &'static str;
 }
 
-impl BodyDeserializer {
-    pub fn new(value: Body) -> BodyDeserializer {
-        BodyDeserializer { value }
-    }
+macro_rules! impl_deserialize_enum {
+    () => {
+        fn deserialize_enum<V>(
+            self,
+            _name: &'static str,
+            _variants: &'static [&'static str],
+            visitor: V,
+        ) -> Result<V::Value, Self::Error>
+        where
+            V: de::Visitor<'de>,
+        {
+            visitor.visit_enum(EnumAccess::new(self))
+        }
+    };
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Body {
-    type Deserializer = BodyDeserializer;
+    type Deserializer = NewtypeStructDeserializer<Vec<Structure>>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        BodyDeserializer { value: self }
+        NewtypeStructDeserializer::new(self.into_inner())
     }
-}
-
-impl<'de> de::Deserializer<'de> for BodyDeserializer {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_newtype_struct(self.value.into_inner().into_deserializer())
-    }
-}
-
-pub struct StructureDeserializer {
-    value: Structure,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Structure {
-    type Deserializer = StructureDeserializer;
+    type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        StructureDeserializer { value: self }
+        self
     }
 }
 
-impl<'de> de::Deserializer<'de> for StructureDeserializer {
+impl<'de> de::Deserializer<'de> for Structure {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -63,80 +54,39 @@ impl<'de> de::Deserializer<'de> for StructureDeserializer {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
+    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        match self.value {
+        match self {
             Structure::Attribute(attribute) => {
                 attribute.into_deserializer().deserialize_any(visitor)
             }
             Structure::Block(block) => block.into_deserializer().deserialize_any(visitor),
         }
     }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_enum(self)
-    }
 }
 
-impl<'de> de::EnumAccess<'de> for StructureDeserializer {
-    type Error = Error;
-    type Variant = AnyVariantAccess<Self>;
-
-    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        let variant = match self.value {
+impl VariantName for Structure {
+    fn variant_name(&self) -> &'static str {
+        match self {
             Structure::Attribute(_) => "Attribute",
             Structure::Block(_) => "Block",
-        };
-
-        seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, AnyVariantAccess::new(self)))
+        }
     }
-}
-
-pub struct AttributeDeserializer {
-    value: Attribute,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Attribute {
-    type Deserializer = AttributeDeserializer;
+    type Deserializer = MapAccessDeserializer<AttributeAccess>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        AttributeDeserializer { value: self }
+        MapAccessDeserializer::new(AttributeAccess::new(self))
     }
 }
 
-impl<'de> de::Deserializer<'de> for AttributeDeserializer {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_map(AttributeAccess::new(self.value))
-    }
-}
-
-struct AttributeAccess {
+pub struct AttributeAccess {
     key: Option<String>,
     expr: Option<Expression>,
 }
@@ -180,36 +130,15 @@ impl<'de> de::MapAccess<'de> for AttributeAccess {
     }
 }
 
-pub struct BlockDeserializer {
-    value: Block,
-}
-
 impl<'de> IntoDeserializer<'de, Error> for Block {
-    type Deserializer = BlockDeserializer;
+    type Deserializer = MapAccessDeserializer<BlockAccess>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        BlockDeserializer { value: self }
+        MapAccessDeserializer::new(BlockAccess::new(self))
     }
 }
 
-impl<'de> de::Deserializer<'de> for BlockDeserializer {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_map(BlockAccess::new(self.value))
-    }
-}
-
-struct BlockAccess {
+pub struct BlockAccess {
     identifier: Option<String>,
     labels: Option<Vec<BlockLabel>>,
     body: Option<Body>,
@@ -259,19 +188,15 @@ impl<'de> de::MapAccess<'de> for BlockAccess {
     }
 }
 
-pub struct BlockLabelDeserializer {
-    value: BlockLabel,
-}
-
 impl<'de> IntoDeserializer<'de, Error> for BlockLabel {
-    type Deserializer = BlockLabelDeserializer;
+    type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        BlockLabelDeserializer { value: self }
+        self
     }
 }
 
-impl<'de> de::Deserializer<'de> for BlockLabelDeserializer {
+impl<'de> de::Deserializer<'de> for BlockLabel {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -279,61 +204,37 @@ impl<'de> de::Deserializer<'de> for BlockLabelDeserializer {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
+    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        match self.value {
+        match self {
             BlockLabel::String(string) => visitor.visit_string(string),
             BlockLabel::Identifier(ident) => ident.into_deserializer().deserialize_any(visitor),
         }
     }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_enum(self)
-    }
 }
 
-impl<'de> de::EnumAccess<'de> for BlockLabelDeserializer {
-    type Error = Error;
-    type Variant = AnyVariantAccess<Self>;
-
-    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        let variant = match self.value {
+impl VariantName for BlockLabel {
+    fn variant_name(&self) -> &'static str {
+        match self {
             BlockLabel::String(_) => "String",
             BlockLabel::Identifier(_) => "Identifier",
-        };
-
-        seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, AnyVariantAccess::new(self)))
+        }
     }
-}
-
-pub struct ExpressionDeserializer {
-    value: Expression,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Expression {
-    type Deserializer = ExpressionDeserializer;
+    type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        ExpressionDeserializer { value: self }
+        self
     }
 }
 
-impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
+impl<'de> de::Deserializer<'de> for Expression {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -346,7 +247,7 @@ impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
     where
         V: de::Visitor<'de>,
     {
-        match self.value {
+        match self {
             Expression::Null => visitor.visit_unit(),
             Expression::Bool(b) => visitor.visit_bool(b),
             Expression::Number(n) => match n {
@@ -358,7 +259,7 @@ impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
             Expression::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
-            Expression::TemplateExpr(expr) => visitor.visit_enum(expr.into_deserializer()),
+            Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -375,15 +276,9 @@ impl<'de> de::Deserializer<'de> for ExpressionDeserializer {
     }
 }
 
-impl<'de> de::EnumAccess<'de> for ExpressionDeserializer {
-    type Error = Error;
-    type Variant = Self;
-
-    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        let variant = match self.value {
+impl VariantName for Expression {
+    fn variant_name(&self) -> &'static str {
+        match self {
             Expression::Null => "Null",
             Expression::Bool(_) => "Bool",
             Expression::Number(_) => "Number",
@@ -392,14 +287,26 @@ impl<'de> de::EnumAccess<'de> for ExpressionDeserializer {
             Expression::Object(_) => "Object",
             Expression::Raw(_) => "Raw",
             Expression::TemplateExpr(_) => "TemplateExpr",
-        };
-
-        seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, self))
+        }
     }
 }
 
-impl<'de> de::VariantAccess<'de> for ExpressionDeserializer {
+impl<'de> de::EnumAccess<'de> for Expression {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        let variant_name = self.variant_name();
+
+        seed.deserialize(variant_name.into_deserializer())
+            .map(|variant| (variant, self))
+    }
+}
+
+impl<'de> de::VariantAccess<'de> for Expression {
     type Error = Error;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
@@ -410,7 +317,7 @@ impl<'de> de::VariantAccess<'de> for ExpressionDeserializer {
     where
         T: de::DeserializeSeed<'de>,
     {
-        match self.value {
+        match self {
             Expression::TemplateExpr(expr) => seed.deserialize(expr.into_deserializer()),
             value => seed.deserialize(value.into_deserializer()),
         }
@@ -420,7 +327,7 @@ impl<'de> de::VariantAccess<'de> for ExpressionDeserializer {
     where
         V: de::Visitor<'de>,
     {
-        de::Deserializer::deserialize_seq(self, visitor)
+        self.into_deserializer().deserialize_seq(visitor)
     }
 
     fn struct_variant<V>(
@@ -431,23 +338,19 @@ impl<'de> de::VariantAccess<'de> for ExpressionDeserializer {
     where
         V: de::Visitor<'de>,
     {
-        de::Deserializer::deserialize_map(self, visitor)
+        self.into_deserializer().deserialize_map(visitor)
     }
-}
-
-pub struct ObjectKeyDeserializer {
-    value: ObjectKey,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for ObjectKey {
-    type Deserializer = ObjectKeyDeserializer;
+    type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        ObjectKeyDeserializer { value: self }
+        self
     }
 }
 
-impl<'de> de::Deserializer<'de> for ObjectKeyDeserializer {
+impl<'de> de::Deserializer<'de> for ObjectKey {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -455,92 +358,47 @@ impl<'de> de::Deserializer<'de> for ObjectKeyDeserializer {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
+    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
     where
         V: de::Visitor<'de>,
     {
-        match self.value {
+        match self {
             ObjectKey::String(string) => visitor.visit_string(string),
             ObjectKey::Identifier(ident) => ident.into_deserializer().deserialize_any(visitor),
             ObjectKey::RawExpression(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_enum(self)
-    }
 }
 
-impl<'de> de::EnumAccess<'de> for ObjectKeyDeserializer {
-    type Error = Error;
-    type Variant = AnyVariantAccess<Self>;
-
-    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        let variant = match self.value {
+impl VariantName for ObjectKey {
+    fn variant_name(&self) -> &'static str {
+        match self {
             ObjectKey::String(_) => "String",
             ObjectKey::Identifier(_) => "Identifier",
             ObjectKey::RawExpression(_) => "RawExpression",
-        };
-
-        seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, AnyVariantAccess::new(self)))
+        }
     }
-}
-
-pub struct RawExpressionDeserializer {
-    value: RawExpression,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for RawExpression {
-    type Deserializer = RawExpressionDeserializer;
+    type Deserializer = NewtypeStructDeserializer<String>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        RawExpressionDeserializer { value: self }
+        NewtypeStructDeserializer::new(self.into_inner())
     }
-}
-
-impl<'de> de::Deserializer<'de> for RawExpressionDeserializer {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_newtype_struct(self.value.into_inner().into_deserializer())
-    }
-}
-
-pub struct TemplateExprDeserializer {
-    value: TemplateExpr,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for TemplateExpr {
-    type Deserializer = TemplateExprDeserializer;
+    type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        TemplateExprDeserializer { value: self }
+        self
     }
 }
 
-impl<'de> de::Deserializer<'de> for TemplateExprDeserializer {
+impl<'de> de::Deserializer<'de> for TemplateExpr {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -548,78 +406,37 @@ impl<'de> de::Deserializer<'de> for TemplateExprDeserializer {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
+    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
     where
         V: de::Visitor<'de>,
     {
-        match self.value {
+        match self {
             TemplateExpr::QuotedString(string) => visitor.visit_string(string),
             TemplateExpr::Heredoc(heredoc) => heredoc.into_deserializer().deserialize_any(visitor),
         }
     }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_enum(self)
-    }
 }
 
-impl<'de> de::EnumAccess<'de> for TemplateExprDeserializer {
-    type Error = Error;
-    type Variant = AnyVariantAccess<Self>;
-
-    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        let variant = match self.value {
+impl VariantName for TemplateExpr {
+    fn variant_name(&self) -> &'static str {
+        match self {
             TemplateExpr::QuotedString(_) => "QuotedString",
             TemplateExpr::Heredoc(_) => "Heredoc",
-        };
-
-        seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, AnyVariantAccess::new(self)))
+        }
     }
-}
-
-pub struct HeredocDeserializer {
-    value: Heredoc,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Heredoc {
-    type Deserializer = HeredocDeserializer;
+    type Deserializer = MapAccessDeserializer<HeredocAccess>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        HeredocDeserializer { value: self }
+        MapAccessDeserializer::new(HeredocAccess::new(self))
     }
 }
 
-impl<'de> de::Deserializer<'de> for HeredocDeserializer {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_map(HeredocAccess::new(self.value))
-    }
-}
-
-struct HeredocAccess {
+pub struct HeredocAccess {
     delimiter: Option<Identifier>,
     template: Option<String>,
     strip: Option<HeredocStripMode>,
@@ -669,19 +486,15 @@ impl<'de> de::MapAccess<'de> for HeredocAccess {
     }
 }
 
-pub struct HeredocStripModeDeserializer {
-    value: HeredocStripMode,
-}
-
 impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
-    type Deserializer = HeredocStripModeDeserializer;
+    type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        HeredocStripModeDeserializer { value: self }
+        self
     }
 }
 
-impl<'de> de::Deserializer<'de> for HeredocStripModeDeserializer {
+impl<'de> de::Deserializer<'de> for HeredocStripMode {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -689,62 +502,56 @@ impl<'de> de::Deserializer<'de> for HeredocStripModeDeserializer {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
+    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        match self.value {
+        match self {
             HeredocStripMode::None => visitor.visit_str("None"),
             HeredocStripMode::Indent => visitor.visit_str("Indent"),
         }
     }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        visitor.visit_enum(self)
-    }
 }
 
-impl<'de> de::EnumAccess<'de> for HeredocStripModeDeserializer {
-    type Error = Error;
-    type Variant = AnyVariantAccess<Self>;
-
-    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
-    where
-        T: de::DeserializeSeed<'de>,
-    {
-        let variant = match self.value {
+impl VariantName for HeredocStripMode {
+    fn variant_name(&self) -> &'static str {
+        match self {
             HeredocStripMode::None => "None",
             HeredocStripMode::Indent => "Indent",
-        };
-
-        seed.deserialize(BorrowedStrDeserializer::new(variant))
-            .map(|value| (value, AnyVariantAccess::new(self)))
+        }
     }
-}
-
-pub struct IdentifierDeserializer {
-    value: Identifier,
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Identifier {
-    type Deserializer = IdentifierDeserializer;
+    type Deserializer = NewtypeStructDeserializer<String>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        IdentifierDeserializer { value: self }
+        NewtypeStructDeserializer::new(self.into_inner())
     }
 }
 
-impl<'de> de::Deserializer<'de> for IdentifierDeserializer {
-    type Error = Error;
+pub struct NewtypeStructDeserializer<T, E = Error> {
+    value: T,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> NewtypeStructDeserializer<T, E> {
+    fn new(value: T) -> Self {
+        NewtypeStructDeserializer {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::Deserializer<'de> for NewtypeStructDeserializer<T, E>
+where
+    T: IntoDeserializer<'de, E>,
+    E: de::Error,
+{
+    type Error = E;
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
@@ -752,46 +559,84 @@ impl<'de> de::Deserializer<'de> for IdentifierDeserializer {
         tuple tuple_struct map struct enum identifier ignored_any
     }
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        visitor.visit_newtype_struct(self.value.into_inner().into_deserializer())
+        visitor.visit_newtype_struct(self.value.into_deserializer())
     }
 }
 
-pub struct AnyVariantAccess<D> {
-    de: D,
+pub struct EnumAccess<T, E = Error> {
+    value: T,
+    marker: PhantomData<E>,
 }
 
-impl<D> AnyVariantAccess<D> {
-    fn new(de: D) -> Self {
-        AnyVariantAccess { de }
+impl<T, E> EnumAccess<T, E> {
+    fn new(value: T) -> Self {
+        EnumAccess {
+            value,
+            marker: PhantomData,
+        }
     }
 }
 
-impl<'de, D> de::VariantAccess<'de> for AnyVariantAccess<D>
+impl<'de, T, E> de::EnumAccess<'de> for EnumAccess<T, E>
 where
-    D: de::Deserializer<'de>,
+    T: IntoDeserializer<'de, E> + VariantName,
+    E: de::Error,
 {
-    type Error = D::Error;
+    type Error = E;
+    type Variant = VariantAccess<T, E>;
+
+    fn variant_seed<S>(self, seed: S) -> Result<(S::Value, Self::Variant), Self::Error>
+    where
+        S: de::DeserializeSeed<'de>,
+    {
+        let variant_name = self.value.variant_name();
+
+        seed.deserialize(variant_name.into_deserializer())
+            .map(|variant| (variant, VariantAccess::new(self.value)))
+    }
+}
+
+pub struct VariantAccess<T, E = Error> {
+    value: T,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> VariantAccess<T, E> {
+    fn new(value: T) -> Self {
+        VariantAccess {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::VariantAccess<'de> for VariantAccess<T, E>
+where
+    T: IntoDeserializer<'de, E>,
+    E: de::Error,
+{
+    type Error = E;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
-        de::Deserialize::deserialize(self.de)
+        de::Deserialize::deserialize(self.value.into_deserializer())
     }
 
-    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    fn newtype_variant_seed<S>(self, seed: S) -> Result<S::Value, Self::Error>
     where
-        T: de::DeserializeSeed<'de>,
+        S: de::DeserializeSeed<'de>,
     {
-        seed.deserialize(self.de)
+        seed.deserialize(self.value.into_deserializer())
     }
 
     fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
-        de::Deserializer::deserialize_seq(self.de, visitor)
+        self.value.into_deserializer().deserialize_seq(visitor)
     }
 
     fn struct_variant<V>(
@@ -802,6 +647,6 @@ where
     where
         V: de::Visitor<'de>,
     {
-        de::Deserializer::deserialize_map(self.de, visitor)
+        self.value.into_deserializer().deserialize_map(visitor)
     }
 }
