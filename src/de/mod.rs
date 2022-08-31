@@ -8,10 +8,8 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    parser, structure::de::BodyDeserializer, value::de::ValueDeserializer, Body, Error, Result,
-};
-use serde::de;
+use crate::{parser, Body, Error, Result, Value};
+use serde::de::{self, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 
 /// A structure that deserializes HCL into Rust values.
@@ -171,8 +169,9 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        let de = ValueDeserializer::new(self.body.into());
-        de.deserialize_any(visitor)
+        Value::from(self.body)
+            .into_deserializer()
+            .deserialize_any(visitor)
     }
 
     fn deserialize_newtype_struct<V>(
@@ -185,8 +184,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     {
         if name == "$hcl::body" {
             // Specialized handling of `hcl::Body`.
-            let de = BodyDeserializer::new(self.body);
-            de.deserialize_any(visitor)
+            self.body.into_deserializer().deserialize_any(visitor)
         } else {
             // Generic deserialization according to the HCL JSON spec.
             self.deserialize_any(visitor)
@@ -202,8 +200,9 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        let de = ValueDeserializer::new(self.body.into());
-        de.deserialize_enum(name, variants, visitor)
+        Value::from(self.body)
+            .into_deserializer()
+            .deserialize_enum(name, variants, visitor)
     }
 
     forward_to_deserialize_any! {
