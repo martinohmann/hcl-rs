@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.7.0](https://github.com/martinohmann/hcl-rs/compare/v0.6.5...v0.7.0) (2022-09-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* this breaks some public APIs.
+
+### Bug Fixes
+
+* derive `Eq` where suggested by clippy ([307cc2c](https://github.com/martinohmann/hcl-rs/commit/307cc2cc1883a163c9074e25f7ddd3f14bad73af))
+
+
+### refactor
+
+* move formatter into `format` module ([#55](https://github.com/martinohmann/hcl-rs/issues/55)) ([ec98979](https://github.com/martinohmann/hcl-rs/commit/ec989794876632fe466928c3759586da2d78ff13))
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.5 to 3.0.7 ([#53](https://github.com/martinohmann/hcl-rs/issues/53)) ([77e2c70](https://github.com/martinohmann/hcl-rs/commit/77e2c70143ec991164ea8e10628f0ed09f8bf062))
+* **deps:** bump actions/cache from 3.0.7 to 3.0.8 ([#59](https://github.com/martinohmann/hcl-rs/issues/59)) ([f78e16e](https://github.com/martinohmann/hcl-rs/commit/f78e16e874f1c4352deac88d28df280f63ef022f))
+
 ## [0.6.5](https://github.com/martinohmann/hcl-rs/compare/v0.6.4...v0.6.5) (2022-08-19)
 
 
