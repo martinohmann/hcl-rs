@@ -15,6 +15,7 @@ pub mod structure;
 pub mod template;
 #[cfg(test)]
 mod tests;
+mod util;
 pub mod value;
 
 #[doc(inline)]

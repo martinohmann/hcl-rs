@@ -1,5 +1,5 @@
 use super::Identifier;
-use crate::{parser::dedent_string, template::Template, Error, Result};
+use crate::{template::Template, util::dedent, Error, Result};
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 
@@ -16,7 +16,8 @@ pub enum TemplateExpr {
 
 impl TemplateExpr {
     /// Parses the template expression and returns the template. This will return an error if the
-    /// template expression contains invalid template syntax.
+    /// template expression contains invalid template syntax or string literals with invalid escape
+    /// sequences.
     pub fn to_template(&self) -> Result<Template> {
         match self {
             TemplateExpr::QuotedString(s) => s.parse(),
@@ -64,7 +65,7 @@ impl fmt::Display for Heredoc {
         match self.strip {
             HeredocStripMode::None => f.write_str(&self.template),
             HeredocStripMode::Indent => {
-                let dedented = dedent_string(&self.template);
+                let dedented = dedent(&self.template);
                 f.write_str(&dedented)
             }
         }
@@ -100,8 +101,8 @@ impl FromStr for HeredocStripMode {
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "None" | "none" => Ok(HeredocStripMode::None),
-            "Indent" | "indent" => Ok(HeredocStripMode::Indent),
+            "None" | "none" | "<<" => Ok(HeredocStripMode::None),
+            "Indent" | "indent" | "<<-" => Ok(HeredocStripMode::Indent),
             _ => Err(Error::new(format!("invalid heredoc strip mode: `{}`", s))),
         }
     }
