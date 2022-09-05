@@ -1,18 +1,42 @@
-use crate::{parser, structure::Identifier, Error, Expression, Result};
+use crate::{parser, structure::Identifier, Error, Expression, Result, TemplateExpr};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Template {
-    pub elements: Vec<Element>,
+    elements: Vec<Element>,
 }
 
 impl Template {
+    /// Creates an empty template with no elements.
     pub fn new() -> Template {
         Template {
             elements: Vec::new(),
         }
     }
 
+    /// Expands a raw template expression to a template.
+    ///
+    /// ## Errors
+    ///
+    /// Returns an error if the parsing of raw string templates fails or if the template expression
+    /// contains string literals with invalid escape sequences.
+    pub fn from_expr(expr: &TemplateExpr) -> Result<Self> {
+        Template::from_str(&expr.to_cow_str())
+    }
+
+    /// Returns a reference to the template elements.
+    pub fn elements(&self) -> &[Element] {
+        &self.elements
+    }
+
+    /// Returns a mutable reference to the template elements.
+    pub fn elements_mut(&mut self) -> &mut [Element] {
+        &mut self.elements
+    }
+}
+
+// Builder methods.
+impl Template {
     pub fn add_element<T>(mut self, element: T) -> Template
     where
         T: Into<Element>,

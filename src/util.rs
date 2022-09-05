@@ -62,7 +62,7 @@ pub fn unescape(s: &str) -> Result<Cow<str>> {
         if ch == '\\' {
             // At least one char needs unescaping so we need to return a new `String` instead of a
             // borrowed `&str`.
-            return unescape_owned(s, idx).map(|s| Cow::Owned(s));
+            return unescape_owned(s, idx).map(Cow::Owned);
         }
     }
 

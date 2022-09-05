@@ -666,7 +666,7 @@ fn template_expr() {
 
     match body.attributes().next().unwrap().expr() {
         Expression::TemplateExpr(expr) => {
-            let template = expr.to_template().unwrap();
+            let template = Template::from_expr(expr).unwrap();
 
             let expected_template = Template::new()
                 .add_literal("bar ")

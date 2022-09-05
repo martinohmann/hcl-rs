@@ -1,27 +1,27 @@
 use super::Identifier;
-use crate::{template::Template, util::dedent, Error, Result};
+use crate::{util::dedent, Error, Result};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::{fmt, str::FromStr};
 
-/// A quoted template expression is delimited by quote characters (`"`) and defines a template as
-/// a single-line expression with escape characters.
+/// A template expression embeds a program written in the template sub-language as an expression.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::template_expr")]
 pub enum TemplateExpr {
-    /// A quoted string template.
+    /// A quoted template expression is delimited by quote characters (`"`) and defines a template
+    /// as a single-line expression with escape characters.
     QuotedString(String),
-    /// A heredoc template.
+    /// A heredoc template expression is introduced by a `<<` sequence and defines a template via a
+    /// multi-line sequence terminated by a user-chosen delimiter.
     Heredoc(Heredoc),
 }
 
 impl TemplateExpr {
-    /// Parses the template expression and returns the template. This will return an error if the
-    /// template expression contains invalid template syntax or string literals with invalid escape
-    /// sequences.
-    pub fn to_template(&self) -> Result<Template> {
+    /// Returns the template as a copy-on-write string.
+    pub(crate) fn to_cow_str(&self) -> Cow<str> {
         match self {
-            TemplateExpr::QuotedString(s) => s.parse(),
-            TemplateExpr::Heredoc(heredoc) => heredoc.to_string().parse(),
+            TemplateExpr::QuotedString(s) => Cow::Borrowed(s),
+            TemplateExpr::Heredoc(heredoc) => heredoc.to_cow_str(),
         }
     }
 }
@@ -60,15 +60,19 @@ pub struct Heredoc {
     pub strip: HeredocStripMode,
 }
 
+impl Heredoc {
+    /// Returns the template as a copy-on-write string.
+    pub(crate) fn to_cow_str(&self) -> Cow<str> {
+        match self.strip {
+            HeredocStripMode::None => Cow::Borrowed(&self.template),
+            HeredocStripMode::Indent => dedent(&self.template),
+        }
+    }
+}
+
 impl fmt::Display for Heredoc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.strip {
-            HeredocStripMode::None => f.write_str(&self.template),
-            HeredocStripMode::Indent => {
-                let dedented = dedent(&self.template);
-                f.write_str(&dedented)
-            }
-        }
+        f.write_str(&self.to_cow_str())
     }
 }
 
@@ -76,9 +80,9 @@ impl fmt::Display for Heredoc {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::heredoc_strip")]
 pub enum HeredocStripMode {
-    /// `<<`: Do not strip leading whitespace.
+    /// Do not strip leading whitespace.
     None,
-    /// `<<-`: Any literal string at the start of each line is analyzed to find the minimum number
+    /// Any literal string at the start of each line is analyzed to find the minimum number
     /// of leading spaces, and then that number of prefix spaces is removed from all line-leading
     /// literal strings. The final closing marker may also have an arbitrary number of spaces
     /// preceding it on its line.
