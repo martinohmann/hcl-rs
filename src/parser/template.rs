@@ -15,7 +15,7 @@ fn parse_template(pair: Pair<Rule>) -> Result<Template> {
 
 fn parse_element(pair: Pair<Rule>) -> Result<Element> {
     match pair.as_rule() {
-        Rule::TemplateLiteral => parse_string(pair).map(Element::Literal),
+        Rule::TemplateLiteral => Ok(Element::Literal(pair.as_str().to_owned())),
         Rule::TemplateInterpolation => parse_interpolation(pair).map(Element::Interpolation),
         Rule::TemplateDirective => parse_directive(pair).map(Element::Directive),
         rule => unexpected_rule(rule),

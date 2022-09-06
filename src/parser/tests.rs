@@ -592,8 +592,8 @@ fn unescape_strings() {
           }
 
           heredoc = <<-EOS
-            some string with \
-            escaped newline
+            heredoc template with \
+            escaped newline and \\backslash is not unescaped yet
           EOS
         }
     "#;
@@ -615,7 +615,7 @@ fn unescape_strings() {
                         delimiter: Identifier::new("EOS"),
                         strip: HeredocStripMode::Indent,
                         template: String::from(
-                            "            some string with \\\n            escaped newline\n",
+                            "            heredoc template with \\\n            escaped newline and \\\\backslash is not unescaped yet\n",
                         ),
                     }),
                 ))

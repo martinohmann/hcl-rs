@@ -1,5 +1,8 @@
 use super::Identifier;
-use crate::{util::dedent, Error, Result};
+use crate::{
+    util::{dedent, try_unescape},
+    Error, Result,
+};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::{fmt, str::FromStr};
@@ -46,10 +49,8 @@ impl From<Heredoc> for TemplateExpr {
 
 impl fmt::Display for TemplateExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TemplateExpr::QuotedString(string) => fmt::Display::fmt(string, f),
-            TemplateExpr::Heredoc(heredoc) => fmt::Display::fmt(heredoc, f),
-        }
+        let s = self.to_cow_str();
+        f.write_str(&try_unescape(&s))
     }
 }
 
@@ -73,12 +74,6 @@ impl Heredoc {
             HeredocStripMode::None => Cow::Borrowed(&self.template),
             HeredocStripMode::Indent => dedent(&self.template),
         }
-    }
-}
-
-impl fmt::Display for Heredoc {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.to_cow_str())
     }
 }
 

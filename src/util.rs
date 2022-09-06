@@ -117,3 +117,10 @@ fn unescape_unicode(chars: &mut Chars<'_>, scratch: &mut String) -> Option<char>
 
     char::from_u32(u32::from_str_radix(scratch, 16).ok()?)
 }
+
+pub fn try_unescape(s: &str) -> Cow<str> {
+    match unescape(s) {
+        Ok(s) => s,
+        Err(_) => Cow::Borrowed(s),
+    }
+}

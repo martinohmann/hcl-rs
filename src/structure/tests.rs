@@ -27,6 +27,14 @@ fn body_into_value() {
                 .build(),
         )
         .add_attribute(("foo", "baz"))
+        .add_attribute((
+            "heredoc",
+            TemplateExpr::Heredoc(Heredoc {
+                delimiter: Identifier::new("EOS"),
+                strip: HeredocStripMode::Indent,
+                template: String::from("  foo \\\n  bar ${baz}\\\\backslash"),
+            }),
+        ))
         .build();
 
     let value = json!({
@@ -43,8 +51,9 @@ fn body_into_value() {
             ],
             "qux": {
                 "foo": 1
-            }
-        }
+            },
+        },
+        "heredoc": "foo bar ${baz}\\backslash"
     });
 
     let expected: Value = serde_json::from_value(value).unwrap();
