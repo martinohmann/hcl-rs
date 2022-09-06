@@ -5,14 +5,20 @@ use std::borrow::Cow;
 use std::{fmt, str::FromStr};
 
 /// A template expression embeds a program written in the template sub-language as an expression.
+///
+/// This type wraps the raw template string representation. Refer to the documentation of the
+/// [`template`][`crate::template`] module if you need to parse and further evaluate the raw
+/// template.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::template_expr")]
 pub enum TemplateExpr {
     /// A quoted template expression is delimited by quote characters (`"`) and defines a template
-    /// as a single-line expression with escape characters.
+    /// as a single-line expression with escape characters. The raw template string may contain
+    /// escape sequences.
     QuotedString(String),
     /// A heredoc template expression is introduced by a `<<` sequence and defines a template via a
-    /// multi-line sequence terminated by a user-chosen delimiter.
+    /// multi-line sequence terminated by a user-chosen delimiter. The raw template string in the
+    /// heredoc may contain escape sequences.
     Heredoc(Heredoc),
 }
 

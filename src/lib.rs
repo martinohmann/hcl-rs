@@ -11,7 +11,6 @@ mod number;
 mod parser;
 pub mod ser;
 pub mod structure;
-#[allow(missing_docs)]
 pub mod template;
 #[cfg(test)]
 mod tests;

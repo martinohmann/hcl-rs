@@ -208,7 +208,7 @@ fn serialize_heredoc() {
                     }),
                 ))
                 .add_attribute((
-                    "heredoc_ident",
+                    "heredoc_indent",
                     TemplateExpr::Heredoc(Heredoc {
                         delimiter: "HEREDOC".into(),
                         template: "foo\n  bar\nbaz\n".into(),
@@ -225,7 +225,7 @@ foo
   bar
 baz
 HEREDOC
-  heredoc_ident = <<-HEREDOC
+  heredoc_indent = <<-HEREDOC
     foo
       bar
     baz

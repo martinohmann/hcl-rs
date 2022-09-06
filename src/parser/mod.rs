@@ -170,7 +170,10 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
             Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
             Rule::NullLit => Ok(Expression::Null),
             Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
-            Rule::TemplateExpr => parse_template_expr(inner(pair)).map(Into::into),
+            Rule::TemplateExpr => {
+                let expr = parse_template_expr(inner(pair));
+                Ok(Expression::TemplateExpr(Box::new(expr)))
+            }
             Rule::Tuple => parse_expressions(pair).map(Expression::Array),
             Rule::Object => parse_object(pair).map(Expression::Object),
             // @TODO(mohmann): Process ForExpr, VariableExpr etc.
@@ -179,10 +182,13 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
     }
 }
 
-fn parse_template_expr(pair: Pair<Rule>) -> Result<TemplateExpr> {
+fn parse_template_expr(pair: Pair<Rule>) -> TemplateExpr {
     match pair.as_rule() {
-        Rule::QuotedStringTemplate => parse_string(inner(pair)).map(TemplateExpr::QuotedString),
-        Rule::HeredocTemplate => parse_heredoc(pair).map(TemplateExpr::Heredoc),
+        Rule::QuotedStringTemplate => {
+            let pair = inner(pair);
+            TemplateExpr::QuotedString(pair.as_str().to_owned())
+        }
+        Rule::HeredocTemplate => TemplateExpr::Heredoc(parse_heredoc(pair)),
         rule => unexpected_rule(rule),
     }
 }
@@ -232,7 +238,7 @@ fn raw_expression(raw: &str) -> RawExpression {
     RawExpression::new(raw.trim_end())
 }
 
-fn parse_heredoc(pair: Pair<Rule>) -> Result<Heredoc> {
+fn parse_heredoc(pair: Pair<Rule>) -> Heredoc {
     let mut pairs = pair.into_inner();
     let intro = pairs.next().unwrap();
     let delimiter = pairs.next().unwrap();
@@ -244,11 +250,11 @@ fn parse_heredoc(pair: Pair<Rule>) -> Result<Heredoc> {
         rule => unexpected_rule(rule),
     };
 
-    Ok(Heredoc {
+    Heredoc {
         strip,
         delimiter: Identifier::new(delimiter.as_str()),
         template: template.as_str().to_owned(),
-    })
+    }
 }
 
 #[track_caller]
