@@ -611,13 +611,13 @@ fn unescape_strings() {
                 ))
                 .add_attribute((
                     "heredoc",
-                    TemplateExpr::Heredoc(Heredoc {
-                        delimiter: Identifier::new("EOS"),
-                        strip: HeredocStripMode::Indent,
-                        template: String::from(
-                            "            heredoc template with \\\n            escaped newline and \\\\backslash is not unescaped yet\n",
-                        ),
-                    }),
+                    TemplateExpr::Heredoc(
+                        Heredoc::new(
+                            Identifier::new("EOS"),
+                            "            heredoc template with \\\n            escaped newline and \\\\backslash is not unescaped yet\n"
+                        )
+                        .with_strip_mode(HeredocStripMode::Indent)
+                    )
                 ))
                 .build(),
         )

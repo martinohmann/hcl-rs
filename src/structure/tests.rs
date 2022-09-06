@@ -29,11 +29,13 @@ fn body_into_value() {
         .add_attribute(("foo", "baz"))
         .add_attribute((
             "heredoc",
-            TemplateExpr::Heredoc(Heredoc {
-                delimiter: Identifier::new("EOS"),
-                strip: HeredocStripMode::Indent,
-                template: String::from("  foo \\\n  bar ${baz}\\\\backslash"),
-            }),
+            TemplateExpr::Heredoc(
+                Heredoc::new(
+                    Identifier::new("EOS"),
+                    "  foo \\\n  bar ${baz}\\\\backslash",
+                )
+                .with_strip_mode(HeredocStripMode::Indent),
+            ),
         ))
         .build();
 

@@ -1,6 +1,7 @@
 use super::*;
 use crate::{
-    Block, BlockLabel, Body, Expression, Heredoc, Object, ObjectKey, RawExpression, TemplateExpr,
+    Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey,
+    RawExpression, TemplateExpr,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -201,19 +202,17 @@ fn serialize_heredoc() {
             Block::builder("content")
                 .add_attribute((
                     "heredoc",
-                    TemplateExpr::Heredoc(Heredoc {
-                        delimiter: "HEREDOC".into(),
-                        template: "foo\n  bar\nbaz\n".into(),
-                        strip: crate::HeredocStripMode::None,
-                    }),
+                    TemplateExpr::Heredoc(Heredoc::new(
+                        Identifier::new("HEREDOC"),
+                        "foo\n  bar\nbaz\n",
+                    )),
                 ))
                 .add_attribute((
                     "heredoc_indent",
-                    TemplateExpr::Heredoc(Heredoc {
-                        delimiter: "HEREDOC".into(),
-                        template: "foo\n  bar\nbaz\n".into(),
-                        strip: crate::HeredocStripMode::Indent,
-                    }),
+                    TemplateExpr::Heredoc(
+                        Heredoc::new(Identifier::new("HEREDOC"), "foo\n  bar\nbaz\n")
+                            .with_strip_mode(HeredocStripMode::Indent),
+                    ),
                 ))
                 .build(),
         )

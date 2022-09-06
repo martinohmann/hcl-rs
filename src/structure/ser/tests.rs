@@ -67,19 +67,14 @@ fn identity() {
     );
     test_identity(
         TemplateExprSerializer,
-        TemplateExpr::Heredoc(Heredoc {
-            delimiter: Identifier::new("EOS"),
-            template: "${foo}".into(),
-            strip: HeredocStripMode::Indent,
-        }),
+        TemplateExpr::Heredoc(
+            Heredoc::new(Identifier::new("EOS"), "${foo}")
+                .with_strip_mode(HeredocStripMode::Indent),
+        ),
     );
     test_identity(
         TemplateExprSerializer,
-        TemplateExpr::Heredoc(Heredoc {
-            delimiter: Identifier::new("EOS"),
-            template: "${foo}".into(),
-            strip: HeredocStripMode::None,
-        }),
+        TemplateExpr::Heredoc(Heredoc::new(Identifier::new("EOS"), "${foo}")),
     );
 }
 

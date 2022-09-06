@@ -68,6 +68,24 @@ pub struct Heredoc {
 }
 
 impl Heredoc {
+    /// Creates a new `Heredoc` with the provided delimiter and template body.
+    pub fn new<T>(delimiter: Identifier, template: T) -> Heredoc
+    where
+        T: Into<String>,
+    {
+        Heredoc {
+            delimiter,
+            template: template.into(),
+            strip: HeredocStripMode::default(),
+        }
+    }
+
+    /// Sets the heredoc strip mode to use on the template.
+    pub fn with_strip_mode(mut self, strip: HeredocStripMode) -> Heredoc {
+        self.strip = strip;
+        self
+    }
+
     /// Returns the template as a copy-on-write string.
     pub(crate) fn to_cow_str(&self) -> Cow<str> {
         match self.strip {
@@ -98,6 +116,12 @@ impl HeredocStripMode {
             HeredocStripMode::None => "<<",
             HeredocStripMode::Indent => "<<-",
         }
+    }
+}
+
+impl Default for HeredocStripMode {
+    fn default() -> Self {
+        HeredocStripMode::None
     }
 }
 

@@ -23,7 +23,7 @@
 //! use hcl::{template::{Interpolation, Template}};
 //! use hcl::{RawExpression, TemplateExpr};
 //!
-//! let expr = TemplateExpr::QuotedString("Hello ${name}!".to_string());
+//! let expr = TemplateExpr::QuotedString(String::from("Hello ${name}!"));
 //! let template = Template::from_expr(&expr)?;
 //!
 //! let expected = Template::new()
@@ -44,7 +44,7 @@
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
 //! use hcl::{template::{ForDirective, ForExpr, Interpolation, StripMode, Template}};
-//! use hcl::RawExpression;
+//! use hcl::{Identifier, RawExpression};
 //! use std::str::FromStr;
 //!
 //! let raw = r#"
@@ -61,7 +61,7 @@
 //!     .add_directive(
 //!         ForDirective::new(
 //!             ForExpr::new(
-//!                 "item",
+//!                 Identifier::new("item"),
 //!                 RawExpression::new("items"),
 //!                 Template::new()
 //!                     .add_literal("- ")
@@ -447,14 +447,13 @@ impl ForExpr {
     /// Creates a new `ForExpr` from the provided iterator value identifier, an expression that
     /// produces the list or object of elements to iterate over, and the template the is included
     /// in the result string for each loop iteration.
-    pub fn new<V, T>(value: V, expr: T, template: Template) -> ForExpr
+    pub fn new<T>(value: Identifier, expr: T, template: Template) -> ForExpr
     where
-        V: Into<Identifier>,
         T: Into<Expression>,
     {
         ForExpr {
             key: None,
-            value: value.into(),
+            value,
             expr: expr.into(),
             template,
             strip: StripMode::default(),
@@ -463,11 +462,8 @@ impl ForExpr {
 
     /// Adds the iterator key variable identifier to the `for` expression and returns the modified
     /// `ForExpr`.
-    pub fn with_key<T>(mut self, key: T) -> ForExpr
-    where
-        T: Into<Identifier>,
-    {
-        self.key = Some(key.into());
+    pub fn with_key(mut self, key: Identifier) -> ForExpr {
+        self.key = Some(key);
         self
     }
 
