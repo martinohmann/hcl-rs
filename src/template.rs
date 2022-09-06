@@ -58,7 +58,7 @@
 //!
 //! let expected = Template::new()
 //!     .add_literal("Bill of materials:\n")
-//!     .add_for_directive(
+//!     .add_directive(
 //!         ForDirective::new(
 //!             ForExpr::new(
 //!                 "item",
@@ -155,22 +155,6 @@ impl Template {
         T: Into<Directive>,
     {
         self.add_element(directive.into())
-    }
-
-    /// Adds an `if` directive to the template.
-    pub fn add_if_directive<T>(self, directive: T) -> Template
-    where
-        T: Into<IfDirective>,
-    {
-        self.add_directive(directive.into())
-    }
-
-    /// Adds a `for` directive to the template.
-    pub fn add_for_directive<T>(self, directive: T) -> Template
-    where
-        T: Into<ForDirective>,
-    {
-        self.add_directive(directive.into())
     }
 }
 
