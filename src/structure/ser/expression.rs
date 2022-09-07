@@ -1,10 +1,14 @@
-use super::{template::TemplateExprSerializer, StringSerializer};
+use super::{
+    element_access::SerializeElementAccessStruct, template::TemplateExprSerializer,
+    StringSerializer,
+};
 use crate::{
     serialize_unsupported, Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result,
 };
-use serde::ser::{self, Impossible};
+use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
 
+#[derive(Clone)]
 pub struct ExpressionSerializer;
 
 impl ser::Serializer for ExpressionSerializer {
@@ -16,7 +20,7 @@ impl ser::Serializer for ExpressionSerializer {
     type SerializeTupleStruct = SerializeExpressionSeq;
     type SerializeTupleVariant = SerializeExpressionTupleVariant;
     type SerializeMap = SerializeExpressionMap;
-    type SerializeStruct = SerializeExpressionMap;
+    type SerializeStruct = SerializeExpressionStruct;
     type SerializeStructVariant = SerializeExpressionStructVariant;
 
     serialize_self! { some }
@@ -166,8 +170,8 @@ impl ser::Serializer for ExpressionSerializer {
         Ok(SerializeExpressionMap::new(len))
     }
 
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        self.serialize_map(Some(len))
+    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        Ok(SerializeExpressionStruct::new(name, len))
     }
 
     fn serialize_struct_variant(
@@ -300,7 +304,24 @@ impl ser::SerializeMap for SerializeExpressionMap {
     }
 }
 
-impl ser::SerializeStruct for SerializeExpressionMap {
+pub enum SerializeExpressionStruct {
+    ElementAccess(SerializeElementAccessStruct),
+    Other(SerializeExpressionMap),
+}
+
+impl SerializeExpressionStruct {
+    fn new(name: &'static str, len: usize) -> Self {
+        // Specialization for the `ElementAccess`.
+        match name {
+            "$hcl::element_access" => {
+                SerializeExpressionStruct::ElementAccess(SerializeElementAccessStruct::new())
+            }
+            _ => SerializeExpressionStruct::Other(SerializeExpressionMap::new(Some(len))),
+        }
+    }
+}
+
+impl ser::SerializeStruct for SerializeExpressionStruct {
     type Ok = Expression;
     type Error = Error;
 
@@ -308,11 +329,17 @@ impl ser::SerializeStruct for SerializeExpressionMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        ser::SerializeMap::serialize_entry(self, key, value)
+        match self {
+            SerializeExpressionStruct::ElementAccess(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::Other(ser) => ser.serialize_entry(key, value),
+        }
     }
 
     fn end(self) -> Result<Self::Ok> {
-        ser::SerializeMap::end(self)
+        match self {
+            SerializeExpressionStruct::ElementAccess(ser) => ser.end().map(Into::into),
+            SerializeExpressionStruct::Other(ser) => ser.end(),
+        }
     }
 }
 

@@ -49,6 +49,7 @@ mod attribute;
 mod block;
 mod body;
 pub(crate) mod de;
+mod element_access;
 mod expression;
 pub(crate) mod ser;
 mod template;
@@ -59,6 +60,7 @@ pub use self::{
     attribute::Attribute,
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
+    element_access::{ElementAccess, ElementAccessOperator},
     expression::{Expression, Object, ObjectKey, RawExpression},
     template::{Heredoc, HeredocStripMode, TemplateExpr},
 };

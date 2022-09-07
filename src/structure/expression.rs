@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::{Identifier, TemplateExpr};
+use super::{ElementAccess, ElementAccessOperator, Identifier, TemplateExpr};
 use crate::{Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -32,9 +32,27 @@ pub enum Expression {
     TemplateExpr(Box<TemplateExpr>),
     /// Represents a variable name identifier.
     VariableExpr(Identifier),
+    /// Represents an attribute or element access.
+    ElementAccess(Box<ElementAccess>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
+}
+
+impl Expression {
+    /// Applies an `ElementAccessOperator` to the expression and returns the result. The result is
+    /// always of variant `ElementAccess`.
+    pub(crate) fn element<O>(self, operator: O) -> Expression
+    where
+        O: Into<ElementAccessOperator>,
+    {
+        let access = match self {
+            Expression::ElementAccess(access) => access.chain(operator),
+            other => ElementAccess::new(other, operator),
+        };
+
+        Expression::ElementAccess(Box::new(access))
+    }
 }
 
 impl From<Expression> for Value {
@@ -47,8 +65,8 @@ impl From<Expression> for Value {
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
-            Expression::VariableExpr(ident) => Value::String(RawExpression(ident.0).into()),
             Expression::Raw(raw) => Value::String(raw.into()),
+            other => Value::String(RawExpression(other.to_string()).into()),
         }
     }
 }
@@ -163,6 +181,12 @@ impl From<RawExpression> for Expression {
     }
 }
 
+impl From<ElementAccess> for Expression {
+    fn from(access: ElementAccess) -> Self {
+        Expression::ElementAccess(Box::new(access))
+    }
+}
+
 impl From<TemplateExpr> for Expression {
     fn from(expr: TemplateExpr) -> Self {
         Expression::TemplateExpr(Box::new(expr))
@@ -172,6 +196,15 @@ impl From<TemplateExpr> for Expression {
 impl From<Identifier> for Expression {
     fn from(ident: Identifier) -> Self {
         Expression::VariableExpr(ident)
+    }
+}
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match crate::format::to_string(self) {
+            Ok(s) => f.write_str(&s),
+            Err(_) => Err(fmt::Error),
+        }
     }
 }
 

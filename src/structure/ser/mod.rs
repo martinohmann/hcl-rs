@@ -3,6 +3,7 @@
 mod attribute;
 mod block;
 pub(crate) mod body;
+mod element_access;
 mod expression;
 mod structure;
 mod template;
