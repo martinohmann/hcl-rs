@@ -199,8 +199,7 @@ impl Format for Heredoc {
     {
         let delimiter = self.delimiter.as_str();
 
-        self.strip.format(fmt)?;
-
+        fmt.write_string_fragment(self.strip.as_str())?;
         fmt.write_string_fragment(delimiter)?;
         fmt.write_all(b"\n")?;
         fmt.write_string_fragment(&self.template)?;
@@ -218,18 +217,6 @@ impl Format for Heredoc {
             }
         }
 
-        Ok(())
-    }
-}
-
-impl private::Sealed for HeredocStripMode {}
-
-impl Format for HeredocStripMode {
-    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
-    where
-        W: io::Write,
-    {
-        fmt.write_string_fragment(self.as_str())?;
         Ok(())
     }
 }
