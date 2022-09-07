@@ -1,5 +1,7 @@
 use super::{template::TemplateExprSerializer, StringSerializer};
-use crate::{serialize_unsupported, Error, Expression, Object, ObjectKey, RawExpression, Result};
+use crate::{
+    serialize_unsupported, Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result,
+};
 use serde::ser::{self, Impossible};
 use std::fmt::Display;
 
@@ -103,6 +105,10 @@ impl ser::Serializer for ExpressionSerializer {
     {
         if name == "$hcl::raw_expression" {
             Ok(Expression::Raw(RawExpression::from(
+                value.serialize(StringSerializer)?,
+            )))
+        } else if name == "$hcl::identifier" {
+            Ok(Expression::VariableExpr(Identifier::from(
                 value.serialize(StringSerializer)?,
             )))
         } else {

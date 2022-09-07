@@ -20,15 +20,15 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl::{template::{Interpolation, Template}};
-//! use hcl::{RawExpression, TemplateExpr};
+//! use hcl::template::Template;
+//! use hcl::{Expression, Identifier, TemplateExpr};
 //!
 //! let expr = TemplateExpr::QuotedString(String::from("Hello ${name}!"));
 //! let template = Template::from_expr(&expr)?;
 //!
 //! let expected = Template::new()
 //!     .add_literal("Hello ")
-//!     .add_interpolation(Interpolation::new(RawExpression::new("name")))
+//!     .add_interpolation(Expression::VariableExpr(Identifier::new("name")))
 //!     .add_literal("!");
 //!
 //! assert_eq!(expected, template);
@@ -43,8 +43,8 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl::{template::{ForDirective, ForExpr, Interpolation, StripMode, Template}};
-//! use hcl::{Identifier, RawExpression};
+//! use hcl::{template::{ForDirective, ForExpr, StripMode, Template}};
+//! use hcl::{Expression, Identifier};
 //! use std::str::FromStr;
 //!
 //! let raw = r#"
@@ -62,11 +62,11 @@
 //!         ForDirective::new(
 //!             ForExpr::new(
 //!                 Identifier::new("item"),
-//!                 RawExpression::new("items"),
+//!                 Expression::VariableExpr(Identifier::new("items")),
 //!                 Template::new()
 //!                     .add_literal("- ")
 //!                     .add_interpolation(
-//!                         Interpolation::new(RawExpression::new("item"))
+//!                         Expression::VariableExpr(Identifier::new("item"))
 //!                     )
 //!                     .add_literal("\n")
 //!             )

@@ -333,6 +333,10 @@ fn roundtrip() {
                                 "${var.team}".into(),
                             ))),
                         ),
+                        (
+                            ObjectKey::Identifier("environment".into()),
+                            Expression::VariableExpr("environment".into()),
+                        ),
                     ]),
                 ))
                 .build(),
