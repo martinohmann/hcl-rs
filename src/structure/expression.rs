@@ -30,6 +30,8 @@ pub enum Expression {
     Object(Object<ObjectKey, Expression>),
     /// A quoted string or heredoc that embeds a program written in the template sub-language.
     TemplateExpr(Box<TemplateExpr>),
+    /// Represents a variable name identifier.
+    VariableExpr(Identifier),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -45,6 +47,7 @@ impl From<Expression> for Value {
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
+            Expression::VariableExpr(ident) => Value::String(RawExpression(ident.0).into()),
             Expression::Raw(raw) => Value::String(raw.into()),
         }
     }
@@ -163,6 +166,12 @@ impl From<RawExpression> for Expression {
 impl From<TemplateExpr> for Expression {
     fn from(expr: TemplateExpr) -> Self {
         Expression::TemplateExpr(Box::new(expr))
+    }
+}
+
+impl From<Identifier> for Expression {
+    fn from(ident: Identifier) -> Self {
+        Expression::VariableExpr(ident)
     }
 }
 

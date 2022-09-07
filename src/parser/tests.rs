@@ -670,12 +670,12 @@ fn template_expr() {
 
             let expected_template = Template::new()
                 .add_literal("bar ")
-                .add_interpolation(Expression::Raw("baz".into()))
+                .add_interpolation(Expression::VariableExpr(Identifier::new("baz")))
                 .add_literal(" ")
                 .add_directive(
                     IfDirective::new(
                         IfExpr::new(
-                            Expression::Raw("cond".into()),
+                            Expression::VariableExpr(Identifier::new("cond")),
                             Template::new().add_literal("qux"),
                         )
                         .with_strip_mode(StripMode::Start),

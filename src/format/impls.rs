@@ -105,6 +105,7 @@ impl Format for Expression {
             Expression::Object(object) => format_object(fmt, object),
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
+            Expression::VariableExpr(ident) => ident.format(fmt),
         }
     }
 }
