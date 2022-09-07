@@ -347,6 +347,18 @@ qux {
 }
 
 #[test]
+fn serialize_nested_expression() {
+    let body = Body::builder()
+        .add_attribute((
+            "attr",
+            Expression::SubExpr(Box::new(Expression::VariableExpr("foo".into()))),
+        ))
+        .build();
+
+    assert_eq!(to_string(&body).unwrap(), "attr = (foo)\n");
+}
+
+#[test]
 fn roundtrip() {
     let input = Body::builder()
         .add_block(
@@ -391,7 +403,9 @@ fn roundtrip() {
                         ),
                         (
                             ObjectKey::Identifier("environment".into()),
-                            Expression::VariableExpr("environment".into()),
+                            Expression::SubExpr(Box::new(Expression::VariableExpr(
+                                "environment".into(),
+                            ))),
                         ),
                     ]),
                 ))

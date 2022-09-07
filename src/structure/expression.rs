@@ -36,6 +36,8 @@ pub enum Expression {
     ElementAccess(Box<ElementAccess>),
     /// Represents a function call.
     FuncCall(Box<FuncCall>),
+    /// Represents a sub-expression that is wrapped in parenthesis.
+    SubExpr(Box<Expression>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -67,6 +69,7 @@ impl From<Expression> for Value {
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
+            Expression::SubExpr(expr) => Value::from(*expr),
             Expression::Raw(raw) => Value::String(raw.into()),
             other => Value::String(RawExpression(other.to_string()).into()),
         }
@@ -110,6 +113,12 @@ impl From<f32> for Expression {
 impl From<f64> for Expression {
     fn from(f: f64) -> Self {
         Expression::Number(f.into())
+    }
+}
+
+impl From<Number> for Expression {
+    fn from(num: Number) -> Self {
+        Expression::Number(num)
     }
 }
 

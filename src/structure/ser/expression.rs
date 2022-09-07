@@ -130,21 +130,24 @@ impl ser::Serializer for ExpressionSerializer {
     where
         T: ?Sized + ser::Serialize,
     {
-        if name == "$hcl::expression" {
-            value.serialize(self)
-        } else if name == "$hcl::template_expr" {
-            Ok(Expression::TemplateExpr(Box::new(
+        match (name, variant) {
+            ("$hcl::template_expr", _) => Ok(Expression::TemplateExpr(Box::new(
                 TemplateExprSerializer.serialize_newtype_variant(
                     name,
                     variant_index,
                     variant,
                     value,
                 )?,
-            )))
-        } else {
-            let mut object = Object::new();
-            object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
-            Ok(Expression::Object(object))
+            ))),
+            ("$hcl::expression", "SubExpr") => {
+                Ok(Expression::SubExpr(Box::new(value.serialize(self)?)))
+            }
+            ("$hcl::expression", _) => value.serialize(self),
+            (_, _) => {
+                let mut object = Object::new();
+                object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
+                Ok(Expression::Object(object))
+            }
         }
     }
 
