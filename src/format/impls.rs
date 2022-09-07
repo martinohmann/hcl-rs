@@ -4,7 +4,7 @@ use crate::{
         Attribute, Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier,
         ObjectKey, RawExpression, Structure, TemplateExpr,
     },
-    Map, Number, Result, Value,
+    ElementAccess, ElementAccessOperator, Map, Number, Result, Value,
 };
 use std::io::{self, Write};
 
@@ -106,6 +106,7 @@ impl Format for Expression {
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
             Expression::VariableExpr(ident) => ident.format(fmt),
+            Expression::ElementAccess(access) => access.format(fmt),
         }
     }
 }
@@ -230,6 +231,48 @@ impl Format for Identifier {
         W: io::Write,
     {
         fmt.write_ident(self.as_str())?;
+        Ok(())
+    }
+}
+
+impl private::Sealed for ElementAccess {}
+
+impl Format for ElementAccess {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        self.expr.format(fmt)?;
+        self.operator.format(fmt)?;
+        Ok(())
+    }
+}
+
+impl private::Sealed for ElementAccessOperator {}
+
+impl Format for ElementAccessOperator {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        match self {
+            ElementAccessOperator::AttrSplat => fmt.write_all(b".*")?,
+            ElementAccessOperator::FullSplat => fmt.write_all(b"[*]")?,
+            ElementAccessOperator::GetAttr(ident) => {
+                fmt.write_all(b".")?;
+                ident.format(fmt)?;
+            }
+            ElementAccessOperator::LegacyIndex(index) => {
+                fmt.write_all(b".")?;
+                fmt.write_int(*index)?;
+            }
+            ElementAccessOperator::Index(expr) => {
+                fmt.write_all(b"[")?;
+                expr.format(fmt)?;
+                fmt.write_all(b"]")?;
+            }
+        }
+
         Ok(())
     }
 }

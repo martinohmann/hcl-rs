@@ -1,8 +1,8 @@
 //! Deserialize impls for HCL structure types.
 
 use super::{
-    Attribute, Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier,
-    ObjectKey, RawExpression, Structure, TemplateExpr,
+    Attribute, Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, Heredoc,
+    HeredocStripMode, Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
 };
 use crate::{Error, Number, Result};
 use serde::de::{self, value::MapAccessDeserializer, IntoDeserializer};
@@ -261,6 +261,9 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::VariableExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::ElementAccess(access) => {
+                access.into_deserializer().deserialize_any(visitor)
+            }
         }
     }
 
@@ -289,6 +292,7 @@ impl VariantName for Expression {
             Expression::Raw(_) => "Raw",
             Expression::TemplateExpr(_) => "TemplateExpr",
             Expression::VariableExpr(_) => "VariableExpr",
+            Expression::ElementAccess(_) => "ElementAccess",
         }
     }
 }
@@ -341,6 +345,104 @@ impl<'de> de::VariantAccess<'de> for Expression {
         V: de::Visitor<'de>,
     {
         self.into_deserializer().deserialize_map(visitor)
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for ElementAccess {
+    type Deserializer = MapAccessDeserializer<ElementAccessAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(ElementAccessAccess::new(self))
+    }
+}
+
+pub struct ElementAccessAccess {
+    expr: Option<Expression>,
+    operator: Option<ElementAccessOperator>,
+}
+
+impl ElementAccessAccess {
+    fn new(access: ElementAccess) -> Self {
+        ElementAccessAccess {
+            expr: Some(access.expr),
+            operator: Some(access.operator),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for ElementAccessAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.expr.is_some() {
+            seed.deserialize("expr".into_deserializer()).map(Some)
+        } else if self.operator.is_some() {
+            seed.deserialize("operator".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(expr) = self.expr.take() {
+            seed.deserialize(expr.into_deserializer())
+        } else if let Some(operator) = self.operator.take() {
+            seed.deserialize(operator.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL element access"))
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for ElementAccessOperator {
+    type Deserializer = Self;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self
+    }
+}
+
+impl<'de> de::Deserializer<'de> for ElementAccessOperator {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
+    }
+    impl_deserialize_enum!();
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self {
+            ElementAccessOperator::AttrSplat => visitor.visit_str(".*"),
+            ElementAccessOperator::FullSplat => visitor.visit_str("[*]"),
+            ElementAccessOperator::GetAttr(ident) => {
+                ident.into_deserializer().deserialize_any(visitor)
+            }
+            ElementAccessOperator::Index(expr) => expr.into_deserializer().deserialize_any(visitor),
+            ElementAccessOperator::LegacyIndex(index) => visitor.visit_u64(index),
+        }
+    }
+}
+
+impl VariantName for ElementAccessOperator {
+    fn variant_name(&self) -> &'static str {
+        match self {
+            ElementAccessOperator::AttrSplat => "AttrSplat",
+            ElementAccessOperator::FullSplat => "FullSplat",
+            ElementAccessOperator::GetAttr(_) => "GetAttr",
+            ElementAccessOperator::Index(_) => "Index",
+            ElementAccessOperator::LegacyIndex(_) => "LegacyIndex",
+        }
     }
 }
 

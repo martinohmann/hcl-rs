@@ -1,4 +1,5 @@
 use super::*;
+use crate::{ElementAccess, Identifier};
 use pest::*;
 use pretty_assertions::assert_eq;
 
@@ -565,7 +566,11 @@ fn parse_hcl() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute(Attribute::new(
                                             "kms_master_key_id",
-                                            RawExpression::new("aws_kms_key.mykey.arn"),
+                                            ElementAccess::new(
+                                                Identifier::new("aws_kms_key"),
+                                                "mykey",
+                                            )
+                                            .chain("arn"),
                                         ))
                                         .add_attribute(Attribute::new("sse_algorithm", "aws:kms"))
                                         .build(),

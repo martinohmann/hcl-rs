@@ -3,8 +3,9 @@ mod template;
 mod tests;
 
 use crate::{
-    structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body, Expression, Heredoc,
-    HeredocStripMode, Number, Object, ObjectKey, RawExpression, Result, Structure, TemplateExpr,
+    structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body,
+    ElementAccessOperator, Expression, Heredoc, HeredocStripMode, Number, Object, ObjectKey,
+    RawExpression, Result, Structure, TemplateExpr,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -155,32 +156,50 @@ fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {
 }
 
 fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
-    let raw = pair.as_str();
     let mut pairs = pair.into_inner();
     let pair = pairs.next().unwrap();
 
-    if pairs.peek().is_some() {
-        // @TODO(mohmann): ExprTerm is followed by an traversal like Splat, GetAttr or Index.
-        // For now we treat these as raw expressions and not further process these.
-        Ok(Expression::Raw(raw_expression(raw)))
-    } else {
-        match pair.as_rule() {
-            Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
-            Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
-            Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
-            Rule::NullLit => Ok(Expression::Null),
-            Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
-            Rule::TemplateExpr => {
-                let expr = parse_template_expr(inner(pair));
-                Ok(Expression::TemplateExpr(Box::new(expr)))
-            }
-            Rule::Tuple => parse_expressions(pair).map(Expression::Array),
-            Rule::Object => parse_object(pair).map(Expression::Object),
-            Rule::VariableExpr => Ok(Expression::VariableExpr(parse_ident(pair).into())),
-            // @TODO(mohmann): Process ForExpr, etc.
-            _ => Ok(Expression::Raw(raw_expression(pair.as_str()))),
+    let expr = match pair.as_rule() {
+        Rule::BooleanLit => Expression::Bool(parse_primitive(pair)),
+        Rule::Float => Expression::Number(parse_primitive::<f64>(pair).into()),
+        Rule::Int => Expression::Number(parse_primitive::<i64>(pair).into()),
+        Rule::NullLit => Expression::Null,
+        Rule::StringLit => parse_string(inner(pair)).map(Expression::String)?,
+        Rule::TemplateExpr => {
+            let expr = parse_template_expr(inner(pair));
+            Expression::TemplateExpr(Box::new(expr))
         }
-    }
+        Rule::Tuple => parse_expressions(pair).map(Expression::Array)?,
+        Rule::Object => parse_object(pair).map(Expression::Object)?,
+        Rule::VariableExpr => Expression::VariableExpr(parse_ident(pair).into()),
+        // @TODO(mohmann): Process ForExpr etc.
+        _ => Expression::Raw(raw_expression(pair.as_str())),
+    };
+
+    pairs.try_fold(expr, |expr, pair| {
+        Ok(expr.element(parse_element_access_operator(pair)?))
+    })
+}
+
+fn parse_element_access_operator(pair: Pair<Rule>) -> Result<ElementAccessOperator> {
+    let operator = match pair.as_rule() {
+        Rule::AttrSplat => ElementAccessOperator::AttrSplat,
+        Rule::FullSplat => ElementAccessOperator::FullSplat,
+        Rule::GetAttr => ElementAccessOperator::GetAttr(parse_ident(inner(pair)).into()),
+        Rule::Index => {
+            let pair = inner(pair);
+
+            match pair.as_rule() {
+                Rule::LegacyIndex => {
+                    ElementAccessOperator::LegacyIndex(parse_primitive::<u64>(pair))
+                }
+                _ => ElementAccessOperator::Index(parse_expression(pair)?),
+            }
+        }
+        rule => unexpected_rule(rule),
+    };
+
+    Ok(operator)
 }
 
 fn parse_template_expr(pair: Pair<Rule>) -> TemplateExpr {

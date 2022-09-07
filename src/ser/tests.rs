@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey,
-    RawExpression, TemplateExpr,
+    Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, Heredoc,
+    HeredocStripMode, Identifier, Object, ObjectKey, RawExpression, TemplateExpr,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -196,6 +196,27 @@ fn serialize_empty_block() {
 }
 
 #[test]
+fn serialize_element_access() {
+    let body = Body::builder()
+        .add_attribute((
+            "attr",
+            ElementAccess::new(Identifier::new("var"), "foo")
+                .chain(ElementAccessOperator::FullSplat)
+                .chain("bar")
+                .chain(ElementAccessOperator::Index(1u64.into()))
+                .chain(ElementAccessOperator::AttrSplat)
+                .chain("baz")
+                .chain(42),
+        ))
+        .build();
+
+    assert_eq!(
+        to_string(&body).unwrap(),
+        "attr = var.foo[*].bar[1].*.baz.42\n"
+    );
+}
+
+#[test]
 fn serialize_heredoc() {
     let body = Body::builder()
         .add_block(
@@ -311,7 +332,11 @@ fn roundtrip() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            RawExpression::new("aws_kms_key.mykey.arn"),
+                                            ElementAccess::new(
+                                                Identifier::new("aws_kms_key"),
+                                                "mykey",
+                                            )
+                                            .chain("arn"),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),
