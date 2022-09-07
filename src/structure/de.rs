@@ -267,6 +267,7 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::FuncCall(func_call) => {
                 func_call.into_deserializer().deserialize_any(visitor)
             }
+            Expression::SubExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -297,6 +298,7 @@ impl VariantName for Expression {
             Expression::VariableExpr(_) => "VariableExpr",
             Expression::ElementAccess(_) => "ElementAccess",
             Expression::FuncCall(_) => "FuncCall",
+            Expression::SubExpr(_) => "SubExpr",
         }
     }
 }
@@ -329,6 +331,7 @@ impl<'de> de::VariantAccess<'de> for Expression {
     {
         match self {
             Expression::TemplateExpr(expr) => seed.deserialize(expr.into_deserializer()),
+            Expression::SubExpr(expr) => seed.deserialize(expr.into_deserializer()),
             value => seed.deserialize(value.into_deserializer()),
         }
     }

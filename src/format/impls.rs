@@ -108,6 +108,12 @@ impl Format for Expression {
             Expression::VariableExpr(ident) => ident.format(fmt),
             Expression::ElementAccess(access) => access.format(fmt),
             Expression::FuncCall(func_call) => func_call.format(fmt),
+            Expression::SubExpr(expr) => {
+                fmt.write_all(b"(")?;
+                expr.format(fmt)?;
+                fmt.write_all(b")")?;
+                Ok(())
+            }
         }
     }
 }

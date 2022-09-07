@@ -173,6 +173,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::Object => parse_object(pair).map(Expression::Object)?,
         Rule::VariableExpr => Expression::VariableExpr(parse_ident(pair).into()),
         Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
+        Rule::SubExpression => Expression::SubExpr(Box::new(parse_expression(inner(pair))?)),
         // @TODO(mohmann): Process ForExpr etc.
         _ => Expression::Raw(raw_expression(pair.as_str())),
     };
