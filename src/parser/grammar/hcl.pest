@@ -83,7 +83,7 @@ StringPart = {
 }
 
 // Functions and function calls
-FunctionCall = @{
+FunctionCall = ${
     Identifier ~ "(" ~
     WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
     Arguments ~
@@ -91,7 +91,8 @@ FunctionCall = @{
     ")"
 }
 
-Arguments = !{ (Expression ~ ("," ~ Expression)* ~ ("," | "...")?)? }
+Arguments = !{ (Expression ~ ("," ~ Expression)* ~ ("," | Variadic)?)? }
+Variadic  =  { "..." }
 
 // For expressions
 ForExpr       = { ForTupleExpr | ForObjectExpr }

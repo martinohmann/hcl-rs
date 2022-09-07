@@ -5,6 +5,7 @@ mod block;
 pub(crate) mod body;
 mod element_access;
 mod expression;
+mod func;
 mod structure;
 mod template;
 #[cfg(test)]
@@ -58,6 +59,32 @@ impl ser::Serializer for StringSerializer {
         T: ?Sized + Display,
     {
         Ok(value.to_string())
+    }
+}
+
+pub struct BoolSerializer;
+
+impl ser::Serializer for BoolSerializer {
+    type Ok = bool;
+    type Error = Error;
+
+    type SerializeSeq = Impossible<bool, Error>;
+    type SerializeTuple = Impossible<bool, Error>;
+    type SerializeTupleStruct = Impossible<bool, Error>;
+    type SerializeTupleVariant = Impossible<bool, Error>;
+    type SerializeMap = Impossible<bool, Error>;
+    type SerializeStruct = Impossible<bool, Error>;
+    type SerializeStructVariant = Impossible<bool, Error>;
+
+    serialize_unsupported! {
+        i8 i16 i32 i64 u8 u16 u32 u64
+        f32 f64 char str bytes unit unit_struct unit_variant newtype_variant none
+        seq tuple tuple_struct tuple_variant map struct struct_variant
+    }
+    serialize_self! { some newtype_struct }
+
+    fn serialize_bool(self, value: bool) -> Result<Self::Ok> {
+        Ok(value)
     }
 }
 

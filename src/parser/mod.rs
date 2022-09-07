@@ -4,8 +4,8 @@ mod tests;
 
 use crate::{
     structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body,
-    ElementAccessOperator, Expression, Heredoc, HeredocStripMode, Number, Object, ObjectKey,
-    RawExpression, Result, Structure, TemplateExpr,
+    ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc, HeredocStripMode,
+    Number, Object, ObjectKey, RawExpression, Result, Structure, TemplateExpr,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -172,6 +172,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::Tuple => parse_expressions(pair).map(Expression::Array)?,
         Rule::Object => parse_object(pair).map(Expression::Object)?,
         Rule::VariableExpr => Expression::VariableExpr(parse_ident(pair).into()),
+        Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
         // @TODO(mohmann): Process ForExpr etc.
         _ => Expression::Raw(raw_expression(pair.as_str())),
     };
@@ -179,6 +180,19 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
     pairs.try_fold(expr, |expr, pair| {
         Ok(expr.element(parse_element_access_operator(pair)?))
     })
+}
+
+fn parse_func_call(pair: Pair<Rule>) -> Result<FuncCall> {
+    let mut pairs = pair.into_inner();
+    let name = pairs.next().unwrap();
+    let mut args = pairs.next().unwrap().into_inner();
+    let builder = FuncCall::builder(name.as_str());
+
+    args.try_fold(builder, |builder, pair| match pair.as_rule() {
+        Rule::Variadic => Ok(builder.variadic(true)),
+        _ => Ok(builder.arg(parse_expression(pair)?)),
+    })
+    .map(FuncCallBuilder::build)
 }
 
 fn parse_element_access_operator(pair: Pair<Rule>) -> Result<ElementAccessOperator> {

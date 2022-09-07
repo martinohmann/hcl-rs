@@ -1,6 +1,6 @@
 use super::{
-    element_access::SerializeElementAccessStruct, template::TemplateExprSerializer,
-    StringSerializer,
+    element_access::SerializeElementAccessStruct, func::SerializeFuncCallStruct,
+    template::TemplateExprSerializer, StringSerializer,
 };
 use crate::{
     serialize_unsupported, Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result,
@@ -306,6 +306,7 @@ impl ser::SerializeMap for SerializeExpressionMap {
 
 pub enum SerializeExpressionStruct {
     ElementAccess(SerializeElementAccessStruct),
+    FuncCall(SerializeFuncCallStruct),
     Other(SerializeExpressionMap),
 }
 
@@ -315,6 +316,9 @@ impl SerializeExpressionStruct {
         match name {
             "$hcl::element_access" => {
                 SerializeExpressionStruct::ElementAccess(SerializeElementAccessStruct::new())
+            }
+            "$hcl::func_call" => {
+                SerializeExpressionStruct::FuncCall(SerializeFuncCallStruct::new())
             }
             _ => SerializeExpressionStruct::Other(SerializeExpressionMap::new(Some(len))),
         }
@@ -331,6 +335,7 @@ impl ser::SerializeStruct for SerializeExpressionStruct {
     {
         match self {
             SerializeExpressionStruct::ElementAccess(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::FuncCall(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::Other(ser) => ser.serialize_entry(key, value),
         }
     }
@@ -338,6 +343,7 @@ impl ser::SerializeStruct for SerializeExpressionStruct {
     fn end(self) -> Result<Self::Ok> {
         match self {
             SerializeExpressionStruct::ElementAccess(ser) => ser.end().map(Into::into),
+            SerializeExpressionStruct::FuncCall(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::Other(ser) => ser.end(),
         }
     }

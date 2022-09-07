@@ -27,7 +27,7 @@
               }
             }
           },
-          "tags": "${merge(\n    var.tags,\n    var.cluster_tags,\n  )}",
+          "tags": "${merge(var.tags, var.cluster_tags)}",
           "depends_on": [
             "${aws_cloudwatch_log_group.this}"
           ]

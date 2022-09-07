@@ -145,6 +145,7 @@ pub struct Formatter<'a, W> {
     first_element: bool,
     current_indent: usize,
     has_value: bool,
+    compact_mode: bool,
 }
 
 /// A builder to create a `Formatter`.
@@ -179,6 +180,7 @@ impl<'a, W> FormatterBuilder<'a, W> {
             first_element: false,
             current_indent: 0,
             has_value: false,
+            compact_mode: false,
         }
     }
 }
@@ -323,7 +325,9 @@ where
 
     /// Signals the start of an array to the formatter.
     fn begin_array(&mut self) -> io::Result<()> {
-        self.current_indent += 1;
+        if !self.compact_mode {
+            self.current_indent += 1;
+        }
         self.has_value = false;
         self.first_element = true;
         self.write_all(b"[")
@@ -333,7 +337,11 @@ where
     fn begin_array_value(&mut self) -> io::Result<()> {
         if self.first_element {
             self.first_element = false;
-            self.write_all(b"\n")?;
+            if !self.compact_mode {
+                self.write_all(b"\n")?;
+            }
+        } else if self.compact_mode {
+            self.write_all(b", ")?;
         } else {
             self.write_all(b",\n")?;
         }
@@ -349,11 +357,13 @@ where
 
     /// Signals the end of an array to the formatter.
     fn end_array(&mut self) -> io::Result<()> {
-        self.current_indent -= 1;
+        if !self.compact_mode {
+            self.current_indent -= 1;
 
-        if self.has_value {
-            self.write_all(b"\n")?;
-            self.write_indent(self.current_indent)?;
+            if self.has_value {
+                self.write_all(b"\n")?;
+                self.write_indent(self.current_indent)?;
+            }
         }
 
         self.write_all(b"]")
@@ -361,15 +371,21 @@ where
 
     /// Signals the start of an object to the formatter.
     fn begin_object(&mut self) -> io::Result<()> {
-        self.current_indent += 1;
+        if !self.compact_mode {
+            self.current_indent += 1;
+        }
         self.has_value = false;
         self.write_all(b"{")
     }
 
     /// Signals the start of an object key to the formatter.
     fn begin_object_key(&mut self) -> io::Result<()> {
-        self.write_all(b"\n")?;
-        self.write_indent(self.current_indent)
+        if !self.compact_mode {
+            self.write_all(b"\n")?;
+            self.write_indent(self.current_indent)?;
+        }
+
+        Ok(())
     }
 
     /// Signals the start of an object value to the formatter.
@@ -384,11 +400,13 @@ where
 
     /// Signals the end of an object to the formatter.
     fn end_object(&mut self) -> io::Result<()> {
-        self.current_indent -= 1;
+        if !self.compact_mode {
+            self.current_indent -= 1;
 
-        if self.has_value {
-            self.write_all(b"\n")?;
-            self.write_indent(self.current_indent)?;
+            if self.has_value {
+                self.write_all(b"\n")?;
+                self.write_indent(self.current_indent)?;
+            }
         }
 
         self.write_all(b"}")
@@ -479,6 +497,12 @@ where
         }
 
         Ok(())
+    }
+
+    /// Enables compact mode for the formatter. This is mostly used while serializing array and
+    /// object function arguments.
+    fn compact_mode(&mut self, yes: bool) {
+        self.compact_mode = yes;
     }
 }
 

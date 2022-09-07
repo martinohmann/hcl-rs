@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::{ElementAccess, ElementAccessOperator, Identifier, TemplateExpr};
+use super::{ElementAccess, ElementAccessOperator, FuncCall, Identifier, TemplateExpr};
 use crate::{Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -34,6 +34,8 @@ pub enum Expression {
     VariableExpr(Identifier),
     /// Represents an attribute or element access.
     ElementAccess(Box<ElementAccess>),
+    /// Represents a function call.
+    FuncCall(Box<FuncCall>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -184,6 +186,12 @@ impl From<RawExpression> for Expression {
 impl From<ElementAccess> for Expression {
     fn from(access: ElementAccess) -> Self {
         Expression::ElementAccess(Box::new(access))
+    }
+}
+
+impl From<FuncCall> for Expression {
+    fn from(func_call: FuncCall) -> Self {
+        Expression::FuncCall(Box::new(func_call))
     }
 }
 
