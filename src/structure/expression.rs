@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::Identifier;
+use super::{Identifier, TemplateExpr};
 use crate::{Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -21,12 +21,15 @@ pub enum Expression {
     Bool(bool),
     /// Represents a number, either integer or float.
     Number(Number),
-    /// Represents a string.
+    /// Represents a string that does not contain any template interpolations or template
+    /// directives.
     String(String),
     /// Represents array.
     Array(Vec<Expression>),
     /// Represents an object.
     Object(Object<ObjectKey, Expression>),
+    /// A quoted string or heredoc that embeds a program written in the template sub-language.
+    TemplateExpr(Box<TemplateExpr>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -41,6 +44,7 @@ impl From<Expression> for Value {
             Expression::String(s) => Value::String(s),
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
+            Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
             Expression::Raw(raw) => Value::String(raw.into()),
         }
     }
@@ -156,6 +160,12 @@ impl From<RawExpression> for Expression {
     }
 }
 
+impl From<TemplateExpr> for Expression {
+    fn from(expr: TemplateExpr) -> Self {
+        Expression::TemplateExpr(Box::new(expr))
+    }
+}
+
 /// Represents an object key.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::object_key")]
@@ -232,9 +242,9 @@ impl Display for ObjectKey {
 
 /// A type that holds the value of a raw expression.
 ///
-/// As of now, anthing that is not a null value, a boolean, number, string, array or object is
-/// treated as raw expression and is not further parsed. This includes conditionals, operations,
-/// function calls, for expressions and variable expressions.
+/// As of now, anthing that is not a null value, a boolean, number, string, template expression,
+/// array or object is treated as raw expression and is not further parsed. This includes
+/// conditionals, operations, function calls, for expressions and variable expressions.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::raw_expression")]
 pub struct RawExpression(String);

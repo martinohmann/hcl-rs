@@ -1,4 +1,4 @@
-use super::StringSerializer;
+use super::{template::TemplateExprSerializer, StringSerializer};
 use crate::{serialize_unsupported, Error, Expression, Object, ObjectKey, RawExpression, Result};
 use serde::ser::{self, Impossible};
 use std::fmt::Display;
@@ -113,7 +113,7 @@ impl ser::Serializer for ExpressionSerializer {
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
-        _variant_index: u32,
+        variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok>
@@ -122,6 +122,15 @@ impl ser::Serializer for ExpressionSerializer {
     {
         if name == "$hcl::expression" {
             value.serialize(self)
+        } else if name == "$hcl::template_expr" {
+            Ok(Expression::TemplateExpr(Box::new(
+                TemplateExprSerializer.serialize_newtype_variant(
+                    name,
+                    variant_index,
+                    variant,
+                    value,
+                )?,
+            )))
         } else {
             let mut object = Object::new();
             object.insert(ObjectKey::identifier(variant), value.serialize(self)?);

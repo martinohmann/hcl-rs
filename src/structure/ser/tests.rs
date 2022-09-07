@@ -3,9 +3,13 @@ use super::{
     block::{BlockLabelSerializer, BlockSerializer},
     body::BodySerializer,
     expression::ExpressionSerializer,
+    template::TemplateExprSerializer,
     *,
 };
-use crate::{Attribute, Block, BlockLabel, Body, Expression, Map};
+use crate::{
+    structure::Identifier, Attribute, Block, BlockLabel, Body, Expression, Heredoc,
+    HeredocStripMode, Map, TemplateExpr,
+};
 use serde::Serialize;
 use std::fmt::Debug;
 
@@ -56,6 +60,21 @@ fn identity() {
     test_identity(
         ExpressionSerializer,
         Expression::from_iter([("foo", "bar")]),
+    );
+    test_identity(
+        TemplateExprSerializer,
+        TemplateExpr::QuotedString("${foo}".into()),
+    );
+    test_identity(
+        TemplateExprSerializer,
+        TemplateExpr::Heredoc(
+            Heredoc::new(Identifier::new("EOS"), "  ${foo}")
+                .with_strip_mode(HeredocStripMode::Indent),
+        ),
+    );
+    test_identity(
+        TemplateExprSerializer,
+        TemplateExpr::Heredoc(Heredoc::new(Identifier::new("EOS"), "${foo}")),
     );
 }
 

@@ -51,6 +51,7 @@ mod body;
 pub(crate) mod de;
 mod expression;
 pub(crate) mod ser;
+mod template;
 #[cfg(test)]
 mod tests;
 
@@ -59,12 +60,13 @@ pub use self::{
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
     expression::{Expression, Object, ObjectKey, RawExpression},
+    template::{Heredoc, HeredocStripMode, TemplateExpr},
 };
 use crate::{Map, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-/// Represents an HCL identifier inside of a [`BlockLabel`] or [`ObjectKey`].
+/// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::identifier")]
 pub struct Identifier(pub String);

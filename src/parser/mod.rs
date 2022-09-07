@@ -1,10 +1,10 @@
+mod template;
 #[cfg(test)]
 mod tests;
-mod unescape;
 
 use crate::{
-    Attribute, Block, BlockLabel, Body, Expression, Number, Object, ObjectKey, RawExpression,
-    Result, Structure,
+    structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body, Expression, Heredoc,
+    HeredocStripMode, Number, Object, ObjectKey, RawExpression, Result, Structure, TemplateExpr,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -12,7 +12,7 @@ use pest::{
 };
 use pest_derive::Parser;
 use std::str::FromStr;
-use unescape::unescape;
+pub use template::parse as parse_template;
 
 #[derive(Parser)]
 #[grammar = "parser/grammar/hcl.pest"]
@@ -167,15 +167,29 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         match pair.as_rule() {
             Rule::BooleanLit => Ok(Expression::Bool(parse_primitive(pair))),
             Rule::Float => Ok(Expression::Number(parse_primitive::<f64>(pair).into())),
-            Rule::Heredoc => parse_heredoc(pair).map(Expression::String),
             Rule::Int => Ok(Expression::Number(parse_primitive::<i64>(pair).into())),
             Rule::NullLit => Ok(Expression::Null),
             Rule::StringLit => parse_string(inner(pair)).map(Expression::String),
+            Rule::TemplateExpr => {
+                let expr = parse_template_expr(inner(pair));
+                Ok(Expression::TemplateExpr(Box::new(expr)))
+            }
             Rule::Tuple => parse_expressions(pair).map(Expression::Array),
             Rule::Object => parse_object(pair).map(Expression::Object),
             // @TODO(mohmann): Process ForExpr, VariableExpr etc.
             _ => Ok(Expression::Raw(raw_expression(pair.as_str()))),
         }
+    }
+}
+
+fn parse_template_expr(pair: Pair<Rule>) -> TemplateExpr {
+    match pair.as_rule() {
+        Rule::QuotedStringTemplate => {
+            let pair = inner(pair);
+            TemplateExpr::QuotedString(pair.as_str().to_owned())
+        }
+        Rule::HeredocTemplate => TemplateExpr::Heredoc(parse_heredoc(pair)),
+        rule => unexpected_rule(rule),
     }
 }
 
@@ -213,7 +227,7 @@ fn inner(pair: Pair<Rule>) -> Pair<Rule> {
 }
 
 fn parse_string(pair: Pair<Rule>) -> Result<String> {
-    unescape(pair.as_str())
+    unescape(pair.as_str()).map(|c| c.to_string())
 }
 
 fn parse_ident(pair: Pair<Rule>) -> String {
@@ -224,67 +238,23 @@ fn raw_expression(raw: &str) -> RawExpression {
     RawExpression::new(raw.trim_end())
 }
 
-fn parse_heredoc(pair: Pair<Rule>) -> Result<String> {
+fn parse_heredoc(pair: Pair<Rule>) -> Heredoc {
     let mut pairs = pair.into_inner();
     let intro = pairs.next().unwrap();
-    let content = pairs.nth(1).unwrap();
+    let delimiter = pairs.next().unwrap();
+    let template = pairs.next().unwrap();
 
-    match intro.as_rule() {
-        Rule::HeredocIntroNormal => parse_string(content),
-        Rule::HeredocIntroIndent => {
-            let dedented = dedent_string(content.as_str());
-            unescape(&dedented)
-        }
+    let strip = match intro.as_rule() {
+        Rule::HeredocIntroNormal => HeredocStripMode::None,
+        Rule::HeredocIntroIndent => HeredocStripMode::Indent,
         rule => unexpected_rule(rule),
+    };
+
+    Heredoc {
+        strip,
+        delimiter: Identifier::new(delimiter.as_str()),
+        template: template.as_str().to_owned(),
     }
-}
-
-// String dedent implementation which does not distinguish between spaces, tabs or unicode
-// whitespace but simply treats all of them as "one unit of whitespace".
-//
-// This is how the original HCL spec seems to handle it based on the original specsuite although it
-// is not formally defined. E.g. ' ' (space) and '\u{2003}' (unicode "em-space") are treated as one
-// unit of whitespace even though the former is 1 byte and the latter is 3 bytes long.
-fn dedent_string(s: &str) -> String {
-    if s.is_empty() {
-        return String::new();
-    }
-
-    let mut leading_ws = usize::MAX;
-    let mut non_empty_lines = 0;
-
-    // Find the minimum number of possible leading units of whitespace that can be be stripped off
-    // of each non-empty line.
-    for line in s.lines().filter(|line| !line.is_empty()) {
-        let line_leading_ws = line.chars().take_while(|ch| ch.is_whitespace()).count();
-
-        if line_leading_ws == 0 {
-            // Fast path: no dedent needed if we encounter a non-empty line which starts with a
-            // non-whitespace character.
-            return s.to_string();
-        }
-
-        leading_ws = leading_ws.min(line_leading_ws);
-        non_empty_lines += 1;
-    }
-
-    // Strip the determined amount of leading whitespace off of each line.
-    let mut dedented = String::with_capacity(s.len() - leading_ws * non_empty_lines);
-
-    for line in s.lines() {
-        if !line.is_empty() {
-            dedented.extend(line.chars().skip(leading_ws));
-        }
-
-        dedented.push('\n');
-    }
-
-    if dedented.ends_with('\n') && !s.ends_with('\n') {
-        let new_len = dedented.len() - 1;
-        dedented.truncate(new_len);
-    }
-
-    dedented
 }
 
 #[track_caller]

@@ -5,6 +5,7 @@ mod block;
 pub(crate) mod body;
 mod expression;
 mod structure;
+mod template;
 #[cfg(test)]
 mod tests;
 

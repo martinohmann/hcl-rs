@@ -1,5 +1,8 @@
 use super::*;
-use crate::{Block, BlockLabel, Body, Expression, Object, ObjectKey, RawExpression};
+use crate::{
+    Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey,
+    RawExpression, TemplateExpr,
+};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -193,6 +196,46 @@ fn serialize_empty_block() {
 }
 
 #[test]
+fn serialize_heredoc() {
+    let body = Body::builder()
+        .add_block(
+            Block::builder("content")
+                .add_attribute((
+                    "heredoc",
+                    TemplateExpr::Heredoc(Heredoc::new(
+                        Identifier::new("HEREDOC"),
+                        "foo\n  bar\nbaz\n",
+                    )),
+                ))
+                .add_attribute((
+                    "heredoc_indent",
+                    TemplateExpr::Heredoc(
+                        Heredoc::new(Identifier::new("HEREDOC"), "    foo\n      bar\n    baz\n")
+                            .with_strip_mode(HeredocStripMode::Indent),
+                    ),
+                ))
+                .build(),
+        )
+        .build();
+
+    let expected = r#"content {
+  heredoc = <<HEREDOC
+foo
+  bar
+baz
+HEREDOC
+  heredoc_indent = <<-HEREDOC
+    foo
+      bar
+    baz
+  HEREDOC
+}
+"#;
+
+    assert_eq!(to_string(&body).unwrap(), expected);
+}
+
+#[test]
 fn serialize_errors() {
     assert!(to_string(&true).is_err());
     assert!(to_string("foo").is_err());
@@ -281,16 +324,14 @@ fn roundtrip() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::String("${var.dynamic}".into()),
-                            Expression::Bool(true),
-                        ),
-                        (
                             ObjectKey::String("application".into()),
                             Expression::String("myapp".into()),
                         ),
                         (
                             ObjectKey::Identifier("team".into()),
-                            Expression::String("bar".into()),
+                            Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(
+                                "${var.team}".into(),
+                            ))),
                         ),
                     ]),
                 ))
