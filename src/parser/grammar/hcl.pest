@@ -49,10 +49,10 @@ ObjectItem      = _{ ObjectItemIdent | ObjectItemExpr }
 ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
 ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 
-// TemplateExpr
+// Template expressions
 TemplateExpr = { QuotedStringTemplate | HeredocTemplate }
 
-// HeredocTemplate
+// Heredoc templates
 HeredocTemplate = ${
     HeredocIntro ~ PUSH(Identifier) ~ NEWLINE ~
     HeredocContent ~
@@ -140,7 +140,7 @@ EoInlineComment = _{ NEWLINE | EOI }
 WHITESPACE = _{ SpaceOrTab | NEWLINE }
 SpaceOrTab = _{ " " | "\t" }
 
-// The template sub-language.
+// Top-level rule for the template sub-language
 HclTemplate = _{ SOI ~ Template ~ EOI }
 
 Template              = ${ (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
