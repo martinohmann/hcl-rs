@@ -210,7 +210,7 @@ fn serialize_heredoc() {
                 .add_attribute((
                     "heredoc_indent",
                     TemplateExpr::Heredoc(
-                        Heredoc::new(Identifier::new("HEREDOC"), "foo\n  bar\nbaz\n")
+                        Heredoc::new(Identifier::new("HEREDOC"), "    foo\n      bar\n    baz\n")
                             .with_strip_mode(HeredocStripMode::Indent),
                     ),
                 ))

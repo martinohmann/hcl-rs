@@ -68,7 +68,7 @@ fn identity() {
     test_identity(
         TemplateExprSerializer,
         TemplateExpr::Heredoc(
-            Heredoc::new(Identifier::new("EOS"), "${foo}")
+            Heredoc::new(Identifier::new("EOS"), "  ${foo}")
                 .with_strip_mode(HeredocStripMode::Indent),
         ),
     );

@@ -197,28 +197,24 @@ impl Format for Heredoc {
     where
         W: io::Write,
     {
+        let delimiter = self.delimiter.as_str();
+
         self.strip.format(fmt)?;
-        fmt.write_string_fragment(self.delimiter.as_str())?;
+
+        fmt.write_string_fragment(delimiter)?;
         fmt.write_all(b"\n")?;
+        fmt.write_string_fragment(&self.template)?;
+
+        if !self.template.ends_with('\n') {
+            fmt.write_all(b"\n")?;
+        }
 
         match self.strip {
             HeredocStripMode::None => {
-                fmt.write_string_fragment(&self.template)?;
-
-                if !self.template.ends_with('\n') {
-                    fmt.write_all(b"\n")?;
-                }
-
-                fmt.write_string_fragment(self.delimiter.as_str())?;
+                fmt.write_string_fragment(delimiter)?;
             }
             HeredocStripMode::Indent => {
-                fmt.write_indented(fmt.current_indent + 1, &self.template)?;
-
-                if !self.template.ends_with('\n') {
-                    fmt.write_all(b"\n")?;
-                }
-
-                fmt.write_indented(fmt.current_indent, self.delimiter.as_str())?;
+                fmt.write_indented(fmt.current_indent, delimiter)?;
             }
         }
 
