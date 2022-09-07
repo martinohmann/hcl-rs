@@ -18,7 +18,7 @@ ExprTermInner = _{ Value | TemplateExpr | FunctionCall | VariableExpr | ForExpr 
 Value = _{ LiteralValue | CollectionValue }
 
 // Literal values
-LiteralValue = _{ NumericLit | BooleanLit | NullLit | StringLit }
+LiteralValue = _{ StringLit | NumericLit | BooleanLit | NullLit }
 
 // Identifiers
 Identifier     = @{ IdentFirstChar ~ IdentChar* }
