@@ -1,8 +1,8 @@
 //! Deserialize impls for HCL structure types.
 
 use super::{
-    Attribute, Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, Heredoc,
-    HeredocStripMode, Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
+    Attribute, Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, FuncCall,
+    Heredoc, HeredocStripMode, Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
 };
 use crate::{Error, Number, Result};
 use serde::de::{self, value::MapAccessDeserializer, IntoDeserializer};
@@ -264,6 +264,9 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::ElementAccess(access) => {
                 access.into_deserializer().deserialize_any(visitor)
             }
+            Expression::FuncCall(func_call) => {
+                func_call.into_deserializer().deserialize_any(visitor)
+            }
         }
     }
 
@@ -293,6 +296,7 @@ impl VariantName for Expression {
             Expression::TemplateExpr(_) => "TemplateExpr",
             Expression::VariableExpr(_) => "VariableExpr",
             Expression::ElementAccess(_) => "ElementAccess",
+            Expression::FuncCall(_) => "FuncCall",
         }
     }
 }
@@ -442,6 +446,64 @@ impl VariantName for ElementAccessOperator {
             ElementAccessOperator::GetAttr(_) => "GetAttr",
             ElementAccessOperator::Index(_) => "Index",
             ElementAccessOperator::LegacyIndex(_) => "LegacyIndex",
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for FuncCall {
+    type Deserializer = MapAccessDeserializer<FuncCallAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(FuncCallAccess::new(self))
+    }
+}
+
+pub struct FuncCallAccess {
+    name: Option<Identifier>,
+    args: Option<Vec<Expression>>,
+    variadic: Option<bool>,
+}
+
+impl FuncCallAccess {
+    fn new(func_call: FuncCall) -> Self {
+        FuncCallAccess {
+            name: Some(func_call.name),
+            args: Some(func_call.args),
+            variadic: Some(func_call.variadic),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for FuncCallAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.name.is_some() {
+            seed.deserialize("name".into_deserializer()).map(Some)
+        } else if self.args.is_some() {
+            seed.deserialize("args".into_deserializer()).map(Some)
+        } else if self.variadic.is_some() {
+            seed.deserialize("variadic".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(name) = self.name.take() {
+            seed.deserialize(name.into_deserializer())
+        } else if let Some(args) = self.args.take() {
+            seed.deserialize(args.into_deserializer())
+        } else if let Some(variadic) = self.variadic.take() {
+            seed.deserialize(variadic.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL function call"))
         }
     }
 }

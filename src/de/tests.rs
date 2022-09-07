@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Block, Body, ElementAccess, Expression, Identifier, ObjectKey};
+use crate::{Block, Body, ElementAccess, Expression, FuncCall, Identifier, ObjectKey};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -189,6 +189,23 @@ fn deserialize_enum() {
         value: E::Struct { a: 1 },
     };
     assert_eq!(expected, from_str::<Test>(input).unwrap());
+}
+
+#[test]
+fn deserialize_func_call() {
+    let input = r#"attr = foo(1, "bar", ["baz", "qux"]...)"#;
+    let expected = Body::builder()
+        .add_attribute((
+            "attr",
+            FuncCall::builder("foo")
+                .arg(1)
+                .arg("bar")
+                .arg(vec!["baz", "qux"])
+                .variadic(true)
+                .build(),
+        ))
+        .build();
+    assert_eq!(expected, from_str::<Body>(input).unwrap());
 }
 
 #[test]

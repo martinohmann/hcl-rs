@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, Heredoc,
+    Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, FuncCall, Heredoc,
     HeredocStripMode, Identifier, Object, ObjectKey, RawExpression, TemplateExpr,
 };
 use pretty_assertions::assert_eq;
@@ -213,6 +213,37 @@ fn serialize_element_access() {
     assert_eq!(
         to_string(&body).unwrap(),
         "attr = var.foo[*].bar[1].*.baz.42\n"
+    );
+}
+
+#[test]
+fn serialize_func_call() {
+    let body = Body::builder()
+        .add_attribute(("attr", FuncCall::new("foo")))
+        .build();
+
+    assert_eq!(to_string(&body).unwrap(), "attr = foo()\n");
+
+    let body = Body::builder()
+        .add_attribute(("attr", FuncCall::builder("foo").arg(1).arg("two").build()))
+        .build();
+
+    assert_eq!(to_string(&body).unwrap(), "attr = foo(1, \"two\")\n");
+
+    let body = Body::builder()
+        .add_attribute((
+            "attr",
+            FuncCall::builder("foo")
+                .arg(1)
+                .arg(vec!["two", "three"])
+                .variadic(true)
+                .build(),
+        ))
+        .build();
+
+    assert_eq!(
+        to_string(&body).unwrap(),
+        "attr = foo(1, [\"two\", \"three\"]...)\n"
     );
 }
 

@@ -1,8 +1,8 @@
 use super::{private, Format, Formatter};
 use crate::{
     structure::{
-        Attribute, Block, BlockLabel, Body, Expression, Heredoc, HeredocStripMode, Identifier,
-        ObjectKey, RawExpression, Structure, TemplateExpr,
+        Attribute, Block, BlockLabel, Body, Expression, FuncCall, Heredoc, HeredocStripMode,
+        Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
     },
     ElementAccess, ElementAccessOperator, Map, Number, Result, Value,
 };
@@ -107,6 +107,7 @@ impl Format for Expression {
             Expression::TemplateExpr(expr) => expr.format(fmt),
             Expression::VariableExpr(ident) => ident.format(fmt),
             Expression::ElementAccess(access) => access.format(fmt),
+            Expression::FuncCall(func_call) => func_call.format(fmt),
         }
     }
 }
@@ -271,6 +272,38 @@ impl Format for ElementAccessOperator {
                 expr.format(fmt)?;
                 fmt.write_all(b"]")?;
             }
+        }
+
+        Ok(())
+    }
+}
+
+impl private::Sealed for FuncCall {}
+
+impl Format for FuncCall {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        self.name.format(fmt)?;
+        fmt.write_all(b"(")?;
+
+        fmt.compact_mode(true);
+
+        for (i, arg) in self.args.iter().enumerate() {
+            if i > 0 {
+                fmt.write_all(b", ")?;
+            }
+
+            arg.format(fmt)?;
+        }
+
+        fmt.compact_mode(false);
+
+        if self.variadic {
+            fmt.write_all(b"...)")?;
+        } else {
+            fmt.write_all(b")")?;
         }
 
         Ok(())

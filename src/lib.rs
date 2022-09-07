@@ -28,8 +28,8 @@ pub use ser::{to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{
     ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder,
-    ElementAccess, ElementAccessOperator, Expression, Heredoc, HeredocStripMode, Identifier,
-    Object, ObjectKey, RawExpression, Structure, TemplateExpr,
+    ElementAccess, ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc,
+    HeredocStripMode, Identifier, Object, ObjectKey, RawExpression, Structure, TemplateExpr,
 };
 #[doc(inline)]
 pub use value::{Map, Value};

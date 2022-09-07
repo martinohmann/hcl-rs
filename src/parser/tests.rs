@@ -421,9 +421,11 @@ fn parse_nested_function_call_with_splat() {
         rule: Rule::FunctionCall,
         tokens: [
             FunctionCall(0, 72, [
+                Identifier(0, 7),
                 Arguments(8, 71, [
                     ExprTerm(8, 68, [
                         FunctionCall(8, 68, [
+                            Identifier(8, 14),
                             Arguments(15, 67, [
                                 ExprTerm(15, 40, [
                                     VariableExpr(15, 26),

@@ -51,6 +51,7 @@ mod body;
 pub(crate) mod de;
 mod element_access;
 mod expression;
+mod func;
 pub(crate) mod ser;
 mod template;
 #[cfg(test)]
@@ -62,6 +63,7 @@ pub use self::{
     body::{Body, BodyBuilder},
     element_access::{ElementAccess, ElementAccessOperator},
     expression::{Expression, Object, ObjectKey, RawExpression},
+    func::{FuncCall, FuncCallBuilder},
     template::{Heredoc, HeredocStripMode, TemplateExpr},
 };
 use crate::{Map, Value};
