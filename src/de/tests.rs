@@ -344,3 +344,17 @@ fn issue_44() {
 
     assert_eq!(config, expected);
 }
+
+#[test]
+fn issue_66() {
+    let body: Body = crate::from_str("a = b[\"c\"]").unwrap();
+
+    let expected = Body::builder()
+        .add_attribute((
+            "a",
+            ElementAccess::new(Identifier::new("b"), Expression::String(String::from("c"))),
+        ))
+        .build();
+
+    assert_eq!(body, expected);
+}
