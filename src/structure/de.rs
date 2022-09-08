@@ -423,7 +423,6 @@ impl<'de> de::Deserializer<'de> for ElementAccessOperator {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
-    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
     where
@@ -439,6 +438,18 @@ impl<'de> de::Deserializer<'de> for ElementAccessOperator {
             ElementAccessOperator::LegacyIndex(index) => visitor.visit_u64(index),
         }
     }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_enum(self)
+    }
 }
 
 impl VariantName for ElementAccessOperator {
@@ -450,6 +461,58 @@ impl VariantName for ElementAccessOperator {
             ElementAccessOperator::Index(_) => "Index",
             ElementAccessOperator::LegacyIndex(_) => "LegacyIndex",
         }
+    }
+}
+
+impl<'de> de::EnumAccess<'de> for ElementAccessOperator {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        let variant_name = self.variant_name();
+
+        seed.deserialize(variant_name.into_deserializer())
+            .map(|variant| (variant, self))
+    }
+}
+
+impl<'de> de::VariantAccess<'de> for ElementAccessOperator {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        de::Deserialize::deserialize(self)
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        match self {
+            ElementAccessOperator::Index(expr) => seed.deserialize(expr.into_deserializer()),
+            ElementAccessOperator::GetAttr(ident) => seed.deserialize(ident.into_deserializer()),
+            value => seed.deserialize(value.into_deserializer()),
+        }
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.into_deserializer().deserialize_seq(visitor)
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.into_deserializer().deserialize_map(visitor)
     }
 }
 
