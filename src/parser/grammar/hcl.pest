@@ -98,9 +98,10 @@ Variadic  =  { "..." }
 // For expressions
 ForExpr       = { ForTupleExpr | ForObjectExpr }
 ForTupleExpr  = { "[" ~ ForIntro ~ Expression ~ ForCond? ~ "]" }
-ForObjectExpr = { "{" ~ ForIntro ~ Expression ~ "=>" ~ Expression ~ "..."? ~ ForCond? ~ "}" }
+ForObjectExpr = { "{" ~ ForIntro ~ Expression ~ "=>" ~ Expression ~ ValueGrouping? ~ ForCond? ~ "}" }
 ForIntro      = { "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ ":" }
 ForCond       = { "if" ~ Expression }
+ValueGrouping = { "..." }
 
 // Variables and variable expressions
 VariableExpr = @{ Identifier }

@@ -45,7 +45,8 @@ pub enum Expression {
     Operation(Box<Operation>),
     /// A construct for constructing a collection by projecting the items from another collection.
     ForExpr(Box<ForExpr>),
-    /// Represents a raw HCL expression. See [`RawExpression`] for more details.
+    /// Represents a raw HCL expression. This variant will never be emitted by the parser. See
+    /// [`RawExpression`] for more details.
     Raw(RawExpression),
 }
 
@@ -258,8 +259,7 @@ pub enum ObjectKey {
     Identifier(Identifier),
     /// Represents a quoted string used as object key.
     String(String),
-    /// Represents a raw HCL expression. This includes any expression kind that does match any of
-    /// the enum variants above. See [`RawExpression`] for more details.
+    /// Represents a raw HCL expression. See [`RawExpression`] for more details.
     RawExpression(RawExpression),
 }
 
@@ -328,8 +328,6 @@ impl Display for ObjectKey {
 ///
 /// *Please note*: raw expressions are not validated during serialization, so it is your
 /// responsiblity to ensure that they are valid HCL.
-///
-/// As of now, only `for` expressions are treated as raw expression and are not further parsed.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::raw_expression")]
 pub struct RawExpression(String);

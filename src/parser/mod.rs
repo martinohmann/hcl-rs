@@ -191,12 +191,79 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::VariableExpr => Expression::VariableExpr(parse_ident(pair).into()),
         Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
         Rule::SubExpression => Expression::SubExpr(Box::new(parse_expression(inner(pair))?)),
-        // @TODO(mohmann): Process ForExpr.
-        _ => Expression::Raw(raw_expression(pair.as_str())),
+        Rule::ForExpr => Expression::from(parse_for_expr(inner(pair))?),
+        rule => unexpected_rule(rule),
     };
 
     pairs.try_fold(expr, |expr, pair| {
         Ok(expr.element(parse_element_access_operator(pair)?))
+    })
+}
+
+fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
+    match pair.as_rule() {
+        Rule::ForTupleExpr => parse_for_list_expr(pair).map(ForExpr::List),
+        Rule::ForObjectExpr => parse_for_object_expr(pair).map(ForExpr::Object),
+        rule => unexpected_rule(rule),
+    }
+}
+
+fn parse_for_list_expr(pair: Pair<Rule>) -> Result<ForListExpr> {
+    let mut pairs = pair.into_inner();
+    let intro = parse_for_intro(pairs.next().unwrap())?;
+    let expr = parse_expression(pairs.next().unwrap())?;
+    let cond = match pairs.next() {
+        Some(pair) => Some(parse_expression(inner(pair))?),
+        None => None,
+    };
+
+    Ok(ForListExpr { intro, expr, cond })
+}
+
+fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForObjectExpr> {
+    let mut pairs = pair.into_inner();
+    let intro = parse_for_intro(pairs.next().unwrap())?;
+    let key_expr = parse_expression(pairs.next().unwrap())?;
+    let value_expr = parse_expression(pairs.next().unwrap())?;
+    let (value_grouping, cond) = match (pairs.next(), pairs.next()) {
+        (Some(_), Some(pair)) => (true, Some(parse_expression(inner(pair))?)),
+        (Some(pair), None) => match pair.as_rule() {
+            Rule::ValueGrouping => (true, None),
+            Rule::ForCond => (false, Some(parse_expression(inner(pair))?)),
+            rule => unexpected_rule(rule),
+        },
+        (_, _) => (false, None),
+    };
+
+    Ok(ForObjectExpr {
+        intro,
+        key_expr,
+        value_expr,
+        value_grouping,
+        cond,
+    })
+}
+
+fn parse_for_intro(pair: Pair<Rule>) -> Result<ForIntro> {
+    let mut pairs = pair.into_inner();
+    let value = pairs.next().unwrap();
+    let mut value = Some(Identifier::new(value.as_str()));
+    let mut expr = pairs.next().unwrap();
+
+    // If there are two identifiers, the first one is the key and the second one the value.
+    let key = match expr.as_rule() {
+        Rule::Identifier => {
+            let key = value.replace(Identifier::new(expr.as_str()));
+            expr = pairs.next().unwrap();
+            key
+        }
+        _ => None,
+    };
+
+    Ok(ForIntro {
+        key,
+        value: value.take().unwrap(),
+        expr: parse_expression(expr)?,
     })
 }
 
