@@ -3,7 +3,7 @@ mod template;
 mod tests;
 
 use crate::{
-    structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body,
+    structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body, Conditional,
     ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc, HeredocStripMode,
     Number, Object, ObjectKey, RawExpression, Result, Structure, TemplateExpr,
 };
@@ -116,8 +116,6 @@ fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
 }
 
 fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
-    // @TODO(mohmann): Process Conditional and Operation at one point. This will require a
-    // PrecClimber to get precedence right though.
     match pair.as_rule() {
         Rule::ExprTerm => parse_expr_term(pair),
         Rule::Operation => {
@@ -127,12 +125,23 @@ fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
             // fully implemented.
             match parse_negative_number(inner(pair))? {
                 Some(num) => Ok(Expression::Number(num)),
+                // @TODO(mohmann): Process Operation at one point.
                 None => Ok(Expression::Raw(raw_expression(raw))),
             }
         }
-        Rule::Conditional => Ok(Expression::Raw(raw_expression(pair.as_str()))),
+        Rule::Conditional => Ok(Expression::Conditional(Box::new(parse_conditional(pair)?))),
         rule => unexpected_rule(rule),
     }
+}
+
+fn parse_conditional(pair: Pair<Rule>) -> Result<Conditional> {
+    let mut pairs = pair.into_inner();
+
+    Ok(Conditional {
+        predicate: parse_expression(pairs.next().unwrap())?,
+        true_expr: parse_expression(pairs.next().unwrap())?,
+        false_expr: parse_expression(pairs.next().unwrap())?,
+    })
 }
 
 fn parse_negative_number(pair: Pair<Rule>) -> Result<Option<Number>> {
@@ -174,7 +183,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::VariableExpr => Expression::VariableExpr(parse_ident(pair).into()),
         Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
         Rule::SubExpression => Expression::SubExpr(Box::new(parse_expression(inner(pair))?)),
-        // @TODO(mohmann): Process ForExpr etc.
+        // @TODO(mohmann): Process ForExpr.
         _ => Expression::Raw(raw_expression(pair.as_str())),
     };
 

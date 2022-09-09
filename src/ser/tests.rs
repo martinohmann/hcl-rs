@@ -1,7 +1,8 @@
 use super::*;
 use crate::{
-    Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, FuncCall, Heredoc,
-    HeredocStripMode, Identifier, Object, ObjectKey, RawExpression, TemplateExpr,
+    Block, BlockLabel, Body, Conditional, ElementAccess, ElementAccessOperator, Expression,
+    FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, RawExpression,
+    TemplateExpr,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -217,6 +218,21 @@ fn serialize_element_access() {
 }
 
 #[test]
+fn serialize_conditional() {
+    let body = Body::builder()
+        .add_attribute((
+            "cond",
+            Conditional::new(Identifier::new("cond_var"), "yes", "no"),
+        ))
+        .build();
+
+    assert_eq!(
+        to_string(&body).unwrap(),
+        "cond = cond_var ? \"yes\" : \"no\"\n"
+    );
+}
+
+#[test]
 fn serialize_func_call() {
     let body = Body::builder()
         .add_attribute(("attr", FuncCall::new("foo")))
@@ -365,6 +381,10 @@ fn roundtrip() {
             Block::builder("resource")
                 .add_label("aws_s3_bucket")
                 .add_label("mybucket")
+                .add_attribute((
+                    "count",
+                    Conditional::new(ElementAccess::new(Identifier::new("var"), "enabled"), 1, 0),
+                ))
                 .add_attribute(("bucket", "mybucket"))
                 .add_attribute(("force_destroy", true))
                 .add_block(

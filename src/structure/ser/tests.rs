@@ -2,12 +2,13 @@ use super::{
     attribute::AttributeSerializer,
     block::{BlockLabelSerializer, BlockSerializer},
     body::BodySerializer,
+    conditional::ConditionalSerializer,
     expression::ExpressionSerializer,
     template::TemplateExprSerializer,
     *,
 };
 use crate::{
-    structure::Identifier, Attribute, Block, BlockLabel, Body, Expression, Heredoc,
+    structure::Identifier, Attribute, Block, BlockLabel, Body, Conditional, Expression, Heredoc,
     HeredocStripMode, Map, TemplateExpr,
 };
 use serde::Serialize;
@@ -75,6 +76,10 @@ fn identity() {
     test_identity(
         TemplateExprSerializer,
         TemplateExpr::Heredoc(Heredoc::new(Identifier::new("EOS"), "${foo}")),
+    );
+    test_identity(
+        ConditionalSerializer,
+        Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
     );
 }
 
@@ -166,5 +171,15 @@ fn custom() {
         ExpressionSerializer,
         Some(1u8),
         Expression::Number(1u8.into()),
+    );
+
+    test_serialize(
+        ConditionalSerializer,
+        (
+            Expression::VariableExpr(Identifier::new("some_cond_var")),
+            Expression::String("yes".into()),
+            Expression::String("no".into()),
+        ),
+        Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
     );
 }

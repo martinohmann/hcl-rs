@@ -1,8 +1,9 @@
 //! Deserialize impls for HCL structure types.
 
 use super::{
-    Attribute, Block, BlockLabel, Body, ElementAccess, ElementAccessOperator, Expression, FuncCall,
-    Heredoc, HeredocStripMode, Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
+    Attribute, Block, BlockLabel, Body, Conditional, ElementAccess, ElementAccessOperator,
+    Expression, FuncCall, Heredoc, HeredocStripMode, Identifier, ObjectKey, RawExpression,
+    Structure, TemplateExpr,
 };
 use crate::{Error, Number, Result};
 use serde::de::{self, value::MapAccessDeserializer, IntoDeserializer};
@@ -268,6 +269,7 @@ impl<'de> de::Deserializer<'de> for Expression {
                 func_call.into_deserializer().deserialize_any(visitor)
             }
             Expression::SubExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::Conditional(cond) => cond.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -299,6 +301,7 @@ impl VariantName for Expression {
             Expression::ElementAccess(_) => "ElementAccess",
             Expression::FuncCall(_) => "FuncCall",
             Expression::SubExpr(_) => "SubExpr",
+            Expression::Conditional(_) => "Conditional",
         }
     }
 }
@@ -570,6 +573,64 @@ impl<'de> de::MapAccess<'de> for FuncCallAccess {
             seed.deserialize(variadic.into_deserializer())
         } else {
             Err(de::Error::custom("invalid HCL function call"))
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Conditional {
+    type Deserializer = MapAccessDeserializer<ConditionalAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(ConditionalAccess::new(self))
+    }
+}
+
+pub struct ConditionalAccess {
+    predicate: Option<Expression>,
+    true_expr: Option<Expression>,
+    false_expr: Option<Expression>,
+}
+
+impl ConditionalAccess {
+    fn new(cond: Conditional) -> Self {
+        ConditionalAccess {
+            predicate: Some(cond.predicate),
+            true_expr: Some(cond.true_expr),
+            false_expr: Some(cond.false_expr),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for ConditionalAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.predicate.is_some() {
+            seed.deserialize("predicate".into_deserializer()).map(Some)
+        } else if self.true_expr.is_some() {
+            seed.deserialize("true_expr".into_deserializer()).map(Some)
+        } else if self.false_expr.is_some() {
+            seed.deserialize("false_expr".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(predicate) = self.predicate.take() {
+            seed.deserialize(predicate.into_deserializer())
+        } else if let Some(true_expr) = self.true_expr.take() {
+            seed.deserialize(true_expr.into_deserializer())
+        } else if let Some(false_expr) = self.false_expr.take() {
+            seed.deserialize(false_expr.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL condition"))
         }
     }
 }

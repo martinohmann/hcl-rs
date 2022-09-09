@@ -77,12 +77,10 @@ fn conditional() {
         rule: Rule::Conditional,
         tokens: [
             Conditional(0, 19, [
-                CondExpr(0, 11, [
-                    ExprTerm(0, 11, [
-                        VariableExpr(0, 3),
-                        GetAttr(3, 11, [
-                            Identifier(4, 11)
-                        ])
+                ExprTerm(0, 11, [
+                    VariableExpr(0, 3),
+                    GetAttr(3, 11, [
+                        Identifier(4, 11)
                     ])
                 ]),
                 ExprTerm(14, 16, [
@@ -335,12 +333,10 @@ fn parse_cond_in_interpolation() {
                                 TemplateInterpolation(8, 36, [
                                     TemplateIExprStartNormal(8, 10),
                                     Conditional(10, 35, [
-                                        CondExpr(10, 15, [
-                                            ExprTerm(10, 15, [
-                                                VariableExpr(10, 13),
-                                                GetAttr(13, 15, [
-                                                    Identifier(14, 15)
-                                                ])
+                                        ExprTerm(10, 15, [
+                                            VariableExpr(10, 13),
+                                            GetAttr(13, 15, [
+                                                Identifier(14, 15)
                                             ])
                                         ]),
                                         ExprTerm(18, 31, [

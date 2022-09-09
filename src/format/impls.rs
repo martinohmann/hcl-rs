@@ -1,8 +1,8 @@
 use super::{private, Format, Formatter};
 use crate::{
     structure::{
-        Attribute, Block, BlockLabel, Body, Expression, FuncCall, Heredoc, HeredocStripMode,
-        Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
+        Attribute, Block, BlockLabel, Body, Conditional, Expression, FuncCall, Heredoc,
+        HeredocStripMode, Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
     },
     ElementAccess, ElementAccessOperator, Map, Number, Result, Value,
 };
@@ -114,6 +114,7 @@ impl Format for Expression {
                 fmt.write_all(b")")?;
                 Ok(())
             }
+            Expression::Conditional(cond) => cond.format(fmt),
         }
     }
 }
@@ -312,6 +313,22 @@ impl Format for FuncCall {
             fmt.write_all(b")")?;
         }
 
+        Ok(())
+    }
+}
+
+impl private::Sealed for Conditional {}
+
+impl Format for Conditional {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        self.predicate.format(fmt)?;
+        fmt.write_all(b" ? ")?;
+        self.true_expr.format(fmt)?;
+        fmt.write_all(b" : ")?;
+        self.false_expr.format(fmt)?;
         Ok(())
     }
 }
