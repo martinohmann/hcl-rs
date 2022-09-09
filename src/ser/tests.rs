@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
-    Block, BlockLabel, Body, Conditional, ElementAccess, ElementAccessOperator, Expression,
-    FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, RawExpression,
-    TemplateExpr,
+    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
+    ElementAccessOperator, Expression, FuncCall, Heredoc, HeredocStripMode, Identifier, Object,
+    ObjectKey, Operation, RawExpression, TemplateExpr,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -230,6 +230,18 @@ fn serialize_conditional() {
         to_string(&body).unwrap(),
         "cond = cond_var ? \"yes\" : \"no\"\n"
     );
+}
+
+#[test]
+fn serialize_oparation() {
+    let body = Body::builder()
+        .add_attribute((
+            "op",
+            Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
+        ))
+        .build();
+
+    assert_eq!(to_string(&body).unwrap(), "op = 1 + 1\n");
 }
 
 #[test]

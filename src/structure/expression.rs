@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::{ElementAccess, ElementAccessOperator, FuncCall, Identifier, TemplateExpr};
+use super::{ElementAccess, ElementAccessOperator, FuncCall, Identifier, Operation, TemplateExpr};
 use crate::{Conditional, Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -41,6 +41,8 @@ pub enum Expression {
     /// A conditional operator which selects one of two rexpressions based on the outcome of a
     /// boolean expression.
     Conditional(Box<Conditional>),
+    /// An operation which applies a particular operator to either one or two expression terms.
+    Operation(Box<Operation>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -210,6 +212,12 @@ impl From<FuncCall> for Expression {
 impl From<Conditional> for Expression {
     fn from(cond: Conditional) -> Self {
         Expression::Conditional(Box::new(cond))
+    }
+}
+
+impl From<Operation> for Expression {
+    fn from(op: Operation) -> Self {
+        Expression::Operation(Box::new(op))
     }
 }
 

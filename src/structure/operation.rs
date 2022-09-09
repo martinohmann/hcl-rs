@@ -1,7 +1,6 @@
-use super::Expression;
+use super::{de::FromStrVisitor, Expression};
 use crate::{Error, Result};
-use serde::{de, Deserialize, Serialize};
-use std::fmt;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 /// Operations apply a particular operator to either one or two expression terms.
@@ -12,6 +11,18 @@ pub enum Operation {
     Unary(UnaryOp),
     /// Represents an operation that applies an operator to two expressions.
     Binary(BinaryOp),
+}
+
+impl From<UnaryOp> for Operation {
+    fn from(op: UnaryOp) -> Self {
+        Operation::Unary(op)
+    }
+}
+
+impl From<BinaryOp> for Operation {
+    fn from(op: BinaryOp) -> Self {
+        Operation::Binary(op)
+    }
 }
 
 /// An operation that applies an operator to one expression.
@@ -82,24 +93,7 @@ impl<'de> Deserialize<'de> for UnaryOperator {
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor;
-
-        impl<'de> de::Visitor<'de> for Visitor {
-            type Value = UnaryOperator;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a unary operator")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                UnaryOperator::from_str(value).map_err(de::Error::custom)
-            }
-        }
-
-        deserializer.deserialize_any(Visitor)
+        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a unary operator"))
     }
 }
 
@@ -219,23 +213,6 @@ impl<'de> Deserialize<'de> for BinaryOperator {
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor;
-
-        impl<'de> de::Visitor<'de> for Visitor {
-            type Value = BinaryOperator;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("a binary operator")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: de::Error,
-            {
-                BinaryOperator::from_str(value).map_err(de::Error::custom)
-            }
-        }
-
-        deserializer.deserialize_any(Visitor)
+        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a binary operator"))
     }
 }

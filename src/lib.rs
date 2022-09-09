@@ -27,9 +27,10 @@ pub use parser::parse;
 pub use ser::{to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{
-    ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Conditional,
-    ElementAccess, ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc,
-    HeredocStripMode, Identifier, Object, ObjectKey, RawExpression, Structure, TemplateExpr,
+    ser::to_expression, Attribute, BinaryOp, BinaryOperator, Block, BlockBuilder, BlockLabel, Body,
+    BodyBuilder, Conditional, ElementAccess, ElementAccessOperator, Expression, FuncCall,
+    FuncCallBuilder, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation,
+    RawExpression, Structure, TemplateExpr, UnaryOp, UnaryOperator,
 };
 #[doc(inline)]
 pub use value::{Map, Value};

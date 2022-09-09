@@ -1,6 +1,7 @@
 use super::{
     conditional::ConditionalSerializer, element_access::SerializeElementAccessStruct,
-    func::SerializeFuncCallStruct, template::TemplateExprSerializer, StringSerializer,
+    func::SerializeFuncCallStruct, operation::OperationSerializer,
+    template::TemplateExprSerializer, StringSerializer,
 };
 use crate::{
     serialize_unsupported, Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result,
@@ -134,6 +135,9 @@ impl ser::Serializer for ExpressionSerializer {
             match variant {
                 "Conditional" => Ok(Expression::Conditional(Box::new(
                     value.serialize(ConditionalSerializer)?,
+                ))),
+                "Operation" => Ok(Expression::Operation(Box::new(
+                    value.serialize(OperationSerializer)?,
                 ))),
                 "SubExpr" => Ok(Expression::SubExpr(Box::new(value.serialize(self)?))),
                 "TemplateExpr" => Ok(Expression::TemplateExpr(Box::new(

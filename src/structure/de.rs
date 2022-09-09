@@ -1,9 +1,9 @@
 //! Deserialize impls for HCL structure types.
 
 use super::{
-    Attribute, Block, BlockLabel, Body, Conditional, ElementAccess, ElementAccessOperator,
-    Expression, FuncCall, Heredoc, HeredocStripMode, Identifier, ObjectKey, RawExpression,
-    Structure, TemplateExpr,
+    Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
+    ElementAccessOperator, Expression, FuncCall, Heredoc, HeredocStripMode, Identifier, ObjectKey,
+    Operation, RawExpression, Structure, TemplateExpr, UnaryOp, UnaryOperator,
 };
 use crate::{Error, Number, Result};
 use serde::de::{
@@ -12,8 +12,9 @@ use serde::de::{
     IntoDeserializer,
 };
 use serde::{forward_to_deserialize_any, Deserializer};
+use std::fmt;
 use std::marker::PhantomData;
-use std::{fmt, str::FromStr};
+use std::str::FromStr;
 
 // A trait that allows enum types to report the name of their variant.
 trait VariantName {
@@ -275,6 +276,7 @@ impl<'de> de::Deserializer<'de> for Expression {
             }
             Expression::SubExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::Conditional(cond) => cond.into_deserializer().deserialize_any(visitor),
+            Expression::Operation(op) => op.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -307,6 +309,7 @@ impl VariantName for Expression {
             Expression::FuncCall(_) => "FuncCall",
             Expression::SubExpr(_) => "SubExpr",
             Expression::Conditional(_) => "Conditional",
+            Expression::Operation(_) => "Operation",
         }
     }
 }
@@ -340,6 +343,7 @@ impl<'de> de::VariantAccess<'de> for Expression {
         match self {
             Expression::TemplateExpr(expr) => seed.deserialize(expr.into_deserializer()),
             Expression::SubExpr(expr) => seed.deserialize(expr.into_deserializer()),
+            Expression::Operation(op) => seed.deserialize(op.into_deserializer()),
             value => seed.deserialize(value.into_deserializer()),
         }
     }
@@ -637,6 +641,170 @@ impl<'de> de::MapAccess<'de> for ConditionalAccess {
         } else {
             Err(de::Error::custom("invalid HCL condition"))
         }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Operation {
+    type Deserializer = Self;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self
+    }
+}
+
+impl<'de> de::Deserializer<'de> for Operation {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
+    }
+    impl_deserialize_enum!();
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self {
+            Operation::Unary(op) => op.into_deserializer().deserialize_any(visitor),
+            Operation::Binary(op) => op.into_deserializer().deserialize_any(visitor),
+        }
+    }
+}
+
+impl VariantName for Operation {
+    fn variant_name(&self) -> &'static str {
+        match self {
+            Operation::Unary(_) => "Unary",
+            Operation::Binary(_) => "Binary",
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for UnaryOp {
+    type Deserializer = MapAccessDeserializer<UnaryOpAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(UnaryOpAccess::new(self))
+    }
+}
+
+pub struct UnaryOpAccess {
+    operator: Option<UnaryOperator>,
+    expr: Option<Expression>,
+}
+
+impl UnaryOpAccess {
+    fn new(op: UnaryOp) -> Self {
+        UnaryOpAccess {
+            operator: Some(op.operator),
+            expr: Some(op.expr),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for UnaryOpAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.operator.is_some() {
+            seed.deserialize("operator".into_deserializer()).map(Some)
+        } else if self.expr.is_some() {
+            seed.deserialize("expr".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(operator) = self.operator.take() {
+            seed.deserialize(operator.into_deserializer())
+        } else if let Some(expr) = self.expr.take() {
+            seed.deserialize(expr.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL unary operation"))
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for UnaryOperator {
+    type Deserializer = StrDeserializer<'static, Error>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self.as_str().into_deserializer()
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for BinaryOp {
+    type Deserializer = MapAccessDeserializer<BinaryOpAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(BinaryOpAccess::new(self))
+    }
+}
+
+pub struct BinaryOpAccess {
+    lhs_expr: Option<Expression>,
+    operator: Option<BinaryOperator>,
+    rhs_expr: Option<Expression>,
+}
+
+impl BinaryOpAccess {
+    fn new(op: BinaryOp) -> Self {
+        BinaryOpAccess {
+            lhs_expr: Some(op.lhs_expr),
+            operator: Some(op.operator),
+            rhs_expr: Some(op.rhs_expr),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for BinaryOpAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.lhs_expr.is_some() {
+            seed.deserialize("lhs_expr".into_deserializer()).map(Some)
+        } else if self.operator.is_some() {
+            seed.deserialize("operator".into_deserializer()).map(Some)
+        } else if self.rhs_expr.is_some() {
+            seed.deserialize("rhs_expr".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(lhs_expr) = self.lhs_expr.take() {
+            seed.deserialize(lhs_expr.into_deserializer())
+        } else if let Some(operator) = self.operator.take() {
+            seed.deserialize(operator.into_deserializer())
+        } else if let Some(rhs_expr) = self.rhs_expr.take() {
+            seed.deserialize(rhs_expr.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL binary operation"))
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for BinaryOperator {
+    type Deserializer = StrDeserializer<'static, Error>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self.as_str().into_deserializer()
     }
 }
 

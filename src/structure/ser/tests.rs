@@ -4,12 +4,14 @@ use super::{
     body::BodySerializer,
     conditional::ConditionalSerializer,
     expression::ExpressionSerializer,
+    operation::OperationSerializer,
     template::TemplateExprSerializer,
     *,
 };
 use crate::{
-    structure::Identifier, Attribute, Block, BlockLabel, Body, Conditional, Expression, Heredoc,
-    HeredocStripMode, Map, TemplateExpr,
+    structure::Identifier, Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body,
+    Conditional, Expression, Heredoc, HeredocStripMode, Map, Operation, TemplateExpr, UnaryOp,
+    UnaryOperator,
 };
 use serde::Serialize;
 use std::fmt::Debug;
@@ -80,6 +82,14 @@ fn identity() {
     test_identity(
         ConditionalSerializer,
         Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
+    );
+    test_identity(
+        OperationSerializer,
+        Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1)),
+    );
+    test_identity(
+        OperationSerializer,
+        Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
     );
 }
 
@@ -181,5 +191,21 @@ fn custom() {
             Expression::String("no".into()),
         ),
         Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
+    );
+
+    test_serialize(
+        OperationSerializer,
+        ("-", Expression::Number(1.into())),
+        Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1)),
+    );
+
+    test_serialize(
+        OperationSerializer,
+        (
+            Expression::Number(1.into()),
+            "+",
+            Expression::Number(1.into()),
+        ),
+        Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
     );
 }
