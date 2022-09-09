@@ -7,6 +7,7 @@
 //! - [`BlockBuilder`]: provides functionality for building `Block`s
 //! - [`Body`]: represent the body of an HCL configuration or block
 //! - [`BodyBuilder`]: provides functionality for building `Body`s
+//! - [`Expression`]: represent the value of an HCL attribute
 //!
 //! ## Examples
 //!
