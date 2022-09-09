@@ -1,6 +1,6 @@
 use super::{
-    element_access::SerializeElementAccessStruct, func::SerializeFuncCallStruct,
-    template::TemplateExprSerializer, StringSerializer,
+    conditional::ConditionalSerializer, element_access::SerializeElementAccessStruct,
+    func::SerializeFuncCallStruct, template::TemplateExprSerializer, StringSerializer,
 };
 use crate::{
     serialize_unsupported, Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result,
@@ -123,31 +123,28 @@ impl ser::Serializer for ExpressionSerializer {
     fn serialize_newtype_variant<T>(
         self,
         name: &'static str,
-        variant_index: u32,
+        _variant_index: u32,
         variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok>
     where
         T: ?Sized + ser::Serialize,
     {
-        match (name, variant) {
-            ("$hcl::template_expr", _) => Ok(Expression::TemplateExpr(Box::new(
-                TemplateExprSerializer.serialize_newtype_variant(
-                    name,
-                    variant_index,
-                    variant,
-                    value,
-                )?,
-            ))),
-            ("$hcl::expression", "SubExpr") => {
-                Ok(Expression::SubExpr(Box::new(value.serialize(self)?)))
+        if name == "$hcl::expression" {
+            match variant {
+                "Conditional" => Ok(Expression::Conditional(Box::new(
+                    value.serialize(ConditionalSerializer)?,
+                ))),
+                "SubExpr" => Ok(Expression::SubExpr(Box::new(value.serialize(self)?))),
+                "TemplateExpr" => Ok(Expression::TemplateExpr(Box::new(
+                    value.serialize(TemplateExprSerializer)?,
+                ))),
+                _ => value.serialize(self),
             }
-            ("$hcl::expression", _) => value.serialize(self),
-            (_, _) => {
-                let mut object = Object::new();
-                object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
-                Ok(Expression::Object(object))
-            }
+        } else {
+            let mut object = Object::new();
+            object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
+            Ok(Expression::Object(object))
         }
     }
 

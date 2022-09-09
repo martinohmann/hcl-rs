@@ -1,7 +1,7 @@
 //! Types to represent HCL attribute value expressions.
 
 use super::{ElementAccess, ElementAccessOperator, FuncCall, Identifier, TemplateExpr};
-use crate::{Number, Value};
+use crate::{Conditional, Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
@@ -38,6 +38,9 @@ pub enum Expression {
     FuncCall(Box<FuncCall>),
     /// Represents a sub-expression that is wrapped in parenthesis.
     SubExpr(Box<Expression>),
+    /// A conditional operator which selects one of two rexpressions based on the outcome of a
+    /// boolean expression.
+    Conditional(Box<Conditional>),
     /// Represents a raw HCL expression. This includes any expression kind that does match any of
     /// the enum variants above. See [`RawExpression`] for more details.
     Raw(RawExpression),
@@ -201,6 +204,12 @@ impl From<ElementAccess> for Expression {
 impl From<FuncCall> for Expression {
     fn from(func_call: FuncCall) -> Self {
         Expression::FuncCall(Box::new(func_call))
+    }
+}
+
+impl From<Conditional> for Expression {
+    fn from(cond: Conditional) -> Self {
+        Expression::Conditional(Box::new(cond))
     }
 }
 

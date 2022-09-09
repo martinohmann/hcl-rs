@@ -129,8 +129,8 @@ LogicOperator      = { "&&" | "||" }
 
 
 // Conditional operator
-CondExpr    = { ExprTerm | Operation }
-Conditional = { CondExpr ~ "?" ~ Expression ~ ":" ~ Expression }
+CondExpr    = _{ ExprTerm | Operation }
+Conditional =  { CondExpr ~ "?" ~ Expression ~ ":" ~ Expression }
 
 // Comments
 COMMENT         = _{ InlineComment | BlockComment }

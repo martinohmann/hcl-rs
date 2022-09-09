@@ -48,6 +48,7 @@
 mod attribute;
 mod block;
 mod body;
+mod conditional;
 pub(crate) mod de;
 mod element_access;
 mod expression;
@@ -61,6 +62,7 @@ pub use self::{
     attribute::Attribute,
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
+    conditional::Conditional,
     element_access::{ElementAccess, ElementAccessOperator},
     expression::{Expression, Object, ObjectKey, RawExpression},
     func::{FuncCall, FuncCallBuilder},

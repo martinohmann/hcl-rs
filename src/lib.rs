@@ -27,7 +27,7 @@ pub use parser::parse;
 pub use ser::{to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{
-    ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder,
+    ser::to_expression, Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Conditional,
     ElementAccess, ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc,
     HeredocStripMode, Identifier, Object, ObjectKey, RawExpression, Structure, TemplateExpr,
 };
