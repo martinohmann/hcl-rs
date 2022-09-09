@@ -6,9 +6,14 @@ use super::{
     Structure, TemplateExpr,
 };
 use crate::{Error, Number, Result};
-use serde::de::{self, value::MapAccessDeserializer, IntoDeserializer};
+use serde::de::{
+    self,
+    value::{MapAccessDeserializer, StrDeserializer},
+    IntoDeserializer,
+};
 use serde::{forward_to_deserialize_any, Deserializer};
 use std::marker::PhantomData;
+use std::{fmt, str::FromStr};
 
 // A trait that allows enum types to report the name of their variant.
 trait VariantName {
@@ -780,40 +785,10 @@ impl<'de> de::MapAccess<'de> for HeredocAccess {
 }
 
 impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
-    type Deserializer = Self;
+    type Deserializer = StrDeserializer<'static, Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        self
-    }
-}
-
-impl<'de> de::Deserializer<'de> for HeredocStripMode {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct identifier ignored_any
-    }
-    impl_deserialize_enum!();
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        match self {
-            HeredocStripMode::None => visitor.visit_str("None"),
-            HeredocStripMode::Indent => visitor.visit_str("Indent"),
-        }
-    }
-}
-
-impl VariantName for HeredocStripMode {
-    fn variant_name(&self) -> &'static str {
-        match self {
-            HeredocStripMode::None => "None",
-            HeredocStripMode::Indent => "Indent",
-        }
+        self.as_str().into_deserializer()
     }
 }
 
@@ -941,5 +916,38 @@ where
         V: de::Visitor<'de>,
     {
         self.value.into_deserializer().deserialize_map(visitor)
+    }
+}
+
+pub struct FromStrVisitor<T> {
+    expecting: &'static str,
+    marker: PhantomData<T>,
+}
+
+impl<T> FromStrVisitor<T> {
+    pub fn new(expecting: &'static str) -> FromStrVisitor<T> {
+        FromStrVisitor {
+            expecting,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T> de::Visitor<'de> for FromStrVisitor<T>
+where
+    T: FromStr,
+    T::Err: de::Error,
+{
+    type Value = T;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str(self.expecting)
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        FromStr::from_str(value).map_err(de::Error::custom)
     }
 }

@@ -1,4 +1,4 @@
-use super::Identifier;
+use super::{de::FromStrVisitor, Identifier};
 use crate::{
     util::{dedent, try_unescape},
     Error, Result,
@@ -96,8 +96,7 @@ impl Heredoc {
 }
 
 /// The strip behaviour for the template contained in the heredoc.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::heredoc_strip")]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeredocStripMode {
     /// Do not strip leading whitespace.
     None,
@@ -130,9 +129,27 @@ impl FromStr for HeredocStripMode {
 
     fn from_str(s: &str) -> Result<Self> {
         match s {
-            "None" | "none" | "<<" => Ok(HeredocStripMode::None),
-            "Indent" | "indent" | "<<-" => Ok(HeredocStripMode::Indent),
+            "<<" => Ok(HeredocStripMode::None),
+            "<<-" => Ok(HeredocStripMode::Indent),
             _ => Err(Error::new(format!("invalid heredoc strip mode: `{}`", s))),
         }
+    }
+}
+
+impl Serialize for HeredocStripMode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for HeredocStripMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a heredoc strip mode"))
     }
 }
