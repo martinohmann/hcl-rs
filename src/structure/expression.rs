@@ -43,8 +43,7 @@ pub enum Expression {
     Conditional(Box<Conditional>),
     /// An operation which applies a particular operator to either one or two expression terms.
     Operation(Box<Operation>),
-    /// Represents a raw HCL expression. This includes any expression kind that does match any of
-    /// the enum variants above. See [`RawExpression`] for more details.
+    /// Represents a raw HCL expression. See [`RawExpression`] for more details.
     Raw(RawExpression),
 }
 
@@ -316,11 +315,13 @@ impl Display for ObjectKey {
     }
 }
 
-/// A type that holds the value of a raw expression.
+/// A type that holds the value of a raw expression. It can be used to serialize arbitrary
+/// HCL expressions.
 ///
-/// As of now, anthing that is not a null value, a boolean, number, string, template expression,
-/// array or object is treated as raw expression and is not further parsed. This includes
-/// conditionals, operations, function calls, for expressions and variable expressions.
+/// *Please note*: raw expressions are not validated during serialization, so it is your
+/// responsiblity to ensure that they are valid HCL.
+///
+/// As of now, only `for` expressions are treated as raw expression and are not further parsed.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::raw_expression")]
 pub struct RawExpression(String);
