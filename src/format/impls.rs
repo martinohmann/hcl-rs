@@ -1,8 +1,9 @@
 use super::{private, Format, Formatter};
 use crate::{
     structure::{
-        Attribute, Block, BlockLabel, Body, Conditional, Expression, FuncCall, Heredoc,
-        HeredocStripMode, Identifier, ObjectKey, RawExpression, Structure, TemplateExpr,
+        Attribute, BinaryOp, Block, BlockLabel, Body, Conditional, Expression, FuncCall, Heredoc,
+        HeredocStripMode, Identifier, ObjectKey, Operation, RawExpression, Structure, TemplateExpr,
+        UnaryOp,
     },
     ElementAccess, ElementAccessOperator, Map, Number, Result, Value,
 };
@@ -115,6 +116,7 @@ impl Format for Expression {
                 Ok(())
             }
             Expression::Conditional(cond) => cond.format(fmt),
+            Expression::Operation(op) => op.format(fmt),
         }
     }
 }
@@ -330,6 +332,47 @@ impl Format for Conditional {
         fmt.write_all(b" : ")?;
         self.false_expr.format(fmt)?;
         Ok(())
+    }
+}
+
+impl private::Sealed for Operation {}
+
+impl Format for Operation {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        match self {
+            Operation::Unary(op) => op.format(fmt),
+            Operation::Binary(op) => op.format(fmt),
+        }
+    }
+}
+
+impl private::Sealed for UnaryOp {}
+
+impl Format for UnaryOp {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_string_fragment(self.operator.as_str())?;
+        self.expr.format(fmt)
+    }
+}
+
+impl private::Sealed for BinaryOp {}
+
+impl Format for BinaryOp {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        self.lhs_expr.format(fmt)?;
+        fmt.write_all(b" ")?;
+        fmt.write_string_fragment(self.operator.as_str())?;
+        fmt.write_all(b" ")?;
+        self.rhs_expr.format(fmt)
     }
 }
 

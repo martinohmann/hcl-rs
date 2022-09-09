@@ -3,9 +3,10 @@ mod template;
 mod tests;
 
 use crate::{
-    structure::Identifier, util::unescape, Attribute, Block, BlockLabel, Body, Conditional,
-    ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc, HeredocStripMode,
-    Number, Object, ObjectKey, RawExpression, Result, Structure, TemplateExpr,
+    structure::Identifier, util::unescape, Attribute, BinaryOp, Block, BlockLabel, Body,
+    Conditional, ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc,
+    HeredocStripMode, Object, ObjectKey, Operation, RawExpression, Result, Structure, TemplateExpr,
+    UnaryOp, UnaryOperator,
 };
 use pest::{
     iterators::{Pair, Pairs},
@@ -118,18 +119,19 @@ fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
 fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
     match pair.as_rule() {
         Rule::ExprTerm => parse_expr_term(pair),
-        Rule::Operation => {
-            let raw = pair.as_str();
-            // We only fully parse unary operations representing negative numbers for now.
-            // Everything else will be represented as raw expressions until parsing operations is
-            // fully implemented.
-            match parse_negative_number(inner(pair))? {
-                Some(num) => Ok(Expression::Number(num)),
-                // @TODO(mohmann): Process Operation at one point.
-                None => Ok(Expression::Raw(raw_expression(raw))),
-            }
-        }
-        Rule::Conditional => Ok(Expression::Conditional(Box::new(parse_conditional(pair)?))),
+        Rule::Operation => match parse_operation(inner(pair))? {
+            Operation::Binary(binary) => Ok(Expression::from(Operation::Binary(binary))),
+            Operation::Unary(unary) => match (unary.operator, unary.expr) {
+                // Negate operations on numbers are just converted to negative numbers for
+                // convenience.
+                (UnaryOperator::Neg, Expression::Number(num)) => Ok(Expression::Number(-num)),
+                (operator, expr) => Ok(Expression::from(Operation::Unary(UnaryOp {
+                    operator,
+                    expr,
+                }))),
+            },
+        },
+        Rule::Conditional => Ok(Expression::from(parse_conditional(pair)?)),
         rule => unexpected_rule(rule),
     }
 }
@@ -144,20 +146,31 @@ fn parse_conditional(pair: Pair<Rule>) -> Result<Conditional> {
     })
 }
 
-fn parse_negative_number(pair: Pair<Rule>) -> Result<Option<Number>> {
-    if let Rule::UnaryOp = pair.as_rule() {
-        let mut pairs = pair.into_inner();
-        let operator = pairs.next().unwrap();
-        let expr = pairs.next().unwrap();
-
-        if let ("-", Rule::ExprTerm) = (operator.as_str(), expr.as_rule()) {
-            if let Expression::Number(num) = parse_expr_term(expr)? {
-                return Ok(Some(-num));
-            }
-        }
+fn parse_operation(pair: Pair<Rule>) -> Result<Operation> {
+    match pair.as_rule() {
+        Rule::UnaryOp => parse_unary_op(pair).map(Operation::Unary),
+        Rule::BinaryOp => parse_binary_op(pair).map(Operation::Binary),
+        rule => unexpected_rule(rule),
     }
+}
 
-    Ok(None)
+fn parse_unary_op(pair: Pair<Rule>) -> Result<UnaryOp> {
+    let mut pairs = pair.into_inner();
+
+    Ok(UnaryOp {
+        operator: pairs.next().unwrap().as_str().parse()?,
+        expr: parse_expression(pairs.next().unwrap())?,
+    })
+}
+
+fn parse_binary_op(pair: Pair<Rule>) -> Result<BinaryOp> {
+    let mut pairs = pair.into_inner();
+
+    Ok(BinaryOp {
+        lhs_expr: parse_expr_term(pairs.next().unwrap())?,
+        operator: pairs.next().unwrap().as_str().parse()?,
+        rhs_expr: parse_expression(pairs.next().unwrap())?,
+    })
 }
 
 fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {

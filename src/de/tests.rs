@@ -1,5 +1,8 @@
 use super::*;
-use crate::{Block, Body, ElementAccess, Expression, FuncCall, Identifier, ObjectKey};
+use crate::{
+    BinaryOp, BinaryOperator, Block, Body, ElementAccess, Expression, FuncCall, Identifier,
+    ObjectKey, Operation, UnaryOp, UnaryOperator,
+};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -203,6 +206,29 @@ fn deserialize_func_call() {
                 .arg(vec!["baz", "qux"])
                 .variadic(true)
                 .build(),
+        ))
+        .build();
+    assert_eq!(expected, from_str::<Body>(input).unwrap());
+}
+
+#[test]
+fn deserialize_operation() {
+    let input = r#"
+        unary = !variable
+        binary = 1 + 1
+    "#;
+
+    let expected = Body::builder()
+        .add_attribute((
+            "unary",
+            Operation::Unary(UnaryOp::new(
+                UnaryOperator::Not,
+                Identifier::new("variable"),
+            )),
+        ))
+        .add_attribute((
+            "binary",
+            Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
         ))
         .build();
     assert_eq!(expected, from_str::<Body>(input).unwrap());

@@ -7,6 +7,7 @@ mod conditional;
 mod element_access;
 mod expression;
 mod func;
+mod operation;
 mod structure;
 mod template;
 #[cfg(test)]

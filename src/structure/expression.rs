@@ -1,6 +1,6 @@
 //! Types to represent HCL attribute value expressions.
 
-use super::{ElementAccess, ElementAccessOperator, FuncCall, Identifier, TemplateExpr};
+use super::{ElementAccess, ElementAccessOperator, FuncCall, Identifier, Operation, TemplateExpr};
 use crate::{Conditional, Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -41,8 +41,9 @@ pub enum Expression {
     /// A conditional operator which selects one of two rexpressions based on the outcome of a
     /// boolean expression.
     Conditional(Box<Conditional>),
-    /// Represents a raw HCL expression. This includes any expression kind that does match any of
-    /// the enum variants above. See [`RawExpression`] for more details.
+    /// An operation which applies a particular operator to either one or two expression terms.
+    Operation(Box<Operation>),
+    /// Represents a raw HCL expression. See [`RawExpression`] for more details.
     Raw(RawExpression),
 }
 
@@ -213,6 +214,12 @@ impl From<Conditional> for Expression {
     }
 }
 
+impl From<Operation> for Expression {
+    fn from(op: Operation) -> Self {
+        Expression::Operation(Box::new(op))
+    }
+}
+
 impl From<TemplateExpr> for Expression {
     fn from(expr: TemplateExpr) -> Self {
         Expression::TemplateExpr(Box::new(expr))
@@ -308,11 +315,13 @@ impl Display for ObjectKey {
     }
 }
 
-/// A type that holds the value of a raw expression.
+/// A type that holds the value of a raw expression. It can be used to serialize arbitrary
+/// HCL expressions.
 ///
-/// As of now, anthing that is not a null value, a boolean, number, string, template expression,
-/// array or object is treated as raw expression and is not further parsed. This includes
-/// conditionals, operations, function calls, for expressions and variable expressions.
+/// *Please note*: raw expressions are not validated during serialization, so it is your
+/// responsiblity to ensure that they are valid HCL.
+///
+/// As of now, only `for` expressions are treated as raw expression and are not further parsed.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::raw_expression")]
 pub struct RawExpression(String);
