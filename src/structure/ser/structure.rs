@@ -1,11 +1,5 @@
-use super::{
-    attribute::{
-        AttributeSerializer, SerializeAttributeMap, SerializeAttributeSeq,
-        SerializeAttributeStruct, SerializeAttributeStructVariant, SerializeAttributeTupleVariant,
-    },
-    block::{BlockSerializer, SerializeBlockSeq, SerializeBlockStruct},
-};
-use crate::{serialize_unsupported, Error, Result, Structure};
+use super::{attribute::*, block::*};
+use crate::{Error, Result, Structure};
 use serde::ser::{self, Serialize, SerializeMap};
 
 pub struct StructureSerializer;

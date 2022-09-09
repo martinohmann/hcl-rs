@@ -2,7 +2,7 @@ use super::{
     body::BodySerializer, expression::ExpressionSerializer, structure::StructureSerializer,
     SeqSerializer, StringSerializer,
 };
-use crate::{serialize_unsupported, Attribute, Block, BlockLabel, Body, Error, Result, Structure};
+use crate::{Attribute, Block, BlockLabel, Body, Error, Result, Structure};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
 

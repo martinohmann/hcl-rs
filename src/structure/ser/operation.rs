@@ -2,9 +2,7 @@ use std::str::FromStr;
 
 use super::expression::ExpressionSerializer;
 use crate::{
-    serialize_unsupported,
-    structure::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
-    Error, Expression, Result,
+    BinaryOp, BinaryOperator, Error, Expression, Operation, Result, UnaryOp, UnaryOperator,
 };
 use serde::ser::{self, Impossible, Serialize};
 

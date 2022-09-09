@@ -1,13 +1,8 @@
 use super::{
-    attribute::SerializeAttributeStruct,
-    block::SerializeBlockStruct,
-    expression::ExpressionSerializer,
-    structure::{
-        SerializeStructureStructVariant, SerializeStructureTupleVariant, StructureSerializer,
-    },
-    StringSerializer,
+    attribute::SerializeAttributeStruct, block::SerializeBlockStruct,
+    expression::ExpressionSerializer, structure::*, StringSerializer,
 };
-use crate::{serialize_unsupported, Attribute, Body, Error, Result, Structure};
+use crate::{Attribute, Body, Error, Result, Structure};
 use serde::ser::{self, Serialize, SerializeMap};
 
 pub struct BodySerializer;

@@ -1,8 +1,5 @@
 use super::{expression::ExpressionSerializer, StringSerializer};
-use crate::{
-    serialize_unsupported, structure::Identifier, ElementAccess, ElementAccessOperator, Error,
-    Expression, Result,
-};
+use crate::{ElementAccess, ElementAccessOperator, Error, Expression, Identifier, Result};
 use serde::ser::{self, Impossible, Serialize};
 
 pub struct ElementAccessSerializer;

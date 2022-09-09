@@ -1,7 +1,6 @@
 //! Types to represent and build HCL blocks.
 
-use super::{Attribute, Body, BodyBuilder, Identifier, IntoNodeMap, Structure};
-use crate::Value;
+use super::{Attribute, Body, BodyBuilder, Identifier, IntoNodeMap, Structure, Value};
 use serde::{Deserialize, Serialize};
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a

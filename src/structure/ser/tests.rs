@@ -6,14 +6,9 @@ use super::{
     expression::ExpressionSerializer,
     operation::OperationSerializer,
     template::TemplateExprSerializer,
-    *,
 };
-use crate::{
-    structure::Identifier, Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body,
-    Conditional, Expression, Heredoc, HeredocStripMode, Map, Operation, TemplateExpr, UnaryOp,
-    UnaryOperator,
-};
-use serde::Serialize;
+use crate::structure::*;
+use serde::{ser, Serialize};
 use std::fmt::Debug;
 
 #[track_caller]

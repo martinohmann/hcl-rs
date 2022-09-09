@@ -195,10 +195,7 @@ mod tests;
 
 use crate::{
     format::{Format, Formatter},
-    structure::ser::body::{
-        BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
-        SerializeBodyStructVariant, SerializeBodyTupleVariant,
-    },
+    structure::ser::body::*,
     Error, Result,
 };
 use serde::ser::{self, Serialize};

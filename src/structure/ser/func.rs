@@ -1,5 +1,5 @@
 use super::{expression::ExpressionSerializer, BoolSerializer, SeqSerializer, StringSerializer};
-use crate::{serialize_unsupported, Error, Expression, FuncCall, Identifier, Result};
+use crate::{Error, Expression, FuncCall, Identifier, Result};
 use serde::ser::{self, Impossible};
 
 pub struct FuncCallSerializer;

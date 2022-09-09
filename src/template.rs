@@ -81,7 +81,7 @@
 //! # }
 //! ```
 
-use crate::{parser, structure::Identifier, Error, Expression, Result, TemplateExpr};
+use crate::{parser, Error, Expression, Identifier, Result, TemplateExpr};
 use std::str::FromStr;
 
 /// A template behaves like an expression that always returns a string value. The different

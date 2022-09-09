@@ -1,5 +1,5 @@
 use super::{expression::ExpressionSerializer, StringSerializer};
-use crate::{serialize_unsupported, Attribute, Error, Expression, Object, ObjectKey, Result};
+use crate::{Attribute, Error, Expression, Object, ObjectKey, Result};
 use serde::ser::{self, Serialize};
 
 pub struct AttributeSerializer;

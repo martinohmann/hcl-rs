@@ -1,8 +1,5 @@
 use super::StringSerializer;
-use crate::{
-    serialize_unsupported, structure::Identifier, Error, Heredoc, HeredocStripMode, Result,
-    TemplateExpr,
-};
+use crate::{Error, Heredoc, HeredocStripMode, Identifier, Result, TemplateExpr};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
 use std::str::FromStr;

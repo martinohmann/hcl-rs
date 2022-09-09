@@ -14,7 +14,7 @@ mod template;
 mod tests;
 
 pub use self::expression::to_expression;
-use crate::{serialize_unsupported, Error, Result};
+use crate::{Error, Result};
 use serde::ser::{self, Impossible};
 use std::fmt::Display;
 

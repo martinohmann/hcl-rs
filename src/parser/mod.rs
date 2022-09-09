@@ -2,19 +2,14 @@ mod template;
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    structure::Identifier, util::unescape, Attribute, BinaryOp, Block, BlockLabel, Body,
-    Conditional, ElementAccessOperator, Expression, FuncCall, FuncCallBuilder, Heredoc,
-    HeredocStripMode, Object, ObjectKey, Operation, RawExpression, Result, Structure, TemplateExpr,
-    UnaryOp, UnaryOperator,
-};
+pub use self::template::parse as parse_template;
+use crate::{structure::*, util::unescape, Result};
 use pest::{
     iterators::{Pair, Pairs},
     Parser as ParserTrait,
 };
 use pest_derive::Parser;
 use std::str::FromStr;
-pub use template::parse as parse_template;
 
 #[derive(Parser)]
 #[grammar = "parser/grammar/hcl.pest"]

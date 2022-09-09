@@ -5,7 +5,8 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::{fmt, str::FromStr};
+use std::fmt;
+use std::str::FromStr;
 
 /// A template expression embeds a program written in the template sub-language as an expression.
 ///

@@ -1,16 +1,9 @@
 //! Deserialize impls for HCL structure types.
 
-use super::{
-    Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
-    ElementAccessOperator, Expression, FuncCall, Heredoc, HeredocStripMode, Identifier, ObjectKey,
-    Operation, RawExpression, Structure, TemplateExpr, UnaryOp, UnaryOperator,
-};
+use super::*;
 use crate::{Error, Number, Result};
-use serde::de::{
-    self,
-    value::{MapAccessDeserializer, StrDeserializer},
-    IntoDeserializer,
-};
+use serde::de::value::{MapAccessDeserializer, StrDeserializer};
+use serde::de::{self, IntoDeserializer};
 use serde::{forward_to_deserialize_any, Deserializer};
 use std::fmt;
 use std::marker::PhantomData;

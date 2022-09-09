@@ -1,12 +1,5 @@
 use super::{private, Format, Formatter};
-use crate::{
-    structure::{
-        Attribute, BinaryOp, Block, BlockLabel, Body, Conditional, Expression, FuncCall, Heredoc,
-        HeredocStripMode, Identifier, ObjectKey, Operation, RawExpression, Structure, TemplateExpr,
-        UnaryOp,
-    },
-    ElementAccess, ElementAccessOperator, Map, Number, Result, Value,
-};
+use crate::{structure::*, Map, Number, Result, Value};
 use std::io::{self, Write};
 
 impl private::Sealed for Body {}

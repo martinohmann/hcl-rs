@@ -3,9 +3,7 @@ use super::{
     func::SerializeFuncCallStruct, operation::OperationSerializer,
     template::TemplateExprSerializer, StringSerializer,
 };
-use crate::{
-    serialize_unsupported, Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result,
-};
+use crate::{Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result};
 use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
 
