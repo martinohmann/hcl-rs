@@ -43,6 +43,8 @@ pub enum Expression {
     Conditional(Box<Conditional>),
     /// An operation which applies a particular operator to either one or two expression terms.
     Operation(Box<Operation>),
+    /// A construct for constructing a collection by projecting the items from another collection.
+    ForExpr(Box<ForExpr>),
     /// Represents a raw HCL expression. See [`RawExpression`] for more details.
     Raw(RawExpression),
 }
@@ -217,6 +219,12 @@ impl From<Conditional> for Expression {
 impl From<Operation> for Expression {
     fn from(op: Operation) -> Self {
         Expression::Operation(Box::new(op))
+    }
+}
+
+impl From<ForExpr> for Expression {
+    fn from(expr: ForExpr) -> Self {
+        Expression::ForExpr(Box::new(expr))
     }
 }
 

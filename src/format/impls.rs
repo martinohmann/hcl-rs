@@ -110,6 +110,7 @@ impl Format for Expression {
             }
             Expression::Conditional(cond) => cond.format(fmt),
             Expression::Operation(op) => op.format(fmt),
+            Expression::ForExpr(expr) => expr.format(fmt),
         }
     }
 }
@@ -366,6 +367,83 @@ impl Format for BinaryOp {
         fmt.write_string_fragment(self.operator.as_str())?;
         fmt.write_all(b" ")?;
         self.rhs_expr.format(fmt)
+    }
+}
+
+impl private::Sealed for ForExpr {}
+
+impl Format for ForExpr {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        match self {
+            ForExpr::List(expr) => expr.format(fmt),
+            ForExpr::Object(expr) => expr.format(fmt),
+        }
+    }
+}
+
+impl private::Sealed for ForListExpr {}
+
+impl Format for ForListExpr {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_all(b"[")?;
+        self.intro.format(fmt)?;
+        self.expr.format(fmt)?;
+        if let Some(cond) = &self.cond {
+            fmt.write_all(b" if ")?;
+            cond.format(fmt)?;
+        }
+        fmt.write_all(b"]")?;
+        Ok(())
+    }
+}
+
+impl private::Sealed for ForObjectExpr {}
+
+impl Format for ForObjectExpr {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_all(b"{")?;
+        self.intro.format(fmt)?;
+        self.key_expr.format(fmt)?;
+        fmt.write_all(b" => ")?;
+        self.value_expr.format(fmt)?;
+        if self.value_grouping {
+            fmt.write_all(b"...")?;
+        }
+        if let Some(cond) = &self.cond {
+            fmt.write_all(b" if ")?;
+            cond.format(fmt)?;
+        }
+        fmt.write_all(b"}")?;
+        Ok(())
+    }
+}
+
+impl private::Sealed for ForIntro {}
+
+impl Format for ForIntro {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_all(b"for ")?;
+        if let Some(key) = &self.key {
+            key.format(fmt)?;
+            fmt.write_all(b", ")?;
+        }
+        self.value.format(fmt)?;
+        fmt.write_all(b" in ")?;
+        self.expr.format(fmt)?;
+        fmt.write_all(b" : ")?;
+        Ok(())
     }
 }
 
