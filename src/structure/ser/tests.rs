@@ -54,6 +54,8 @@ fn identity() {
     );
     test_identity(BlockLabelSerializer, BlockLabel::string("foo"));
     test_identity(BlockLabelSerializer, BlockLabel::identifier("foo"));
+    test_identity(ExpressionSerializer, Expression::Null);
+    test_identity(ExpressionSerializer, Expression::Number(1.into()));
     test_identity(ExpressionSerializer, Expression::String("bar".into()));
     test_identity(
         ExpressionSerializer,
