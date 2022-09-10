@@ -1,6 +1,4 @@
-use std::str::FromStr;
-
-use super::expression::ExpressionSerializer;
+use super::{expression::ExpressionSerializer, FromStrSerializer};
 use crate::{
     BinaryOp, BinaryOperator, Error, Expression, Operation, Result, UnaryOp, UnaryOperator,
 };
@@ -193,7 +191,7 @@ impl ser::SerializeSeq for SerializeUnaryOpSeq {
         T: ?Sized + ser::Serialize,
     {
         if self.operator.is_none() {
-            self.operator = Some(value.serialize(UnaryOperatorSerializer)?);
+            self.operator = Some(value.serialize(FromStrSerializer::new())?);
         } else if self.expr.is_none() {
             self.expr = Some(value.serialize(ExpressionSerializer)?);
         } else {
@@ -242,7 +240,7 @@ impl ser::SerializeStruct for SerializeUnaryOpStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "operator" => self.operator = Some(value.serialize(UnaryOperatorSerializer)?),
+            "operator" => self.operator = Some(value.serialize(FromStrSerializer::new())?),
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
             _ => {
                 return Err(ser::Error::custom(
@@ -322,7 +320,7 @@ impl ser::SerializeSeq for SerializeBinaryOpSeq {
         if self.lhs_expr.is_none() {
             self.lhs_expr = Some(value.serialize(ExpressionSerializer)?);
         } else if self.operator.is_none() {
-            self.operator = Some(value.serialize(BinaryOperatorSerializer)?);
+            self.operator = Some(value.serialize(FromStrSerializer::new())?);
         } else if self.rhs_expr.is_none() {
             self.rhs_expr = Some(value.serialize(ExpressionSerializer)?);
         } else {
@@ -378,7 +376,7 @@ impl ser::SerializeStruct for SerializeBinaryOpStruct {
     {
         match key {
             "lhs_expr" => self.lhs_expr = Some(value.serialize(ExpressionSerializer)?),
-            "operator" => self.operator = Some(value.serialize(BinaryOperatorSerializer)?),
+            "operator" => self.operator = Some(value.serialize(FromStrSerializer::new())?),
             "rhs_expr" => self.rhs_expr = Some(value.serialize(ExpressionSerializer)?),
             _ => {
                 return Err(ser::Error::custom(
@@ -401,83 +399,5 @@ impl ser::SerializeStruct for SerializeBinaryOpStruct {
                 "expected struct with fields `lhs_expr`, `operator` and `rhs_expr`",
             )),
         }
-    }
-}
-
-pub struct UnaryOperatorSerializer;
-
-impl ser::Serializer for UnaryOperatorSerializer {
-    type Ok = UnaryOperator;
-    type Error = Error;
-
-    type SerializeSeq = Impossible<UnaryOperator, Error>;
-    type SerializeTuple = Impossible<UnaryOperator, Error>;
-    type SerializeTupleStruct = Impossible<UnaryOperator, Error>;
-    type SerializeTupleVariant = Impossible<UnaryOperator, Error>;
-    type SerializeMap = Impossible<UnaryOperator, Error>;
-    type SerializeStruct = Impossible<UnaryOperator, Error>;
-    type SerializeStructVariant = Impossible<UnaryOperator, Error>;
-
-    serialize_unsupported! {
-        i8 i16 i32 i64 u8 u16 u32 u64
-        bool f32 f64 bytes unit unit_struct newtype_variant none
-        seq tuple tuple_struct tuple_variant map struct struct_variant
-    }
-    serialize_self! { some newtype_struct }
-
-    fn serialize_char(self, value: char) -> Result<Self::Ok> {
-        self.serialize_str(&value.to_string())
-    }
-
-    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        UnaryOperator::from_str(value)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Self::Ok> {
-        self.serialize_str(variant)
-    }
-}
-
-pub struct BinaryOperatorSerializer;
-
-impl ser::Serializer for BinaryOperatorSerializer {
-    type Ok = BinaryOperator;
-    type Error = Error;
-
-    type SerializeSeq = Impossible<BinaryOperator, Error>;
-    type SerializeTuple = Impossible<BinaryOperator, Error>;
-    type SerializeTupleStruct = Impossible<BinaryOperator, Error>;
-    type SerializeTupleVariant = Impossible<BinaryOperator, Error>;
-    type SerializeMap = Impossible<BinaryOperator, Error>;
-    type SerializeStruct = Impossible<BinaryOperator, Error>;
-    type SerializeStructVariant = Impossible<BinaryOperator, Error>;
-
-    serialize_unsupported! {
-        i8 i16 i32 i64 u8 u16 u32 u64
-        bool f32 f64 bytes unit unit_struct newtype_variant none
-        seq tuple tuple_struct tuple_variant map struct struct_variant
-    }
-    serialize_self! { some newtype_struct }
-
-    fn serialize_char(self, value: char) -> Result<Self::Ok> {
-        self.serialize_str(&value.to_string())
-    }
-
-    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        BinaryOperator::from_str(value)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Self::Ok> {
-        self.serialize_str(variant)
     }
 }

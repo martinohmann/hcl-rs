@@ -1,8 +1,7 @@
-use super::StringSerializer;
+use super::{FromStrSerializer, StringSerializer};
 use crate::{Error, Heredoc, HeredocStripMode, Identifier, Result, TemplateExpr};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
-use std::str::FromStr;
 
 pub struct TemplateExprSerializer;
 
@@ -185,7 +184,7 @@ impl ser::SerializeSeq for SerializeHeredocSeq {
         } else if self.template.is_none() {
             self.template = Some(value.serialize(StringSerializer)?);
         } else if self.strip.is_none() {
-            self.strip = Some(value.serialize(HeredocStripModeSerializer)?);
+            self.strip = Some(value.serialize(FromStrSerializer::new())?);
         } else {
             return Err(ser::Error::custom("expected sequence with 2 or 3 elements"));
         }
@@ -296,7 +295,7 @@ impl ser::SerializeStruct for SerializeHeredocStruct {
                 self.delimiter = Some(Identifier::from(value.serialize(StringSerializer)?))
             }
             "template" => self.template = Some(value.serialize(StringSerializer)?),
-            "strip" => self.strip = Some(value.serialize(HeredocStripModeSerializer)?),
+            "strip" => self.strip = Some(value.serialize(FromStrSerializer::new())?),
             _ => {
                 return Err(ser::Error::custom(
                     "expected struct with fields `delimiter`, `template` and optional `strip`",
@@ -318,41 +317,5 @@ impl ser::SerializeStruct for SerializeHeredocStruct {
                 "expected struct with fields `delimiter`, `template` and optional `strip`",
             )),
         }
-    }
-}
-
-pub struct HeredocStripModeSerializer;
-
-impl ser::Serializer for HeredocStripModeSerializer {
-    type Ok = HeredocStripMode;
-    type Error = Error;
-
-    type SerializeSeq = Impossible<HeredocStripMode, Error>;
-    type SerializeTuple = Impossible<HeredocStripMode, Error>;
-    type SerializeTupleStruct = Impossible<HeredocStripMode, Error>;
-    type SerializeTupleVariant = Impossible<HeredocStripMode, Error>;
-    type SerializeMap = Impossible<HeredocStripMode, Error>;
-    type SerializeStruct = Impossible<HeredocStripMode, Error>;
-    type SerializeStructVariant = Impossible<HeredocStripMode, Error>;
-
-    serialize_unsupported! {
-        i8 i16 i32 i64 u8 u16 u32 u64
-        bool f32 f64 char bytes unit unit_struct none
-        seq tuple tuple_struct tuple_variant map struct struct_variant
-        newtype_variant
-    }
-    serialize_self! { some newtype_struct }
-
-    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        HeredocStripMode::from_str(value)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Self::Ok> {
-        self.serialize_str(variant)
     }
 }

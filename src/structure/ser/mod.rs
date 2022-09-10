@@ -17,7 +17,7 @@ mod tests;
 pub use self::expression::to_expression;
 use crate::{Error, Result};
 use serde::ser::{self, Impossible};
-use std::fmt::Display;
+use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
 pub struct StringSerializer;
 
@@ -223,5 +223,55 @@ where
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
         Ok(None)
+    }
+}
+
+pub struct FromStrSerializer<O> {
+    marker: PhantomData<O>,
+}
+
+impl<O> FromStrSerializer<O> {
+    pub fn new() -> Self {
+        FromStrSerializer {
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<O> ser::Serializer for FromStrSerializer<O>
+where
+    O: FromStr,
+    O::Err: ser::Error,
+{
+    type Ok = O;
+    type Error = O::Err;
+
+    type SerializeSeq = Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
+
+    serialize_unsupported! {
+        i8 i16 i32 i64 u8 u16 u32 u64
+        bool f32 f64 char bytes unit unit_struct none
+        seq tuple tuple_struct tuple_variant map struct struct_variant
+        newtype_variant
+    }
+    serialize_self! { some newtype_struct }
+
+    fn serialize_str(self, value: &str) -> Result<Self::Ok, Self::Error> {
+        FromStr::from_str(value)
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Self::Ok, Self::Error> {
+        self.serialize_str(variant)
     }
 }
