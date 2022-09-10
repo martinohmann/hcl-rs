@@ -95,11 +95,15 @@ impl ser::Serializer for ExpressionSerializer {
 
     fn serialize_unit_variant(
         self,
-        _name: &'static str,
+        name: &'static str,
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        self.serialize_str(variant)
+        if name == "$hcl::expression" && variant == "Null" {
+            Ok(Expression::Null)
+        } else {
+            self.serialize_str(variant)
+        }
     }
 
     fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
