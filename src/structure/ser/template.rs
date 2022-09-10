@@ -15,13 +15,13 @@ impl ser::Serializer for TemplateExprSerializer {
     type SerializeTupleStruct = Impossible<TemplateExpr, Error>;
     type SerializeTupleVariant = Impossible<TemplateExpr, Error>;
     type SerializeMap = Impossible<TemplateExpr, Error>;
-    type SerializeStruct = Impossible<TemplateExpr, Error>;
+    type SerializeStruct = SerializeTemplateExprStruct;
     type SerializeStructVariant = Impossible<TemplateExpr, Error>;
 
     serialize_unsupported! {
         i8 i16 i32 i64 u8 u16 u32 u64
         bool f32 f64 bytes unit unit_struct none
-        seq tuple tuple_struct tuple_variant map struct struct_variant
+        seq tuple tuple_struct tuple_variant map struct_variant
     }
     serialize_self! { some newtype_struct }
 
@@ -64,11 +64,43 @@ impl ser::Serializer for TemplateExprSerializer {
         }
     }
 
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        Ok(SerializeTemplateExprStruct::new())
+    }
+
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
     where
         T: ?Sized + Display,
     {
         Ok(TemplateExpr::QuotedString(value.to_string()))
+    }
+}
+
+pub struct SerializeTemplateExprStruct {
+    inner: SerializeHeredocStruct,
+}
+
+impl SerializeTemplateExprStruct {
+    pub fn new() -> Self {
+        SerializeTemplateExprStruct {
+            inner: SerializeHeredocStruct::new(),
+        }
+    }
+}
+
+impl ser::SerializeStruct for SerializeTemplateExprStruct {
+    type Ok = TemplateExpr;
+    type Error = Error;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        self.inner.serialize_field(key, value)
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        self.inner.end().map(Into::into)
     }
 }
 

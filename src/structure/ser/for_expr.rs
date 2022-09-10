@@ -53,7 +53,7 @@ pub enum SerializeForExprStruct {
 }
 
 impl SerializeForExprStruct {
-    fn new(name: &'static str) -> Self {
+    pub fn new(name: &'static str) -> Self {
         // Specialization for the `ForListExpr` and `ForObjectExpr` types.
         match name {
             "$hcl::for_object_expr" => {

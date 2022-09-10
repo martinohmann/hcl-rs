@@ -108,7 +108,7 @@ pub enum SerializeOperationStruct {
 }
 
 impl SerializeOperationStruct {
-    fn new(name: &'static str) -> Self {
+    pub fn new(name: &'static str) -> Self {
         // Specialization for the `UnaryOp` and `BinaryOp` types.
         match name {
             "$hcl::binary_op" => SerializeOperationStruct::Binary(SerializeBinaryOpStruct::new()),
