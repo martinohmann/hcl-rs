@@ -1,5 +1,5 @@
-use super::{expression::ExpressionSerializer, BoolSerializer, StringSerializer, OptionSerializer};
-use crate::{Error, Expression, ForExpr, ForIntro, ForListExpr, ForObjectExpr, Result, Identifier};
+use super::{expression::ExpressionSerializer, BoolSerializer, OptionSerializer, StringSerializer};
+use crate::{Error, Expression, ForExpr, ForIntro, ForListExpr, ForObjectExpr, Identifier, Result};
 use serde::ser::{self, Impossible, Serialize};
 
 pub struct ForExprSerializer;
@@ -139,7 +139,9 @@ impl ser::SerializeStruct for SerializeForListExprStruct {
         match key {
             "intro" => self.intro = Some(value.serialize(ForIntroSerializer)?),
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
-            "cond" => self.cond = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?),
+            "cond" => {
+                self.cond = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?)
+            }
             _ => {
                 return Err(ser::Error::custom(
                     "expected struct with fields `intro`, `expr` and `cond`",
@@ -233,12 +235,12 @@ impl ser::SerializeStruct for SerializeForObjectExprStruct {
     fn end(self) -> Result<Self::Ok> {
         match (self.intro, self.key_expr, self.value_expr, self.value_grouping, self.cond) {
             (Some(intro), Some(key_expr), Some(value_expr), Some(value_grouping), Some(cond)) => {
-                Ok(ForObjectExpr { 
-                    intro, 
-                    key_expr, 
-                    value_expr, 
-                    value_grouping, 
-                    cond 
+                Ok(ForObjectExpr {
+                    intro,
+                    key_expr,
+                    value_expr,
+                    value_grouping,
+                    cond,
                 })
             },
             (_, _, _, _, _) => Err(ser::Error::custom(
@@ -302,7 +304,7 @@ impl ser::SerializeStruct for SerializeForIntroStruct {
             "key" => {
                 let key = value.serialize(OptionSerializer::new(StringSerializer))?;
                 self.key = Some(key.map(Identifier::from))
-            },
+            }
             "value" => self.value = Some(Identifier::from(value.serialize(StringSerializer)?)),
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
             _ => {
