@@ -263,14 +263,6 @@ fn serialize_for_expr() {
                 .with_cond(Identifier::new("item")),
             ),
         ))
-        .build();
-
-    assert_eq!(
-        to_string(&body).unwrap(),
-        "list = [for item in items : func(item) if item]\n"
-    );
-
-    let body = Body::builder()
         .add_attribute((
             "object",
             ForExpr::Object(
@@ -287,15 +279,23 @@ fn serialize_for_expr() {
                         .arg(Identifier::new("value"))
                         .build(),
                 )
+                .with_cond(Operation::Binary(BinaryOp::new(
+                    Identifier::new("value"),
+                    BinaryOperator::NotEq,
+                    Expression::Null,
+                )))
                 .with_value_grouping(true),
             ),
         ))
         .build();
 
-    assert_eq!(
-        to_string(&body).unwrap(),
-        "object = {for key, value in items : toupper(key) => tolower(value)...}\n"
-    );
+    let expected = r#"
+list = [for item in items : func(item) if item]
+object = {for key, value in items : toupper(key) => tolower(value)... if value != null}
+"#
+    .trim_start();
+
+    assert_eq!(to_string(&body).unwrap(), expected);
 }
 
 #[test]
