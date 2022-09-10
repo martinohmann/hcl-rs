@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, Body, ElementAccess, Expression, FuncCall, Identifier,
-    ObjectKey, Operation, UnaryOp, UnaryOperator,
+    BinaryOp, BinaryOperator, Block, Body, ElementAccess, Expression, ForExpr, ForIntro,
+    ForListExpr, ForObjectExpr, FuncCall, Identifier, ObjectKey, Operation, UnaryOp, UnaryOperator,
 };
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -229,6 +229,52 @@ fn deserialize_operation() {
         .add_attribute((
             "binary",
             Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
+        ))
+        .build();
+    assert_eq!(expected, from_str::<Body>(input).unwrap());
+}
+
+#[test]
+fn deserialize_for_expr() {
+    let input = r#"
+        list = [for item in items : func(item) if item]
+        object = {for key, value in items : toupper(key) => tolower(value)...}
+    "#;
+
+    let expected = Body::builder()
+        .add_attribute((
+            "list",
+            ForExpr::List(
+                ForListExpr::new(
+                    ForIntro::new(
+                        Identifier::new("item"),
+                        Expression::VariableExpr(Identifier::new("items")),
+                    ),
+                    FuncCall::builder("func")
+                        .arg(Identifier::new("item"))
+                        .build(),
+                )
+                .with_cond(Identifier::new("item")),
+            ),
+        ))
+        .add_attribute((
+            "object",
+            ForExpr::Object(
+                ForObjectExpr::new(
+                    ForIntro::new(
+                        Identifier::new("value"),
+                        Expression::VariableExpr(Identifier::new("items")),
+                    )
+                    .with_key(Identifier::new("key")),
+                    FuncCall::builder("toupper")
+                        .arg(Identifier::new("key"))
+                        .build(),
+                    FuncCall::builder("tolower")
+                        .arg(Identifier::new("value"))
+                        .build(),
+                )
+                .with_value_grouping(true),
+            ),
         ))
         .build();
     assert_eq!(expected, from_str::<Body>(input).unwrap());

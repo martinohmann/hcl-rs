@@ -7,6 +7,7 @@
 //! - [`BlockBuilder`]: provides functionality for building `Block`s
 //! - [`Body`]: represent the body of an HCL configuration or block
 //! - [`BodyBuilder`]: provides functionality for building `Body`s
+//! - [`Expression`]: represent the value of an HCL attribute
 //!
 //! ## Examples
 //!
@@ -52,6 +53,7 @@ mod conditional;
 pub(crate) mod de;
 mod element_access;
 mod expression;
+mod for_expr;
 mod func;
 mod operation;
 pub(crate) mod ser;
@@ -66,6 +68,7 @@ pub use self::{
     conditional::Conditional,
     element_access::{ElementAccess, ElementAccessOperator},
     expression::{Expression, Object, ObjectKey, RawExpression},
+    for_expr::{ForExpr, ForIntro, ForListExpr, ForObjectExpr},
     func::{FuncCall, FuncCallBuilder},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template::{Heredoc, HeredocStripMode, TemplateExpr},

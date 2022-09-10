@@ -270,6 +270,7 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::SubExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::Conditional(cond) => cond.into_deserializer().deserialize_any(visitor),
             Expression::Operation(op) => op.into_deserializer().deserialize_any(visitor),
+            Expression::ForExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
     }
 
@@ -303,6 +304,7 @@ impl VariantName for Expression {
             Expression::SubExpr(_) => "SubExpr",
             Expression::Conditional(_) => "Conditional",
             Expression::Operation(_) => "Operation",
+            Expression::ForExpr(_) => "ForExpr",
         }
     }
 }
@@ -337,6 +339,7 @@ impl<'de> de::VariantAccess<'de> for Expression {
             Expression::TemplateExpr(expr) => seed.deserialize(expr.into_deserializer()),
             Expression::SubExpr(expr) => seed.deserialize(expr.into_deserializer()),
             Expression::Operation(op) => seed.deserialize(op.into_deserializer()),
+            Expression::ForExpr(expr) => seed.deserialize(expr.into_deserializer()),
             value => seed.deserialize(value.into_deserializer()),
         }
     }
@@ -801,6 +804,231 @@ impl<'de> IntoDeserializer<'de, Error> for BinaryOperator {
     }
 }
 
+impl<'de> IntoDeserializer<'de, Error> for ForExpr {
+    type Deserializer = Self;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self
+    }
+}
+
+impl<'de> de::Deserializer<'de> for ForExpr {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
+    }
+    impl_deserialize_enum!();
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self {
+            ForExpr::List(expr) => expr.into_deserializer().deserialize_any(visitor),
+            ForExpr::Object(expr) => expr.into_deserializer().deserialize_any(visitor),
+        }
+    }
+}
+
+impl VariantName for ForExpr {
+    fn variant_name(&self) -> &'static str {
+        match self {
+            ForExpr::List(_) => "List",
+            ForExpr::Object(_) => "Object",
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for ForListExpr {
+    type Deserializer = MapAccessDeserializer<ForListExprAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(ForListExprAccess::new(self))
+    }
+}
+
+pub struct ForListExprAccess {
+    intro: Option<ForIntro>,
+    expr: Option<Expression>,
+    cond: Option<Option<Expression>>,
+}
+
+impl ForListExprAccess {
+    fn new(expr: ForListExpr) -> Self {
+        ForListExprAccess {
+            intro: Some(expr.intro),
+            expr: Some(expr.expr),
+            cond: Some(expr.cond),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for ForListExprAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.intro.is_some() {
+            seed.deserialize("intro".into_deserializer()).map(Some)
+        } else if self.expr.is_some() {
+            seed.deserialize("expr".into_deserializer()).map(Some)
+        } else if self.cond.is_some() {
+            seed.deserialize("cond".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(intro) = self.intro.take() {
+            seed.deserialize(intro.into_deserializer())
+        } else if let Some(expr) = self.expr.take() {
+            seed.deserialize(expr.into_deserializer())
+        } else if let Some(cond) = self.cond.take() {
+            seed.deserialize(OptionDeserializer::new(cond))
+        } else {
+            Err(de::Error::custom("invalid HCL for list expression"))
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for ForObjectExpr {
+    type Deserializer = MapAccessDeserializer<ForObjectExprAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(ForObjectExprAccess::new(self))
+    }
+}
+
+pub struct ForObjectExprAccess {
+    intro: Option<ForIntro>,
+    key_expr: Option<Expression>,
+    value_expr: Option<Expression>,
+    value_grouping: Option<bool>,
+    cond: Option<Option<Expression>>,
+}
+
+impl ForObjectExprAccess {
+    fn new(expr: ForObjectExpr) -> Self {
+        ForObjectExprAccess {
+            intro: Some(expr.intro),
+            key_expr: Some(expr.key_expr),
+            value_expr: Some(expr.value_expr),
+            value_grouping: Some(expr.value_grouping),
+            cond: Some(expr.cond),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.intro.is_some() {
+            seed.deserialize("intro".into_deserializer()).map(Some)
+        } else if self.key_expr.is_some() {
+            seed.deserialize("key_expr".into_deserializer()).map(Some)
+        } else if self.value_expr.is_some() {
+            seed.deserialize("value_expr".into_deserializer()).map(Some)
+        } else if self.value_grouping.is_some() {
+            seed.deserialize("value_grouping".into_deserializer())
+                .map(Some)
+        } else if self.cond.is_some() {
+            seed.deserialize("cond".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(intro) = self.intro.take() {
+            seed.deserialize(intro.into_deserializer())
+        } else if let Some(key_expr) = self.key_expr.take() {
+            seed.deserialize(key_expr.into_deserializer())
+        } else if let Some(value_expr) = self.value_expr.take() {
+            seed.deserialize(value_expr.into_deserializer())
+        } else if let Some(value_grouping) = self.value_grouping.take() {
+            seed.deserialize(value_grouping.into_deserializer())
+        } else if let Some(cond) = self.cond.take() {
+            seed.deserialize(OptionDeserializer::new(cond))
+        } else {
+            Err(de::Error::custom("invalid HCL for object expression"))
+        }
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for ForIntro {
+    type Deserializer = MapAccessDeserializer<ForIntroAccess>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        MapAccessDeserializer::new(ForIntroAccess::new(self))
+    }
+}
+
+pub struct ForIntroAccess {
+    key: Option<Option<Identifier>>,
+    value: Option<Identifier>,
+    expr: Option<Expression>,
+}
+
+impl ForIntroAccess {
+    fn new(intro: ForIntro) -> Self {
+        ForIntroAccess {
+            key: Some(intro.key),
+            value: Some(intro.value),
+            expr: Some(intro.expr),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for ForIntroAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.key.is_some() {
+            seed.deserialize("key".into_deserializer()).map(Some)
+        } else if self.value.is_some() {
+            seed.deserialize("value".into_deserializer()).map(Some)
+        } else if self.expr.is_some() {
+            seed.deserialize("expr".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(key) = self.key.take() {
+            seed.deserialize(OptionDeserializer::new(key))
+        } else if let Some(value) = self.value.take() {
+            seed.deserialize(value.into_deserializer())
+        } else if let Some(expr) = self.expr.take() {
+            seed.deserialize(expr.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL for intro"))
+        }
+    }
+}
+
 impl<'de> IntoDeserializer<'de, Error> for ObjectKey {
     type Deserializer = Self;
 
@@ -993,6 +1221,44 @@ where
         V: de::Visitor<'de>,
     {
         visitor.visit_newtype_struct(self.value.into_deserializer())
+    }
+}
+
+pub struct OptionDeserializer<T, E = Error> {
+    value: Option<T>,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> OptionDeserializer<T, E> {
+    fn new(value: Option<T>) -> Self {
+        OptionDeserializer {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::Deserializer<'de> for OptionDeserializer<T, E>
+where
+    T: IntoDeserializer<'de, E>,
+    E: de::Error,
+{
+    type Error = E;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value {
+            Some(value) => visitor.visit_some(value.into_deserializer()),
+            None => visitor.visit_none(),
+        }
     }
 }
 

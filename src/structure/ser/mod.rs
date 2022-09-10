@@ -6,6 +6,7 @@ pub(crate) mod body;
 mod conditional;
 mod element_access;
 mod expression;
+mod for_expr;
 mod func;
 mod operation;
 mod structure;
@@ -180,4 +181,47 @@ where
     S: ser::Serializer + Clone,
 {
     impl_forward_to_serialize_seq!(serialize_field, Vec<S::Ok>, S::Error);
+}
+
+pub struct OptionSerializer<S> {
+    inner: S,
+}
+
+impl<S> OptionSerializer<S> {
+    pub fn new(inner: S) -> Self {
+        OptionSerializer { inner }
+    }
+}
+
+impl<S> ser::Serializer for OptionSerializer<S>
+where
+    S: ser::Serializer,
+{
+    type Ok = Option<S::Ok>;
+    type Error = S::Error;
+
+    type SerializeSeq = Impossible<Self::Ok, Self::Error>;
+    type SerializeTuple = Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
+    type SerializeMap = Impossible<Self::Ok, Self::Error>;
+    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
+    type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
+
+    serialize_unsupported! {
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str
+        bytes unit newtype_struct newtype_variant unit_struct unit_variant
+        seq tuple tuple_struct tuple_variant map struct struct_variant
+    }
+
+    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    where
+        T: serde::Serialize,
+    {
+        Ok(Some(value.serialize(self.inner)?))
+    }
+
+    fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
+        Ok(None)
+    }
 }

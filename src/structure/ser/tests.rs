@@ -4,6 +4,7 @@ use super::{
     body::BodySerializer,
     conditional::ConditionalSerializer,
     expression::ExpressionSerializer,
+    for_expr::ForExprSerializer,
     operation::OperationSerializer,
     template::TemplateExprSerializer,
 };
@@ -87,6 +88,39 @@ fn identity() {
     test_identity(
         OperationSerializer,
         Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
+    );
+    test_identity(
+        ForExprSerializer,
+        ForExpr::List(
+            ForListExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    vec![Expression::String(String::from("foo"))],
+                )
+                .with_key(Identifier::new("index")),
+                Identifier::new("other_value"),
+            )
+            .with_cond(Expression::Bool(true)),
+        ),
+    );
+    test_identity(
+        ForExprSerializer,
+        ForExpr::Object(
+            ForObjectExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    Expression::Object(Object::from_iter(vec![(
+                        ObjectKey::from("k"),
+                        Expression::String(String::from("v")),
+                    )])),
+                )
+                .with_key(Identifier::new("index")),
+                Identifier::new("other_key"),
+                Identifier::new("other_value"),
+            )
+            .with_cond(Expression::Bool(true))
+            .with_value_grouping(true),
+        ),
     );
 }
 

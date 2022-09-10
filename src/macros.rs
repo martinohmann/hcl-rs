@@ -16,9 +16,8 @@
 /// - Attribute expression values can be any valid primitive, collection, expression or raw HCL
 ///   expression (`#{raw_expr}`).
 ///
-/// Please note that HCL actually uses `${}` for interpolating raw expressions, but since rust
-/// macros do not support matching on `$` it was chosen to use `#{}` instead to support raw
-/// expressions.
+/// Please note that HCL actually uses `${}` for interpolating expression, but since rust macros do
+/// not support matching on `$` it was chosen to use `#{}` instead to support raw expressions.
 ///
 /// ## Unsupported syntax:
 ///

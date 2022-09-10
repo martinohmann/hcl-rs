@@ -1,8 +1,9 @@
 use super::*;
 use crate::{
     BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
-    ElementAccessOperator, Expression, FuncCall, Heredoc, HeredocStripMode, Identifier, Object,
-    ObjectKey, Operation, RawExpression, TemplateExpr,
+    ElementAccessOperator, Expression, ForExpr, ForIntro, ForListExpr, ForObjectExpr, FuncCall,
+    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
+    TemplateExpr,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -233,7 +234,7 @@ fn serialize_conditional() {
 }
 
 #[test]
-fn serialize_oparation() {
+fn serialize_operation() {
     let body = Body::builder()
         .add_attribute((
             "op",
@@ -242,6 +243,59 @@ fn serialize_oparation() {
         .build();
 
     assert_eq!(to_string(&body).unwrap(), "op = 1 + 1\n");
+}
+
+#[test]
+fn serialize_for_expr() {
+    let body = Body::builder()
+        .add_attribute((
+            "list",
+            ForExpr::List(
+                ForListExpr::new(
+                    ForIntro::new(
+                        Identifier::new("item"),
+                        Expression::VariableExpr(Identifier::new("items")),
+                    ),
+                    FuncCall::builder("func")
+                        .arg(Identifier::new("item"))
+                        .build(),
+                )
+                .with_cond(Identifier::new("item")),
+            ),
+        ))
+        .add_attribute((
+            "object",
+            ForExpr::Object(
+                ForObjectExpr::new(
+                    ForIntro::new(
+                        Identifier::new("value"),
+                        Expression::VariableExpr(Identifier::new("items")),
+                    )
+                    .with_key(Identifier::new("key")),
+                    FuncCall::builder("toupper")
+                        .arg(Identifier::new("key"))
+                        .build(),
+                    FuncCall::builder("tolower")
+                        .arg(Identifier::new("value"))
+                        .build(),
+                )
+                .with_cond(Operation::Binary(BinaryOp::new(
+                    Identifier::new("value"),
+                    BinaryOperator::NotEq,
+                    Expression::Null,
+                )))
+                .with_value_grouping(true),
+            ),
+        ))
+        .build();
+
+    let expected = r#"
+list = [for item in items : func(item) if item]
+object = {for key, value in items : toupper(key) => tolower(value)... if value != null}
+"#
+    .trim_start();
+
+    assert_eq!(to_string(&body).unwrap(), expected);
 }
 
 #[test]
