@@ -127,19 +127,7 @@ impl SerializeBodyTupleVariant {
 }
 
 impl ser::SerializeTupleVariant for SerializeBodyTupleVariant {
-    type Ok = Body;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_field(value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        self.inner.end().map(Into::into)
-    }
+    impl_forward_to_inner!(Body, serialize_field);
 }
 
 pub struct SerializeBodyMap {
@@ -237,17 +225,5 @@ impl SerializeBodyStructVariant {
 }
 
 impl ser::SerializeStructVariant for SerializeBodyStructVariant {
-    type Ok = Body;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_field(key, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        self.inner.end().map(Into::into)
-    }
+    impl_forward_to_inner!(Body, serialize_field(key: &'static str));
 }

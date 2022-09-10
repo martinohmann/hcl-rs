@@ -88,19 +88,7 @@ impl SerializeTemplateExprStruct {
 }
 
 impl ser::SerializeStruct for SerializeTemplateExprStruct {
-    type Ok = TemplateExpr;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_field(key, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        self.inner.end().map(Into::into)
-    }
+    impl_forward_to_inner!(TemplateExpr, serialize_field(key: &'static str));
 }
 
 pub struct HeredocSerializer;

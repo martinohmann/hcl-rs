@@ -137,19 +137,7 @@ impl SerializeStructureTupleVariant {
 }
 
 impl ser::SerializeTupleVariant for SerializeStructureTupleVariant {
-    type Ok = Structure;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_field(value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        self.inner.end().map(Into::into)
-    }
+    impl_forward_to_inner!(Structure, serialize_field);
 }
 
 pub struct SerializeStructureMap {
@@ -165,26 +153,7 @@ impl SerializeStructureMap {
 }
 
 impl ser::SerializeMap for SerializeStructureMap {
-    type Ok = Structure;
-    type Error = Error;
-
-    fn serialize_key<T>(&mut self, key: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_key(key)
-    }
-
-    fn serialize_value<T>(&mut self, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_value(value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        self.inner.end().map(Into::into)
-    }
+    impl_forward_to_inner!(Structure, serialize_key, serialize_value);
 }
 
 pub enum SerializeStructureStruct {
@@ -243,17 +212,5 @@ impl SerializeStructureStructVariant {
 }
 
 impl ser::SerializeStructVariant for SerializeStructureStructVariant {
-    type Ok = Structure;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        self.inner.serialize_field(key, value)
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        self.inner.end().map(Into::into)
-    }
+    impl_forward_to_inner!(Structure, serialize_field(key: &'static str));
 }

@@ -919,3 +919,37 @@ macro_rules! impl_forward_to_serialize_seq {
         }
     };
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_forward_to_inner {
+    ($ty:ty, $($tt:tt)+) => {
+        type Ok = $ty;
+        type Error = $crate::Error;
+
+        impl_forward_to_inner_internal!($($tt)+);
+
+        fn end(self) -> $crate::Result<Self::Ok, Self::Error> {
+            self.inner.end().map(Into::into)
+        }
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_forward_to_inner_internal {
+    ($method:ident($($arg:ident: $ty:ty),*) $(,$rest:tt)*) => {
+        fn $method<T>(&mut self, $($arg: $ty,)* value: &T) -> $crate::Result<(), Self::Error>
+        where
+            T: ?Sized + serde::ser::Serialize,
+        {
+            self.inner.$method($($arg,)* value)
+        }
+
+        impl_forward_to_inner_internal!($($rest),*);
+    };
+    ($method:ident $(,$rest:tt)*) => {
+        impl_forward_to_inner_internal!($method() $(,$rest)*);
+    };
+    () => {};
+}
