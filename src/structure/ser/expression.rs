@@ -1,7 +1,11 @@
 use super::{
-    conditional::ConditionalSerializer, element_access::SerializeElementAccessStruct,
-    for_expr::ForExprSerializer, func::SerializeFuncCallStruct, operation::OperationSerializer,
-    template::TemplateExprSerializer, StringSerializer,
+    conditional::{ConditionalSerializer, SerializeConditionalStruct},
+    element_access::SerializeElementAccessStruct,
+    for_expr::{ForExprSerializer, SerializeForExprStruct},
+    func::SerializeFuncCallStruct,
+    operation::{OperationSerializer, SerializeOperationStruct},
+    template::{SerializeTemplateExprStruct, TemplateExprSerializer},
+    StringSerializer,
 };
 use crate::{Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result};
 use serde::ser::{self, Impossible, SerializeMap};
@@ -133,27 +137,28 @@ impl ser::Serializer for ExpressionSerializer {
     where
         T: ?Sized + ser::Serialize,
     {
-        if name == "$hcl::expression" {
-            match variant {
-                "Conditional" => Ok(Expression::Conditional(Box::new(
-                    value.serialize(ConditionalSerializer)?,
-                ))),
-                "Operation" => Ok(Expression::Operation(Box::new(
-                    value.serialize(OperationSerializer)?,
-                ))),
-                "ForExpr" => Ok(Expression::ForExpr(Box::new(
-                    value.serialize(ForExprSerializer)?,
-                ))),
-                "SubExpr" => Ok(Expression::SubExpr(Box::new(value.serialize(self)?))),
-                "TemplateExpr" => Ok(Expression::TemplateExpr(Box::new(
-                    value.serialize(TemplateExprSerializer)?,
-                ))),
-                _ => value.serialize(self),
+        match (name, variant) {
+            ("$hcl::expression", "Conditional") => {
+                Ok(Expression::from(value.serialize(ConditionalSerializer)?))
             }
-        } else {
-            let mut object = Object::new();
-            object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
-            Ok(Expression::Object(object))
+            ("$hcl::expression", "Operation") | ("$hcl::operation", _) => {
+                Ok(Expression::from(value.serialize(OperationSerializer)?))
+            }
+            ("$hcl::expression", "ForExpr") | ("$hcl::for_expr", _) => {
+                Ok(Expression::from(value.serialize(ForExprSerializer)?))
+            }
+            ("$hcl::expression", "SubExpr") => {
+                Ok(Expression::SubExpr(Box::new(value.serialize(self)?)))
+            }
+            ("$hcl::expression", "TemplateExpr") | ("$hcl::template_expr", _) => {
+                Ok(Expression::from(value.serialize(TemplateExprSerializer)?))
+            }
+            ("$hcl::expression", _) => value.serialize(self),
+            (_, _) => {
+                let mut object = Object::new();
+                object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
+                Ok(Expression::Object(object))
+            }
         }
     }
 
@@ -314,8 +319,12 @@ impl ser::SerializeMap for SerializeExpressionMap {
 }
 
 pub enum SerializeExpressionStruct {
+    Conditional(SerializeConditionalStruct),
     ElementAccess(SerializeElementAccessStruct),
+    ForExpr(SerializeForExprStruct),
     FuncCall(SerializeFuncCallStruct),
+    Operation(SerializeOperationStruct),
+    TemplateExpr(SerializeTemplateExprStruct),
     Other(SerializeExpressionMap),
 }
 
@@ -323,11 +332,23 @@ impl SerializeExpressionStruct {
     fn new(name: &'static str, len: usize) -> Self {
         // Specialization for the `ElementAccess`.
         match name {
+            "$hcl::conditional" => {
+                SerializeExpressionStruct::Conditional(SerializeConditionalStruct::new())
+            }
             "$hcl::element_access" => {
                 SerializeExpressionStruct::ElementAccess(SerializeElementAccessStruct::new())
             }
+            "$hcl::for_list_expr" | "$hcl::for_object_expr" => {
+                SerializeExpressionStruct::ForExpr(SerializeForExprStruct::new(name))
+            }
             "$hcl::func_call" => {
                 SerializeExpressionStruct::FuncCall(SerializeFuncCallStruct::new())
+            }
+            "$hcl::unary_op" | "$hcl::binary_op" => {
+                SerializeExpressionStruct::Operation(SerializeOperationStruct::new(name))
+            }
+            "$hcl::heredoc" => {
+                SerializeExpressionStruct::TemplateExpr(SerializeTemplateExprStruct::new())
             }
             _ => SerializeExpressionStruct::Other(SerializeExpressionMap::new(Some(len))),
         }
@@ -343,16 +364,24 @@ impl ser::SerializeStruct for SerializeExpressionStruct {
         T: ?Sized + ser::Serialize,
     {
         match self {
+            SerializeExpressionStruct::Conditional(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::ElementAccess(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::ForExpr(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::FuncCall(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::Operation(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::TemplateExpr(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::Other(ser) => ser.serialize_entry(key, value),
         }
     }
 
     fn end(self) -> Result<Self::Ok> {
         match self {
+            SerializeExpressionStruct::Conditional(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::ElementAccess(ser) => ser.end().map(Into::into),
+            SerializeExpressionStruct::ForExpr(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::FuncCall(ser) => ser.end().map(Into::into),
+            SerializeExpressionStruct::Operation(ser) => ser.end().map(Into::into),
+            SerializeExpressionStruct::TemplateExpr(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::Other(ser) => ser.end(),
         }
     }

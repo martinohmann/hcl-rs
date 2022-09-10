@@ -215,6 +215,81 @@ fn custom() {
     );
 
     test_serialize(
+        ExpressionSerializer,
+        Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
+        Expression::from(Conditional::new(
+            Identifier::new("some_cond_var"),
+            "yes",
+            "no",
+        )),
+    );
+
+    test_serialize(
+        ExpressionSerializer,
+        Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1)),
+        Expression::from(Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1))),
+    );
+
+    test_serialize(
+        ExpressionSerializer,
+        TemplateExpr::Heredoc(Heredoc::new(Identifier::new("EOS"), "${foo}")),
+        Expression::from(TemplateExpr::Heredoc(Heredoc::new(
+            Identifier::new("EOS"),
+            "${foo}",
+        ))),
+    );
+
+    test_serialize(
+        ExpressionSerializer,
+        ForExpr::List(
+            ForListExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    vec![Expression::String(String::from("foo"))],
+                )
+                .with_key(Identifier::new("index")),
+                Identifier::new("other_value"),
+            )
+            .with_cond(Expression::Bool(true)),
+        ),
+        Expression::from(ForExpr::List(
+            ForListExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    vec![Expression::String(String::from("foo"))],
+                )
+                .with_key(Identifier::new("index")),
+                Identifier::new("other_value"),
+            )
+            .with_cond(Expression::Bool(true)),
+        )),
+    );
+
+    test_serialize(
+        ExpressionSerializer,
+        ForListExpr::new(
+            ForIntro::new(
+                Identifier::new("value"),
+                vec![Expression::String(String::from("foo"))],
+            )
+            .with_key(Identifier::new("index")),
+            Identifier::new("other_value"),
+        )
+        .with_cond(Expression::Bool(true)),
+        Expression::from(ForExpr::List(
+            ForListExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    vec![Expression::String(String::from("foo"))],
+                )
+                .with_key(Identifier::new("index")),
+                Identifier::new("other_value"),
+            )
+            .with_cond(Expression::Bool(true)),
+        )),
+    );
+
+    test_serialize(
         ConditionalSerializer,
         (
             Expression::VariableExpr(Identifier::new("some_cond_var")),
