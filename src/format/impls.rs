@@ -1,6 +1,20 @@
 use super::{private, Format, Formatter};
-use crate::{structure::*, Map, Number, Result, Value};
+use crate::{structure::*, Number, Result, Value};
 use std::io::{self, Write};
+
+impl<T> private::Sealed for &T where T: Format {}
+
+impl<T> Format for &T
+where
+    T: Format,
+{
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        (*self).format(fmt)
+    }
+}
 
 impl private::Sealed for Body {}
 
@@ -95,8 +109,8 @@ impl Format for Expression {
             Expression::Bool(b) => Ok(fmt.write_bool(*b)?),
             Expression::Number(num) => num.format(fmt),
             Expression::String(string) => string.format(fmt),
-            Expression::Array(array) => format_array(fmt, array),
-            Expression::Object(object) => format_object(fmt, object),
+            Expression::Array(array) => format_array(fmt, array.iter()),
+            Expression::Object(object) => format_object(fmt, object.iter()),
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
             Expression::VariableExpr(ident) => ident.format(fmt),
@@ -127,8 +141,8 @@ impl Format for Value {
             Value::Bool(b) => Ok(fmt.write_bool(*b)?),
             Value::Number(num) => num.format(fmt),
             Value::String(string) => string.format(fmt),
-            Value::Array(array) => format_array(fmt, array),
-            Value::Object(object) => format_object(fmt, object),
+            Value::Array(array) => format_array(fmt, array.iter()),
+            Value::Object(object) => format_object(fmt, object.iter()),
         }
     }
 }
@@ -459,7 +473,7 @@ impl Format for String {
     }
 }
 
-fn format_array<W, T>(fmt: &mut Formatter<W>, array: &[T]) -> Result<()>
+fn format_array<W, T>(fmt: &mut Formatter<W>, array: impl Iterator<Item = T>) -> Result<()>
 where
     W: io::Write,
     T: Format,
@@ -476,7 +490,10 @@ where
     Ok(())
 }
 
-fn format_object<W, K, V>(fmt: &mut Formatter<W>, object: &Map<K, V>) -> Result<()>
+fn format_object<W, K, V>(
+    fmt: &mut Formatter<W>,
+    object: impl Iterator<Item = (K, V)>,
+) -> Result<()>
 where
     W: io::Write,
     K: Format,

@@ -42,6 +42,10 @@ version = "1.7.0"
 features = ["derive"]
 version = "1.0.130"
 
+[dependencies.vecmap-rs]
+features = ["serde"]
+version = "0.1.1"
+
 [dev-dependencies]
 criterion = "0.3"
 assert-json-diff = "2.0.1"
