@@ -109,7 +109,7 @@ fn identity() {
             ForObjectExpr::new(
                 ForIntro::new(
                     Identifier::new("value"),
-                    Expression::Object(Object::from_iter(vec![(
+                    Expression::Object(Object::from([(
                         ObjectKey::from("k"),
                         Expression::String(String::from("v")),
                     )])),

@@ -155,7 +155,7 @@ impl ser::Serializer for ExpressionSerializer {
             }
             ("$hcl::expression", _) => value.serialize(self),
             (_, _) => {
-                let mut object = Object::new();
+                let mut object = Object::with_capacity(1);
                 object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
                 Ok(Expression::Object(object))
             }
@@ -270,7 +270,7 @@ impl ser::SerializeTupleVariant for SerializeExpressionTupleVariant {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        let mut object = Object::new();
+        let mut object = Object::with_capacity(1);
         object.insert(self.name, self.vec.into());
         Ok(Expression::Object(object))
     }
@@ -415,7 +415,7 @@ impl ser::SerializeStructVariant for SerializeExpressionStructVariant {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        let mut object = Object::new();
+        let mut object = Object::with_capacity(1);
         object.insert(self.name, self.map.into());
         Ok(Expression::Object(object))
     }

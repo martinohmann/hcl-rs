@@ -431,13 +431,11 @@ macro_rules! object_key {
 ///     (other)   = "world"
 /// });
 ///
-/// let expected = Expression::Object({
-///     let mut object = Object::new();
-///     object.insert(ObjectKey::identifier("foo"), true.into());
-///     object.insert(ObjectKey::string("baz qux"), vec![1u64, 2].into());
-///     object.insert(ObjectKey::string("hello"), "world".into());
-///     object
-/// });
+/// let expected = Expression::Object(Object::from([
+///     (ObjectKey::identifier("foo"), true.into()),
+///     (ObjectKey::string("baz qux"), vec![1u64, 2].into()),
+///     (ObjectKey::string("hello"), "world".into()),
+/// ]));
 ///
 /// assert_eq!(expression, expected);
 /// ```

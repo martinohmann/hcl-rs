@@ -91,15 +91,14 @@ fn serialize_body() {
                         .build(),
                 )
                 .add_attribute(("an_object", {
-                    let mut object = Object::new();
-
-                    object.insert(ObjectKey::identifier("foo"), "bar".into());
-                    object.insert(
-                        ObjectKey::string("enabled"),
-                        RawExpression::new("var.enabled").into(),
-                    );
-                    object.insert(ObjectKey::raw_expression("var.name"), "the value".into());
-                    object
+                    Object::from([
+                        (ObjectKey::identifier("foo"), "bar".into()),
+                        (
+                            ObjectKey::string("enabled"),
+                            RawExpression::new("var.enabled").into(),
+                        ),
+                        (ObjectKey::raw_expression("var.name"), "the value".into()),
+                    ])
                 }))
                 .build(),
         )

@@ -24,13 +24,11 @@ fn expression_macro_arrays() {
 
 #[test]
 fn expression_macro_objects() {
-    let expected = Expression::Object({
-        let mut object = Object::new();
-        object.insert("foo".into(), "bar".into());
-        object.insert("baz".into(), true.into());
-        object.insert("qux".into(), vec![1, 2, 3].into());
-        object
-    });
+    let expected = Expression::Object(Object::from([
+        ("foo".into(), "bar".into()),
+        ("baz".into(), true.into()),
+        ("qux".into(), vec![1, 2, 3].into()),
+    ]));
 
     assert_eq!(
         expression!({
@@ -41,13 +39,11 @@ fn expression_macro_objects() {
         expected
     );
 
-    let expected = Expression::Object({
-        let mut object = Object::new();
-        object.insert(ObjectKey::identifier("foo"), "bar".into());
-        object.insert("bar".into(), true.into());
-        object.insert(ObjectKey::raw_expression("qux"), vec![1, 2, 3].into());
-        object
-    });
+    let expected = Expression::Object(Object::from([
+        (ObjectKey::identifier("foo"), "bar".into()),
+        ("bar".into(), true.into()),
+        (ObjectKey::raw_expression("qux"), vec![1, 2, 3].into()),
+    ]));
 
     let baz = "bar";
 
