@@ -44,7 +44,7 @@ version = "1.0.130"
 
 [dependencies.vecmap-rs]
 features = ["serde"]
-version = "0.1.3"
+version = "0.1.4"
 
 [dev-dependencies]
 criterion = "0.3"

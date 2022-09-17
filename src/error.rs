@@ -1,4 +1,5 @@
 //! The `Error` and `Result` types used by this crate.
+use crate::eval::EvalError;
 use crate::parser::Rule;
 use pest::{error::LineColLocation, Span};
 use serde::{de, ser};
@@ -37,6 +38,9 @@ pub enum Error {
     /// Represents errors due to invalid unicode code points that may occur when unescaping
     /// user-provided strings.
     InvalidUnicodeCodePoint(String),
+
+    /// Represents errors during expression evaluation.
+    Eval(EvalError),
 }
 
 impl Error {
@@ -75,6 +79,7 @@ impl Display for Error {
             Error::InvalidUnicodeCodePoint(u) => {
                 write!(f, "invalid unicode code point '\\u{}'", u)
             }
+            Error::Eval(err) => write!(f, "eval error: {}", err),
         }
     }
 }
@@ -102,6 +107,12 @@ impl From<pest::error::Error<Rule>> for Error {
             msg: err.to_string(),
             location: Some(Location { line, col }),
         }
+    }
+}
+
+impl From<EvalError> for Error {
+    fn from(err: EvalError) -> Self {
+        Error::Eval(err)
     }
 }
 

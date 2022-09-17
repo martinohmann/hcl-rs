@@ -6,6 +6,8 @@ pub mod de;
 pub mod error;
 #[macro_use]
 mod macros;
+#[allow(missing_docs)]
+pub mod eval;
 pub mod format;
 mod number;
 mod parser;
