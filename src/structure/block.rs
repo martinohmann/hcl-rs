@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 ///   body
 /// }
 /// ```
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::block")]
 pub struct Block {
     /// The block identifier.

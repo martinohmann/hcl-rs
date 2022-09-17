@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 /// Operations apply a particular operator to either one or two expression terms.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::operation")]
 pub enum Operation {
     /// Represents an operation that applies an operator to a single expression.
@@ -26,7 +26,7 @@ impl From<BinaryOp> for Operation {
 }
 
 /// An operation that applies an operator to one expression.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::unary_op")]
 pub struct UnaryOp {
     /// The unary operator to use on the expression.
@@ -98,7 +98,7 @@ impl<'de> Deserialize<'de> for UnaryOperator {
 }
 
 /// An operation that applies an operator to two expressions.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::binary_op")]
 pub struct BinaryOp {
     /// The expression on the left-hand-side of the operation.

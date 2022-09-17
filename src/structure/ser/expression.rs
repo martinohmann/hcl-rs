@@ -443,43 +443,43 @@ impl ser::Serializer for ObjectKeySerializer {
     serialize_self! { some newtype_struct }
 
     fn serialize_i8(self, value: i8) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_i16(self, value: i16) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_i32(self, value: i32) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_i64(self, value: i64) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_u8(self, value: u8) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_u16(self, value: u16) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_u32(self, value: u32) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_u64(self, value: u64) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
-        Ok(ObjectKey::String(value.to_string()))
+        Ok(ObjectKey::from(value.to_string()))
     }
 
     fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        Ok(ObjectKey::string(value))
+        Ok(ObjectKey::from(value))
     }
 
     fn serialize_unit_variant(
@@ -506,18 +506,11 @@ impl ser::Serializer for ObjectKeySerializer {
             ("$hcl::object_key", "Identifier") => {
                 Ok(ObjectKey::identifier(value.serialize(StringSerializer)?))
             }
-            ("$hcl::object_key", "RawExpression") => Ok(ObjectKey::raw_expression(
-                value.serialize(StringSerializer)?,
+            ("$hcl::object_key", "Expression") => Ok(ObjectKey::Expression(
+                value.serialize(ExpressionSerializer)?,
             )),
             (_, _) => value.serialize(self),
         }
-    }
-
-    fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + Display,
-    {
-        Ok(ObjectKey::String(value.to_string()))
     }
 }
 

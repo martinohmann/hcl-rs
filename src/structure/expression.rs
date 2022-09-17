@@ -11,7 +11,7 @@ pub type Object<K, V> = vecmap::VecMap<K, V>;
 
 /// A type representing the expression sub-language is used within attribute definitions to specify
 /// values.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::expression")]
 #[non_exhaustive]
 pub enum Expression {
@@ -251,59 +251,32 @@ impl Display for Expression {
 }
 
 /// Represents an object key.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::object_key")]
 #[non_exhaustive]
 pub enum ObjectKey {
-    /// Represents a bare unquoted identifer used as object key.
+    /// Represents an unquoted identifier used as object key.
     Identifier(Identifier),
-    /// Represents a quoted string used as object key.
-    String(String),
-    /// Represents a raw HCL expression. See [`RawExpression`] for more details.
-    RawExpression(RawExpression),
+    /// Any valid HCL expression can be an object key.
+    Expression(Expression),
 }
 
 impl ObjectKey {
-    /// Creates a new bare `ObjectKey` identifier.
+    /// Creates an unquoted string identifier `ObjectKey`.
     pub fn identifier<I>(identifier: I) -> Self
     where
         I: Into<Identifier>,
     {
         ObjectKey::Identifier(identifier.into())
     }
-
-    /// Creates a new quoted string `ObjectKey`.
-    pub fn string<S>(string: S) -> Self
-    where
-        S: Into<String>,
-    {
-        ObjectKey::String(string.into())
-    }
-
-    /// Creates a new raw expression `ObjectKey`.
-    pub fn raw_expression<E>(expr: E) -> Self
-    where
-        E: Into<RawExpression>,
-    {
-        ObjectKey::RawExpression(expr.into())
-    }
 }
 
-impl From<&str> for ObjectKey {
-    fn from(key: &str) -> Self {
-        ObjectKey::String(key.into())
-    }
-}
-
-impl From<String> for ObjectKey {
-    fn from(key: String) -> Self {
-        ObjectKey::String(key)
-    }
-}
-
-impl<'a> From<Cow<'a, str>> for ObjectKey {
-    fn from(key: Cow<'a, str>) -> Self {
-        ObjectKey::String(key.into())
+impl<T> From<T> for ObjectKey
+where
+    T: Into<Expression>,
+{
+    fn from(value: T) -> Self {
+        ObjectKey::Expression(value.into())
     }
 }
 
@@ -316,9 +289,11 @@ impl From<ObjectKey> for String {
 impl Display for ObjectKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ObjectKey::Identifier(k) => Display::fmt(k.as_str(), f),
-            ObjectKey::String(k) => Display::fmt(k, f),
-            ObjectKey::RawExpression(raw) => Display::fmt(raw, f),
+            ObjectKey::Identifier(ident) => Display::fmt(ident.as_str(), f),
+            ObjectKey::Expression(expr) => match expr {
+                Expression::String(string) => Display::fmt(string, f),
+                expr => Display::fmt(expr, f),
+            },
         }
     }
 }

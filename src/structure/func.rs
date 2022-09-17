@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a function call expression with zero or more arguments. Function calls can be
 /// variadic.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::func_call")]
 pub struct FuncCall {
     /// The name of the function.

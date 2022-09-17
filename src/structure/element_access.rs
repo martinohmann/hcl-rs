@@ -2,7 +2,7 @@ use crate::{Expression, Identifier};
 use serde::{Deserialize, Serialize};
 
 /// Access to an element of an expression result.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::element_access")]
 pub struct ElementAccess {
     /// The expression that the access operator is applied to.
@@ -38,7 +38,7 @@ impl ElementAccess {
 }
 
 /// The kinds of element access that are supported by HCL.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::element_access_operator")]
 pub enum ElementAccessOperator {
     /// The attribute-only splat operator supports only attribute lookups into the elements from a

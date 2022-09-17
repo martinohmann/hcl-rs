@@ -1045,27 +1045,87 @@ impl<'de> de::Deserializer<'de> for ObjectKey {
         string bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct identifier ignored_any
     }
-    impl_deserialize_enum!();
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
     where
         V: de::Visitor<'de>,
     {
         match self {
-            ObjectKey::String(string) => visitor.visit_string(string),
             ObjectKey::Identifier(ident) => ident.into_deserializer().deserialize_any(visitor),
-            ObjectKey::RawExpression(expr) => expr.into_deserializer().deserialize_any(visitor),
+            ObjectKey::Expression(expr) => expr.into_deserializer().deserialize_any(visitor),
         }
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_enum(self)
     }
 }
 
 impl VariantName for ObjectKey {
     fn variant_name(&self) -> &'static str {
         match self {
-            ObjectKey::String(_) => "String",
             ObjectKey::Identifier(_) => "Identifier",
-            ObjectKey::RawExpression(_) => "RawExpression",
+            ObjectKey::Expression(_) => "Expression",
         }
+    }
+}
+
+impl<'de> de::EnumAccess<'de> for ObjectKey {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<T>(self, seed: T) -> Result<(T::Value, Self::Variant), Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        let variant_name = self.variant_name();
+
+        seed.deserialize(variant_name.into_deserializer())
+            .map(|variant| (variant, self))
+    }
+}
+
+impl<'de> de::VariantAccess<'de> for ObjectKey {
+    type Error = Error;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        de::Deserialize::deserialize(self)
+    }
+
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value, Self::Error>
+    where
+        T: de::DeserializeSeed<'de>,
+    {
+        match self {
+            ObjectKey::Expression(expr) => seed.deserialize(expr.into_deserializer()),
+            value => seed.deserialize(value.into_deserializer()),
+        }
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.into_deserializer().deserialize_seq(visitor)
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.into_deserializer().deserialize_map(visitor)
     }
 }
 

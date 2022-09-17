@@ -25,24 +25,29 @@ fn expression_macro_arrays() {
 #[test]
 fn expression_macro_objects() {
     let expected = Expression::Object(Object::from([
-        ("foo".into(), "bar".into()),
-        ("baz".into(), true.into()),
-        ("qux".into(), vec![1, 2, 3].into()),
+        (ObjectKey::from("foo"), "bar".into()),
+        (ObjectKey::from("baz"), true.into()),
+        (ObjectKey::from("qux"), vec![1, 2, 3].into()),
+        (ObjectKey::from(1), 2.into()),
     ]));
 
     assert_eq!(
         expression!({
             "foo" = "bar",
             "baz" = true,
-            "qux" = [1, 2, 3]
+            "qux" = [1, 2, 3],
+            1 = 2
         }),
         expected
     );
 
     let expected = Expression::Object(Object::from([
         (ObjectKey::identifier("foo"), "bar".into()),
-        ("bar".into(), true.into()),
-        (ObjectKey::raw_expression("qux"), vec![1, 2, 3].into()),
+        (ObjectKey::from("bar"), true.into()),
+        (
+            ObjectKey::Expression(RawExpression::from("qux").into()),
+            vec![1, 2, 3].into(),
+        ),
     ]));
 
     let baz = "bar";
