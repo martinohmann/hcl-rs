@@ -13,6 +13,8 @@ pub enum Number {
     Float(f64),
 }
 
+impl Eq for Number {}
+
 impl Number {
     /// Represents the `Number` as f64 if possible. Returns None otherwise.
     pub fn as_f64(&self) -> Option<f64> {

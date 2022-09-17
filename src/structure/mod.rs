@@ -129,7 +129,7 @@ impl From<Identifier> for String {
 /// Represents an HCL structure.
 ///
 /// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::structure")]
 pub enum Structure {
     /// Represents an HCL attribute.

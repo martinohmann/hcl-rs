@@ -14,7 +14,7 @@ use std::iter;
 ///
 /// Use [`Attribute::new`] to construct an [`Attribute`] from a value that is convertible to this
 /// crate's [`Expression`] type.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::attribute")]
 pub struct Attribute {
     /// The HCL attribute's key.

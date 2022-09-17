@@ -341,11 +341,11 @@ fn deserialize_terraform() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::RawExpression("var.dynamic".into()),
+                            ObjectKey::from(ElementAccess::new(Identifier::new("var"), "dynamic")),
                             Expression::Null,
                         ),
                         (
-                            ObjectKey::String("application".into()),
+                            ObjectKey::from("application"),
                             Expression::String("myapp".into()),
                         ),
                         (

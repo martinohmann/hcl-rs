@@ -319,17 +319,9 @@ fn parse_object(pair: Pair<Rule>) -> Result<Object<ObjectKey, Expression>> {
 }
 
 fn parse_object_key(pair: Pair<Rule>) -> Result<ObjectKey> {
-    let raw = pair.as_str();
-
-    // @FIXME(mohmann): according to the HCL spec, any expression is a valid object key. Fixing
-    // this requires some breaking changes to the Object and ObjectKey types though.
     match pair.as_rule() {
         Rule::Identifier => Ok(ObjectKey::identifier(parse_ident(pair))),
-        Rule::ExprTerm => match parse_expr_term(pair)? {
-            Expression::String(s) => Ok(ObjectKey::String(s)),
-            _ => Ok(ObjectKey::RawExpression(raw_expression(raw))),
-        },
-        _ => Ok(ObjectKey::RawExpression(raw_expression(raw))),
+        _ => parse_expression(pair).map(ObjectKey::Expression),
     }
 }
 
@@ -351,10 +343,6 @@ fn parse_string(pair: Pair<Rule>) -> Result<String> {
 
 fn parse_ident(pair: Pair<Rule>) -> String {
     pair.as_str().to_owned()
-}
-
-fn raw_expression(raw: &str) -> RawExpression {
-    RawExpression::new(raw.trim_end())
 }
 
 fn parse_heredoc(pair: Pair<Rule>) -> Heredoc {

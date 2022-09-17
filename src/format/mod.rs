@@ -313,16 +313,6 @@ where
         Ok(())
     }
 
-    /// Starts an interpolated string.
-    fn begin_interpolated_string(&mut self) -> io::Result<()> {
-        self.write_all(b"\"${")
-    }
-
-    /// Ends an interpolated string.
-    fn end_interpolated_string(&mut self) -> io::Result<()> {
-        self.write_all(b"}\"")
-    }
-
     /// Signals the start of an array to the formatter.
     fn begin_array(&mut self) -> io::Result<()> {
         if !self.compact_mode {

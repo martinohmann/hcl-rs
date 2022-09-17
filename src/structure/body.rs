@@ -7,7 +7,7 @@ use std::vec::IntoIter;
 /// Represents an HCL config file body.
 ///
 /// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Default, Clone)]
 #[serde(rename = "$hcl::body")]
 pub struct Body(pub Vec<Structure>);
 

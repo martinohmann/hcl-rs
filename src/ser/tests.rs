@@ -92,12 +92,15 @@ fn serialize_body() {
                 )
                 .add_attribute(("an_object", {
                     Object::from([
-                        (ObjectKey::identifier("foo"), "bar".into()),
+                        (ObjectKey::identifier("foo"), Expression::from("bar")),
                         (
-                            ObjectKey::string("enabled"),
-                            RawExpression::new("var.enabled").into(),
+                            ObjectKey::from("enabled"),
+                            Expression::from(RawExpression::new("var.enabled")),
                         ),
-                        (ObjectKey::raw_expression("var.name"), "the value".into()),
+                        (
+                            ObjectKey::Expression(RawExpression::from("var.name").into()),
+                            Expression::from("the value"),
+                        ),
                     ])
                 }))
                 .build(),
@@ -121,7 +124,7 @@ qux {
   an_object = {
     foo = "bar"
     "enabled" = var.enabled
-    "${var.name}" = "the value"
+    var.name = "the value"
   }
 }
 "#;
@@ -477,7 +480,7 @@ fn roundtrip() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::String("application".into()),
+                            ObjectKey::from("application"),
                             Expression::String("myapp".into()),
                         ),
                         (

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// A for expression is a construct for constructing a collection by projecting the items from
 /// another collection.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::for_expr")]
 pub enum ForExpr {
     /// Represents a `for` expression that produces a list.
@@ -25,7 +25,7 @@ impl From<ForObjectExpr> for ForExpr {
 }
 
 /// A `for` expression that produces a list.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::for_list_expr")]
 pub struct ForListExpr {
     /// The "introduction" of the `for` expression.
@@ -63,7 +63,7 @@ impl ForListExpr {
 }
 
 /// A `for` expression that produces an object.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::for_object_expr")]
 pub struct ForObjectExpr {
     /// The "introduction" of the `for` expression.
@@ -117,7 +117,7 @@ impl ForObjectExpr {
 
 /// The `for` keyword followed by either one or two identifiers, the `in` keyword and an
 /// expression that must evaluate to a value that can be iterated.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::for_intro")]
 pub struct ForIntro {
     /// Optional name of the variable that will be temporarily assigned the key of each element

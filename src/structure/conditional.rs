@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// The conditional operator allows selecting from one of two expressions based on the outcome of a
 /// boolean expression.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Clone)]
+#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::conditional")]
 pub struct Conditional {
     /// A predicate expression that evaluates to a boolean value.

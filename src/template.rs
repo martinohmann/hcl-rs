@@ -88,7 +88,7 @@ use std::str::FromStr;
 /// elements of the template are evaluated and combined into a single string to return.
 ///
 /// See the [`module level`][`crate::template`] documentation for usage examples.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
     elements: Vec<Element>,
 }
@@ -181,7 +181,7 @@ where
 }
 
 /// An element of an HCL template.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
     /// A literal sequence of characters to include in the resulting string.
     Literal(String),
@@ -218,7 +218,7 @@ impl From<Directive> for Element {
 
 /// An interpolation sequence evaluates an expression (written in the expression sub-language),
 /// converts the result to a string value, and replaces itself with the resulting string.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Interpolation {
     /// The interpolated expression.
     pub expr: Expression,
@@ -257,7 +257,7 @@ impl From<Expression> for Interpolation {
 }
 
 /// A template directive that allows for conditional template evaluation.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Directive {
     /// Represents a template `if` directive.
     If(IfDirective),
@@ -279,7 +279,7 @@ impl From<ForDirective> for Directive {
 
 /// The template `if` directive is the template equivalent of the conditional expression, allowing
 /// selection of one of two sub-templates based on the value of a predicate expression.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
     /// The `if` branch expression.
     pub if_expr: IfExpr,
@@ -327,7 +327,7 @@ impl From<IfExpr> for IfDirective {
 }
 
 /// The `if` branch of an `if` directive.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfExpr {
     /// The conditional expression.
     pub expr: Expression,
@@ -362,7 +362,7 @@ impl IfExpr {
 }
 
 /// The `else` branch expression of an `if` directive.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElseExpr {
     /// The template that is included in the result string if the `if` branch's conditional
     /// expression evaluates to `false`.
@@ -392,7 +392,7 @@ impl ElseExpr {
 
 /// The template `for` directive is the template equivalent of the for expression, producing zero
 /// or more copies of its sub-template based on the elements of a collection.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForDirective {
     /// The loop expression.
     pub for_expr: ForExpr,
@@ -428,7 +428,7 @@ impl From<ForExpr> for ForDirective {
 }
 
 /// The `for` expression header of a `for` directive.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForExpr {
     /// Optional iterator key variable identifier.
     pub key: Option<Identifier>,

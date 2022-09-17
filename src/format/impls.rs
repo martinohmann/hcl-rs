@@ -173,13 +173,7 @@ impl Format for ObjectKey {
     {
         match self {
             ObjectKey::Identifier(ident) => ident.format(fmt),
-            ObjectKey::String(string) => string.format(fmt),
-            ObjectKey::RawExpression(raw) => {
-                fmt.begin_interpolated_string()?;
-                raw.format(fmt)?;
-                fmt.end_interpolated_string()?;
-                Ok(())
-            }
+            ObjectKey::Expression(expr) => expr.format(fmt),
         }
     }
 }

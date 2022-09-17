@@ -9,9 +9,9 @@
 ///
 /// - Attribute keys and block identifiers can be raw identifiers (`identifier`) or parenthesized
 ///   expressions (`(expr)`).
-/// - Block labels can be string literals (`"label"`), raw identifiers (`label`) or parenthesized
+/// - Block labels can be string literals (`"label"`), identifiers (`label`) or parenthesized
 ///   expressions (`(label_expr)`).
-/// - Object keys can be string literals (`"key"`), raw identifiers (`key`), parenthesized
+/// - Object keys can be string literals (`"key"`), identifiers (`key`), parenthesized
 ///   expressions (`(key_expr)`) or raw HCL expressions (`#{raw_expr}`).
 /// - Attribute expression values can be any valid primitive, collection, expression or raw HCL
 ///   expression (`#{raw_expr}`).
@@ -389,11 +389,11 @@ macro_rules! block_label {
 /// use hcl::ObjectKey;
 ///
 /// assert_eq!(hcl::object_key!(some_identifier), ObjectKey::identifier("some_identifier"));
-/// assert_eq!(hcl::object_key!("some string"), ObjectKey::string("some string"));
+/// assert_eq!(hcl::object_key!("some string"), ObjectKey::from("some string"));
 ///
 /// let key = "some expression";
 ///
-/// assert_eq!(hcl::object_key!((key)), ObjectKey::string("some expression"));
+/// assert_eq!(hcl::object_key!((key)), ObjectKey::from("some expression"));
 /// ```
 #[macro_export]
 macro_rules! object_key {
@@ -402,11 +402,11 @@ macro_rules! object_key {
     };
 
     (#{$expr:expr}) => {
-        $crate::ObjectKey::RawExpression(($expr).into())
+        $crate::ObjectKey::Expression($crate::expression!(#{$expr}))
     };
 
     (($expr:expr)) => {
-        $crate::ObjectKey::String(($expr).into())
+        $crate::ObjectKey::Expression($crate::expression!($expr))
     };
 
     ($literal:literal) => {
@@ -433,8 +433,8 @@ macro_rules! object_key {
 ///
 /// let expected = Expression::Object(Object::from([
 ///     (ObjectKey::identifier("foo"), true.into()),
-///     (ObjectKey::string("baz qux"), vec![1u64, 2].into()),
-///     (ObjectKey::string("hello"), "world".into()),
+///     (ObjectKey::from("baz qux"), vec![1u64, 2].into()),
+///     (ObjectKey::from("hello"), "world".into()),
 /// ]));
 ///
 /// assert_eq!(expression, expected);
