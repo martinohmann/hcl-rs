@@ -1,10 +1,13 @@
 //! HCL expression evaluation.
 
+mod expr;
 mod impls;
 #[cfg(test)]
 mod tests;
 
-use crate::{BinaryOperator, BlockLabel, Error, Expression, Map, ObjectKey, Result, Value};
+use crate::{
+    BinaryOperator, BlockLabel, Error, Expression, Map, ObjectKey, Result, UnaryOperator, Value,
+};
 use std::fmt;
 
 mod private {
@@ -82,8 +85,10 @@ pub enum EvalErrorKind {
     UndefinedVariable(String),
     Unexpected(Expression, &'static str),
     IndexOutOfBounds(usize),
+    InvalidUnaryOp(UnaryOperator, Expression),
     InvalidBinaryOp(Expression, BinaryOperator, Expression),
     NoSuchKey(String),
+    KeyAlreadyExists(String),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -99,9 +104,16 @@ impl fmt::Display for EvalErrorKind {
             }
             EvalErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
             EvalErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
+            EvalErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
+            EvalErrorKind::InvalidUnaryOp(operator, expr) => write!(
+                f,
+                "unary operator `{}` is not applicable to `{}`",
+                operator.as_str(),
+                expr,
+            ),
             EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
                 f,
-                "operator `{}` is not applicable to `{}` and `{}`",
+                "binary operator `{}` is not applicable to `{}` and `{}`",
                 operator.as_str(),
                 lhs,
                 rhs

@@ -1,7 +1,6 @@
-use vecmap::map::Entry;
-
-use super::*;
+use super::{expr::EvaluateExpr, *};
 use crate::{structure::*, template::Template, Number};
+use vecmap::map::Entry;
 
 impl private::Sealed for Body {}
 
@@ -158,25 +157,27 @@ impl Evaluate for ElementAccess {
 
         match self.operator {
             ElementAccessOperator::LegacyIndex(index) => {
-                eval_array_value(expr, index as usize, ctx)
+                evaluate_array_value(expr, index as usize, ctx)
             }
-            ElementAccessOperator::Index(index) => eval_index_expr(expr, index.evaluate(ctx)?, ctx),
-            ElementAccessOperator::GetAttr(name) => eval_object_value(expr, name.as_str(), ctx),
-            ElementAccessOperator::AttrSplat => eval_attr_splat(expr, ctx),
-            ElementAccessOperator::FullSplat => eval_full_splat(expr, ctx),
+            ElementAccessOperator::Index(index_expr) => evaluate_index_expr(expr, index_expr, ctx),
+            ElementAccessOperator::GetAttr(name) => {
+                evaluate_object_value(expr, name.into_inner(), ctx)
+            }
+            ElementAccessOperator::AttrSplat => evaluate_attr_splat(expr, ctx),
+            ElementAccessOperator::FullSplat => evaluate_full_splat(expr, ctx),
         }
     }
 }
 
-fn eval_index_expr(
+fn evaluate_index_expr(
     expr: Expression,
     index_expr: Expression,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> EvalResult<Expression> {
-    match index_expr {
-        Expression::String(name) => eval_object_value(expr, &name, ctx),
+    match index_expr.evaluate(ctx)? {
+        Expression::String(name) => evaluate_object_value(expr, name, ctx),
         Expression::Number(num) => match num.as_u64() {
-            Some(index) => eval_array_value(expr, index as usize, ctx),
+            Some(index) => evaluate_array_value(expr, index as usize, ctx),
             None => Err(ctx.error(EvalErrorKind::Unexpected(
                 Expression::Number(num),
                 "an unsigned integer",
@@ -189,33 +190,13 @@ fn eval_index_expr(
     }
 }
 
-fn eval_array_value(expr: Expression, index: usize, ctx: &Context) -> EvalResult<Expression> {
-    match expr {
-        Expression::Array(mut array) => get_array_index(&mut array, index, ctx),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
-    }
-}
-
-fn eval_object_value(expr: Expression, key: &str, ctx: &Context) -> EvalResult<Expression> {
-    match expr {
-        Expression::Object(mut object) => get_object_value(&mut object, key, ctx),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an object"))),
-    }
-}
-
-fn eval_attr_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
-    unimplemented!("evaluating attribute splat expression {expr} not implemented yet")
-}
-
-fn eval_full_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
-    unimplemented!("evaluating full splat expression {expr} not implemented yet")
-}
-
-fn get_array_index(
-    array: &mut Vec<Expression>,
+fn evaluate_array_value(
+    expr: Expression,
     index: usize,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> EvalResult<Expression> {
+    let mut array = expr.evaluate_array(ctx)?;
+
     if index >= array.len() {
         return Err(ctx.error(EvalErrorKind::IndexOutOfBounds(index)));
     }
@@ -223,17 +204,27 @@ fn get_array_index(
     Ok(array.swap_remove(index))
 }
 
-fn get_object_value(
-    object: &mut Object<ObjectKey, Expression>,
-    key: &str,
-    ctx: &Context,
+fn evaluate_object_value(
+    expr: Expression,
+    key: String,
+    ctx: &mut Context,
 ) -> EvalResult<Expression> {
+    let mut object = expr.evaluate_object(ctx)?;
+
     let key = ObjectKey::from(key);
 
     match object.swap_remove(&key) {
         Some(value) => Ok(value),
         None => Err(ctx.error(EvalErrorKind::NoSuchKey(key.to_string()))),
     }
+}
+
+fn evaluate_attr_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
+    unimplemented!("evaluating attribute splat expression {expr} not implemented yet")
+}
+
+fn evaluate_full_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
+    unimplemented!("evaluating full splat expression {expr} not implemented yet")
 }
 
 impl private::Sealed for FuncCall {}
@@ -252,15 +243,10 @@ impl Evaluate for Conditional {
     type Output = Expression;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        match self.predicate.evaluate(ctx)? {
-            Expression::Bool(cond) => {
-                if cond {
-                    self.true_expr.evaluate(ctx)
-                } else {
-                    self.false_expr.evaluate(ctx)
-                }
-            }
-            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))),
+        if self.predicate.evaluate_bool(ctx)? {
+            self.true_expr.evaluate(ctx)
+        } else {
+            self.false_expr.evaluate(ctx)
         }
     }
 }
@@ -289,11 +275,7 @@ impl Evaluate for UnaryOp {
         match (self.operator, expr) {
             (UnaryOperator::Not, Expression::Bool(v)) => Ok(Expression::Bool(!v)),
             (UnaryOperator::Neg, Expression::Number(n)) => Ok(Expression::Number(-n)),
-            (operator, expr) => Err(ctx.error(EvalErrorKind::Message(format!(
-                "operator `{}` cannot be applied to expression `{}`",
-                operator.as_str(),
-                expr
-            )))),
+            (operator, expr) => Err(ctx.error(EvalErrorKind::InvalidUnaryOp(operator, expr))),
         }
     }
 }
@@ -360,40 +342,31 @@ impl Evaluate for ForListExpr {
     type Output = Vec<Expression>;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        match self.intro.expr.evaluate(ctx)? {
-            Expression::Array(values) => {
-                let key_var = self.intro.key.as_ref().map(|key| key.as_str());
-                let value_var = self.intro.value.as_str();
+        let values = self.intro.expr.evaluate_array(ctx)?;
+        let key_var = self.intro.key.as_ref().map(|key| key.as_str());
+        let value_var = self.intro.value.as_str();
 
-                let mut result = Vec::with_capacity(values.len());
+        let mut result = Vec::with_capacity(values.len());
 
-                for (index, value) in values.into_iter().enumerate() {
-                    let mut ctx = ctx.new_scope(Scope::Index(index));
-                    if let Some(key_var) = &key_var {
-                        ctx.set_variable(key_var.to_string(), index);
-                    }
-
-                    ctx.set_variable(value_var.to_owned(), value);
-
-                    let keep = match &self.cond {
-                        None => true,
-                        Some(cond) => match cond.clone().evaluate(&mut ctx)? {
-                            Expression::Bool(keep) => keep,
-                            other => {
-                                return Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean")))
-                            }
-                        },
-                    };
-
-                    if keep {
-                        result.push(self.expr.clone().evaluate(&mut ctx)?);
-                    }
-                }
-
-                Ok(result)
+        for (index, value) in values.into_iter().enumerate() {
+            let mut ctx = ctx.new_scope(Scope::Index(index));
+            if let Some(key_var) = &key_var {
+                ctx.set_variable(key_var.to_string(), index);
             }
-            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
+
+            ctx.set_variable(value_var.to_owned(), value);
+
+            let keep = match &self.cond {
+                None => true,
+                Some(cond) => cond.clone().evaluate_bool(&mut ctx)?,
+            };
+
+            if keep {
+                result.push(self.expr.clone().evaluate(&mut ctx)?);
+            }
         }
+
+        Ok(result)
     }
 }
 
@@ -403,110 +376,75 @@ impl Evaluate for ForObjectExpr {
     type Output = Object<ObjectKey, Expression>;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        match self.intro.expr.evaluate(ctx)? {
-            Expression::Object(pairs) => {
-                let key_var = self.intro.key.as_ref().map(|key| key.as_str());
-                let value_var = self.intro.value.as_str();
+        let pairs = self.intro.expr.evaluate_object(ctx)?;
+        let key_var = self.intro.key.as_ref().map(|key| key.as_str());
+        let value_var = self.intro.value.as_str();
 
-                if self.value_grouping {
-                    let mut result: Object<String, Vec<Expression>> =
-                        Object::with_capacity(pairs.len());
+        if self.value_grouping {
+            let mut result: Object<String, Vec<Expression>> = Object::with_capacity(pairs.len());
 
-                    for (key, value) in pairs.into_iter() {
-                        let mut ctx = ctx.new_scope(Scope::Key(&key));
-                        if let Some(key_var) = &key_var {
-                            ctx.set_variable(key_var.to_string(), key.to_string());
-                        }
+            for (key, value) in pairs.into_iter() {
+                let mut ctx = ctx.new_scope(Scope::Key(&key));
+                if let Some(key_var) = &key_var {
+                    ctx.set_variable(key_var.to_string(), key.to_string());
+                }
 
-                        ctx.set_variable(value_var.to_owned(), value);
+                ctx.set_variable(value_var.to_owned(), value);
 
-                        let keep = match &self.cond {
-                            None => true,
-                            Some(cond) => match cond.clone().evaluate(&mut ctx)? {
-                                Expression::Bool(keep) => keep,
-                                other => {
-                                    return Err(
-                                        ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))
-                                    )
-                                }
-                            },
-                        };
+                let keep = match &self.cond {
+                    None => true,
+                    Some(cond) => cond.clone().evaluate_bool(&mut ctx)?,
+                };
 
-                        if keep {
-                            let key = match self.key_expr.clone().evaluate(&mut ctx)? {
-                                Expression::String(key) => key,
-                                other => {
-                                    return Err(
-                                        ctx.error(EvalErrorKind::Unexpected(other, "a string"))
-                                    )
-                                }
-                            };
+                if keep {
+                    let key = self.key_expr.clone().evaluate_string(&mut ctx)?;
+                    let value = self.value_expr.clone().evaluate(&mut ctx)?;
 
-                            let value = self.value_expr.clone().evaluate(&mut ctx)?;
-
-                            result.entry(key).or_default().push(value);
-                        }
-                    }
-
-                    Ok(result
-                        .into_iter()
-                        .map(|(k, v)| (ObjectKey::from(k), Expression::Array(v)))
-                        .collect())
-                } else {
-                    let mut result: Object<String, Expression> = Object::with_capacity(pairs.len());
-
-                    for (key, value) in pairs.into_iter() {
-                        let scope_key = key.clone();
-                        let mut ctx = ctx.new_scope(Scope::Key(&scope_key));
-                        if let Some(key_var) = &key_var {
-                            ctx.set_variable(key_var.to_string(), key.to_string());
-                        }
-
-                        ctx.set_variable(value_var.to_owned(), value);
-
-                        let keep = match &self.cond {
-                            None => true,
-                            Some(cond) => match cond.clone().evaluate(&mut ctx)? {
-                                Expression::Bool(keep) => keep,
-                                other => {
-                                    return Err(
-                                        ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))
-                                    )
-                                }
-                            },
-                        };
-
-                        if !keep {
-                            let key = match self.key_expr.clone().evaluate(&mut ctx)? {
-                                Expression::String(key) => key,
-                                other => {
-                                    return Err(
-                                        ctx.error(EvalErrorKind::Unexpected(other, "a string"))
-                                    )
-                                }
-                            };
-
-                            match result.entry(key) {
-                                Entry::Occupied(entry) => {
-                                    return Err(ctx.error(EvalErrorKind::Message(format!(
-                                        "key `{}` already exists",
-                                        entry.key()
-                                    ))))
-                                }
-                                Entry::Vacant(entry) => {
-                                    entry.insert(self.value_expr.clone().evaluate(&mut ctx)?);
-                                }
-                            }
-                        }
-                    }
-
-                    Ok(result
-                        .into_iter()
-                        .map(|(k, v)| (ObjectKey::from(k), v))
-                        .collect())
+                    result.entry(key).or_default().push(value);
                 }
             }
-            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an object"))),
+
+            Ok(result
+                .into_iter()
+                .map(|(k, v)| (ObjectKey::from(k), Expression::Array(v)))
+                .collect())
+        } else {
+            let mut result: Object<String, Expression> = Object::with_capacity(pairs.len());
+
+            for (key, value) in pairs.into_iter() {
+                let scope_key = key.clone();
+                let mut ctx = ctx.new_scope(Scope::Key(&scope_key));
+                if let Some(key_var) = &key_var {
+                    ctx.set_variable(key_var.to_string(), key.to_string());
+                }
+
+                ctx.set_variable(value_var.to_owned(), value);
+
+                let keep = match &self.cond {
+                    None => true,
+                    Some(cond) => cond.clone().evaluate_bool(&mut ctx)?,
+                };
+
+                if !keep {
+                    let key = self.key_expr.clone().evaluate_string(&mut ctx)?;
+
+                    match result.entry(key) {
+                        Entry::Occupied(entry) => {
+                            return Err(
+                                ctx.error(EvalErrorKind::KeyAlreadyExists(entry.key().to_owned()))
+                            )
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(self.value_expr.clone().evaluate(&mut ctx)?);
+                        }
+                    }
+                }
+            }
+
+            Ok(result
+                .into_iter()
+                .map(|(k, v)| (ObjectKey::from(k), v))
+                .collect())
         }
     }
 }
