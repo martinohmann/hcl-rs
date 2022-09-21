@@ -1,6 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Conditional, ForExpr, ForIntro, ForListExpr, Identifier, Operation,
+    BinaryOp, BinaryOperator, Conditional, ForExpr, ForIntro, ForListExpr, ForObjectExpr,
+    Identifier, Operation,
 };
 use std::fmt;
 
@@ -87,5 +88,46 @@ fn eval_for_expr() {
             ))),
         ),
         Expression::from_iter([2.0, 4.0, 6.0, 8.0]),
+    );
+
+    eval_to(
+        ForExpr::Object(
+            ForObjectExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
+                )
+                .with_key(Identifier::new("key")),
+                Expression::VariableExpr(Identifier::new("value")),
+                Expression::VariableExpr(Identifier::new("key")),
+            )
+            .with_cond(Operation::Binary(BinaryOp::new(
+                Expression::VariableExpr(Identifier::new("key")),
+                BinaryOperator::NotEq,
+                Expression::from("d"),
+            ))),
+        ),
+        Expression::from_iter([("1", "a"), ("2", "b"), ("3", "c")]),
+    );
+
+    eval_to(
+        ForExpr::Object(
+            ForObjectExpr::new(
+                ForIntro::new(
+                    Identifier::new("value"),
+                    Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
+                )
+                .with_key(Identifier::new("key")),
+                Expression::from("foo"),
+                Expression::VariableExpr(Identifier::new("value")),
+            )
+            .with_cond(Operation::Binary(BinaryOp::new(
+                Expression::VariableExpr(Identifier::new("key")),
+                BinaryOperator::NotEq,
+                Expression::from("d"),
+            )))
+            .with_value_grouping(true),
+        ),
+        Expression::from_iter([("foo", vec![1, 2, 3])]),
     );
 }

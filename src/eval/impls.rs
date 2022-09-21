@@ -376,27 +376,29 @@ impl Evaluate for ForObjectExpr {
     type Output = Object<ObjectKey, Expression>;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        let pairs = self.intro.expr.evaluate_object(ctx)?;
+        let object = self.intro.expr.evaluate_object(ctx)?;
         let key_var = self.intro.key.as_ref().map(|key| key.as_str());
         let value_var = self.intro.value.as_str();
 
-        if self.value_grouping {
-            let mut result: Object<String, Vec<Expression>> = Object::with_capacity(pairs.len());
+        fn keep(cond: Option<&Expression>, ctx: &mut Context) -> EvalResult<bool> {
+            match cond {
+                Some(cond) => cond.clone().evaluate_bool(ctx),
+                None => Ok(true),
+            }
+        }
 
-            for (key, value) in pairs.into_iter() {
+        if self.value_grouping {
+            let mut result: Object<String, Vec<Expression>> = Object::with_capacity(object.len());
+
+            for (key, value) in object.into_iter() {
                 let mut ctx = ctx.new_scope(Scope::Key(&key));
                 if let Some(key_var) = &key_var {
                     ctx.set_variable(key_var.to_string(), key.to_string());
                 }
 
-                ctx.set_variable(value_var.to_owned(), value);
+                ctx.set_variable(value_var.to_string(), value);
 
-                let keep = match &self.cond {
-                    None => true,
-                    Some(cond) => cond.clone().evaluate_bool(&mut ctx)?,
-                };
-
-                if keep {
+                if keep(self.cond.as_ref(), &mut ctx)? {
                     let key = self.key_expr.clone().evaluate_string(&mut ctx)?;
                     let value = self.value_expr.clone().evaluate(&mut ctx)?;
 
@@ -409,30 +411,22 @@ impl Evaluate for ForObjectExpr {
                 .map(|(k, v)| (ObjectKey::from(k), Expression::Array(v)))
                 .collect())
         } else {
-            let mut result: Object<String, Expression> = Object::with_capacity(pairs.len());
+            let mut result: Object<String, Expression> = Object::with_capacity(object.len());
 
-            for (key, value) in pairs.into_iter() {
-                let scope_key = key.clone();
-                let mut ctx = ctx.new_scope(Scope::Key(&scope_key));
+            for (key, value) in object.into_iter() {
+                let mut ctx = ctx.new_scope(Scope::Key(&key));
                 if let Some(key_var) = &key_var {
                     ctx.set_variable(key_var.to_string(), key.to_string());
                 }
 
-                ctx.set_variable(value_var.to_owned(), value);
+                ctx.set_variable(value_var.to_string(), value);
 
-                let keep = match &self.cond {
-                    None => true,
-                    Some(cond) => cond.clone().evaluate_bool(&mut ctx)?,
-                };
-
-                if !keep {
+                if keep(self.cond.as_ref(), &mut ctx)? {
                     let key = self.key_expr.clone().evaluate_string(&mut ctx)?;
 
                     match result.entry(key) {
                         Entry::Occupied(entry) => {
-                            return Err(
-                                ctx.error(EvalErrorKind::KeyAlreadyExists(entry.key().to_owned()))
-                            )
+                            return Err(ctx.error(EvalErrorKind::KeyAlreadyExists(entry.into_key())))
                         }
                         Entry::Vacant(entry) => {
                             entry.insert(self.value_expr.clone().evaluate(&mut ctx)?);
