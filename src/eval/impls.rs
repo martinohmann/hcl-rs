@@ -1,3 +1,5 @@
+use vecmap::map::Entry;
+
 use super::*;
 use crate::{structure::*, template::Template, Number};
 
@@ -406,36 +408,105 @@ impl Evaluate for ForObjectExpr {
                 let key_var = self.intro.key.as_ref().map(|key| key.as_str());
                 let value_var = self.intro.value.as_str();
 
-                let mut result = Object::with_capacity(pairs.len());
+                if self.value_grouping {
+                    let mut result: Object<String, Vec<Expression>> =
+                        Object::with_capacity(pairs.len());
 
-                for (key, value) in pairs.into_iter() {
-                    let mut ctx = ctx.new_scope(Scope::Key(&key));
-                    if let Some(key_var) = &key_var {
-                        ctx.set_variable(key_var.to_string(), key.to_string());
+                    for (key, value) in pairs.into_iter() {
+                        let mut ctx = ctx.new_scope(Scope::Key(&key));
+                        if let Some(key_var) = &key_var {
+                            ctx.set_variable(key_var.to_string(), key.to_string());
+                        }
+
+                        ctx.set_variable(value_var.to_owned(), value);
+
+                        let keep = match &self.cond {
+                            None => true,
+                            Some(cond) => match cond.clone().evaluate(&mut ctx)? {
+                                Expression::Bool(keep) => keep,
+                                other => {
+                                    return Err(
+                                        ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))
+                                    )
+                                }
+                            },
+                        };
+
+                        if keep {
+                            let key = match self.key_expr.clone().evaluate(&mut ctx)? {
+                                Expression::String(key) => key,
+                                other => {
+                                    return Err(
+                                        ctx.error(EvalErrorKind::Unexpected(other, "a string"))
+                                    )
+                                }
+                            };
+
+                            let value = self.value_expr.clone().evaluate(&mut ctx)?;
+
+                            result.entry(key).or_default().push(value);
+                        }
                     }
 
-                    ctx.set_variable(value_var.to_owned(), value);
+                    Ok(result
+                        .into_iter()
+                        .map(|(k, v)| (ObjectKey::from(k), Expression::Array(v)))
+                        .collect())
+                } else {
+                    let mut result: Object<String, Expression> = Object::with_capacity(pairs.len());
 
-                    let keep = match &self.cond {
-                        None => true,
-                        Some(cond) => match cond.clone().evaluate(&mut ctx)? {
-                            Expression::Bool(keep) => keep,
-                            other => {
-                                return Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean")))
+                    for (key, value) in pairs.into_iter() {
+                        let scope_key = key.clone();
+                        let mut ctx = ctx.new_scope(Scope::Key(&scope_key));
+                        if let Some(key_var) = &key_var {
+                            ctx.set_variable(key_var.to_string(), key.to_string());
+                        }
+
+                        ctx.set_variable(value_var.to_owned(), value);
+
+                        let keep = match &self.cond {
+                            None => true,
+                            Some(cond) => match cond.clone().evaluate(&mut ctx)? {
+                                Expression::Bool(keep) => keep,
+                                other => {
+                                    return Err(
+                                        ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))
+                                    )
+                                }
+                            },
+                        };
+
+                        if !keep {
+                            let key = match self.key_expr.clone().evaluate(&mut ctx)? {
+                                Expression::String(key) => key,
+                                other => {
+                                    return Err(
+                                        ctx.error(EvalErrorKind::Unexpected(other, "a string"))
+                                    )
+                                }
+                            };
+
+                            match result.entry(key) {
+                                Entry::Occupied(entry) => {
+                                    return Err(ctx.error(EvalErrorKind::Message(format!(
+                                        "key `{}` already exists",
+                                        entry.key()
+                                    ))))
+                                }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(self.value_expr.clone().evaluate(&mut ctx)?);
+                                }
                             }
-                        },
-                    };
-
-                    if self.value_grouping {
-                        // @TODO: implement
-                    } else {
-                        // @TODO: insert
+                        }
                     }
-                }
 
-                Ok(result)
+                    Ok(result
+                        .into_iter()
+                        .map(|(k, v)| (ObjectKey::from(k), v))
+                        .collect())
+                }
             }
-            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
+            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an object"))),
         }
     }
 }
