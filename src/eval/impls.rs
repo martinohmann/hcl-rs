@@ -32,7 +32,8 @@ impl Evaluate for Attribute {
     type Output = Self;
 
     fn evaluate(mut self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        self.expr = self.expr.evaluate(ctx)?;
+        let mut ctx = ctx.new_scope(Scope::Attr(&self.key));
+        self.expr = self.expr.evaluate(&mut ctx)?;
         Ok(self)
     }
 }
@@ -43,7 +44,8 @@ impl Evaluate for Block {
     type Output = Self;
 
     fn evaluate(mut self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        self.body = self.body.evaluate(ctx)?;
+        let mut ctx = ctx.new_scope(Scope::Block(&self.identifier, &self.labels));
+        self.body = self.body.evaluate(&mut ctx)?;
         Ok(self)
     }
 }
@@ -54,20 +56,23 @@ impl Evaluate for Expression {
     type Output = Self;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
+        let scope_expr = self.clone();
+        let mut ctx = ctx.new_scope(Scope::Expr(&scope_expr));
+
         match self {
-            Expression::Array(array) => array.evaluate(ctx).map(Expression::Array),
-            Expression::Object(object) => object.evaluate(ctx).map(Expression::Object),
-            Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Expression::String),
+            Expression::Array(array) => array.evaluate(&mut ctx).map(Expression::Array),
+            Expression::Object(object) => object.evaluate(&mut ctx).map(Expression::Object),
+            Expression::TemplateExpr(expr) => expr.evaluate(&mut ctx).map(Expression::String),
             Expression::VariableExpr(ident) => {
                 ctx.get_variable(ident.as_str()).cloned().map(Into::into)
             }
-            Expression::ElementAccess(access) => access.evaluate(ctx),
-            Expression::FuncCall(func_call) => func_call.evaluate(ctx),
-            Expression::SubExpr(expr) => expr.evaluate(ctx),
-            Expression::Conditional(cond) => cond.evaluate(ctx),
-            Expression::Operation(op) => op.evaluate(ctx),
-            Expression::ForExpr(expr) => expr.evaluate(ctx),
-            Expression::Raw(_) => Err(EvalError::from("raw expressions cannot be evaluated")),
+            Expression::ElementAccess(access) => access.evaluate(&mut ctx),
+            Expression::FuncCall(func_call) => func_call.evaluate(&mut ctx),
+            Expression::SubExpr(expr) => expr.evaluate(&mut ctx),
+            Expression::Conditional(cond) => cond.evaluate(&mut ctx),
+            Expression::Operation(op) => op.evaluate(&mut ctx),
+            Expression::ForExpr(expr) => expr.evaluate(&mut ctx),
+            Expression::Raw(_) => Err(ctx.error(EvalErrorKind::RawExpression)),
             other => Ok(other),
         }
     }
@@ -79,7 +84,13 @@ impl Evaluate for Vec<Expression> {
     type Output = Self;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        self.into_iter().map(|expr| expr.evaluate(ctx)).collect()
+        self.into_iter()
+            .enumerate()
+            .map(|(index, expr)| {
+                let mut ctx = ctx.new_scope(Scope::Index(index));
+                expr.evaluate(&mut ctx)
+            })
+            .collect()
     }
 }
 
@@ -90,7 +101,11 @@ impl Evaluate for Object<ObjectKey, Expression> {
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
         self.into_iter()
-            .map(|(key, expr)| Ok((key.evaluate(ctx)?, expr.evaluate(ctx)?)))
+            .map(|(key, expr)| {
+                let scope_key = key.clone();
+                let mut ctx = ctx.new_scope(Scope::Key(&scope_key));
+                Ok((key.evaluate(&mut ctx)?, expr.evaluate(&mut ctx)?))
+            })
             .collect()
     }
 }
@@ -140,62 +155,67 @@ impl Evaluate for ElementAccess {
         let expr = self.expr.evaluate(ctx)?;
 
         match self.operator {
-            ElementAccessOperator::LegacyIndex(index) => eval_array_value(expr, index as usize),
-            ElementAccessOperator::Index(index) => eval_index_expr(expr, index.evaluate(ctx)?),
-            ElementAccessOperator::GetAttr(name) => eval_object_value(expr, name.into_inner()),
-            ElementAccessOperator::AttrSplat => eval_attr_splat(expr),
-            ElementAccessOperator::FullSplat => eval_full_splat(expr),
+            ElementAccessOperator::LegacyIndex(index) => {
+                eval_array_value(expr, index as usize, ctx)
+            }
+            ElementAccessOperator::Index(index) => eval_index_expr(expr, index.evaluate(ctx)?, ctx),
+            ElementAccessOperator::GetAttr(name) => eval_object_value(expr, name.as_str(), ctx),
+            ElementAccessOperator::AttrSplat => eval_attr_splat(expr, ctx),
+            ElementAccessOperator::FullSplat => eval_full_splat(expr, ctx),
         }
     }
 }
 
-fn eval_index_expr(expr: Expression, index_expr: Expression) -> EvalResult<Expression> {
+fn eval_index_expr(
+    expr: Expression,
+    index_expr: Expression,
+    ctx: &Context,
+) -> EvalResult<Expression> {
     match index_expr {
-        Expression::String(name) => eval_object_value(expr, name),
+        Expression::String(name) => eval_object_value(expr, &name, ctx),
         Expression::Number(num) => match num.as_u64() {
-            Some(index) => eval_array_value(expr, index as usize),
-            None => Err(EvalError::new(EvalErrorKind::UnexpectedExpression(
+            Some(index) => eval_array_value(expr, index as usize, ctx),
+            None => Err(ctx.error(EvalErrorKind::Unexpected(
                 Expression::Number(num),
                 "an unsigned integer",
             ))),
         },
-        other => Err(EvalError::new(EvalErrorKind::UnexpectedExpression(
+        other => Err(ctx.error(EvalErrorKind::Unexpected(
             other,
             "a string or unsigned integer",
         ))),
     }
 }
 
-fn eval_array_value(expr: Expression, index: usize) -> EvalResult<Expression> {
+fn eval_array_value(expr: Expression, index: usize, ctx: &Context) -> EvalResult<Expression> {
     match expr {
-        Expression::Array(mut array) => get_array_index(&mut array, index),
-        other => Err(EvalError::new(EvalErrorKind::UnexpectedExpression(
-            other, "an array",
-        ))),
+        Expression::Array(mut array) => get_array_index(&mut array, index, ctx),
+        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
     }
 }
 
-fn eval_object_value(expr: Expression, name: String) -> EvalResult<Expression> {
+fn eval_object_value(expr: Expression, key: &str, ctx: &Context) -> EvalResult<Expression> {
     match expr {
-        Expression::Object(mut object) => get_object_value(&mut object, ObjectKey::from(name)),
-        other => Err(EvalError::new(EvalErrorKind::UnexpectedExpression(
-            other,
-            "an object",
-        ))),
+        Expression::Object(mut object) => get_object_value(&mut object, key, ctx),
+        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an object"))),
     }
 }
 
-fn eval_attr_splat(expr: Expression) -> EvalResult<Expression> {
+fn eval_attr_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
     unimplemented!("evaluating attribute splat expression {expr} not implemented yet")
 }
 
-fn eval_full_splat(expr: Expression) -> EvalResult<Expression> {
+fn eval_full_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
     unimplemented!("evaluating full splat expression {expr} not implemented yet")
 }
 
-fn get_array_index(array: &mut Vec<Expression>, index: usize) -> EvalResult<Expression> {
+fn get_array_index(
+    array: &mut Vec<Expression>,
+    index: usize,
+    ctx: &Context,
+) -> EvalResult<Expression> {
     if index >= array.len() {
-        return Err(EvalError::new(EvalErrorKind::IndexOutOfBounds(index)));
+        return Err(ctx.error(EvalErrorKind::IndexOutOfBounds(index)));
     }
 
     Ok(array.swap_remove(index))
@@ -203,11 +223,14 @@ fn get_array_index(array: &mut Vec<Expression>, index: usize) -> EvalResult<Expr
 
 fn get_object_value(
     object: &mut Object<ObjectKey, Expression>,
-    key: ObjectKey,
+    key: &str,
+    ctx: &Context,
 ) -> EvalResult<Expression> {
+    let key = ObjectKey::from(key);
+
     match object.swap_remove(&key) {
         Some(value) => Ok(value),
-        None => Err(EvalError::new(EvalErrorKind::NoSuchKey(key.to_string()))),
+        None => Err(ctx.error(EvalErrorKind::NoSuchKey(key.to_string()))),
     }
 }
 
@@ -235,10 +258,7 @@ impl Evaluate for Conditional {
                     self.false_expr.evaluate(ctx)
                 }
             }
-            other => Err(EvalError::new(EvalErrorKind::UnexpectedExpression(
-                other,
-                "a boolean",
-            ))),
+            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))),
         }
     }
 }
@@ -267,11 +287,11 @@ impl Evaluate for UnaryOp {
         match (self.operator, expr) {
             (UnaryOperator::Not, Expression::Bool(v)) => Ok(Expression::Bool(!v)),
             (UnaryOperator::Neg, Expression::Number(n)) => Ok(Expression::Number(-n)),
-            (operator, expr) => Err(EvalError::from(format!(
+            (operator, expr) => Err(ctx.error(EvalErrorKind::Message(format!(
                 "operator `{}` cannot be applied to expression `{}`",
                 operator.as_str(),
                 expr
-            ))),
+            )))),
         }
     }
 }
@@ -303,9 +323,7 @@ impl Evaluate for BinaryOp {
             (Number(lhs), Div, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a / b),
             (Number(lhs), Mod, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a % b),
             (lhs, operator, rhs) => {
-                return Err(EvalError::new(EvalErrorKind::InvalidBinaryOp(
-                    lhs, operator, rhs,
-                )))
+                return Err(ctx.error(EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
             }
         };
 
