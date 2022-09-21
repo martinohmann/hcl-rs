@@ -344,7 +344,98 @@ impl private::Sealed for ForExpr {}
 impl Evaluate for ForExpr {
     type Output = Expression;
 
-    fn evaluate(self, _ctx: &mut Context) -> EvalResult<Self::Output> {
-        todo!()
+    fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
+        match self {
+            ForExpr::List(expr) => expr.evaluate(ctx).map(Expression::Array),
+            ForExpr::Object(expr) => expr.evaluate(ctx).map(Expression::Object),
+        }
+    }
+}
+
+impl private::Sealed for ForListExpr {}
+
+impl Evaluate for ForListExpr {
+    type Output = Vec<Expression>;
+
+    fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
+        match self.intro.expr.evaluate(ctx)? {
+            Expression::Array(values) => {
+                let key_var = self.intro.key.as_ref().map(|key| key.as_str());
+                let value_var = self.intro.value.as_str();
+
+                let mut result = Vec::with_capacity(values.len());
+
+                for (index, value) in values.into_iter().enumerate() {
+                    let mut ctx = ctx.new_scope(Scope::Index(index));
+                    if let Some(key_var) = &key_var {
+                        ctx.set_variable(key_var.to_string(), index);
+                    }
+
+                    ctx.set_variable(value_var.to_owned(), value);
+
+                    let keep = match &self.cond {
+                        None => true,
+                        Some(cond) => match cond.clone().evaluate(&mut ctx)? {
+                            Expression::Bool(keep) => keep,
+                            other => {
+                                return Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean")))
+                            }
+                        },
+                    };
+
+                    if keep {
+                        result.push(self.expr.clone().evaluate(&mut ctx)?);
+                    }
+                }
+
+                Ok(result)
+            }
+            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
+        }
+    }
+}
+
+impl private::Sealed for ForObjectExpr {}
+
+impl Evaluate for ForObjectExpr {
+    type Output = Object<ObjectKey, Expression>;
+
+    fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
+        match self.intro.expr.evaluate(ctx)? {
+            Expression::Object(pairs) => {
+                let key_var = self.intro.key.as_ref().map(|key| key.as_str());
+                let value_var = self.intro.value.as_str();
+
+                let mut result = Object::with_capacity(pairs.len());
+
+                for (key, value) in pairs.into_iter() {
+                    let mut ctx = ctx.new_scope(Scope::Key(&key));
+                    if let Some(key_var) = &key_var {
+                        ctx.set_variable(key_var.to_string(), key.to_string());
+                    }
+
+                    ctx.set_variable(value_var.to_owned(), value);
+
+                    let keep = match &self.cond {
+                        None => true,
+                        Some(cond) => match cond.clone().evaluate(&mut ctx)? {
+                            Expression::Bool(keep) => keep,
+                            other => {
+                                return Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean")))
+                            }
+                        },
+                    };
+
+                    if self.value_grouping {
+                        // @TODO: implement
+                    } else {
+                        // @TODO: insert
+                    }
+                }
+
+                Ok(result)
+            }
+            other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
+        }
     }
 }

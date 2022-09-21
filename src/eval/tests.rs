@@ -1,5 +1,7 @@
 use super::*;
-use crate::{BinaryOp, BinaryOperator, Conditional, Operation};
+use crate::{
+    BinaryOp, BinaryOperator, Conditional, ForExpr, ForIntro, ForListExpr, Identifier, Operation,
+};
 use std::fmt;
 
 #[track_caller]
@@ -60,5 +62,30 @@ fn eval_conditional() {
     eval_error(
         Conditional::new("foo", "yes", "no"),
         "eval error: unexpected expression `\"foo\"`, expected a boolean",
+    );
+}
+
+#[test]
+fn eval_for_expr() {
+    eval_to(
+        ForExpr::List(
+            ForListExpr::new(
+                ForIntro::new(
+                    Identifier::new("item"),
+                    Expression::from_iter([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+                ),
+                Operation::Binary(BinaryOp::new(
+                    Expression::VariableExpr(Identifier::new("item")),
+                    BinaryOperator::Mul,
+                    2,
+                )),
+            )
+            .with_cond(Operation::Binary(BinaryOp::new(
+                Expression::VariableExpr(Identifier::new("item")),
+                BinaryOperator::Less,
+                5.0,
+            ))),
+        ),
+        Expression::from_iter([2.0, 4.0, 6.0, 8.0]),
     );
 }
