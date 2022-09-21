@@ -35,18 +35,21 @@ impl EvalError {
         self.scope.as_deref()
     }
 
-    fn with_scopes(mut self, scopes: Scopes<'_>) -> EvalError {
-        self.scope = Some(scopes.to_string());
+    fn with_scopes(mut self, scopes: Option<Scopes<'_>>) -> EvalError {
+        self.scope = scopes.as_ref().map(ToString::to_string);
         self
     }
 }
 
 impl fmt::Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("eval error")?;
+
         if let Some(scope) = &self.scope {
-            write!(f, "at {}: ", scope)?;
+            write!(f, " at {}", scope)?;
         }
 
+        f.write_str(": ")?;
         fmt::Display::fmt(&self.inner, f)
     }
 }
@@ -92,11 +95,7 @@ impl fmt::Display for EvalErrorKind {
                 write!(f, "undefined variable `{}`", ident.as_str())
             }
             EvalErrorKind::Unexpected(expr, expected) => {
-                write!(
-                    f,
-                    "unexpected expression `{:?}`, expected {}",
-                    expr, expected
-                )
+                write!(f, "unexpected expression `{}`, expected {}", expr, expected)
             }
             EvalErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
             EvalErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
@@ -177,8 +176,8 @@ impl<'a> Context<'a> {
         self.vars.insert(name, value.into())
     }
 
-    // Collects all scopes into a flat list.
-    fn scopes(&self) -> Scopes<'_> {
+    // Collects all scopes into a flat list, if any.
+    fn scopes(&self) -> Option<Scopes<'_>> {
         let mut ctx = self;
         let mut scopes = Vec::new();
 
@@ -193,8 +192,12 @@ impl<'a> Context<'a> {
             };
         }
 
-        scopes.reverse();
-        Scopes(scopes)
+        if scopes.is_empty() {
+            None
+        } else {
+            scopes.reverse();
+            Some(Scopes(scopes))
+        }
     }
 
     // Creates an `EvalError` with added scope information.
