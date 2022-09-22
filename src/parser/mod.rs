@@ -3,7 +3,7 @@ mod template;
 mod tests;
 
 pub use self::template::parse as parse_template;
-use crate::{structure::*, util::unescape, Result};
+use crate::{structure::*, util::unescape, Number, Result};
 use pest::{
     iterators::{Pair, Pairs},
     Parser as ParserTrait,
@@ -178,7 +178,8 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
 
     let expr = match pair.as_rule() {
         Rule::BooleanLit => Expression::Bool(parse_primitive(pair)),
-        Rule::Float => Expression::Number(parse_primitive::<f64>(pair).into()),
+        Rule::Float => Number::from_f64(parse_primitive::<f64>(pair))
+            .map_or(Expression::Null, Expression::Number),
         Rule::Int => Expression::Number(parse_primitive::<i64>(pair).into()),
         Rule::NullLit => Expression::Null,
         Rule::StringLit => parse_string(inner(pair)).map(Expression::String)?,

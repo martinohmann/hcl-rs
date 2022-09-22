@@ -113,13 +113,13 @@ impl_from_integer!(u8, u16, u32, u64, usize);
 
 impl From<f32> for Expression {
     fn from(f: f32) -> Self {
-        Expression::Number(f.into())
+        From::from(f as f64)
     }
 }
 
 impl From<f64> for Expression {
     fn from(f: f64) -> Self {
-        Expression::Number(f.into())
+        Number::from_f64(f).map_or(Expression::Null, Expression::Number)
     }
 }
 

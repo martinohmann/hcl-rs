@@ -236,16 +236,6 @@ where
         self.write_all(s.as_bytes())
     }
 
-    /// Writes a float value to the writer.
-    fn write_float<T>(&mut self, value: T) -> io::Result<()>
-    where
-        T: ryu::Float,
-    {
-        let mut buffer = ryu::Buffer::new();
-        let s = buffer.format_finite(value);
-        self.write_all(s.as_bytes())
-    }
-
     /// Writes a quoted string to the writer. The quoted string will be escaped.
     fn write_quoted_string(&mut self, s: &str) -> io::Result<()> {
         self.write_all(b"\"")?;

@@ -7,7 +7,7 @@ fn expression_macro_primitives() {
     assert_eq!(expression!(true), Expression::Bool(true));
     assert_eq!(expression!(false), Expression::Bool(false));
     assert_eq!(expression!(0), Expression::Number(Number::from(0)));
-    assert_eq!(expression!(1.5), Expression::Number(Number::from(1.5)));
+    assert_eq!(expression!(1.5), Expression::from(1.5));
     assert_eq!(expression!("foo"), Expression::String("foo".into()));
 }
 

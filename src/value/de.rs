@@ -32,7 +32,7 @@ impl<'de> Deserialize<'de> for Value {
             }
 
             fn visit_f64<E>(self, value: f64) -> Result<Value, E> {
-                Ok(Value::Number(value.into()))
+                Ok(Number::from_f64(value).map_or(Value::Null, Value::Number))
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Value, E>
@@ -120,11 +120,7 @@ impl<'de> de::Deserializer<'de> for ValueDeserializer {
         match self.value {
             Value::Null => visitor.visit_unit(),
             Value::Bool(b) => visitor.visit_bool(b),
-            Value::Number(n) => match n {
-                Number::PosInt(i) => visitor.visit_u64(i),
-                Number::NegInt(i) => visitor.visit_i64(i),
-                Number::Float(f) => visitor.visit_f64(f),
-            },
+            Value::Number(n) => n.deserialize_any(visitor),
             Value::String(s) => visitor.visit_string(s),
             Value::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Value::Object(object) => visitor.visit_map(object.into_deserializer()),
