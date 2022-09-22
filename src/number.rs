@@ -372,13 +372,17 @@ impl Div for Number {
     type Output = Number;
 
     fn div(self, rhs: Self) -> Self::Output {
-        let n = match (self.n, rhs.n) {
-            (N::PosInt(a), N::PosInt(b)) => N::PosInt(a / b),
-            (N::PosInt(a), N::NegInt(b)) => N::from(a as i64 / b),
-            (N::NegInt(a), N::NegInt(b)) => N::from(a / b),
-            (N::NegInt(a), N::PosInt(b)) => N::from(a / b as i64),
-            (N::Float(a), N::Float(b)) => N::Float(a / b),
-            (a, b) => N::Float(a.to_f64() / b.to_f64()),
+        let both_integer = !(self.is_f64() || self.is_f64());
+        let value = self.n.to_f64() / rhs.n.to_f64();
+
+        let n = if both_integer && value.fract() == 0.0 {
+            if value < 0.0 {
+                N::from(value as i64)
+            } else {
+                N::PosInt(value as u64)
+            }
+        } else {
+            N::Float(value)
         };
 
         Number { n }
@@ -399,5 +403,35 @@ impl Rem for Number {
         };
 
         Number { n }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn div() {
+        assert_eq!(
+            Number::from(1u64) / Number::from(2u64),
+            Number::from_f64(0.5).unwrap()
+        );
+        assert_eq!(
+            Number::from_f64(4.1).unwrap() / Number::from_f64(2.0).unwrap(),
+            Number::from_f64(2.05).unwrap()
+        );
+        assert_eq!(Number::from(4u64) / Number::from(2u64), Number::from(2u64));
+        assert_eq!(
+            Number::from(-4i64) / Number::from(2u64),
+            Number::from(-2i64)
+        );
+        assert_eq!(
+            Number::from_f64(4.0).unwrap() / Number::from_f64(2.0).unwrap(),
+            Number::from(2)
+        );
+        assert_eq!(
+            Number::from_f64(-4.0).unwrap() / Number::from_f64(2.0).unwrap(),
+            Number::from(-2)
+        );
     }
 }
