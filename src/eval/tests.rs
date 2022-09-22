@@ -35,13 +35,9 @@ fn eval_binary_op() {
 
     eval_to(
         BinaryOp::new(
-            Binary(BinaryOp::new(1.0f64, Div, 2)),
+            Binary(BinaryOp::new(1, Div, 2)),
             Mul,
-            Binary(BinaryOp::new(
-                3,
-                Plus,
-                Binary(BinaryOp::new(4.0f64, Div, 5)),
-            )),
+            Binary(BinaryOp::new(3, Plus, Binary(BinaryOp::new(4, Div, 5)))),
         ),
         Expression::from(2.3),
     );
@@ -77,7 +73,7 @@ fn eval_for_expr() {
             ForListExpr::new(
                 ForIntro::new(
                     Identifier::new("item"),
-                    Expression::from_iter([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+                    Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
                 ),
                 Operation::Binary(BinaryOp::new(
                     Expression::VariableExpr(Identifier::new("item")),
@@ -88,10 +84,10 @@ fn eval_for_expr() {
             .with_cond(Operation::Binary(BinaryOp::new(
                 Expression::VariableExpr(Identifier::new("item")),
                 BinaryOperator::Less,
-                5.0,
+                5,
             ))),
         ),
-        Expression::from_iter([2.0, 4.0, 6.0, 8.0]),
+        Expression::from_iter([2, 4, 6, 8]),
     );
 
     eval_to(
