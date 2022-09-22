@@ -1,5 +1,5 @@
 use super::{expr::EvaluateExpr, *};
-use crate::{structure::*, template::Template, Number};
+use crate::{structure::*, template::Template};
 use vecmap::map::Entry;
 
 impl private::Sealed for Body {}
@@ -301,11 +301,11 @@ impl Evaluate for BinaryOp {
             (Number(lhs), GreaterEq, Number(rhs)) => Bool(lhs >= rhs),
             (Number(lhs), Less, Number(rhs)) => Bool(lhs < rhs),
             (Number(lhs), Greater, Number(rhs)) => Bool(lhs > rhs),
-            (Number(lhs), Plus, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a + b),
-            (Number(lhs), Minus, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a - b),
-            (Number(lhs), Mul, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a * b),
-            (Number(lhs), Div, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a / b),
-            (Number(lhs), Mod, Number(rhs)) => eval_numbers(lhs, rhs, |a, b| a % b),
+            (Number(lhs), Plus, Number(rhs)) => Number(lhs + rhs),
+            (Number(lhs), Minus, Number(rhs)) => Number(lhs - rhs),
+            (Number(lhs), Mul, Number(rhs)) => Number(lhs * rhs),
+            (Number(lhs), Div, Number(rhs)) => Number(lhs / rhs),
+            (Number(lhs), Mod, Number(rhs)) => Number(lhs % rhs),
             (lhs, operator, rhs) => {
                 return Err(ctx.error(EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
             }
@@ -313,14 +313,6 @@ impl Evaluate for BinaryOp {
 
         Ok(expr)
     }
-}
-
-fn eval_numbers<F, T>(lhs: Number, rhs: Number, f: F) -> Expression
-where
-    F: FnOnce(f64, f64) -> T,
-    T: Into<Expression>,
-{
-    f(lhs.as_f64().unwrap(), rhs.as_f64().unwrap()).into()
 }
 
 impl private::Sealed for ForExpr {}
