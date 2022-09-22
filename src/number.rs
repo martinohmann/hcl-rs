@@ -1,11 +1,12 @@
 use crate::Error;
 use serde::{de, forward_to_deserialize_any, ser};
+use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Neg;
 
 /// Represents a HCL number.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd)]
 pub struct Number {
     n: N,
 }
@@ -20,37 +21,77 @@ enum N {
     Float(f64),
 }
 
+impl N {
+    fn as_i64(&self) -> Option<i64> {
+        match *self {
+            N::PosInt(n) => {
+                if n <= i64::max_value() as u64 {
+                    Some(n as i64)
+                } else {
+                    None
+                }
+            }
+            N::NegInt(n) => Some(n),
+            N::Float(_) => None,
+        }
+    }
+
+    fn as_u64(&self) -> Option<u64> {
+        match *self {
+            N::PosInt(n) => Some(n),
+            N::NegInt(_) | N::Float(_) => None,
+        }
+    }
+
+    fn to_f64(&self) -> f64 {
+        match *self {
+            N::PosInt(n) => n as f64,
+            N::NegInt(n) => n as f64,
+            N::Float(n) => n,
+        }
+    }
+}
+
 impl PartialEq for N {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (N::PosInt(a), N::PosInt(b)) => a == b,
             (N::NegInt(a), N::NegInt(b)) => a == b,
             (N::Float(a), N::Float(b)) => a == b,
-            (_, _) => false,
+            (a, b) => a.to_f64() == b.to_f64(),
         }
     }
 }
 
+// N is `Eq` because we ensure that the wrapped f64 is always finite.
 impl Eq for N {}
+
+impl PartialOrd for N {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (*self, *other) {
+            (N::PosInt(a), N::PosInt(b)) => a.partial_cmp(&b),
+            (N::NegInt(a), N::NegInt(b)) => a.partial_cmp(&b),
+            (N::Float(a), N::Float(b)) => a.partial_cmp(&b),
+            (a, b) => a.to_f64().partial_cmp(&b.to_f64()),
+        }
+    }
+}
 
 impl Hash for N {
     fn hash<H>(&self, h: &mut H)
     where
         H: Hasher,
     {
-        match *self {
-            N::PosInt(i) => i.hash(h),
-            N::NegInt(i) => i.hash(h),
-            N::Float(f) => {
-                if f == 0.0f64 {
-                    // There are 2 zero representations, +0 and -0, which
-                    // compare equal but have different bits. We use the +0 hash
-                    // for both so that hash(+0) == hash(-0).
-                    0.0f64.to_bits().hash(h);
-                } else {
-                    f.to_bits().hash(h);
-                }
-            }
+        // Use the float representation to ensure that 0u64 and 0.0f64 etc. hash to the same value.
+        let f = self.to_f64();
+
+        if f == 0.0f64 {
+            // There are 2 zero representations, +0 and -0, which
+            // compare equal but have different bits. We use the +0 hash
+            // for both so that hash(+0) == hash(-0).
+            0.0f64.to_bits().hash(h);
+        } else {
+            f.to_bits().hash(h);
         }
     }
 }
@@ -75,34 +116,17 @@ impl Number {
     }
     /// Represents the `Number` as f64 if possible. Returns None otherwise.
     pub fn as_f64(&self) -> Option<f64> {
-        match self.n {
-            N::PosInt(n) => Some(n as f64),
-            N::NegInt(n) => Some(n as f64),
-            N::Float(n) => Some(n),
-        }
+        Some(self.n.to_f64())
     }
 
     /// If the `Number` is an integer, represent it as i64 if possible. Returns None otherwise.
     pub fn as_i64(&self) -> Option<i64> {
-        match self.n {
-            N::PosInt(n) => {
-                if n <= i64::max_value() as u64 {
-                    Some(n as i64)
-                } else {
-                    None
-                }
-            }
-            N::NegInt(n) => Some(n),
-            N::Float(_) => None,
-        }
+        self.n.as_i64()
     }
 
     /// If the `Number` is an integer, represent it as u64 if possible. Returns None otherwise.
     pub fn as_u64(&self) -> Option<u64> {
-        match self.n {
-            N::PosInt(n) => Some(n),
-            N::NegInt(_) | N::Float(_) => None,
-        }
+        self.n.as_u64()
     }
 
     /// Returns true if the `Number` is a float.
