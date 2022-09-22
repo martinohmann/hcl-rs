@@ -1,4 +1,4 @@
-use super::{expr::EvaluateExpr, *};
+use super::*;
 use crate::{structure::*, template::Template};
 use vecmap::map::Entry;
 
@@ -157,74 +157,18 @@ impl Evaluate for ElementAccess {
 
         match self.operator {
             ElementAccessOperator::LegacyIndex(index) => {
-                evaluate_array_value(expr, index as usize, ctx)
+                expr::evaluate_array_value(expr, index as usize, ctx)
             }
-            ElementAccessOperator::Index(index_expr) => evaluate_index_expr(expr, index_expr, ctx),
+            ElementAccessOperator::Index(index_expr) => {
+                expr::evaluate_index_expr(expr, index_expr, ctx)
+            }
             ElementAccessOperator::GetAttr(name) => {
-                evaluate_object_value(expr, name.into_inner(), ctx)
+                expr::evaluate_object_value(expr, name.into_inner(), ctx)
             }
-            ElementAccessOperator::AttrSplat => evaluate_attr_splat(expr, ctx),
-            ElementAccessOperator::FullSplat => evaluate_full_splat(expr, ctx),
+            ElementAccessOperator::AttrSplat => expr::evaluate_attr_splat(expr, ctx),
+            ElementAccessOperator::FullSplat => expr::evaluate_full_splat(expr, ctx),
         }
     }
-}
-
-fn evaluate_index_expr(
-    expr: Expression,
-    index_expr: Expression,
-    ctx: &mut Context,
-) -> EvalResult<Expression> {
-    match index_expr.evaluate(ctx)? {
-        Expression::String(name) => evaluate_object_value(expr, name, ctx),
-        Expression::Number(num) => match num.as_u64() {
-            Some(index) => evaluate_array_value(expr, index as usize, ctx),
-            None => Err(ctx.error(EvalErrorKind::Unexpected(
-                Expression::Number(num),
-                "an unsigned integer",
-            ))),
-        },
-        other => Err(ctx.error(EvalErrorKind::Unexpected(
-            other,
-            "a string or unsigned integer",
-        ))),
-    }
-}
-
-fn evaluate_array_value(
-    expr: Expression,
-    index: usize,
-    ctx: &mut Context,
-) -> EvalResult<Expression> {
-    let mut array = expr.evaluate_array(ctx)?;
-
-    if index >= array.len() {
-        return Err(ctx.error(EvalErrorKind::IndexOutOfBounds(index)));
-    }
-
-    Ok(array.swap_remove(index))
-}
-
-fn evaluate_object_value(
-    expr: Expression,
-    key: String,
-    ctx: &mut Context,
-) -> EvalResult<Expression> {
-    let mut object = expr.evaluate_object(ctx)?;
-
-    let key = ObjectKey::from(key);
-
-    match object.swap_remove(&key) {
-        Some(value) => Ok(value),
-        None => Err(ctx.error(EvalErrorKind::NoSuchKey(key.to_string()))),
-    }
-}
-
-fn evaluate_attr_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
-    unimplemented!("evaluating attribute splat expression {expr} not implemented yet")
-}
-
-fn evaluate_full_splat(expr: Expression, _ctx: &mut Context) -> EvalResult<Expression> {
-    unimplemented!("evaluating full splat expression {expr} not implemented yet")
 }
 
 impl private::Sealed for FuncCall {}
@@ -243,7 +187,7 @@ impl Evaluate for Conditional {
     type Output = Expression;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        if self.predicate.evaluate_bool(ctx)? {
+        if expr::evaluate_bool(self.predicate, ctx)? {
             self.true_expr.evaluate(ctx)
         } else {
             self.false_expr.evaluate(ctx)
@@ -334,7 +278,7 @@ impl Evaluate for ForListExpr {
     type Output = Vec<Expression>;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        let values = self.intro.expr.evaluate_array(ctx)?;
+        let values = expr::evaluate_array(self.intro.expr, ctx)?;
         let key_var = self.intro.key.as_ref().map(|key| key.as_str());
         let value_var = self.intro.value.as_str();
 
@@ -350,7 +294,7 @@ impl Evaluate for ForListExpr {
 
             let keep = match &self.cond {
                 None => true,
-                Some(cond) => cond.clone().evaluate_bool(&mut ctx)?,
+                Some(cond) => expr::evaluate_bool(cond.clone(), &mut ctx)?,
             };
 
             if keep {
@@ -368,13 +312,13 @@ impl Evaluate for ForObjectExpr {
     type Output = Object<ObjectKey, Expression>;
 
     fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output> {
-        let object = self.intro.expr.evaluate_object(ctx)?;
+        let object = expr::evaluate_object(self.intro.expr, ctx)?;
         let key_var = self.intro.key.as_ref().map(|key| key.as_str());
         let value_var = self.intro.value.as_str();
 
         fn keep(cond: Option<&Expression>, ctx: &mut Context) -> EvalResult<bool> {
             match cond {
-                Some(cond) => cond.clone().evaluate_bool(ctx),
+                Some(cond) => expr::evaluate_bool(cond.clone(), ctx),
                 None => Ok(true),
             }
         }
@@ -391,7 +335,7 @@ impl Evaluate for ForObjectExpr {
                 ctx.set_variable(value_var.to_string(), value);
 
                 if keep(self.cond.as_ref(), &mut ctx)? {
-                    let key = self.key_expr.clone().evaluate_string(&mut ctx)?;
+                    let key = expr::evaluate_string(self.key_expr.clone(), &mut ctx)?;
                     let value = self.value_expr.clone().evaluate(&mut ctx)?;
 
                     result.entry(key).or_default().push(value);
@@ -414,7 +358,7 @@ impl Evaluate for ForObjectExpr {
                 ctx.set_variable(value_var.to_string(), value);
 
                 if keep(self.cond.as_ref(), &mut ctx)? {
-                    let key = self.key_expr.clone().evaluate_string(&mut ctx)?;
+                    let key = expr::evaluate_string(self.key_expr.clone(), &mut ctx)?;
 
                     match result.entry(key) {
                         Entry::Occupied(entry) => {
