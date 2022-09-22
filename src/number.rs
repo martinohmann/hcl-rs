@@ -3,7 +3,7 @@ use serde::{de, forward_to_deserialize_any, ser};
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
-use std::ops::Neg;
+use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// Represents a HCL number.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd)]
@@ -43,6 +43,7 @@ impl N {
         }
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn to_f64(&self) -> f64 {
         match *self {
             N::PosInt(n) => n as f64,
@@ -92,6 +93,16 @@ impl Hash for N {
             0.0f64.to_bits().hash(h);
         } else {
             f.to_bits().hash(h);
+        }
+    }
+}
+
+impl From<i64> for N {
+    fn from(i: i64) -> Self {
+        if i < 0 {
+            N::NegInt(i)
+        } else {
+            N::PosInt(i as u64)
         }
     }
 }
@@ -183,13 +194,9 @@ macro_rules! impl_from_signed {
         $(
             impl From<$ty> for Number {
                 fn from(i: $ty) -> Self {
-                    let n = if i < 0 {
-                        N::NegInt(i as i64)
-                    } else {
-                        N::PosInt(i as u64)
-                    };
-
-                    Number { n }
+                    Number {
+                        n: N::from(i as i64)
+                    }
                 }
             }
         )*
@@ -298,6 +305,97 @@ impl Neg for Number {
                 }
             }
             N::Float(value) => N::Float(-value),
+        };
+
+        Number { n }
+    }
+}
+
+impl Add for Number {
+    type Output = Number;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        let n = match (self.n, rhs.n) {
+            (N::PosInt(a), N::PosInt(b)) => N::PosInt(a + b),
+            (N::PosInt(a), N::NegInt(b)) => N::from(a as i64 + b),
+            (N::NegInt(a), N::NegInt(b)) => N::from(a + b),
+            (N::NegInt(a), N::PosInt(b)) => N::from(a + b as i64),
+            (N::Float(a), N::Float(b)) => N::Float(a + b),
+            (a, b) => N::Float(a.to_f64() + b.to_f64()),
+        };
+
+        Number { n }
+    }
+}
+
+impl Sub for Number {
+    type Output = Number;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        let n = match (self.n, rhs.n) {
+            (N::PosInt(a), N::PosInt(b)) => {
+                if a < b {
+                    N::NegInt(a as i64 - b as i64)
+                } else {
+                    N::PosInt(a - b)
+                }
+            }
+            (N::PosInt(a), N::NegInt(b)) => N::from(a as i64 - b),
+            (N::NegInt(a), N::NegInt(b)) => N::from(a - b),
+            (N::NegInt(a), N::PosInt(b)) => N::from(a - b as i64),
+            (N::Float(a), N::Float(b)) => N::Float(a - b),
+            (a, b) => N::Float(a.to_f64() - b.to_f64()),
+        };
+
+        Number { n }
+    }
+}
+
+impl Mul for Number {
+    type Output = Number;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        let n = match (self.n, rhs.n) {
+            (N::PosInt(a), N::PosInt(b)) => N::PosInt(a * b),
+            (N::PosInt(a), N::NegInt(b)) => N::from(a as i64 * b),
+            (N::NegInt(a), N::NegInt(b)) => N::from(a * b),
+            (N::NegInt(a), N::PosInt(b)) => N::from(a * b as i64),
+            (N::Float(a), N::Float(b)) => N::Float(a * b),
+            (a, b) => N::Float(a.to_f64() * b.to_f64()),
+        };
+
+        Number { n }
+    }
+}
+
+impl Div for Number {
+    type Output = Number;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        let n = match (self.n, rhs.n) {
+            (N::PosInt(a), N::PosInt(b)) => N::PosInt(a / b),
+            (N::PosInt(a), N::NegInt(b)) => N::from(a as i64 / b),
+            (N::NegInt(a), N::NegInt(b)) => N::from(a / b),
+            (N::NegInt(a), N::PosInt(b)) => N::from(a / b as i64),
+            (N::Float(a), N::Float(b)) => N::Float(a / b),
+            (a, b) => N::Float(a.to_f64() / b.to_f64()),
+        };
+
+        Number { n }
+    }
+}
+
+impl Rem for Number {
+    type Output = Number;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        let n = match (self.n, rhs.n) {
+            (N::PosInt(a), N::PosInt(b)) => N::PosInt(a % b),
+            (N::PosInt(a), N::NegInt(b)) => N::from(a as i64 % b),
+            (N::NegInt(a), N::NegInt(b)) => N::from(a % b),
+            (N::NegInt(a), N::PosInt(b)) => N::from(a % b as i64),
+            (N::Float(a), N::Float(b)) => N::Float(a % b),
+            (a, b) => N::Float(a.to_f64() % b.to_f64()),
         };
 
         Number { n }
