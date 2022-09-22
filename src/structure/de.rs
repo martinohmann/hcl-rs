@@ -1,7 +1,7 @@
 //! Deserialize impls for HCL structure types.
 
 use super::*;
-use crate::{Error, Number, Result};
+use crate::{Error, Result};
 use serde::de::value::{MapAccessDeserializer, StrDeserializer};
 use serde::de::{self, IntoDeserializer};
 use serde::{forward_to_deserialize_any, Deserializer};
@@ -250,11 +250,7 @@ impl<'de> de::Deserializer<'de> for Expression {
         match self {
             Expression::Null => visitor.visit_unit(),
             Expression::Bool(b) => visitor.visit_bool(b),
-            Expression::Number(n) => match n {
-                Number::PosInt(i) => visitor.visit_u64(i),
-                Number::NegInt(i) => visitor.visit_i64(i),
-                Number::Float(f) => visitor.visit_f64(f),
-            },
+            Expression::Number(n) => n.deserialize_any(visitor),
             Expression::String(s) => visitor.visit_string(s),
             Expression::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),

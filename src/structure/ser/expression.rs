@@ -7,7 +7,7 @@ use super::{
     template::{SerializeTemplateExprStruct, TemplateExprSerializer},
     StringSerializer,
 };
-use crate::{Error, Expression, Identifier, Object, ObjectKey, RawExpression, Result};
+use crate::{Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result};
 use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
 
@@ -70,7 +70,7 @@ impl ser::Serializer for ExpressionSerializer {
     }
 
     fn serialize_f64(self, value: f64) -> Result<Self::Ok> {
-        Ok(Expression::Number(value.into()))
+        Ok(Number::from_f64(value).map_or(Expression::Null, Expression::Number))
     }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {

@@ -1,4 +1,4 @@
-use super::{Map, Value};
+use super::{Map, Number, Value};
 use std::borrow::Cow;
 
 macro_rules! impl_from_integer {
@@ -18,13 +18,13 @@ impl_from_integer!(u8, u16, u32, u64, usize);
 
 impl From<f32> for Value {
     fn from(f: f32) -> Self {
-        Self::Number(f.into())
+        From::from(f as f64)
     }
 }
 
 impl From<f64> for Value {
     fn from(f: f64) -> Self {
-        Self::Number(f.into())
+        Number::from_f64(f).map_or(Value::Null, Value::Number)
     }
 }
 

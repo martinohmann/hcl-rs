@@ -154,12 +154,7 @@ impl Format for Number {
     where
         W: io::Write,
     {
-        match *self {
-            Number::PosInt(pos) => fmt.write_int(pos)?,
-            Number::NegInt(neg) => fmt.write_int(neg)?,
-            Number::Float(float) => fmt.write_float(float)?,
-        }
-
+        fmt.write_string_fragment(&self.to_string())?;
         Ok(())
     }
 }
