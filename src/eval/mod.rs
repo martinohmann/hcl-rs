@@ -5,9 +5,7 @@ mod impls;
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    BinaryOperator, BlockLabel, Error, Expression, Map, ObjectKey, Result, UnaryOperator, Value,
-};
+use crate::{BinaryOperator, Error, Expression, Map, ObjectKey, Result, UnaryOperator, Value};
 use std::fmt;
 
 mod private {
@@ -19,40 +17,23 @@ pub type EvalResult<T> = Result<T, EvalError>;
 #[derive(Debug)]
 pub struct EvalError {
     inner: Box<EvalErrorKind>,
-    scope: Option<String>,
 }
 
 impl EvalError {
     pub fn new(inner: EvalErrorKind) -> Self {
         EvalError {
             inner: Box::new(inner),
-            scope: None,
         }
     }
 
     pub fn kind(&self) -> &EvalErrorKind {
         &self.inner
     }
-
-    pub fn scope(&self) -> Option<&str> {
-        self.scope.as_deref()
-    }
-
-    fn with_scopes(mut self, scopes: Option<Scopes<'_>>) -> EvalError {
-        self.scope = scopes.as_ref().map(ToString::to_string);
-        self
-    }
 }
 
 impl fmt::Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("eval error")?;
-
-        if let Some(scope) = &self.scope {
-            write!(f, " at {}", scope)?;
-        }
-
-        f.write_str(": ")?;
+        f.write_str("eval error: ")?;
         fmt::Display::fmt(&self.inner, f)
     }
 }
@@ -138,7 +119,6 @@ pub trait Evaluate: private::Sealed {
 pub struct Context<'a> {
     vars: Map<String, Value>,
     parent: Option<&'a Context<'a>>,
-    scope: Option<Scope<'a>>,
 }
 
 impl Default for Context<'_> {
@@ -153,16 +133,14 @@ impl<'a> Context<'a> {
         Context {
             vars: Map::new(),
             parent: None,
-            scope: None,
         }
     }
 
     // Create a new context scope which has the current one as parent.
-    fn new_scope(&'a self, scope: Scope<'a>) -> Context<'a> {
+    fn new_scope(&self) -> Context<'_> {
         Context {
             vars: Map::new(),
             parent: Some(self),
-            scope: Some(scope),
         }
     }
 
@@ -188,70 +166,8 @@ impl<'a> Context<'a> {
         self.vars.insert(name, value.into())
     }
 
-    // Collects all scopes into a flat list, if any.
-    fn scopes(&self) -> Option<Scopes<'_>> {
-        let mut ctx = self;
-        let mut scopes = Vec::new();
-
-        loop {
-            if let Some(scope) = &ctx.scope {
-                scopes.push(scope);
-            }
-
-            match ctx.parent {
-                Some(parent) => ctx = parent,
-                None => break,
-            };
-        }
-
-        if scopes.is_empty() {
-            None
-        } else {
-            scopes.reverse();
-            Some(Scopes(scopes))
-        }
-    }
-
-    // Creates an `EvalError` with added scope information.
+    // Creates an `EvalError`.
     fn error(&self, kind: EvalErrorKind) -> EvalError {
-        EvalError::new(kind).with_scopes(self.scopes())
-    }
-}
-
-#[derive(Debug, Clone)]
-enum Scope<'a> {
-    Attr(&'a str),
-    Block(&'a str, &'a [BlockLabel]),
-    Key(&'a ObjectKey),
-    Index(usize),
-    Expr(&'a Expression),
-}
-
-struct Scopes<'a>(Vec<&'a Scope<'a>>);
-
-impl fmt::Display for Scopes<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for scope in &self.0 {
-            match scope {
-                Scope::Block(ident, labels) => {
-                    write!(f, ".{}", ident)?;
-                    for label in labels.iter() {
-                        match label {
-                            BlockLabel::Identifier(ident) => write!(f, ".{}", ident.as_str())?,
-                            BlockLabel::String(string) => write!(f, "\"{}\"", string)?,
-                        }
-                    }
-                }
-                Scope::Attr(key) => write!(f, ".{}", key)?,
-                Scope::Key(key) => match key {
-                    ObjectKey::Identifier(ident) => write!(f, ".{}", ident.as_str())?,
-                    ObjectKey::Expression(expr) => write!(f, "[{}]", expr)?,
-                },
-                Scope::Index(index) => write!(f, "[{}]", index)?,
-                Scope::Expr(expr) => write!(f, "= {}", expr)?,
-            }
-        }
-
-        Ok(())
+        EvalError::new(kind)
     }
 }

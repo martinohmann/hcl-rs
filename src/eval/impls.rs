@@ -33,8 +33,7 @@ impl Evaluate for Attribute {
     type Output = Self;
 
     fn evaluate(mut self, ctx: &Context) -> EvalResult<Self::Output> {
-        let ctx = ctx.new_scope(Scope::Attr(&self.key));
-        self.expr = self.expr.evaluate(&ctx)?;
+        self.expr = self.expr.evaluate(ctx)?;
         Ok(self)
     }
 }
@@ -45,8 +44,7 @@ impl Evaluate for Block {
     type Output = Self;
 
     fn evaluate(mut self, ctx: &Context) -> EvalResult<Self::Output> {
-        let ctx = ctx.new_scope(Scope::Block(&self.identifier, &self.labels));
-        self.body = self.body.evaluate(&ctx)?;
+        self.body = self.body.evaluate(ctx)?;
         Ok(self)
     }
 }
@@ -57,22 +55,19 @@ impl Evaluate for Expression {
     type Output = Self;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let scope_expr = self.clone();
-        let ctx = ctx.new_scope(Scope::Expr(&scope_expr));
-
         match self {
-            Expression::Array(array) => array.evaluate(&ctx).map(Expression::Array),
-            Expression::Object(object) => object.evaluate(&ctx).map(Expression::Object),
-            Expression::TemplateExpr(expr) => expr.evaluate(&ctx).map(Expression::String),
+            Expression::Array(array) => array.evaluate(ctx).map(Expression::Array),
+            Expression::Object(object) => object.evaluate(ctx).map(Expression::Object),
+            Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Expression::String),
             Expression::VariableExpr(ident) => {
                 ctx.get_variable(ident.as_str()).cloned().map(Into::into)
             }
-            Expression::ElementAccess(access) => access.evaluate(&ctx),
-            Expression::FuncCall(func_call) => func_call.evaluate(&ctx),
-            Expression::SubExpr(expr) => expr.evaluate(&ctx),
-            Expression::Conditional(cond) => cond.evaluate(&ctx),
-            Expression::Operation(op) => op.evaluate(&ctx),
-            Expression::ForExpr(expr) => expr.evaluate(&ctx),
+            Expression::ElementAccess(access) => access.evaluate(ctx),
+            Expression::FuncCall(func_call) => func_call.evaluate(ctx),
+            Expression::SubExpr(expr) => expr.evaluate(ctx),
+            Expression::Conditional(cond) => cond.evaluate(ctx),
+            Expression::Operation(op) => op.evaluate(ctx),
+            Expression::ForExpr(expr) => expr.evaluate(ctx),
             Expression::Raw(_) => Err(ctx.error(EvalErrorKind::RawExpression)),
             other => Ok(other),
         }
@@ -85,13 +80,7 @@ impl Evaluate for Vec<Expression> {
     type Output = Self;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        self.into_iter()
-            .enumerate()
-            .map(|(index, expr)| {
-                let ctx = ctx.new_scope(Scope::Index(index));
-                expr.evaluate(&ctx)
-            })
-            .collect()
+        self.into_iter().map(|expr| expr.evaluate(ctx)).collect()
     }
 }
 
@@ -102,11 +91,7 @@ impl Evaluate for Object<ObjectKey, Expression> {
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
         self.into_iter()
-            .map(|(key, expr)| {
-                let scope_key = key.clone();
-                let ctx = ctx.new_scope(Scope::Key(&scope_key));
-                Ok((key.evaluate(&ctx)?, expr.evaluate(&ctx)?))
-            })
+            .map(|(key, expr)| Ok((key.evaluate(ctx)?, expr.evaluate(ctx)?)))
             .collect()
     }
 }
@@ -285,7 +270,7 @@ impl Evaluate for ForListExpr {
         let mut result = Vec::with_capacity(values.len());
 
         for (index, value) in values.into_iter().enumerate() {
-            let mut ctx = ctx.new_scope(Scope::Index(index));
+            let mut ctx = ctx.new_scope();
             if let Some(key_var) = &key_var {
                 ctx.set_variable(key_var.to_string(), index);
             }
@@ -327,7 +312,7 @@ impl Evaluate for ForObjectExpr {
             let mut result: Object<String, Vec<Expression>> = Object::with_capacity(object.len());
 
             for (key, value) in object.into_iter() {
-                let mut ctx = ctx.new_scope(Scope::Key(&key));
+                let mut ctx = ctx.new_scope();
                 if let Some(key_var) = &key_var {
                     ctx.set_variable(key_var.to_string(), key.to_string());
                 }
@@ -350,7 +335,7 @@ impl Evaluate for ForObjectExpr {
             let mut result: Object<String, Expression> = Object::with_capacity(object.len());
 
             for (key, value) in object.into_iter() {
-                let mut ctx = ctx.new_scope(Scope::Key(&key));
+                let mut ctx = ctx.new_scope();
                 if let Some(key_var) = &key_var {
                     ctx.set_variable(key_var.to_string(), key.to_string());
                 }
