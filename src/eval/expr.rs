@@ -1,5 +1,6 @@
 use super::*;
-use crate::Object;
+use crate::{ElementAccessOperator, Object};
+use std::collections::VecDeque;
 
 pub(super) fn evaluate_bool(expr: Expression, ctx: &Context) -> EvalResult<bool> {
     match expr.evaluate(ctx)? {
@@ -32,7 +33,66 @@ pub(super) fn evaluate_object(
     }
 }
 
-pub(super) fn evaluate_index_expr(
+pub(super) fn evaluate_element_access(
+    mut expr: Expression,
+    mut operators: VecDeque<ElementAccessOperator>,
+    ctx: &Context,
+) -> EvalResult<Expression> {
+    while let Some(operator) = operators.pop_front() {
+        expr = match operator {
+            ElementAccessOperator::LegacyIndex(index) => {
+                evaluate_array_value(expr, index as usize, ctx)?
+            }
+            ElementAccessOperator::Index(index_expr) => evaluate_index_expr(expr, index_expr, ctx)?,
+            ElementAccessOperator::GetAttr(name) => {
+                evaluate_object_value(expr, name.into_inner(), ctx)?
+            }
+            ElementAccessOperator::AttrSplat => {
+                // Consume all immediately following GetAttr operators and apply them to each array
+                // element.
+                let mut remaining = VecDeque::with_capacity(operators.len());
+
+                while let Some(ElementAccessOperator::GetAttr(ident)) = operators.pop_front() {
+                    remaining.push_back(ElementAccessOperator::GetAttr(ident));
+                }
+
+                let array = match expr.evaluate(ctx)? {
+                    Expression::Array(array) => array
+                        .into_iter()
+                        .map(|expr| evaluate_element_access(expr, remaining.clone(), ctx))
+                        .collect::<EvalResult<_>>()?,
+                    Expression::Null => vec![],
+                    other => {
+                        evaluate_element_access(other, remaining, ctx).map(|expr| vec![expr])?
+                    }
+                };
+
+                Expression::Array(array)
+            }
+            ElementAccessOperator::FullSplat => {
+                // Consume all remaining access operators and apply them to each array element.
+                let remaining: VecDeque<ElementAccessOperator> = operators.drain(..).collect();
+
+                let array = match expr.evaluate(ctx)? {
+                    Expression::Array(array) => array
+                        .into_iter()
+                        .map(|expr| evaluate_element_access(expr, remaining.clone(), ctx))
+                        .collect::<EvalResult<_>>()?,
+                    Expression::Null => vec![],
+                    other => {
+                        evaluate_element_access(other, remaining, ctx).map(|expr| vec![expr])?
+                    }
+                };
+
+                Expression::Array(array)
+            }
+        }
+    }
+
+    Ok(expr)
+}
+
+fn evaluate_index_expr(
     expr: Expression,
     index_expr: Expression,
     ctx: &Context,
@@ -53,12 +113,8 @@ pub(super) fn evaluate_index_expr(
     }
 }
 
-pub(super) fn evaluate_array_value(
-    expr: Expression,
-    index: usize,
-    ctx: &Context,
-) -> EvalResult<Expression> {
-    let mut array = expr::evaluate_array(expr, ctx)?;
+fn evaluate_array_value(expr: Expression, index: usize, ctx: &Context) -> EvalResult<Expression> {
+    let mut array = evaluate_array(expr, ctx)?;
 
     if index >= array.len() {
         return Err(ctx.error(EvalErrorKind::IndexOutOfBounds(index)));
@@ -67,12 +123,8 @@ pub(super) fn evaluate_array_value(
     Ok(array.swap_remove(index))
 }
 
-pub(super) fn evaluate_object_value(
-    expr: Expression,
-    key: String,
-    ctx: &Context,
-) -> EvalResult<Expression> {
-    let mut object = expr::evaluate_object(expr, ctx)?;
+fn evaluate_object_value(expr: Expression, key: String, ctx: &Context) -> EvalResult<Expression> {
+    let mut object = evaluate_object(expr, ctx)?;
 
     let key = ObjectKey::from(key);
 
@@ -80,12 +132,4 @@ pub(super) fn evaluate_object_value(
         Some(value) => Ok(value),
         None => Err(ctx.error(EvalErrorKind::NoSuchKey(key.to_string()))),
     }
-}
-
-pub(super) fn evaluate_attr_splat(expr: Expression, _ctx: &Context) -> EvalResult<Expression> {
-    unimplemented!("evaluating attribute splat expression {expr} not implemented yet")
-}
-
-pub(super) fn evaluate_full_splat(expr: Expression, _ctx: &Context) -> EvalResult<Expression> {
-    unimplemented!("evaluating full splat expression {expr} not implemented yet")
 }

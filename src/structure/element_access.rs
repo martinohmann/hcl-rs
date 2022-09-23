@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::{Expression, Identifier};
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +36,18 @@ impl ElementAccess {
             expr: Expression::ElementAccess(Box::new(self)),
             operator: operator.into(),
         }
+    }
+
+    pub(crate) fn flatten(self) -> (Expression, VecDeque<ElementAccessOperator>) {
+        let mut operators = VecDeque::with_capacity(1);
+        let mut expr = Expression::from(self);
+
+        while let Expression::ElementAccess(access) = expr {
+            operators.push_front(access.operator);
+            expr = access.expr
+        }
+
+        (expr, operators)
     }
 }
 

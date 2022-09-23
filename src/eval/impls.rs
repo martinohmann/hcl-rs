@@ -138,21 +138,8 @@ impl Evaluate for ElementAccess {
     type Output = Expression;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let expr = self.expr.evaluate(ctx)?;
-
-        match self.operator {
-            ElementAccessOperator::LegacyIndex(index) => {
-                expr::evaluate_array_value(expr, index as usize, ctx)
-            }
-            ElementAccessOperator::Index(index_expr) => {
-                expr::evaluate_index_expr(expr, index_expr, ctx)
-            }
-            ElementAccessOperator::GetAttr(name) => {
-                expr::evaluate_object_value(expr, name.into_inner(), ctx)
-            }
-            ElementAccessOperator::AttrSplat => expr::evaluate_attr_splat(expr, ctx),
-            ElementAccessOperator::FullSplat => expr::evaluate_full_splat(expr, ctx),
-        }
+        let (expr, operators) = self.flatten();
+        expr::evaluate_element_access(expr, operators, ctx)
     }
 }
 
