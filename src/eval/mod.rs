@@ -129,7 +129,7 @@ pub trait Evaluate: private::Sealed {
 
     /// Recursively evaluates HCL expressions and returns a result which does not contain any
     /// unevaluated expressions anymore.
-    fn evaluate(self, ctx: &mut Context) -> EvalResult<Self::Output>;
+    fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output>;
 }
 
 // @TODO(mohmann): support functions as well.
