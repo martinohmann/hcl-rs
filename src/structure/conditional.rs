@@ -6,25 +6,25 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename = "$hcl::conditional")]
 pub struct Conditional {
-    /// A predicate expression that evaluates to a boolean value.
-    pub predicate: Expression,
-    /// The expression returned by the conditional if the predicate evaluates to `true`.
+    /// A condition expression that evaluates to a boolean value.
+    pub cond_expr: Expression,
+    /// The expression returned by the conditional if the condition evaluates to `true`.
     pub true_expr: Expression,
-    /// The expression returned by the conditional if the predicate evaluates to `false`.
+    /// The expression returned by the conditional if the condition evaluates to `false`.
     pub false_expr: Expression,
 }
 
 impl Conditional {
-    /// Creates a new `Conditional` from a predicate and two expressions for the branches of the
+    /// Creates a new `Conditional` from a condition and two expressions for the branches of the
     /// conditional.
-    pub fn new<P, T, F>(predicate: P, true_expr: T, false_expr: F) -> Conditional
+    pub fn new<C, T, F>(cond_expr: C, true_expr: T, false_expr: F) -> Conditional
     where
-        P: Into<Expression>,
+        C: Into<Expression>,
         T: Into<Expression>,
         F: Into<Expression>,
     {
         Conditional {
-            predicate: predicate.into(),
+            cond_expr: cond_expr.into(),
             true_expr: true_expr.into(),
             false_expr: false_expr.into(),
         }

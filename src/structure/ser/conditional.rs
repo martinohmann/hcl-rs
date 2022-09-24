@@ -34,7 +34,7 @@ impl ser::Serializer for ConditionalSerializer {
 }
 
 pub struct SerializeConditionalSeq {
-    predicate: Option<Expression>,
+    cond_expr: Option<Expression>,
     true_expr: Option<Expression>,
     false_expr: Option<Expression>,
 }
@@ -42,7 +42,7 @@ pub struct SerializeConditionalSeq {
 impl SerializeConditionalSeq {
     pub fn new() -> Self {
         SerializeConditionalSeq {
-            predicate: None,
+            cond_expr: None,
             true_expr: None,
             false_expr: None,
         }
@@ -57,8 +57,8 @@ impl ser::SerializeSeq for SerializeConditionalSeq {
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.predicate.is_none() {
-            self.predicate = Some(value.serialize(ExpressionSerializer)?);
+        if self.cond_expr.is_none() {
+            self.cond_expr = Some(value.serialize(ExpressionSerializer)?);
         } else if self.true_expr.is_none() {
             self.true_expr = Some(value.serialize(ExpressionSerializer)?);
         } else if self.false_expr.is_none() {
@@ -71,9 +71,9 @@ impl ser::SerializeSeq for SerializeConditionalSeq {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match (self.predicate, self.true_expr, self.false_expr) {
-            (Some(predicate), Some(true_expr), Some(false_expr)) => Ok(Conditional {
-                predicate,
+        match (self.cond_expr, self.true_expr, self.false_expr) {
+            (Some(cond_expr), Some(true_expr), Some(false_expr)) => Ok(Conditional {
+                cond_expr,
                 true_expr,
                 false_expr,
             }),
@@ -91,7 +91,7 @@ impl ser::SerializeTupleStruct for SerializeConditionalSeq {
 }
 
 pub struct SerializeConditionalStruct {
-    predicate: Option<Expression>,
+    cond_expr: Option<Expression>,
     true_expr: Option<Expression>,
     false_expr: Option<Expression>,
 }
@@ -99,7 +99,7 @@ pub struct SerializeConditionalStruct {
 impl SerializeConditionalStruct {
     pub fn new() -> Self {
         SerializeConditionalStruct {
-            predicate: None,
+            cond_expr: None,
             true_expr: None,
             false_expr: None,
         }
@@ -115,12 +115,12 @@ impl ser::SerializeStruct for SerializeConditionalStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "predicate" => self.predicate = Some(value.serialize(ExpressionSerializer)?),
+            "cond_expr" => self.cond_expr = Some(value.serialize(ExpressionSerializer)?),
             "true_expr" => self.true_expr = Some(value.serialize(ExpressionSerializer)?),
             "false_expr" => self.false_expr = Some(value.serialize(ExpressionSerializer)?),
             _ => {
                 return Err(ser::Error::custom(
-                    "expected struct with fields `predicate`, `true_expr` and `false_expr`",
+                    "expected struct with fields `cond_expr`, `true_expr` and `false_expr`",
                 ))
             }
         };
@@ -129,14 +129,14 @@ impl ser::SerializeStruct for SerializeConditionalStruct {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match (self.predicate, self.true_expr, self.false_expr) {
-            (Some(predicate), Some(true_expr), Some(false_expr)) => Ok(Conditional {
-                predicate,
+        match (self.cond_expr, self.true_expr, self.false_expr) {
+            (Some(cond_expr), Some(true_expr), Some(false_expr)) => Ok(Conditional {
+                cond_expr,
                 true_expr,
                 false_expr,
             }),
             (_, _, _) => Err(ser::Error::custom(
-                "expected struct with fields `predicate`, `true_expr` and `false_expr`",
+                "expected struct with fields `cond_expr`, `true_expr` and `false_expr`",
             )),
         }
     }

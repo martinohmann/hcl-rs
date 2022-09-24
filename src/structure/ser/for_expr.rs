@@ -1,5 +1,5 @@
 use super::{expression::ExpressionSerializer, BoolSerializer, OptionSerializer, StringSerializer};
-use crate::{Error, Expression, ForExpr, ForIntro, ForListExpr, ForObjectExpr, Identifier, Result};
+use crate::{Error, Expression, ForExpr, ForListExpr, ForObjectExpr, Identifier, Result};
 use serde::ser::{self, Impossible, Serialize};
 
 pub struct ForExprSerializer;
@@ -113,17 +113,21 @@ impl ser::Serializer for ForListExprSerializer {
 }
 
 pub struct SerializeForListExprStruct {
-    intro: Option<ForIntro>,
-    expr: Option<Expression>,
-    cond: Option<Option<Expression>>,
+    index_var: Option<Option<Identifier>>,
+    value_var: Option<Identifier>,
+    collection_expr: Option<Expression>,
+    element_expr: Option<Expression>,
+    cond_expr: Option<Option<Expression>>,
 }
 
 impl SerializeForListExprStruct {
     pub fn new() -> Self {
         SerializeForListExprStruct {
-            intro: None,
-            expr: None,
-            cond: None,
+            index_var: None,
+            value_var: None,
+            collection_expr: None,
+            element_expr: None,
+            cond_expr: None,
         }
     }
 }
@@ -137,14 +141,23 @@ impl ser::SerializeStruct for SerializeForListExprStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "intro" => self.intro = Some(value.serialize(ForIntroSerializer)?),
-            "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
-            "cond" => {
-                self.cond = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?)
+            "index_var" => {
+                let index_var = value.serialize(OptionSerializer::new(StringSerializer))?;
+                self.index_var = Some(index_var.map(Identifier::from))
+            }
+            "value_var" => {
+                self.value_var = Some(Identifier::from(value.serialize(StringSerializer)?))
+            }
+            "collection_expr" => {
+                self.collection_expr = Some(value.serialize(ExpressionSerializer)?)
+            }
+            "element_expr" => self.element_expr = Some(value.serialize(ExpressionSerializer)?),
+            "cond_expr" => {
+                self.cond_expr = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?)
             }
             _ => {
                 return Err(ser::Error::custom(
-                    "expected struct with fields `intro`, `expr` and `cond`",
+                    "expected struct with fields `index_var`, `value_var`, `collection_expr`, `element_expr` and `cond_expr`",
                 ))
             }
         };
@@ -153,10 +166,28 @@ impl ser::SerializeStruct for SerializeForListExprStruct {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match (self.intro, self.expr, self.cond) {
-            (Some(intro), Some(expr), Some(cond)) => Ok(ForListExpr { intro, expr, cond }),
-            (_, _, _) => Err(ser::Error::custom(
-                "expected struct with fields `intro`, `expr` and `cond`",
+        match (
+            self.index_var,
+            self.value_var,
+            self.collection_expr,
+            self.element_expr,
+            self.cond_expr,
+        ) {
+            (
+                Some(index_var),
+                Some(value_var),
+                Some(collection_expr),
+                Some(element_expr),
+                Some(cond_expr),
+            ) => Ok(ForListExpr {
+                index_var,
+                value_var,
+                collection_expr,
+                element_expr,
+                cond_expr,
+            }),
+            (_, _, _, _, _) => Err(ser::Error::custom(
+                "expected struct with fields `index_var`, `value_var`, `collection_expr`, `element_expr` and `cond_expr`",
             )),
         }
     }
@@ -189,21 +220,25 @@ impl ser::Serializer for ForObjectExprSerializer {
 }
 
 pub struct SerializeForObjectExprStruct {
-    intro: Option<ForIntro>,
+    key_var: Option<Option<Identifier>>,
+    value_var: Option<Identifier>,
+    collection_expr: Option<Expression>,
     key_expr: Option<Expression>,
     value_expr: Option<Expression>,
-    value_grouping: Option<bool>,
-    cond: Option<Option<Expression>>,
+    grouping: Option<bool>,
+    cond_expr: Option<Option<Expression>>,
 }
 
 impl SerializeForObjectExprStruct {
     pub fn new() -> Self {
         SerializeForObjectExprStruct {
-            intro: None,
+            key_var: None,
+            value_var: None,
+            collection_expr: None,
             key_expr: None,
             value_expr: None,
-            value_grouping: None,
-            cond: None,
+            grouping: None,
+            cond_expr: None,
         }
     }
 }
@@ -217,14 +252,23 @@ impl ser::SerializeStruct for SerializeForObjectExprStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "intro" => self.intro = Some(value.serialize(ForIntroSerializer)?),
+            "key_var" => {
+                let key_var = value.serialize(OptionSerializer::new(StringSerializer))?;
+                self.key_var = Some(key_var.map(Identifier::from))
+            }
+            "value_var" => {
+                self.value_var = Some(Identifier::from(value.serialize(StringSerializer)?))
+            }
+            "collection_expr" => {
+                self.collection_expr = Some(value.serialize(ExpressionSerializer)?)
+            }
             "key_expr" => self.key_expr = Some(value.serialize(ExpressionSerializer)?),
             "value_expr" => self.value_expr = Some(value.serialize(ExpressionSerializer)?),
-            "value_grouping" => self.value_grouping = Some(value.serialize(BoolSerializer)?),
-            "cond" => self.cond = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?),
+            "grouping" => self.grouping = Some(value.serialize(BoolSerializer)?),
+            "cond_expr" => self.cond_expr = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?),
             _ => {
                 return Err(ser::Error::custom(
-                    "expected struct with fields `intro`, `key_expr`, `value_expr`, `value_grouping` and `cond`",
+                    "expected struct with fields `key_var`, `value_var`, `collection_expr`, `key_expr`, `value_expr`, `grouping` and `cond_expr`",
                 ))
             }
         };
@@ -233,95 +277,34 @@ impl ser::SerializeStruct for SerializeForObjectExprStruct {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match (self.intro, self.key_expr, self.value_expr, self.value_grouping, self.cond) {
-            (Some(intro), Some(key_expr), Some(value_expr), Some(value_grouping), Some(cond)) => {
-                Ok(ForObjectExpr {
-                    intro,
-                    key_expr,
-                    value_expr,
-                    value_grouping,
-                    cond,
-                })
-            },
-            (_, _, _, _, _) => Err(ser::Error::custom(
-                "expected struct with fields `intro`, `key_expr`, `value_expr`, `value_grouping` and `cond`",
-            )),
-        }
-    }
-}
-
-pub struct ForIntroSerializer;
-
-impl ser::Serializer for ForIntroSerializer {
-    type Ok = ForIntro;
-    type Error = Error;
-
-    type SerializeSeq = Impossible<ForIntro, Error>;
-    type SerializeTuple = Impossible<ForIntro, Error>;
-    type SerializeTupleStruct = Impossible<ForIntro, Error>;
-    type SerializeTupleVariant = Impossible<ForIntro, Error>;
-    type SerializeMap = Impossible<ForIntro, Error>;
-    type SerializeStruct = SerializeForIntroStruct;
-    type SerializeStructVariant = Impossible<ForIntro, Error>;
-
-    serialize_unsupported! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str
-        bytes none unit unit_struct unit_variant newtype_variant
-        seq tuple tuple_struct tuple_variant map struct_variant
-    }
-    serialize_self! { some newtype_struct }
-
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Ok(SerializeForIntroStruct::new())
-    }
-}
-
-pub struct SerializeForIntroStruct {
-    key: Option<Option<Identifier>>,
-    value: Option<Identifier>,
-    expr: Option<Expression>,
-}
-
-impl SerializeForIntroStruct {
-    pub fn new() -> Self {
-        SerializeForIntroStruct {
-            key: None,
-            value: None,
-            expr: None,
-        }
-    }
-}
-
-impl ser::SerializeStruct for SerializeForIntroStruct {
-    type Ok = ForIntro;
-    type Error = Error;
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        match key {
-            "key" => {
-                let key = value.serialize(OptionSerializer::new(StringSerializer))?;
-                self.key = Some(key.map(Identifier::from))
-            }
-            "value" => self.value = Some(Identifier::from(value.serialize(StringSerializer)?)),
-            "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
-            _ => {
-                return Err(ser::Error::custom(
-                    "expected struct with fields `key`, `value` and `expr`",
-                ))
-            }
-        };
-
-        Ok(())
-    }
-
-    fn end(self) -> Result<Self::Ok> {
-        match (self.key, self.value, self.expr) {
-            (Some(key), Some(value), Some(expr)) => Ok(ForIntro { key, value, expr }),
-            (_, _, _) => Err(ser::Error::custom(
-                "expected struct with fields `key`, `value` and `expr`",
+        match (
+            self.key_var,
+            self.value_var,
+            self.collection_expr,
+            self.key_expr,
+            self.value_expr,
+            self.grouping,
+            self.cond_expr
+        ) {
+            (
+                Some(key_var),
+                Some(value_var),
+                Some(collection_expr),
+                Some(key_expr),
+                Some(value_expr),
+                Some(grouping),
+                Some(cond_expr)
+            ) => Ok(ForObjectExpr {
+                key_var,
+                value_var,
+                collection_expr,
+                key_expr,
+                value_expr,
+                grouping,
+                cond_expr,
+            }),
+            (_, _, _, _, _, _, _) => Err(ser::Error::custom(
+                "expected struct with fields `key_var`, `value_var`, `collection_expr`, `key_expr`, `value_expr`, `grouping` and `cond_expr`",
             )),
         }
     }

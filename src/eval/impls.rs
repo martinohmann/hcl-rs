@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use super::*;
 use crate::{structure::*, template::Template};
 use vecmap::map::Entry;
@@ -62,7 +64,7 @@ impl Evaluate for Expression {
             Expression::VariableExpr(ident) => {
                 ctx.get_variable(ident.as_str()).cloned().map(Into::into)
             }
-            Expression::ElementAccess(access) => access.evaluate(ctx),
+            Expression::Traversal(traversal) => traversal.evaluate(ctx),
             Expression::FuncCall(func_call) => func_call.evaluate(ctx),
             Expression::SubExpr(expr) => expr.evaluate(ctx),
             Expression::Conditional(cond) => cond.evaluate(ctx),
@@ -132,14 +134,13 @@ impl Evaluate for Template {
     }
 }
 
-impl private::Sealed for ElementAccess {}
+impl private::Sealed for Traversal {}
 
-impl Evaluate for ElementAccess {
+impl Evaluate for Traversal {
     type Output = Expression;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let (expr, operators) = self.flatten();
-        expr::evaluate_element_access(expr, operators, ctx)
+        expr::evaluate_traversal(self.expr, VecDeque::from(self.operators), ctx)
     }
 }
 
@@ -159,7 +160,7 @@ impl Evaluate for Conditional {
     type Output = Expression;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        if expr::evaluate_bool(self.predicate, ctx)? {
+        if expr::evaluate_bool(self.cond_expr, ctx)? {
             self.true_expr.evaluate(ctx)
         } else {
             self.false_expr.evaluate(ctx)
@@ -250,27 +251,27 @@ impl Evaluate for ForListExpr {
     type Output = Vec<Expression>;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let values = expr::evaluate_array(self.intro.expr, ctx)?;
-        let key_var = self.intro.key.as_ref().map(|key| key.as_str());
-        let value_var = self.intro.value.as_str();
+        let values = expr::evaluate_array(self.collection_expr, ctx)?;
+        let index_var = self.index_var.as_ref().map(|key| key.as_str());
+        let value_var = self.value_var.as_str();
 
         let mut result = Vec::with_capacity(values.len());
 
         for (index, value) in values.into_iter().enumerate() {
             let mut ctx = ctx.new_scope();
-            if let Some(key_var) = &key_var {
+            if let Some(key_var) = &index_var {
                 ctx.set_variable(key_var.to_string(), index);
             }
 
             ctx.set_variable(value_var.to_owned(), value);
 
-            let keep = match &self.cond {
+            let keep = match &self.cond_expr {
                 None => true,
-                Some(cond) => expr::evaluate_bool(cond.clone(), &ctx)?,
+                Some(cond_expr) => expr::evaluate_bool(cond_expr.clone(), &ctx)?,
             };
 
             if keep {
-                result.push(self.expr.clone().evaluate(&ctx)?);
+                result.push(self.element_expr.clone().evaluate(&ctx)?);
             }
         }
 
@@ -284,9 +285,9 @@ impl Evaluate for ForObjectExpr {
     type Output = Object<ObjectKey, Expression>;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let object = expr::evaluate_object(self.intro.expr, ctx)?;
-        let key_var = self.intro.key.as_ref().map(|key| key.as_str());
-        let value_var = self.intro.value.as_str();
+        let object = expr::evaluate_object(self.collection_expr, ctx)?;
+        let key_var = self.key_var.as_ref().map(|key| key.as_str());
+        let value_var = self.value_var.as_str();
 
         fn keep(cond: Option<&Expression>, ctx: &Context) -> EvalResult<bool> {
             match cond {
@@ -295,7 +296,7 @@ impl Evaluate for ForObjectExpr {
             }
         }
 
-        if self.value_grouping {
+        if self.grouping {
             let mut result: Object<String, Vec<Expression>> = Object::with_capacity(object.len());
 
             for (key, value) in object.into_iter() {
@@ -306,7 +307,7 @@ impl Evaluate for ForObjectExpr {
 
                 ctx.set_variable(value_var.to_string(), value);
 
-                if keep(self.cond.as_ref(), &ctx)? {
+                if keep(self.cond_expr.as_ref(), &ctx)? {
                     let key = expr::evaluate_string(self.key_expr.clone(), &ctx)?;
                     let value = self.value_expr.clone().evaluate(&ctx)?;
 
@@ -329,7 +330,7 @@ impl Evaluate for ForObjectExpr {
 
                 ctx.set_variable(value_var.to_string(), value);
 
-                if keep(self.cond.as_ref(), &ctx)? {
+                if keep(self.cond_expr.as_ref(), &ctx)? {
                     let key = expr::evaluate_string(self.key_expr.clone(), &ctx)?;
 
                     match result.entry(key) {

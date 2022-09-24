@@ -1,10 +1,10 @@
 use super::{
     conditional::{ConditionalSerializer, SerializeConditionalStruct},
-    element_access::SerializeElementAccessStruct,
     for_expr::{ForExprSerializer, SerializeForExprStruct},
     func::SerializeFuncCallStruct,
     operation::{OperationSerializer, SerializeOperationStruct},
     template::{SerializeTemplateExprStruct, TemplateExprSerializer},
+    traversal::SerializeTraversalStruct,
     StringSerializer,
 };
 use crate::{Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result};
@@ -320,7 +320,7 @@ impl ser::SerializeMap for SerializeExpressionMap {
 
 pub enum SerializeExpressionStruct {
     Conditional(SerializeConditionalStruct),
-    ElementAccess(SerializeElementAccessStruct),
+    Traversal(SerializeTraversalStruct),
     ForExpr(SerializeForExprStruct),
     FuncCall(SerializeFuncCallStruct),
     Operation(SerializeOperationStruct),
@@ -330,13 +330,12 @@ pub enum SerializeExpressionStruct {
 
 impl SerializeExpressionStruct {
     fn new(name: &'static str, len: usize) -> Self {
-        // Specialization for the `ElementAccess`.
         match name {
             "$hcl::conditional" => {
                 SerializeExpressionStruct::Conditional(SerializeConditionalStruct::new())
             }
-            "$hcl::element_access" => {
-                SerializeExpressionStruct::ElementAccess(SerializeElementAccessStruct::new())
+            "$hcl::traversal" => {
+                SerializeExpressionStruct::Traversal(SerializeTraversalStruct::new())
             }
             "$hcl::for_list_expr" | "$hcl::for_object_expr" => {
                 SerializeExpressionStruct::ForExpr(SerializeForExprStruct::new(name))
@@ -365,7 +364,7 @@ impl ser::SerializeStruct for SerializeExpressionStruct {
     {
         match self {
             SerializeExpressionStruct::Conditional(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::ElementAccess(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::Traversal(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::ForExpr(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::FuncCall(ser) => ser.serialize_field(key, value),
             SerializeExpressionStruct::Operation(ser) => ser.serialize_field(key, value),
@@ -377,7 +376,7 @@ impl ser::SerializeStruct for SerializeExpressionStruct {
     fn end(self) -> Result<Self::Ok> {
         match self {
             SerializeExpressionStruct::Conditional(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::ElementAccess(ser) => ser.end().map(Into::into),
+            SerializeExpressionStruct::Traversal(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::ForExpr(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::FuncCall(ser) => ser.end().map(Into::into),
             SerializeExpressionStruct::Operation(ser) => ser.end().map(Into::into),

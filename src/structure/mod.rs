@@ -51,7 +51,6 @@ mod block;
 mod body;
 mod conditional;
 pub(crate) mod de;
-mod element_access;
 mod expression;
 mod for_expr;
 mod func;
@@ -60,18 +59,19 @@ pub(crate) mod ser;
 mod template;
 #[cfg(test)]
 mod tests;
+mod traversal;
 
 pub use self::{
     attribute::Attribute,
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
     conditional::Conditional,
-    element_access::{ElementAccess, ElementAccessOperator},
     expression::{Expression, Object, ObjectKey, RawExpression},
-    for_expr::{ForExpr, ForIntro, ForListExpr, ForObjectExpr},
+    for_expr::{ForExpr, ForListExpr, ForObjectExpr},
     func::{FuncCall, FuncCallBuilder},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template::{Heredoc, HeredocStripMode, TemplateExpr},
+    traversal::{Traversal, TraversalOperator},
 };
 use crate::{Map, Value};
 use serde::{Deserialize, Serialize};

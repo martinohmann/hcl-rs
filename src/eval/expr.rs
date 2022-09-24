@@ -1,5 +1,5 @@
 use super::*;
-use crate::{ElementAccessOperator, Object};
+use crate::{Object, TraversalOperator};
 use std::collections::VecDeque;
 
 pub(super) fn evaluate_bool(expr: Expression, ctx: &Context) -> EvalResult<bool> {
@@ -33,55 +33,51 @@ pub(super) fn evaluate_object(
     }
 }
 
-pub(super) fn evaluate_element_access(
+pub(super) fn evaluate_traversal(
     mut expr: Expression,
-    mut operators: VecDeque<ElementAccessOperator>,
+    mut operators: VecDeque<TraversalOperator>,
     ctx: &Context,
 ) -> EvalResult<Expression> {
     while let Some(operator) = operators.pop_front() {
         expr = match operator {
-            ElementAccessOperator::LegacyIndex(index) => {
+            TraversalOperator::LegacyIndex(index) => {
                 evaluate_array_value(expr, index as usize, ctx)?
             }
-            ElementAccessOperator::Index(index_expr) => evaluate_index_expr(expr, index_expr, ctx)?,
-            ElementAccessOperator::GetAttr(name) => {
+            TraversalOperator::Index(index_expr) => evaluate_index_expr(expr, index_expr, ctx)?,
+            TraversalOperator::GetAttr(name) => {
                 evaluate_object_value(expr, name.into_inner(), ctx)?
             }
-            ElementAccessOperator::AttrSplat => {
+            TraversalOperator::AttrSplat => {
                 // Consume all immediately following GetAttr operators and apply them to each array
                 // element.
                 let mut remaining = VecDeque::with_capacity(operators.len());
 
-                while let Some(ElementAccessOperator::GetAttr(ident)) = operators.pop_front() {
-                    remaining.push_back(ElementAccessOperator::GetAttr(ident));
+                while let Some(TraversalOperator::GetAttr(ident)) = operators.pop_front() {
+                    remaining.push_back(TraversalOperator::GetAttr(ident));
                 }
 
                 let array = match expr.evaluate(ctx)? {
                     Expression::Array(array) => array
                         .into_iter()
-                        .map(|expr| evaluate_element_access(expr, remaining.clone(), ctx))
+                        .map(|expr| evaluate_traversal(expr, remaining.clone(), ctx))
                         .collect::<EvalResult<_>>()?,
                     Expression::Null => vec![],
-                    other => {
-                        evaluate_element_access(other, remaining, ctx).map(|expr| vec![expr])?
-                    }
+                    other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
                 };
 
                 Expression::Array(array)
             }
-            ElementAccessOperator::FullSplat => {
-                // Consume all remaining access operators and apply them to each array element.
-                let remaining: VecDeque<ElementAccessOperator> = operators.drain(..).collect();
+            TraversalOperator::FullSplat => {
+                // Consume all remaining operators and apply them to each array element.
+                let remaining: VecDeque<TraversalOperator> = operators.drain(..).collect();
 
                 let array = match expr.evaluate(ctx)? {
                     Expression::Array(array) => array
                         .into_iter()
-                        .map(|expr| evaluate_element_access(expr, remaining.clone(), ctx))
+                        .map(|expr| evaluate_traversal(expr, remaining.clone(), ctx))
                         .collect::<EvalResult<_>>()?,
                     Expression::Null => vec![],
-                    other => {
-                        evaluate_element_access(other, remaining, ctx).map(|expr| vec![expr])?
-                    }
+                    other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
                 };
 
                 Expression::Array(array)

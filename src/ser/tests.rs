@@ -1,9 +1,8 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
-    ElementAccessOperator, Expression, ForExpr, ForIntro, ForListExpr, ForObjectExpr, FuncCall,
-    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
-    TemplateExpr,
+    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
+    ForListExpr, ForObjectExpr, FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey,
+    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -200,17 +199,22 @@ fn serialize_empty_block() {
 }
 
 #[test]
-fn serialize_element_access() {
+fn serialize_traversal() {
     let body = Body::builder()
         .add_attribute((
             "attr",
-            ElementAccess::new(Identifier::new("var"), "foo")
-                .chain(ElementAccessOperator::FullSplat)
-                .chain("bar")
-                .chain(ElementAccessOperator::Index(1u64.into()))
-                .chain(ElementAccessOperator::AttrSplat)
-                .chain("baz")
-                .chain(42),
+            Traversal::new(
+                Identifier::new("var"),
+                [
+                    TraversalOperator::GetAttr("foo".into()),
+                    TraversalOperator::FullSplat,
+                    TraversalOperator::GetAttr("bar".into()),
+                    TraversalOperator::Index(1u64.into()),
+                    TraversalOperator::AttrSplat,
+                    TraversalOperator::GetAttr("baz".into()),
+                    TraversalOperator::LegacyIndex(42),
+                ],
+            ),
         ))
         .build();
 
@@ -254,26 +258,21 @@ fn serialize_for_expr() {
             "list",
             ForExpr::List(
                 ForListExpr::new(
-                    ForIntro::new(
-                        Identifier::new("item"),
-                        Expression::VariableExpr(Identifier::new("items")),
-                    ),
+                    Identifier::new("item"),
+                    Expression::VariableExpr(Identifier::new("items")),
                     FuncCall::builder("func")
                         .arg(Identifier::new("item"))
                         .build(),
                 )
-                .with_cond(Identifier::new("item")),
+                .with_cond_expr(Identifier::new("item")),
             ),
         ))
         .add_attribute((
             "object",
             ForExpr::Object(
                 ForObjectExpr::new(
-                    ForIntro::new(
-                        Identifier::new("value"),
-                        Expression::VariableExpr(Identifier::new("items")),
-                    )
-                    .with_key(Identifier::new("key")),
+                    Identifier::new("value"),
+                    Expression::VariableExpr(Identifier::new("items")),
                     FuncCall::builder("toupper")
                         .arg(Identifier::new("key"))
                         .build(),
@@ -281,12 +280,13 @@ fn serialize_for_expr() {
                         .arg(Identifier::new("value"))
                         .build(),
                 )
-                .with_cond(Operation::Binary(BinaryOp::new(
+                .with_key_var(Identifier::new("key"))
+                .with_cond_expr(Operation::Binary(BinaryOp::new(
                     Identifier::new("value"),
                     BinaryOperator::NotEq,
                     Expression::Null,
                 )))
-                .with_value_grouping(true),
+                .with_grouping(true),
             ),
         ))
         .build();
@@ -451,7 +451,7 @@ fn roundtrip() {
                 .add_label("mybucket")
                 .add_attribute((
                     "count",
-                    Conditional::new(ElementAccess::new(Identifier::new("var"), "enabled"), 1, 0),
+                    Conditional::new(Traversal::new(Identifier::new("var"), ["enabled"]), 1, 0),
                 ))
                 .add_attribute(("bucket", "mybucket"))
                 .add_attribute(("force_destroy", true))
@@ -463,11 +463,10 @@ fn roundtrip() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            ElementAccess::new(
+                                            Traversal::new(
                                                 Identifier::new("aws_kms_key"),
-                                                "mykey",
-                                            )
-                                            .chain("arn"),
+                                                ["mykey", "arn"],
+                                            ),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),

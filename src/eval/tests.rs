@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Conditional, ElementAccess, ElementAccessOperator, ForExpr, ForIntro,
-    ForListExpr, ForObjectExpr, Identifier, Operation,
+    BinaryOp, BinaryOperator, Conditional, ForExpr, ForListExpr, ForObjectExpr, Identifier,
+    Operation, Traversal, TraversalOperator,
 };
 use std::fmt;
 
@@ -71,17 +71,15 @@ fn eval_for_expr() {
     eval_to(
         ForExpr::List(
             ForListExpr::new(
-                ForIntro::new(
-                    Identifier::new("item"),
-                    Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
-                ),
+                Identifier::new("item"),
+                Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
                 Operation::Binary(BinaryOp::new(
                     Expression::VariableExpr(Identifier::new("item")),
                     BinaryOperator::Mul,
                     2,
                 )),
             )
-            .with_cond(Operation::Binary(BinaryOp::new(
+            .with_cond_expr(Operation::Binary(BinaryOp::new(
                 Expression::VariableExpr(Identifier::new("item")),
                 BinaryOperator::Less,
                 5,
@@ -93,15 +91,13 @@ fn eval_for_expr() {
     eval_to(
         ForExpr::Object(
             ForObjectExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
-                )
-                .with_key(Identifier::new("key")),
+                Identifier::new("value"),
+                Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
                 Expression::VariableExpr(Identifier::new("value")),
                 Expression::VariableExpr(Identifier::new("key")),
             )
-            .with_cond(Operation::Binary(BinaryOp::new(
+            .with_key_var(Identifier::new("key"))
+            .with_cond_expr(Operation::Binary(BinaryOp::new(
                 Expression::VariableExpr(Identifier::new("key")),
                 BinaryOperator::NotEq,
                 Expression::from("d"),
@@ -113,169 +109,165 @@ fn eval_for_expr() {
     eval_to(
         ForExpr::Object(
             ForObjectExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
-                )
-                .with_key(Identifier::new("key")),
+                Identifier::new("value"),
+                Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
                 Expression::from("foo"),
                 Expression::VariableExpr(Identifier::new("value")),
             )
-            .with_cond(Operation::Binary(BinaryOp::new(
+            .with_key_var(Identifier::new("key"))
+            .with_cond_expr(Operation::Binary(BinaryOp::new(
                 Expression::VariableExpr(Identifier::new("key")),
                 BinaryOperator::NotEq,
                 Expression::from("d"),
             )))
-            .with_value_grouping(true),
+            .with_grouping(true),
         ),
         Expression::from_iter([("foo", vec![1, 2, 3])]),
     );
 }
 
 #[test]
-fn eval_element_access() {
-    use ElementAccessOperator::*;
+fn eval_traversal() {
+    use TraversalOperator::*;
 
     // legacy index access: expr.2
     eval_to(
-        ElementAccess::new(vec![1, 2, 3], LegacyIndex(1)),
+        Traversal::new(vec![1, 2, 3], [LegacyIndex(1)]),
         expression!(2),
     );
 
     // legacy index access: expr[2]
     eval_to(
-        ElementAccess::new(vec![1, 2, 3], Index(Expression::from(2))),
+        Traversal::new(vec![1, 2, 3], [Index(Expression::from(2))]),
         expression!(3),
     );
 
     // get-attr: expr.foo
     eval_to(
-        ElementAccess::new(
+        Traversal::new(
             expression!({"foo" = [1, 2, 3], "bar" = []}),
-            GetAttr(Identifier::new("foo")),
+            [GetAttr(Identifier::new("foo"))],
         ),
         expression!([1, 2, 3]),
     );
 
     // chain get-attr -> index: expr.foo[2]
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(
+        Traversal::new(
+            Traversal::new(
                 expression!({"foo" = [1, 2, 3], "bar" = []}),
-                GetAttr(Identifier::new("foo")),
+                [GetAttr(Identifier::new("foo"))],
             ),
-            Index(Expression::from(2)),
+            [Index(Expression::from(2))],
         ),
         expression!(3),
     );
 
     // full-splat non-array
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(expression!({"foo" = [1, 2, 3], "bar" = []}), FullSplat),
-            GetAttr(Identifier::new("foo")),
+        Traversal::new(
+            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            [FullSplat, GetAttr(Identifier::new("foo"))],
         ),
         expression!([[1, 2, 3]]),
     );
 
     // full-splat array
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(
-                expression! {
-                    [
-                        { "foo" = 2 },
-                        { "foo" = 1, "bar" = 2 }
-                    ]
-                },
-                FullSplat,
-            ),
-            GetAttr(Identifier::new("foo")),
+        Traversal::new(
+            expression! {
+                [
+                    { "foo" = 2 },
+                    { "foo" = 1, "bar" = 2 }
+                ]
+            },
+            [FullSplat, GetAttr(Identifier::new("foo"))],
         ),
         expression!([2, 1]),
     );
 
     // full-splat null
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(Expression::Null, FullSplat),
-            GetAttr(Identifier::new("foo")),
+        Traversal::new(
+            Expression::Null,
+            [FullSplat, GetAttr(Identifier::new("foo"))],
         ),
         expression!([]),
     );
 
     // attr-splat non-array
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(expression!({"foo" = [1, 2, 3], "bar" = []}), AttrSplat),
-            GetAttr(Identifier::new("foo")),
+        Traversal::new(
+            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            [AttrSplat, GetAttr(Identifier::new("foo"))],
         ),
         expression!([[1, 2, 3]]),
     );
 
     // attr-splat array
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(
-                expression! {
-                    [
-                        { "foo" = 2 },
-                        { "foo" = 1, "bar" = 2 }
-                    ]
-                },
-                AttrSplat,
-            ),
-            GetAttr(Identifier::new("foo")),
+        Traversal::new(
+            expression! {
+                [
+                    { "foo" = 2 },
+                    { "foo" = 1, "bar" = 2 }
+                ]
+            },
+            [AttrSplat, GetAttr(Identifier::new("foo"))],
         ),
         expression!([2, 1]),
     );
 
     // attr-splat null
     eval_to(
-        ElementAccess::new(
-            ElementAccess::new(Expression::Null, AttrSplat),
-            GetAttr(Identifier::new("foo")),
+        Traversal::new(
+            Expression::Null,
+            [AttrSplat, GetAttr(Identifier::new("foo"))],
         ),
         expression!([]),
     );
 
     // attr-splat followed by non-get-attr
     eval_to(
-        ElementAccess::new(
+        Traversal::new(
             expression! {
                 [
                     { "foo" = { "bar" = [1, 2, 3] } },
                     { "foo" = { "bar" = [10, 20, 30] } }
                 ]
             },
-            AttrSplat,
-        )
-        .chain(GetAttr(Identifier::new("foo")))
-        .chain(GetAttr(Identifier::new("bar")))
-        .chain(Index(expression!(1))),
+            [
+                AttrSplat,
+                GetAttr(Identifier::new("foo")),
+                GetAttr(Identifier::new("bar")),
+                Index(expression!(1)),
+            ],
+        ),
         expression!([[1, 2, 3], [10, 20, 30]]),
     );
 
     // full-splat followed by non-get-attr
     eval_to(
-        ElementAccess::new(
+        Traversal::new(
             expression! {
                 [
                     { "foo" = { "bar" = [1, 2, 3] } },
                     { "foo" = { "bar" = [10, 20, 30] } }
                 ]
             },
-            FullSplat,
-        )
-        .chain(GetAttr(Identifier::new("foo")))
-        .chain(GetAttr(Identifier::new("bar")))
-        .chain(Index(expression!(1))),
+            [
+                FullSplat,
+                GetAttr(Identifier::new("foo")),
+                GetAttr(Identifier::new("bar")),
+                Index(expression!(1)),
+            ],
+        ),
         expression!([2, 20]),
     );
 
     // errors
     eval_error(
-        ElementAccess::new(vec![1, 2, 3], LegacyIndex(5)),
+        Traversal::new(vec![1, 2, 3], [LegacyIndex(5)]),
         "eval error: index out of bounds: 5",
     );
 }

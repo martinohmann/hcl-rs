@@ -32,8 +32,8 @@ pub enum Expression {
     TemplateExpr(Box<TemplateExpr>),
     /// Represents a variable name identifier.
     VariableExpr(Identifier),
-    /// Represents an attribute or element access.
-    ElementAccess(Box<ElementAccess>),
+    /// Represents an attribute or element traversal.
+    Traversal(Box<Traversal>),
     /// Represents a function call.
     FuncCall(Box<FuncCall>),
     /// Represents a sub-expression that is wrapped in parenthesis.
@@ -48,22 +48,6 @@ pub enum Expression {
     /// Represents a raw HCL expression. This variant will never be emitted by the parser. See
     /// [`RawExpression`] for more details.
     Raw(RawExpression),
-}
-
-impl Expression {
-    /// Applies an `ElementAccessOperator` to the expression and returns the result. The result is
-    /// always of variant `ElementAccess`.
-    pub(crate) fn element<O>(self, operator: O) -> Expression
-    where
-        O: Into<ElementAccessOperator>,
-    {
-        let access = match self {
-            Expression::ElementAccess(access) => access.chain(operator),
-            other => ElementAccess::new(other, operator),
-        };
-
-        Expression::ElementAccess(Box::new(access))
-    }
 }
 
 impl From<Expression> for Value {
@@ -199,9 +183,9 @@ impl From<RawExpression> for Expression {
     }
 }
 
-impl From<ElementAccess> for Expression {
-    fn from(access: ElementAccess) -> Self {
-        Expression::ElementAccess(Box::new(access))
+impl From<Traversal> for Expression {
+    fn from(traversal: Traversal) -> Self {
+        Expression::Traversal(Box::new(traversal))
     }
 }
 

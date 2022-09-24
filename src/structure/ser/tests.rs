@@ -93,33 +93,29 @@ fn identity() {
         ForExprSerializer,
         ForExpr::List(
             ForListExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    vec![Expression::String(String::from("foo"))],
-                )
-                .with_key(Identifier::new("index")),
+                Identifier::new("value"),
+                vec![Expression::String(String::from("foo"))],
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_index_var(Identifier::new("index"))
+            .with_cond_expr(Expression::Bool(true)),
         ),
     );
     test_identity(
         ForExprSerializer,
         ForExpr::Object(
             ForObjectExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    Expression::Object(Object::from([(
-                        ObjectKey::from("k"),
-                        Expression::String(String::from("v")),
-                    )])),
-                )
-                .with_key(Identifier::new("index")),
+                Identifier::new("value"),
+                Expression::Object(Object::from([(
+                    ObjectKey::from("k"),
+                    Expression::String(String::from("v")),
+                )])),
                 Identifier::new("other_key"),
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true))
-            .with_value_grouping(true),
+            .with_key_var(Identifier::new("index"))
+            .with_cond_expr(Expression::Bool(true))
+            .with_grouping(true),
         ),
     );
 }
@@ -243,49 +239,41 @@ fn custom() {
         ExpressionSerializer,
         ForExpr::List(
             ForListExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    vec![Expression::String(String::from("foo"))],
-                )
-                .with_key(Identifier::new("index")),
+                Identifier::new("value"),
+                vec![Expression::String(String::from("foo"))],
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_index_var(Identifier::new("index"))
+            .with_cond_expr(Expression::Bool(true)),
         ),
         Expression::from(ForExpr::List(
             ForListExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    vec![Expression::String(String::from("foo"))],
-                )
-                .with_key(Identifier::new("index")),
+                Identifier::new("value"),
+                vec![Expression::String(String::from("foo"))],
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_index_var(Identifier::new("index"))
+            .with_cond_expr(Expression::Bool(true)),
         )),
     );
 
     test_serialize(
         ExpressionSerializer,
         ForListExpr::new(
-            ForIntro::new(
-                Identifier::new("value"),
-                vec![Expression::String(String::from("foo"))],
-            )
-            .with_key(Identifier::new("index")),
+            Identifier::new("value"),
+            vec![Expression::String(String::from("foo"))],
             Identifier::new("other_value"),
         )
-        .with_cond(Expression::Bool(true)),
+        .with_index_var(Identifier::new("index"))
+        .with_cond_expr(Expression::Bool(true)),
         Expression::from(ForExpr::List(
             ForListExpr::new(
-                ForIntro::new(
-                    Identifier::new("value"),
-                    vec![Expression::String(String::from("foo"))],
-                )
-                .with_key(Identifier::new("index")),
+                Identifier::new("value"),
+                vec![Expression::String(String::from("foo"))],
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_index_var(Identifier::new("index"))
+            .with_cond_expr(Expression::Bool(true)),
         )),
     );
 

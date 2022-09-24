@@ -4,7 +4,6 @@ mod attribute;
 mod block;
 pub(crate) mod body;
 mod conditional;
-mod element_access;
 mod expression;
 mod for_expr;
 mod func;
@@ -13,6 +12,7 @@ mod structure;
 mod template;
 #[cfg(test)]
 mod tests;
+mod traversal;
 
 pub use self::expression::to_expression;
 use crate::{Error, Result};
