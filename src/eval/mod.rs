@@ -64,6 +64,7 @@ pub enum EvalErrorKind {
     RawExpression,
     Message(String),
     UndefinedVariable(String),
+    UndefinedFunc(String),
     Unexpected(Expression, &'static str),
     IndexOutOfBounds(usize),
     InvalidUnaryOp(UnaryOperator, Expression),
@@ -79,6 +80,9 @@ impl fmt::Display for EvalErrorKind {
             EvalErrorKind::Message(msg) => f.write_str(msg),
             EvalErrorKind::UndefinedVariable(ident) => {
                 write!(f, "undefined variable `{}`", ident.as_str())
+            }
+            EvalErrorKind::UndefinedFunc(ident) => {
+                write!(f, "undefined function `{}`", ident.as_str())
             }
             EvalErrorKind::Unexpected(expr, expected) => {
                 write!(f, "unexpected expression `{}`, expected {}", expr, expected)
@@ -113,11 +117,14 @@ pub trait Evaluate: private::Sealed {
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output>;
 }
 
+type Func = fn(Vec<Expression>) -> EvalResult<Expression>;
+
 // @TODO(mohmann): support functions as well.
 /// The evaluation context.
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     vars: Map<String, Value>,
+    funcs: Map<String, Func>,
     parent: Option<&'a Context<'a>>,
 }
 
@@ -132,6 +139,7 @@ impl<'a> Context<'a> {
     pub fn new() -> Self {
         Context {
             vars: Map::new(),
+            funcs: Map::new(),
             parent: None,
         }
     }
@@ -140,6 +148,7 @@ impl<'a> Context<'a> {
     fn new_scope(&self) -> Context<'_> {
         Context {
             vars: Map::new(),
+            funcs: Map::new(),
             parent: Some(self),
         }
     }
@@ -164,6 +173,25 @@ impl<'a> Context<'a> {
         T: Into<Value>,
     {
         self.vars.insert(name, value.into())
+    }
+
+    /// Lookup a func. Functions defined in the current scope take precedence over
+    /// functions defined in parent scopes.
+    pub fn get_func(&self, name: &str) -> EvalResult<&Func> {
+        match self.funcs.get(name) {
+            Some(func) => Ok(func),
+            None => match &self.parent {
+                Some(parent) => parent.get_func(name),
+                None => Err(EvalError::new(EvalErrorKind::UndefinedFunc(
+                    name.to_string(),
+                ))),
+            },
+        }
+    }
+
+    /// Set a func which is available in the current and all child scopes.
+    pub fn set_func(&mut self, name: String, func: Func) -> Option<Func> {
+        self.funcs.insert(name, func)
     }
 
     // Creates an `EvalError`.

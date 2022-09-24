@@ -149,8 +149,22 @@ impl private::Sealed for FuncCall {}
 impl Evaluate for FuncCall {
     type Output = Expression;
 
-    fn evaluate(self, _ctx: &Context) -> EvalResult<Self::Output> {
-        todo!()
+    fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
+        let func = ctx.get_func(self.name.as_str())?;
+
+        let len = self.args.len();
+        let mut args = Vec::with_capacity(len);
+
+        for (index, arg) in self.args.into_iter().enumerate() {
+            if self.variadic && index == len - 1 {
+                let array = expr::evaluate_array(arg, ctx)?;
+                args.extend(array);
+            } else {
+                args.push(arg.evaluate(ctx)?);
+            }
+        }
+
+        func(args)
     }
 }
 
