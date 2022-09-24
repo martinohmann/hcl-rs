@@ -455,7 +455,7 @@ fn parse_nested_function_call_with_splat() {
 }
 
 #[test]
-fn parse_element_access_with_expression() {
+fn parse_traversal_with_expression() {
     parses_to! {
         parser: HclParser,
         input: r#"route_table_id = aws_route_table.private[count.index % var.availability_zone_count].id"#,
@@ -563,11 +563,8 @@ fn parse_hcl() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute(Attribute::new(
                                             "kms_master_key_id",
-                                            ElementAccess::new(
-                                                Identifier::new("aws_kms_key"),
-                                                "mykey",
-                                            )
-                                            .chain("arn"),
+                                            Traversal::new(Identifier::new("aws_kms_key"), "mykey")
+                                                .chain("arn"),
                                         ))
                                         .add_attribute(Attribute::new("sse_algorithm", "aws:kms"))
                                         .build(),

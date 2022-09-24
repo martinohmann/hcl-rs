@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
-    ElementAccessOperator, Expression, ForExpr, ForListExpr, ForObjectExpr, FuncCall, Heredoc,
-    HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression, TemplateExpr,
+    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
+    ForListExpr, ForObjectExpr, FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey,
+    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -199,15 +199,15 @@ fn serialize_empty_block() {
 }
 
 #[test]
-fn serialize_element_access() {
+fn serialize_traversal() {
     let body = Body::builder()
         .add_attribute((
             "attr",
-            ElementAccess::new(Identifier::new("var"), "foo")
-                .chain(ElementAccessOperator::FullSplat)
+            Traversal::new(Identifier::new("var"), "foo")
+                .chain(TraversalOperator::FullSplat)
                 .chain("bar")
-                .chain(ElementAccessOperator::Index(1u64.into()))
-                .chain(ElementAccessOperator::AttrSplat)
+                .chain(TraversalOperator::Index(1u64.into()))
+                .chain(TraversalOperator::AttrSplat)
                 .chain("baz")
                 .chain(42),
         ))
@@ -446,7 +446,7 @@ fn roundtrip() {
                 .add_label("mybucket")
                 .add_attribute((
                     "count",
-                    Conditional::new(ElementAccess::new(Identifier::new("var"), "enabled"), 1, 0),
+                    Conditional::new(Traversal::new(Identifier::new("var"), "enabled"), 1, 0),
                 ))
                 .add_attribute(("bucket", "mybucket"))
                 .add_attribute(("force_destroy", true))
@@ -458,11 +458,8 @@ fn roundtrip() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            ElementAccess::new(
-                                                Identifier::new("aws_kms_key"),
-                                                "mykey",
-                                            )
-                                            .chain("arn"),
+                                            Traversal::new(Identifier::new("aws_kms_key"), "mykey")
+                                                .chain("arn"),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),

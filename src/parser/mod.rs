@@ -197,7 +197,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
     };
 
     pairs.try_fold(expr, |expr, pair| {
-        Ok(expr.element(parse_element_access_operator(pair)?))
+        Ok(expr.element(parse_traversal_operator(pair)?))
     })
 }
 
@@ -285,19 +285,17 @@ fn parse_func_call(pair: Pair<Rule>) -> Result<FuncCall> {
     .map(FuncCallBuilder::build)
 }
 
-fn parse_element_access_operator(pair: Pair<Rule>) -> Result<ElementAccessOperator> {
+fn parse_traversal_operator(pair: Pair<Rule>) -> Result<TraversalOperator> {
     let operator = match pair.as_rule() {
-        Rule::AttrSplat => ElementAccessOperator::AttrSplat,
-        Rule::FullSplat => ElementAccessOperator::FullSplat,
-        Rule::GetAttr => ElementAccessOperator::GetAttr(parse_ident(inner(pair)).into()),
+        Rule::AttrSplat => TraversalOperator::AttrSplat,
+        Rule::FullSplat => TraversalOperator::FullSplat,
+        Rule::GetAttr => TraversalOperator::GetAttr(parse_ident(inner(pair)).into()),
         Rule::Index => {
             let pair = inner(pair);
 
             match pair.as_rule() {
-                Rule::LegacyIndex => {
-                    ElementAccessOperator::LegacyIndex(parse_primitive::<u64>(pair))
-                }
-                _ => ElementAccessOperator::Index(parse_expression(pair)?),
+                Rule::LegacyIndex => TraversalOperator::LegacyIndex(parse_primitive::<u64>(pair)),
+                _ => TraversalOperator::Index(parse_expression(pair)?),
             }
         }
         rule => unexpected_rule(rule),

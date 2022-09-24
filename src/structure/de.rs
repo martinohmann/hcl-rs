@@ -257,8 +257,8 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::VariableExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
-            Expression::ElementAccess(access) => {
-                access.into_deserializer().deserialize_any(visitor)
+            Expression::Traversal(traversal) => {
+                traversal.into_deserializer().deserialize_any(visitor)
             }
             Expression::FuncCall(func_call) => {
                 func_call.into_deserializer().deserialize_any(visitor)
@@ -295,7 +295,7 @@ impl VariantName for Expression {
             Expression::Raw(_) => "Raw",
             Expression::TemplateExpr(_) => "TemplateExpr",
             Expression::VariableExpr(_) => "VariableExpr",
-            Expression::ElementAccess(_) => "ElementAccess",
+            Expression::Traversal(_) => "Traversal",
             Expression::FuncCall(_) => "FuncCall",
             Expression::SubExpr(_) => "SubExpr",
             Expression::Conditional(_) => "Conditional",
@@ -359,29 +359,29 @@ impl<'de> de::VariantAccess<'de> for Expression {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for ElementAccess {
-    type Deserializer = MapAccessDeserializer<ElementAccessAccess>;
+impl<'de> IntoDeserializer<'de, Error> for Traversal {
+    type Deserializer = MapAccessDeserializer<TraversalAccess>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        MapAccessDeserializer::new(ElementAccessAccess::new(self))
+        MapAccessDeserializer::new(TraversalAccess::new(self))
     }
 }
 
-pub struct ElementAccessAccess {
+pub struct TraversalAccess {
     expr: Option<Expression>,
-    operator: Option<ElementAccessOperator>,
+    operator: Option<TraversalOperator>,
 }
 
-impl ElementAccessAccess {
-    fn new(access: ElementAccess) -> Self {
-        ElementAccessAccess {
-            expr: Some(access.expr),
-            operator: Some(access.operator),
+impl TraversalAccess {
+    fn new(traversal: Traversal) -> Self {
+        TraversalAccess {
+            expr: Some(traversal.expr),
+            operator: Some(traversal.operator),
         }
     }
 }
 
-impl<'de> de::MapAccess<'de> for ElementAccessAccess {
+impl<'de> de::MapAccess<'de> for TraversalAccess {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
@@ -411,7 +411,7 @@ impl<'de> de::MapAccess<'de> for ElementAccessAccess {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for ElementAccessOperator {
+impl<'de> IntoDeserializer<'de, Error> for TraversalOperator {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -419,7 +419,7 @@ impl<'de> IntoDeserializer<'de, Error> for ElementAccessOperator {
     }
 }
 
-impl<'de> de::Deserializer<'de> for ElementAccessOperator {
+impl<'de> de::Deserializer<'de> for TraversalOperator {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -433,13 +433,11 @@ impl<'de> de::Deserializer<'de> for ElementAccessOperator {
         V: de::Visitor<'de>,
     {
         match self {
-            ElementAccessOperator::AttrSplat => visitor.visit_str(".*"),
-            ElementAccessOperator::FullSplat => visitor.visit_str("[*]"),
-            ElementAccessOperator::GetAttr(ident) => {
-                ident.into_deserializer().deserialize_any(visitor)
-            }
-            ElementAccessOperator::Index(expr) => expr.into_deserializer().deserialize_any(visitor),
-            ElementAccessOperator::LegacyIndex(index) => visitor.visit_u64(index),
+            TraversalOperator::AttrSplat => visitor.visit_str(".*"),
+            TraversalOperator::FullSplat => visitor.visit_str("[*]"),
+            TraversalOperator::GetAttr(ident) => ident.into_deserializer().deserialize_any(visitor),
+            TraversalOperator::Index(expr) => expr.into_deserializer().deserialize_any(visitor),
+            TraversalOperator::LegacyIndex(index) => visitor.visit_u64(index),
         }
     }
 
@@ -456,19 +454,19 @@ impl<'de> de::Deserializer<'de> for ElementAccessOperator {
     }
 }
 
-impl VariantName for ElementAccessOperator {
+impl VariantName for TraversalOperator {
     fn variant_name(&self) -> &'static str {
         match self {
-            ElementAccessOperator::AttrSplat => "AttrSplat",
-            ElementAccessOperator::FullSplat => "FullSplat",
-            ElementAccessOperator::GetAttr(_) => "GetAttr",
-            ElementAccessOperator::Index(_) => "Index",
-            ElementAccessOperator::LegacyIndex(_) => "LegacyIndex",
+            TraversalOperator::AttrSplat => "AttrSplat",
+            TraversalOperator::FullSplat => "FullSplat",
+            TraversalOperator::GetAttr(_) => "GetAttr",
+            TraversalOperator::Index(_) => "Index",
+            TraversalOperator::LegacyIndex(_) => "LegacyIndex",
         }
     }
 }
 
-impl<'de> de::EnumAccess<'de> for ElementAccessOperator {
+impl<'de> de::EnumAccess<'de> for TraversalOperator {
     type Error = Error;
     type Variant = Self;
 
@@ -483,7 +481,7 @@ impl<'de> de::EnumAccess<'de> for ElementAccessOperator {
     }
 }
 
-impl<'de> de::VariantAccess<'de> for ElementAccessOperator {
+impl<'de> de::VariantAccess<'de> for TraversalOperator {
     type Error = Error;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
@@ -495,8 +493,8 @@ impl<'de> de::VariantAccess<'de> for ElementAccessOperator {
         T: de::DeserializeSeed<'de>,
     {
         match self {
-            ElementAccessOperator::Index(expr) => seed.deserialize(expr.into_deserializer()),
-            ElementAccessOperator::GetAttr(ident) => seed.deserialize(ident.into_deserializer()),
+            TraversalOperator::Index(expr) => seed.deserialize(expr.into_deserializer()),
+            TraversalOperator::GetAttr(ident) => seed.deserialize(ident.into_deserializer()),
             value => seed.deserialize(value.into_deserializer()),
         }
     }

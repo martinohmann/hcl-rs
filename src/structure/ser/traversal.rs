@@ -1,20 +1,20 @@
 use super::{expression::ExpressionSerializer, StringSerializer};
-use crate::{ElementAccess, ElementAccessOperator, Error, Expression, Identifier, Result};
+use crate::{Error, Expression, Identifier, Result, Traversal, TraversalOperator};
 use serde::ser::{self, Impossible, Serialize};
 
-pub struct ElementAccessSerializer;
+pub struct TraversalSerializer;
 
-impl ser::Serializer for ElementAccessSerializer {
-    type Ok = ElementAccess;
+impl ser::Serializer for TraversalSerializer {
+    type Ok = Traversal;
     type Error = Error;
 
-    type SerializeSeq = Impossible<ElementAccess, Error>;
-    type SerializeTuple = Impossible<ElementAccess, Error>;
-    type SerializeTupleStruct = Impossible<ElementAccess, Error>;
-    type SerializeTupleVariant = Impossible<ElementAccess, Error>;
-    type SerializeMap = Impossible<ElementAccess, Error>;
-    type SerializeStruct = SerializeElementAccessStruct;
-    type SerializeStructVariant = Impossible<ElementAccess, Error>;
+    type SerializeSeq = Impossible<Traversal, Error>;
+    type SerializeTuple = Impossible<Traversal, Error>;
+    type SerializeTupleStruct = Impossible<Traversal, Error>;
+    type SerializeTupleVariant = Impossible<Traversal, Error>;
+    type SerializeMap = Impossible<Traversal, Error>;
+    type SerializeStruct = SerializeTraversalStruct;
+    type SerializeStructVariant = Impossible<Traversal, Error>;
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
@@ -24,26 +24,26 @@ impl ser::Serializer for ElementAccessSerializer {
     serialize_self! { some newtype_struct }
 
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Ok(SerializeElementAccessStruct::new())
+        Ok(SerializeTraversalStruct::new())
     }
 }
 
-pub struct SerializeElementAccessStruct {
+pub struct SerializeTraversalStruct {
     expr: Option<Expression>,
-    operator: Option<ElementAccessOperator>,
+    operator: Option<TraversalOperator>,
 }
 
-impl SerializeElementAccessStruct {
+impl SerializeTraversalStruct {
     pub fn new() -> Self {
-        SerializeElementAccessStruct {
+        SerializeTraversalStruct {
             expr: None,
             operator: None,
         }
     }
 }
 
-impl ser::SerializeStruct for SerializeElementAccessStruct {
-    type Ok = ElementAccess;
+impl ser::SerializeStruct for SerializeTraversalStruct {
+    type Ok = Traversal;
     type Error = Error;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
@@ -52,7 +52,7 @@ impl ser::SerializeStruct for SerializeElementAccessStruct {
     {
         match key {
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
-            "operator" => self.operator = Some(value.serialize(ElementAccessOperatorSerializer)?),
+            "operator" => self.operator = Some(value.serialize(TraversalOperatorSerializer)?),
             _ => {
                 return Err(ser::Error::custom(
                     "expected struct with fields `expr` and `operator`",
@@ -65,7 +65,7 @@ impl ser::SerializeStruct for SerializeElementAccessStruct {
 
     fn end(self) -> Result<Self::Ok> {
         match (self.expr, self.operator) {
-            (Some(expr), Some(operator)) => Ok(ElementAccess::new(expr, operator)),
+            (Some(expr), Some(operator)) => Ok(Traversal::new(expr, operator)),
             (_, _) => Err(ser::Error::custom(
                 "expected struct with fields `expr` and `operator`",
             )),
@@ -74,19 +74,19 @@ impl ser::SerializeStruct for SerializeElementAccessStruct {
 }
 
 #[derive(Clone)]
-struct ElementAccessOperatorSerializer;
+struct TraversalOperatorSerializer;
 
-impl ser::Serializer for ElementAccessOperatorSerializer {
-    type Ok = ElementAccessOperator;
+impl ser::Serializer for TraversalOperatorSerializer {
+    type Ok = TraversalOperator;
     type Error = Error;
 
-    type SerializeSeq = Impossible<ElementAccessOperator, Error>;
-    type SerializeTuple = Impossible<ElementAccessOperator, Error>;
-    type SerializeTupleStruct = Impossible<ElementAccessOperator, Error>;
-    type SerializeTupleVariant = Impossible<ElementAccessOperator, Error>;
-    type SerializeMap = Impossible<ElementAccessOperator, Error>;
-    type SerializeStruct = Impossible<ElementAccessOperator, Error>;
-    type SerializeStructVariant = Impossible<ElementAccessOperator, Error>;
+    type SerializeSeq = Impossible<TraversalOperator, Error>;
+    type SerializeTuple = Impossible<TraversalOperator, Error>;
+    type SerializeTupleStruct = Impossible<TraversalOperator, Error>;
+    type SerializeTupleVariant = Impossible<TraversalOperator, Error>;
+    type SerializeMap = Impossible<TraversalOperator, Error>;
+    type SerializeStruct = Impossible<TraversalOperator, Error>;
+    type SerializeStructVariant = Impossible<TraversalOperator, Error>;
 
     serialize_unsupported! {
         bool i8 i16 i32 i64 u8 u16 u32 f32 f64
@@ -97,7 +97,7 @@ impl ser::Serializer for ElementAccessOperatorSerializer {
     serialize_self! { some }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
-        Ok(ElementAccessOperator::LegacyIndex(v))
+        Ok(TraversalOperator::LegacyIndex(v))
     }
 
     fn serialize_unit_variant(
@@ -107,9 +107,9 @@ impl ser::Serializer for ElementAccessOperatorSerializer {
         variant: &'static str,
     ) -> Result<Self::Ok> {
         match (name, variant) {
-            ("$hcl::element_access_operator", "AttrSplat") => Ok(ElementAccessOperator::AttrSplat),
-            ("$hcl::element_access_operator", "FullSplat") => Ok(ElementAccessOperator::FullSplat),
-            (_, _) => Ok(ElementAccessOperator::GetAttr(variant.into())),
+            ("$hcl::traversal_operator", "AttrSplat") => Ok(TraversalOperator::AttrSplat),
+            ("$hcl::traversal_operator", "FullSplat") => Ok(TraversalOperator::FullSplat),
+            (_, _) => Ok(TraversalOperator::GetAttr(variant.into())),
         }
     }
 
@@ -124,7 +124,7 @@ impl ser::Serializer for ElementAccessOperatorSerializer {
         T: ?Sized + Serialize,
     {
         if name == "$hcl::expression" {
-            Ok(ElementAccessOperator::Index(
+            Ok(TraversalOperator::Index(
                 value.serialize(ExpressionSerializer)?,
             ))
         } else {
@@ -137,7 +137,7 @@ impl ser::Serializer for ElementAccessOperatorSerializer {
         T: ?Sized + Serialize,
     {
         if name == "$hcl::identifier" {
-            Ok(ElementAccessOperator::GetAttr(Identifier::from(
+            Ok(TraversalOperator::GetAttr(Identifier::from(
                 value.serialize(StringSerializer)?,
             )))
         } else {

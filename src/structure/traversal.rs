@@ -1,46 +1,46 @@
 use crate::{Expression, Identifier};
 use serde::{Deserialize, Serialize};
 
-/// Access to an element of an expression result.
+/// Traversal an expression to access object attributes or element indices.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::element_access")]
-pub struct ElementAccess {
+#[serde(rename = "$hcl::traversal")]
+pub struct Traversal {
     /// The expression that the access operator is applied to.
     pub expr: Expression,
     /// The element access operator used on the expression.
-    pub operator: ElementAccessOperator,
+    pub operator: TraversalOperator,
 }
 
-impl ElementAccess {
-    /// Creates a new `ElementAccess` structure from an access operator and and expression that it
+impl Traversal {
+    /// Creates a new `Traversal` structure from a traversal operator and and expression that it
     /// should be applied to.
     pub fn new<E, O>(expr: E, operator: O) -> Self
     where
         E: Into<Expression>,
-        O: Into<ElementAccessOperator>,
+        O: Into<TraversalOperator>,
     {
-        ElementAccess {
+        Traversal {
             expr: expr.into(),
             operator: operator.into(),
         }
     }
 
-    /// Chains another `ElementAccessOperator` and returns a new `ElementAccess`.
-    pub fn chain<O>(self, operator: O) -> ElementAccess
+    /// Chains another `TraversalOperator` and returns a new `Traversal`.
+    pub fn chain<O>(self, operator: O) -> Traversal
     where
-        O: Into<ElementAccessOperator>,
+        O: Into<TraversalOperator>,
     {
-        ElementAccess {
-            expr: Expression::ElementAccess(Box::new(self)),
+        Traversal {
+            expr: Expression::Traversal(Box::new(self)),
             operator: operator.into(),
         }
     }
 }
 
-/// The kinds of element access that are supported by HCL.
+/// The expression traversal operators that are supported by HCL.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::element_access_operator")]
-pub enum ElementAccessOperator {
+#[serde(rename = "$hcl::traversal_operator")]
+pub enum TraversalOperator {
     /// The attribute-only splat operator supports only attribute lookups into the elements from a
     /// list, but supports an arbitrary number of them.
     AttrSplat,
@@ -58,23 +58,23 @@ pub enum ElementAccessOperator {
     LegacyIndex(u64),
 }
 
-impl<T> From<T> for ElementAccessOperator
+impl<T> From<T> for TraversalOperator
 where
     T: Into<Identifier>,
 {
-    fn from(value: T) -> ElementAccessOperator {
-        ElementAccessOperator::GetAttr(value.into())
+    fn from(value: T) -> TraversalOperator {
+        TraversalOperator::GetAttr(value.into())
     }
 }
 
-impl From<Expression> for ElementAccessOperator {
-    fn from(value: Expression) -> ElementAccessOperator {
-        ElementAccessOperator::Index(value)
+impl From<Expression> for TraversalOperator {
+    fn from(value: Expression) -> TraversalOperator {
+        TraversalOperator::Index(value)
     }
 }
 
-impl From<u64> for ElementAccessOperator {
-    fn from(value: u64) -> ElementAccessOperator {
-        ElementAccessOperator::LegacyIndex(value)
+impl From<u64> for TraversalOperator {
+    fn from(value: u64) -> TraversalOperator {
+        TraversalOperator::LegacyIndex(value)
     }
 }

@@ -114,7 +114,7 @@ impl Format for Expression {
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
             Expression::VariableExpr(ident) => ident.format(fmt),
-            Expression::ElementAccess(access) => access.format(fmt),
+            Expression::Traversal(traversal) => traversal.format(fmt),
             Expression::FuncCall(func_call) => func_call.format(fmt),
             Expression::SubExpr(expr) => {
                 fmt.write_all(b"(")?;
@@ -242,9 +242,9 @@ impl Format for Identifier {
     }
 }
 
-impl private::Sealed for ElementAccess {}
+impl private::Sealed for Traversal {}
 
-impl Format for ElementAccess {
+impl Format for Traversal {
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
         W: io::Write,
@@ -255,25 +255,25 @@ impl Format for ElementAccess {
     }
 }
 
-impl private::Sealed for ElementAccessOperator {}
+impl private::Sealed for TraversalOperator {}
 
-impl Format for ElementAccessOperator {
+impl Format for TraversalOperator {
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
         W: io::Write,
     {
         match self {
-            ElementAccessOperator::AttrSplat => fmt.write_all(b".*")?,
-            ElementAccessOperator::FullSplat => fmt.write_all(b"[*]")?,
-            ElementAccessOperator::GetAttr(ident) => {
+            TraversalOperator::AttrSplat => fmt.write_all(b".*")?,
+            TraversalOperator::FullSplat => fmt.write_all(b"[*]")?,
+            TraversalOperator::GetAttr(ident) => {
                 fmt.write_all(b".")?;
                 ident.format(fmt)?;
             }
-            ElementAccessOperator::LegacyIndex(index) => {
+            TraversalOperator::LegacyIndex(index) => {
                 fmt.write_all(b".")?;
                 fmt.write_int(*index)?;
             }
-            ElementAccessOperator::Index(expr) => {
+            TraversalOperator::Index(expr) => {
                 fmt.write_all(b"[")?;
                 expr.format(fmt)?;
                 fmt.write_all(b"]")?;

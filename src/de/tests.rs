@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, Body, ElementAccess, Expression, ForExpr, ForListExpr,
-    ForObjectExpr, FuncCall, Identifier, ObjectKey, Operation, UnaryOp, UnaryOperator,
+    BinaryOp, BinaryOperator, Block, Body, Expression, ForExpr, ForListExpr, ForObjectExpr,
+    FuncCall, Identifier, ObjectKey, Operation, Traversal, UnaryOp, UnaryOperator,
 };
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -320,11 +320,8 @@ fn deserialize_terraform() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            ElementAccess::new(
-                                                Identifier::new("aws_kms_key"),
-                                                "mykey",
-                                            )
-                                            .chain("arn"),
+                                            Traversal::new(Identifier::new("aws_kms_key"), "mykey")
+                                                .chain("arn"),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),
@@ -337,7 +334,7 @@ fn deserialize_terraform() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::from(ElementAccess::new(Identifier::new("var"), "dynamic")),
+                            ObjectKey::from(Traversal::new(Identifier::new("var"), "dynamic")),
                             Expression::Null,
                         ),
                         (
@@ -420,7 +417,7 @@ fn issue_66() {
     let expected = Body::builder()
         .add_attribute((
             "a",
-            ElementAccess::new(Identifier::new("b"), Expression::String(String::from("c"))),
+            Traversal::new(Identifier::new("b"), Expression::String(String::from("c"))),
         ))
         .build();
 
