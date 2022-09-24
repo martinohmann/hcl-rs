@@ -1,4 +1,4 @@
-use super::{expression::ExpressionSerializer, StringSerializer};
+use super::{expression::ExpressionSerializer, SeqSerializer, StringSerializer};
 use crate::{Error, Expression, Identifier, Result, Traversal, TraversalOperator};
 use serde::ser::{self, Impossible, Serialize};
 
@@ -30,14 +30,14 @@ impl ser::Serializer for TraversalSerializer {
 
 pub struct SerializeTraversalStruct {
     expr: Option<Expression>,
-    operator: Option<TraversalOperator>,
+    operators: Option<Vec<TraversalOperator>>,
 }
 
 impl SerializeTraversalStruct {
     pub fn new() -> Self {
         SerializeTraversalStruct {
             expr: None,
-            operator: None,
+            operators: None,
         }
     }
 }
@@ -52,10 +52,13 @@ impl ser::SerializeStruct for SerializeTraversalStruct {
     {
         match key {
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
-            "operator" => self.operator = Some(value.serialize(TraversalOperatorSerializer)?),
+            "operators" => {
+                self.operators =
+                    Some(value.serialize(SeqSerializer::new(TraversalOperatorSerializer))?)
+            }
             _ => {
                 return Err(ser::Error::custom(
-                    "expected struct with fields `expr` and `operator`",
+                    "expected struct with fields `expr` and `operators`",
                 ))
             }
         };
@@ -64,10 +67,10 @@ impl ser::SerializeStruct for SerializeTraversalStruct {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match (self.expr, self.operator) {
-            (Some(expr), Some(operator)) => Ok(Traversal::new(expr, operator)),
+        match (self.expr, self.operators) {
+            (Some(expr), Some(operators)) => Ok(Traversal { expr, operators }),
             (_, _) => Err(ser::Error::custom(
-                "expected struct with fields `expr` and `operator`",
+                "expected struct with fields `expr` and `operators`",
             )),
         }
     }

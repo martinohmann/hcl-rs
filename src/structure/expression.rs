@@ -50,22 +50,6 @@ pub enum Expression {
     Raw(RawExpression),
 }
 
-impl Expression {
-    /// Applies a `TraversalOperator` to the expression and returns the result. The result is
-    /// always of variant `Traversal`.
-    pub(crate) fn element<O>(self, operator: O) -> Expression
-    where
-        O: Into<TraversalOperator>,
-    {
-        let traversal = match self {
-            Expression::Traversal(traversal) => traversal.chain(operator),
-            other => Traversal::new(other, operator),
-        };
-
-        Expression::Traversal(Box::new(traversal))
-    }
-}
-
 impl From<Expression> for Value {
     fn from(expr: Expression) -> Self {
         match expr {

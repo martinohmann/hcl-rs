@@ -196,9 +196,13 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         rule => unexpected_rule(rule),
     };
 
-    pairs.try_fold(expr, |expr, pair| {
-        Ok(expr.element(parse_traversal_operator(pair)?))
-    })
+    match pairs.peek() {
+        Some(_) => {
+            let operators = pairs.map(parse_traversal_operator).collect::<Result<_>>()?;
+            Ok(Expression::from(Traversal { expr, operators }))
+        }
+        None => Ok(expr),
+    }
 }
 
 fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {

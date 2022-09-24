@@ -1,38 +1,28 @@
 use crate::{Expression, Identifier};
 use serde::{Deserialize, Serialize};
 
-/// Traversal an expression to access object attributes or element indices.
+/// Traverse an expression to access attributes, object keys or element indices.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::traversal")]
 pub struct Traversal {
     /// The expression that the access operator is applied to.
     pub expr: Expression,
-    /// The element access operator used on the expression.
-    pub operator: TraversalOperator,
+    /// The traversal operators to apply to `expr` one of the other.
+    pub operators: Vec<TraversalOperator>,
 }
 
 impl Traversal {
-    /// Creates a new `Traversal` structure from a traversal operator and and expression that it
-    /// should be applied to.
-    pub fn new<E, O>(expr: E, operator: O) -> Self
+    /// Creates a new `Traversal` structure from an expression and traversal operators that should
+    /// be applied to it.
+    pub fn new<E, I>(expr: E, operators: I) -> Self
     where
         E: Into<Expression>,
-        O: Into<TraversalOperator>,
+        I: IntoIterator,
+        I::Item: Into<TraversalOperator>,
     {
         Traversal {
             expr: expr.into(),
-            operator: operator.into(),
-        }
-    }
-
-    /// Chains another `TraversalOperator` and returns a new `Traversal`.
-    pub fn chain<O>(self, operator: O) -> Traversal
-    where
-        O: Into<TraversalOperator>,
-    {
-        Traversal {
-            expr: Expression::Traversal(Box::new(self)),
-            operator: operator.into(),
+            operators: operators.into_iter().map(Into::into).collect(),
         }
     }
 }

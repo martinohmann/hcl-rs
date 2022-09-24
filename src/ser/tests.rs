@@ -203,13 +203,18 @@ fn serialize_traversal() {
     let body = Body::builder()
         .add_attribute((
             "attr",
-            Traversal::new(Identifier::new("var"), "foo")
-                .chain(TraversalOperator::FullSplat)
-                .chain("bar")
-                .chain(TraversalOperator::Index(1u64.into()))
-                .chain(TraversalOperator::AttrSplat)
-                .chain("baz")
-                .chain(42),
+            Traversal::new(
+                Identifier::new("var"),
+                [
+                    TraversalOperator::GetAttr("foo".into()),
+                    TraversalOperator::FullSplat,
+                    TraversalOperator::GetAttr("bar".into()),
+                    TraversalOperator::Index(1u64.into()),
+                    TraversalOperator::AttrSplat,
+                    TraversalOperator::GetAttr("baz".into()),
+                    TraversalOperator::LegacyIndex(42),
+                ],
+            ),
         ))
         .build();
 
@@ -446,7 +451,7 @@ fn roundtrip() {
                 .add_label("mybucket")
                 .add_attribute((
                     "count",
-                    Conditional::new(Traversal::new(Identifier::new("var"), "enabled"), 1, 0),
+                    Conditional::new(Traversal::new(Identifier::new("var"), ["enabled"]), 1, 0),
                 ))
                 .add_attribute(("bucket", "mybucket"))
                 .add_attribute(("force_destroy", true))
@@ -458,8 +463,10 @@ fn roundtrip() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            Traversal::new(Identifier::new("aws_kms_key"), "mykey")
-                                                .chain("arn"),
+                                            Traversal::new(
+                                                Identifier::new("aws_kms_key"),
+                                                ["mykey", "arn"],
+                                            ),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),

@@ -250,7 +250,9 @@ impl Format for Traversal {
         W: io::Write,
     {
         self.expr.format(fmt)?;
-        self.operator.format(fmt)?;
+        for operator in &self.operators {
+            operator.format(fmt)?;
+        }
         Ok(())
     }
 }

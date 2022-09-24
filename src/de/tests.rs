@@ -320,8 +320,10 @@ fn deserialize_terraform() {
                                     Block::builder("apply_server_side_encryption_by_default")
                                         .add_attribute((
                                             "kms_master_key_id",
-                                            Traversal::new(Identifier::new("aws_kms_key"), "mykey")
-                                                .chain("arn"),
+                                            Traversal::new(
+                                                Identifier::new("aws_kms_key"),
+                                                ["mykey", "arn"],
+                                            ),
                                         ))
                                         .add_attribute(("sse_algorithm", "aws:kms"))
                                         .build(),
@@ -334,7 +336,7 @@ fn deserialize_terraform() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::from(Traversal::new(Identifier::new("var"), "dynamic")),
+                            ObjectKey::from(Traversal::new(Identifier::new("var"), ["dynamic"])),
                             Expression::Null,
                         ),
                         (
@@ -417,7 +419,10 @@ fn issue_66() {
     let expected = Body::builder()
         .add_attribute((
             "a",
-            Traversal::new(Identifier::new("b"), Expression::String(String::from("c"))),
+            Traversal::new(
+                Identifier::new("b"),
+                [Expression::String(String::from("c"))],
+            ),
         ))
         .build();
 

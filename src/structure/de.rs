@@ -369,14 +369,14 @@ impl<'de> IntoDeserializer<'de, Error> for Traversal {
 
 pub struct TraversalAccess {
     expr: Option<Expression>,
-    operator: Option<TraversalOperator>,
+    operators: Option<Vec<TraversalOperator>>,
 }
 
 impl TraversalAccess {
     fn new(traversal: Traversal) -> Self {
         TraversalAccess {
             expr: Some(traversal.expr),
-            operator: Some(traversal.operator),
+            operators: Some(traversal.operators),
         }
     }
 }
@@ -390,8 +390,8 @@ impl<'de> de::MapAccess<'de> for TraversalAccess {
     {
         if self.expr.is_some() {
             seed.deserialize("expr".into_deserializer()).map(Some)
-        } else if self.operator.is_some() {
-            seed.deserialize("operator".into_deserializer()).map(Some)
+        } else if self.operators.is_some() {
+            seed.deserialize("operators".into_deserializer()).map(Some)
         } else {
             Ok(None)
         }
@@ -403,8 +403,8 @@ impl<'de> de::MapAccess<'de> for TraversalAccess {
     {
         if let Some(expr) = self.expr.take() {
             seed.deserialize(expr.into_deserializer())
-        } else if let Some(operator) = self.operator.take() {
-            seed.deserialize(operator.into_deserializer())
+        } else if let Some(operators) = self.operators.take() {
+            seed.deserialize(operators.into_deserializer())
         } else {
             Err(de::Error::custom("invalid HCL element access"))
         }
