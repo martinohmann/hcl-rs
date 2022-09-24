@@ -847,7 +847,9 @@ impl<'de> IntoDeserializer<'de, Error> for ForListExpr {
 }
 
 pub struct ForListExprAccess {
-    intro: Option<ForIntro>,
+    index_var: Option<Option<Identifier>>,
+    value_var: Option<Identifier>,
+    collection_expr: Option<Expression>,
     element_expr: Option<Expression>,
     cond_expr: Option<Option<Expression>>,
 }
@@ -855,7 +857,9 @@ pub struct ForListExprAccess {
 impl ForListExprAccess {
     fn new(expr: ForListExpr) -> Self {
         ForListExprAccess {
-            intro: Some(expr.intro),
+            index_var: Some(expr.index_var),
+            value_var: Some(expr.value_var),
+            collection_expr: Some(expr.collection_expr),
             element_expr: Some(expr.element_expr),
             cond_expr: Some(expr.cond_expr),
         }
@@ -869,8 +873,13 @@ impl<'de> de::MapAccess<'de> for ForListExprAccess {
     where
         K: de::DeserializeSeed<'de>,
     {
-        if self.intro.is_some() {
-            seed.deserialize("intro".into_deserializer()).map(Some)
+        if self.index_var.is_some() {
+            seed.deserialize("key_var".into_deserializer()).map(Some)
+        } else if self.value_var.is_some() {
+            seed.deserialize("value_var".into_deserializer()).map(Some)
+        } else if self.collection_expr.is_some() {
+            seed.deserialize("collection_expr".into_deserializer())
+                .map(Some)
         } else if self.element_expr.is_some() {
             seed.deserialize("element_expr".into_deserializer())
                 .map(Some)
@@ -885,8 +894,12 @@ impl<'de> de::MapAccess<'de> for ForListExprAccess {
     where
         V: de::DeserializeSeed<'de>,
     {
-        if let Some(intro) = self.intro.take() {
-            seed.deserialize(intro.into_deserializer())
+        if let Some(index_var) = self.index_var.take() {
+            seed.deserialize(OptionDeserializer::new(index_var))
+        } else if let Some(value_var) = self.value_var.take() {
+            seed.deserialize(value_var.into_deserializer())
+        } else if let Some(collection_expr) = self.collection_expr.take() {
+            seed.deserialize(collection_expr.into_deserializer())
         } else if let Some(element_expr) = self.element_expr.take() {
             seed.deserialize(element_expr.into_deserializer())
         } else if let Some(cond_expr) = self.cond_expr.take() {
@@ -906,7 +919,9 @@ impl<'de> IntoDeserializer<'de, Error> for ForObjectExpr {
 }
 
 pub struct ForObjectExprAccess {
-    intro: Option<ForIntro>,
+    key_var: Option<Option<Identifier>>,
+    value_var: Option<Identifier>,
+    collection_expr: Option<Expression>,
     key_expr: Option<Expression>,
     value_expr: Option<Expression>,
     grouping: Option<bool>,
@@ -916,7 +931,9 @@ pub struct ForObjectExprAccess {
 impl ForObjectExprAccess {
     fn new(expr: ForObjectExpr) -> Self {
         ForObjectExprAccess {
-            intro: Some(expr.intro),
+            key_var: Some(expr.key_var),
+            value_var: Some(expr.value_var),
+            collection_expr: Some(expr.collection_expr),
             key_expr: Some(expr.key_expr),
             value_expr: Some(expr.value_expr),
             grouping: Some(expr.grouping),
@@ -932,8 +949,13 @@ impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
     where
         K: de::DeserializeSeed<'de>,
     {
-        if self.intro.is_some() {
-            seed.deserialize("intro".into_deserializer()).map(Some)
+        if self.key_var.is_some() {
+            seed.deserialize("key_var".into_deserializer()).map(Some)
+        } else if self.value_var.is_some() {
+            seed.deserialize("value_var".into_deserializer()).map(Some)
+        } else if self.collection_expr.is_some() {
+            seed.deserialize("collection_expr".into_deserializer())
+                .map(Some)
         } else if self.key_expr.is_some() {
             seed.deserialize("key_expr".into_deserializer()).map(Some)
         } else if self.value_expr.is_some() {
@@ -951,8 +973,12 @@ impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
     where
         V: de::DeserializeSeed<'de>,
     {
-        if let Some(intro) = self.intro.take() {
-            seed.deserialize(intro.into_deserializer())
+        if let Some(key_var) = self.key_var.take() {
+            seed.deserialize(OptionDeserializer::new(key_var))
+        } else if let Some(value_var) = self.value_var.take() {
+            seed.deserialize(value_var.into_deserializer())
+        } else if let Some(collection_expr) = self.collection_expr.take() {
+            seed.deserialize(collection_expr.into_deserializer())
         } else if let Some(key_expr) = self.key_expr.take() {
             seed.deserialize(key_expr.into_deserializer())
         } else if let Some(value_expr) = self.value_expr.take() {
@@ -963,65 +989,6 @@ impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
             seed.deserialize(OptionDeserializer::new(cond_expr))
         } else {
             Err(de::Error::custom("invalid HCL for object expression"))
-        }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, Error> for ForIntro {
-    type Deserializer = MapAccessDeserializer<ForIntroAccess>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        MapAccessDeserializer::new(ForIntroAccess::new(self))
-    }
-}
-
-pub struct ForIntroAccess {
-    key_var: Option<Option<Identifier>>,
-    value_var: Option<Identifier>,
-    collection_expr: Option<Expression>,
-}
-
-impl ForIntroAccess {
-    fn new(intro: ForIntro) -> Self {
-        ForIntroAccess {
-            key_var: Some(intro.key_var),
-            value_var: Some(intro.value_var),
-            collection_expr: Some(intro.collection_expr),
-        }
-    }
-}
-
-impl<'de> de::MapAccess<'de> for ForIntroAccess {
-    type Error = Error;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
-    where
-        K: de::DeserializeSeed<'de>,
-    {
-        if self.key_var.is_some() {
-            seed.deserialize("key_var".into_deserializer()).map(Some)
-        } else if self.value_var.is_some() {
-            seed.deserialize("value_var".into_deserializer()).map(Some)
-        } else if self.collection_expr.is_some() {
-            seed.deserialize("collection_expr".into_deserializer())
-                .map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
-    where
-        V: de::DeserializeSeed<'de>,
-    {
-        if let Some(key_var) = self.key_var.take() {
-            seed.deserialize(OptionDeserializer::new(key_var))
-        } else if let Some(value_var) = self.value_var.take() {
-            seed.deserialize(value_var.into_deserializer())
-        } else if let Some(collection_expr) = self.collection_expr.take() {
-            seed.deserialize(collection_expr.into_deserializer())
-        } else {
-            Err(de::Error::custom("invalid HCL for intro"))
         }
     }
 }

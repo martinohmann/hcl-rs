@@ -1,9 +1,8 @@
 use super::*;
 use crate::{
     BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, ElementAccess,
-    ElementAccessOperator, Expression, ForExpr, ForIntro, ForListExpr, ForObjectExpr, FuncCall,
-    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
-    TemplateExpr,
+    ElementAccessOperator, Expression, ForExpr, ForListExpr, ForObjectExpr, FuncCall, Heredoc,
+    HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression, TemplateExpr,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -254,10 +253,8 @@ fn serialize_for_expr() {
             "list",
             ForExpr::List(
                 ForListExpr::new(
-                    ForIntro::new(
-                        Identifier::new("item"),
-                        Expression::VariableExpr(Identifier::new("items")),
-                    ),
+                    Identifier::new("item"),
+                    Expression::VariableExpr(Identifier::new("items")),
                     FuncCall::builder("func")
                         .arg(Identifier::new("item"))
                         .build(),
@@ -269,11 +266,8 @@ fn serialize_for_expr() {
             "object",
             ForExpr::Object(
                 ForObjectExpr::new(
-                    ForIntro::new(
-                        Identifier::new("value"),
-                        Expression::VariableExpr(Identifier::new("items")),
-                    )
-                    .with_key(Identifier::new("key")),
+                    Identifier::new("value"),
+                    Expression::VariableExpr(Identifier::new("items")),
                     FuncCall::builder("toupper")
                         .arg(Identifier::new("key"))
                         .build(),
@@ -281,6 +275,7 @@ fn serialize_for_expr() {
                         .arg(Identifier::new("value"))
                         .build(),
                 )
+                .with_key_var(Identifier::new("key"))
                 .with_cond_expr(Operation::Binary(BinaryOp::new(
                     Identifier::new("value"),
                     BinaryOperator::NotEq,

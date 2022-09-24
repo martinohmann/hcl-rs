@@ -68,7 +68,7 @@ pub use self::{
     conditional::Conditional,
     element_access::{ElementAccess, ElementAccessOperator},
     expression::{Expression, Object, ObjectKey, RawExpression},
-    for_expr::{ForExpr, ForIntro, ForListExpr, ForObjectExpr},
+    for_expr::{ForExpr, ForListExpr, ForObjectExpr},
     func::{FuncCall, FuncCallBuilder},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template::{Heredoc, HeredocStripMode, TemplateExpr},

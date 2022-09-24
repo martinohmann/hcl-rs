@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, Body, ElementAccess, Expression, ForExpr, ForIntro,
-    ForListExpr, ForObjectExpr, FuncCall, Identifier, ObjectKey, Operation, UnaryOp, UnaryOperator,
+    BinaryOp, BinaryOperator, Block, Body, ElementAccess, Expression, ForExpr, ForListExpr,
+    ForObjectExpr, FuncCall, Identifier, ObjectKey, Operation, UnaryOp, UnaryOperator,
 };
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -246,10 +246,8 @@ fn deserialize_for_expr() {
             "list",
             ForExpr::List(
                 ForListExpr::new(
-                    ForIntro::new(
-                        Identifier::new("item"),
-                        Expression::VariableExpr(Identifier::new("items")),
-                    ),
+                    Identifier::new("item"),
+                    Expression::VariableExpr(Identifier::new("items")),
                     FuncCall::builder("func")
                         .arg(Identifier::new("item"))
                         .build(),
@@ -261,11 +259,8 @@ fn deserialize_for_expr() {
             "object",
             ForExpr::Object(
                 ForObjectExpr::new(
-                    ForIntro::new(
-                        Identifier::new("value"),
-                        Expression::VariableExpr(Identifier::new("items")),
-                    )
-                    .with_key(Identifier::new("key")),
+                    Identifier::new("value"),
+                    Expression::VariableExpr(Identifier::new("items")),
                     FuncCall::builder("toupper")
                         .arg(Identifier::new("key"))
                         .build(),
@@ -273,6 +268,7 @@ fn deserialize_for_expr() {
                         .arg(Identifier::new("value"))
                         .build(),
                 )
+                .with_key_var(Identifier::new("key"))
                 .with_grouping(true),
             ),
         ))

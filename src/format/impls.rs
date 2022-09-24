@@ -395,7 +395,15 @@ impl Format for ForListExpr {
         W: io::Write,
     {
         fmt.write_all(b"[")?;
-        self.intro.format(fmt)?;
+        fmt.write_all(b"for ")?;
+        if let Some(key) = &self.index_var {
+            key.format(fmt)?;
+            fmt.write_all(b", ")?;
+        }
+        self.value_var.format(fmt)?;
+        fmt.write_all(b" in ")?;
+        self.collection_expr.format(fmt)?;
+        fmt.write_all(b" : ")?;
         self.element_expr.format(fmt)?;
         if let Some(cond) = &self.cond_expr {
             fmt.write_all(b" if ")?;
@@ -414,7 +422,15 @@ impl Format for ForObjectExpr {
         W: io::Write,
     {
         fmt.write_all(b"{")?;
-        self.intro.format(fmt)?;
+        fmt.write_all(b"for ")?;
+        if let Some(key) = &self.key_var {
+            key.format(fmt)?;
+            fmt.write_all(b", ")?;
+        }
+        self.value_var.format(fmt)?;
+        fmt.write_all(b" in ")?;
+        self.collection_expr.format(fmt)?;
+        fmt.write_all(b" : ")?;
         self.key_expr.format(fmt)?;
         fmt.write_all(b" => ")?;
         self.value_expr.format(fmt)?;
@@ -426,26 +442,6 @@ impl Format for ForObjectExpr {
             cond.format(fmt)?;
         }
         fmt.write_all(b"}")?;
-        Ok(())
-    }
-}
-
-impl private::Sealed for ForIntro {}
-
-impl Format for ForIntro {
-    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
-    where
-        W: io::Write,
-    {
-        fmt.write_all(b"for ")?;
-        if let Some(key) = &self.key_var {
-            key.format(fmt)?;
-            fmt.write_all(b", ")?;
-        }
-        self.value_var.format(fmt)?;
-        fmt.write_all(b" in ")?;
-        self.collection_expr.format(fmt)?;
-        fmt.write_all(b" : ")?;
         Ok(())
     }
 }
