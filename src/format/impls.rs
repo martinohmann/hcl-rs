@@ -323,7 +323,7 @@ impl Format for Conditional {
     where
         W: io::Write,
     {
-        self.predicate.format(fmt)?;
+        self.cond_expr.format(fmt)?;
         fmt.write_all(b" ? ")?;
         self.true_expr.format(fmt)?;
         fmt.write_all(b" : ")?;

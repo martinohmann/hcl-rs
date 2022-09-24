@@ -587,7 +587,7 @@ impl<'de> IntoDeserializer<'de, Error> for Conditional {
 }
 
 pub struct ConditionalAccess {
-    predicate: Option<Expression>,
+    cond_expr: Option<Expression>,
     true_expr: Option<Expression>,
     false_expr: Option<Expression>,
 }
@@ -595,7 +595,7 @@ pub struct ConditionalAccess {
 impl ConditionalAccess {
     fn new(cond: Conditional) -> Self {
         ConditionalAccess {
-            predicate: Some(cond.predicate),
+            cond_expr: Some(cond.cond_expr),
             true_expr: Some(cond.true_expr),
             false_expr: Some(cond.false_expr),
         }
@@ -609,8 +609,8 @@ impl<'de> de::MapAccess<'de> for ConditionalAccess {
     where
         K: de::DeserializeSeed<'de>,
     {
-        if self.predicate.is_some() {
-            seed.deserialize("predicate".into_deserializer()).map(Some)
+        if self.cond_expr.is_some() {
+            seed.deserialize("cond_expr".into_deserializer()).map(Some)
         } else if self.true_expr.is_some() {
             seed.deserialize("true_expr".into_deserializer()).map(Some)
         } else if self.false_expr.is_some() {
@@ -624,8 +624,8 @@ impl<'de> de::MapAccess<'de> for ConditionalAccess {
     where
         V: de::DeserializeSeed<'de>,
     {
-        if let Some(predicate) = self.predicate.take() {
-            seed.deserialize(predicate.into_deserializer())
+        if let Some(cond_expr) = self.cond_expr.take() {
+            seed.deserialize(cond_expr.into_deserializer())
         } else if let Some(true_expr) = self.true_expr.take() {
             seed.deserialize(true_expr.into_deserializer())
         } else if let Some(false_expr) = self.false_expr.take() {

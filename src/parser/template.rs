@@ -74,7 +74,7 @@ fn parse_if_expr(pair: Pair<Rule>) -> Result<IfExpr> {
     let template = pairs.next().unwrap();
 
     Ok(IfExpr {
-        expr: parse_expression(expr)?,
+        cond_expr: parse_expression(expr)?,
         strip: parse_strip_mode(start, end),
         template: parse_template(template)?,
     })

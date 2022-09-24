@@ -135,7 +135,7 @@ fn parse_conditional(pair: Pair<Rule>) -> Result<Conditional> {
     let mut pairs = pair.into_inner();
 
     Ok(Conditional {
-        predicate: parse_expression(pairs.next().unwrap())?,
+        cond_expr: parse_expression(pairs.next().unwrap())?,
         true_expr: parse_expression(pairs.next().unwrap())?,
         false_expr: parse_expression(pairs.next().unwrap())?,
     })

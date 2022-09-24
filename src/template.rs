@@ -278,7 +278,7 @@ impl From<ForDirective> for Directive {
 }
 
 /// The template `if` directive is the template equivalent of the conditional expression, allowing
-/// selection of one of two sub-templates based on the value of a predicate expression.
+/// selection of one of two sub-templates based on the condition result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
     /// The `if` branch expression.
@@ -329,8 +329,8 @@ impl From<IfExpr> for IfDirective {
 /// The `if` branch of an `if` directive.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfExpr {
-    /// The conditional expression.
-    pub expr: Expression,
+    /// The condition expression.
+    pub cond_expr: Expression,
     /// The template that is included in the result string if the conditional expression evaluates
     /// to `true`.
     pub template: Template,
@@ -347,7 +347,7 @@ impl IfExpr {
         T: Into<Expression>,
     {
         IfExpr {
-            expr: expr.into(),
+            cond_expr: expr.into(),
             template,
             strip: StripMode::default(),
         }
