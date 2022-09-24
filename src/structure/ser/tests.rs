@@ -100,7 +100,7 @@ fn identity() {
                 .with_key(Identifier::new("index")),
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_cond_expr(Expression::Bool(true)),
         ),
     );
     test_identity(
@@ -118,8 +118,8 @@ fn identity() {
                 Identifier::new("other_key"),
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true))
-            .with_value_grouping(true),
+            .with_cond_expr(Expression::Bool(true))
+            .with_grouping(true),
         ),
     );
 }
@@ -250,7 +250,7 @@ fn custom() {
                 .with_key(Identifier::new("index")),
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_cond_expr(Expression::Bool(true)),
         ),
         Expression::from(ForExpr::List(
             ForListExpr::new(
@@ -261,7 +261,7 @@ fn custom() {
                 .with_key(Identifier::new("index")),
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_cond_expr(Expression::Bool(true)),
         )),
     );
 
@@ -275,7 +275,7 @@ fn custom() {
             .with_key(Identifier::new("index")),
             Identifier::new("other_value"),
         )
-        .with_cond(Expression::Bool(true)),
+        .with_cond_expr(Expression::Bool(true)),
         Expression::from(ForExpr::List(
             ForListExpr::new(
                 ForIntro::new(
@@ -285,7 +285,7 @@ fn custom() {
                 .with_key(Identifier::new("index")),
                 Identifier::new("other_value"),
             )
-            .with_cond(Expression::Bool(true)),
+            .with_cond_expr(Expression::Bool(true)),
         )),
     );
 

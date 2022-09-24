@@ -262,7 +262,7 @@ fn serialize_for_expr() {
                         .arg(Identifier::new("item"))
                         .build(),
                 )
-                .with_cond(Identifier::new("item")),
+                .with_cond_expr(Identifier::new("item")),
             ),
         ))
         .add_attribute((
@@ -281,12 +281,12 @@ fn serialize_for_expr() {
                         .arg(Identifier::new("value"))
                         .build(),
                 )
-                .with_cond(Operation::Binary(BinaryOp::new(
+                .with_cond_expr(Operation::Binary(BinaryOp::new(
                     Identifier::new("value"),
                     BinaryOperator::NotEq,
                     Expression::Null,
                 )))
-                .with_value_grouping(true),
+                .with_grouping(true),
             ),
         ))
         .build();

@@ -396,8 +396,8 @@ impl Format for ForListExpr {
     {
         fmt.write_all(b"[")?;
         self.intro.format(fmt)?;
-        self.expr.format(fmt)?;
-        if let Some(cond) = &self.cond {
+        self.element_expr.format(fmt)?;
+        if let Some(cond) = &self.cond_expr {
             fmt.write_all(b" if ")?;
             cond.format(fmt)?;
         }
@@ -418,10 +418,10 @@ impl Format for ForObjectExpr {
         self.key_expr.format(fmt)?;
         fmt.write_all(b" => ")?;
         self.value_expr.format(fmt)?;
-        if self.value_grouping {
+        if self.grouping {
             fmt.write_all(b"...")?;
         }
-        if let Some(cond) = &self.cond {
+        if let Some(cond) = &self.cond_expr {
             fmt.write_all(b" if ")?;
             cond.format(fmt)?;
         }
@@ -438,13 +438,13 @@ impl Format for ForIntro {
         W: io::Write,
     {
         fmt.write_all(b"for ")?;
-        if let Some(key) = &self.key {
+        if let Some(key) = &self.key_var {
             key.format(fmt)?;
             fmt.write_all(b", ")?;
         }
-        self.value.format(fmt)?;
+        self.value_var.format(fmt)?;
         fmt.write_all(b" in ")?;
-        self.expr.format(fmt)?;
+        self.collection_expr.format(fmt)?;
         fmt.write_all(b" : ")?;
         Ok(())
     }

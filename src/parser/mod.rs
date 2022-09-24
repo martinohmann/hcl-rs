@@ -218,7 +218,11 @@ fn parse_for_list_expr(pair: Pair<Rule>) -> Result<ForListExpr> {
         None => None,
     };
 
-    Ok(ForListExpr { intro, expr, cond })
+    Ok(ForListExpr {
+        intro,
+        element_expr: expr,
+        cond_expr: cond,
+    })
 }
 
 fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForObjectExpr> {
@@ -240,8 +244,8 @@ fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForObjectExpr> {
         intro,
         key_expr,
         value_expr,
-        value_grouping,
-        cond,
+        grouping: value_grouping,
+        cond_expr: cond,
     })
 }
 
@@ -262,9 +266,9 @@ fn parse_for_intro(pair: Pair<Rule>) -> Result<ForIntro> {
     };
 
     Ok(ForIntro {
-        key,
-        value: value.take().unwrap(),
-        expr: parse_expression(expr)?,
+        key_var: key,
+        value_var: value.take().unwrap(),
+        collection_expr: parse_expression(expr)?,
     })
 }
 

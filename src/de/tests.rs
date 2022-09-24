@@ -254,7 +254,7 @@ fn deserialize_for_expr() {
                         .arg(Identifier::new("item"))
                         .build(),
                 )
-                .with_cond(Identifier::new("item")),
+                .with_cond_expr(Identifier::new("item")),
             ),
         ))
         .add_attribute((
@@ -273,7 +273,7 @@ fn deserialize_for_expr() {
                         .arg(Identifier::new("value"))
                         .build(),
                 )
-                .with_value_grouping(true),
+                .with_grouping(true),
             ),
         ))
         .build();

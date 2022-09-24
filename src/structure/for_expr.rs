@@ -31,10 +31,10 @@ pub struct ForListExpr {
     /// The "introduction" of the `for` expression.
     pub intro: ForIntro,
     /// An expression that is evaluated once for each element in the source collection.
-    pub expr: Expression,
-    /// An optional filter predicate. Elements for which the predicate evaluates to `true` will be
-    /// evaluated as normal, while if `false` the element will be skipped.
-    pub cond: Option<Expression>,
+    pub element_expr: Expression,
+    /// An optional filter expression. Elements for which the condition evaluates to `true` will
+    /// be evaluated as normal, while if `false` the element will be skipped.
+    pub cond_expr: Option<Expression>,
 }
 
 impl ForListExpr {
@@ -46,18 +46,18 @@ impl ForListExpr {
     {
         ForListExpr {
             intro,
-            expr: expr.into(),
-            cond: None,
+            element_expr: expr.into(),
+            cond_expr: None,
         }
     }
 
-    /// Sets filter predicate. Elements for which the predicate evaluates to `true` will be
+    /// Sets the filter expression. Elements for which the condition evaluates to `true` will be
     /// evaluated as normal, while if `false` the element will be skipped.
-    pub fn with_cond<T>(mut self, expr: T) -> ForListExpr
+    pub fn with_cond_expr<T>(mut self, cond_expr: T) -> ForListExpr
     where
         T: Into<Expression>,
     {
-        self.cond = Some(expr.into());
+        self.cond_expr = Some(cond_expr.into());
         self
     }
 }
@@ -72,13 +72,12 @@ pub struct ForObjectExpr {
     pub key_expr: Expression,
     /// An expression that is evaluated once for each element value in the source collection.
     pub value_expr: Expression,
-    /// Indicates whether value grouping mode is enabled. In grouping mode, each value in the
-    /// resulting object is a list of all of the values that were produced against each distinct
-    /// key.
-    pub value_grouping: bool,
-    /// An optional filter predicate. Elements for which the predicate evaluates to `true` will be
-    /// evaluated as normal, while if `false` the element will be skipped.
-    pub cond: Option<Expression>,
+    /// Indicates whether grouping mode is enabled. In grouping mode, each value in the resulting
+    /// object is a list of all of the values that were produced against each distinct key.
+    pub grouping: bool,
+    /// An optional filter expression. Elements for which the condition evaluates to `true` will
+    /// be evaluated as normal, while if `false` the element will be skipped.
+    pub cond_expr: Option<Expression>,
 }
 
 impl ForObjectExpr {
@@ -93,24 +92,24 @@ impl ForObjectExpr {
             intro,
             key_expr: key_expr.into(),
             value_expr: value_expr.into(),
-            value_grouping: false,
-            cond: None,
+            grouping: false,
+            cond_expr: None,
         }
     }
 
-    /// Sets filter predicate. Elements for which the predicate evaluates to `true` will be
+    /// Sets the filter expression. Elements for which the condition evaluates to `true` will be
     /// evaluated as normal, while if `false` the element will be skipped.
-    pub fn with_cond<T>(mut self, expr: T) -> ForObjectExpr
+    pub fn with_cond_expr<T>(mut self, cond_expr: T) -> ForObjectExpr
     where
         T: Into<Expression>,
     {
-        self.cond = Some(expr.into());
+        self.cond_expr = Some(cond_expr.into());
         self
     }
 
-    /// Enables or disabled value grouping mode.
-    pub fn with_value_grouping(mut self, yes: bool) -> ForObjectExpr {
-        self.value_grouping = yes;
+    /// Enables or disabled grouping mode.
+    pub fn with_grouping(mut self, yes: bool) -> ForObjectExpr {
+        self.grouping = yes;
         self
     }
 }
@@ -123,12 +122,12 @@ pub struct ForIntro {
     /// Optional name of the variable that will be temporarily assigned the key of each element
     /// during iteration. For lists, this represents the zero-based element index, for objects this
     /// represents the object key.
-    pub key: Option<Identifier>,
+    pub key_var: Option<Identifier>,
     /// The name of the variable that will be temporarily assigned the value of each element during
     /// iteration.
-    pub value: Identifier,
-    /// An expression that must evaluate to a value that can be iterated.
-    pub expr: Expression,
+    pub value_var: Identifier,
+    /// An expression that must evaluate to a collection value that can be iterated.
+    pub collection_expr: Expression,
 }
 
 impl ForIntro {
@@ -140,16 +139,16 @@ impl ForIntro {
         T: Into<Expression>,
     {
         ForIntro {
-            key: None,
-            value,
-            expr: expr.into(),
+            key_var: None,
+            value_var: value,
+            collection_expr: expr.into(),
         }
     }
 
     /// Adds the iterator key variable identifier to the `for` expression and returns the modified
     /// `ForIntro`.
     pub fn with_key(mut self, key: Identifier) -> ForIntro {
-        self.key = Some(key);
+        self.key_var = Some(key);
         self
     }
 }
