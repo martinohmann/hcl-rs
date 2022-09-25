@@ -2,13 +2,13 @@
 //!
 //! When parsing an HCL document, template expressions are emitted as
 //! [`TemplateExpr`][`crate::structure::TemplateExpr`] (as the `TemplateExpr` variant of the
-//! [`Expression`][`crate::structure::Expression`] enum) which contain the raw unparsed template
-//! strings.
+//! [`Expression`][`crate::structure::Expression`] enum) which contains the raw unparsed template
+//! expressions.
 //!
-//! These template expression can be further parsed into a [`Template`] which is composed literal
-//! strings, template interpolations and template directives.
+//! These template expressions can be further parsed into a [`Template`] which is composed of
+//! literal strings, template interpolations and template directives.
 //!
-//! Refer to the [HCL syntax specification][hcl-syntax-spec] for the detail.
+//! Refer to the [HCL syntax specification][hcl-syntax-spec] for the details.
 //!
 //! [hcl-syntax-spec]: https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#templates
 //!
@@ -36,7 +36,7 @@
 //! # }
 //! ```
 //!
-//! It is also possible to use the template sub-language in a standalone way by parsing template
+//! It is also possible to use the template sub-language in a standalone way to parse template
 //! strings directly:
 //!
 //! ```
@@ -431,11 +431,11 @@ impl From<ForExpr> for ForDirective {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForExpr {
     /// Optional iterator key variable identifier.
-    pub key: Option<Identifier>,
+    pub key_var: Option<Identifier>,
     /// The iterator value variable identifier.
-    pub value: Identifier,
+    pub value_var: Identifier,
     /// The expression that produces the list or object of elements to iterate over.
-    pub expr: Expression,
+    pub collection_expr: Expression,
     /// The template that is included in the result string for each loop iteration.
     pub template: Template,
     /// The whitespace strip mode to use on the template elements preceeding and following after
@@ -452,9 +452,9 @@ impl ForExpr {
         T: Into<Expression>,
     {
         ForExpr {
-            key: None,
-            value,
-            expr: expr.into(),
+            key_var: None,
+            value_var: value,
+            collection_expr: expr.into(),
             template,
             strip: StripMode::default(),
         }
@@ -462,8 +462,8 @@ impl ForExpr {
 
     /// Adds the iterator key variable identifier to the `for` expression and returns the modified
     /// `ForExpr`.
-    pub fn with_key(mut self, key: Identifier) -> ForExpr {
-        self.key = Some(key);
+    pub fn with_key_var(mut self, key_var: Identifier) -> ForExpr {
+        self.key_var = Some(key_var);
         self
     }
 

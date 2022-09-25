@@ -106,16 +106,15 @@ fn parse_for_directive(pair: Pair<Rule>) -> Result<ForDirective> {
 fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
-    let value = pairs.next().unwrap();
-    let mut value = Some(Identifier::new(value.as_str()));
+    let mut value_var = Some(Identifier::new(pairs.next().unwrap().as_str()));
     let mut expr = pairs.next().unwrap();
 
     // If there are two identifiers, the first one is the key and the second one the value.
-    let key = match expr.as_rule() {
+    let key_var = match expr.as_rule() {
         Rule::Identifier => {
-            let key = value.replace(Identifier::new(expr.as_str()));
+            let key_var = value_var.replace(Identifier::new(expr.as_str()));
             expr = pairs.next().unwrap();
-            key
+            key_var
         }
         _ => None,
     };
@@ -124,9 +123,9 @@ fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     let template = pairs.next().unwrap();
 
     Ok(ForExpr {
-        key,
-        value: value.take().unwrap(),
-        expr: parse_expression(expr)?,
+        key_var,
+        value_var: value_var.take().unwrap(),
+        collection_expr: parse_expression(expr)?,
         template: parse_template(template)?,
         strip: parse_strip_mode(start, end),
     })
