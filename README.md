@@ -5,14 +5,26 @@
 [![docs.rs](https://img.shields.io/docsrs/hcl-rs)](https://docs.rs/hcl-rs)
 ![MIT License](https://img.shields.io/github/license/martinohmann/hcl-rs?color=blue)
 
-This crate provides functionality to deserialize, serialize and manipulate HCL data.
+A rust library for interacting with the Hashicorp Configuration Language (HCL).
 
-The main types are `Deserializer` for deserializing data, `Serializer` for
-serialization. Furthermore the provided `Body` and `Value` types can be used to
-construct HCL data or as a deserialization target.
+## Features
 
-Some supporting macros like `body!` to build HCL data structures are provided
-as well.
+- A parser for the [HCL syntax
+  specification](https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md)
+- Types for all HCL structures, e.g. body, blocks and attributes
+- Supporting macros like `body!` for constructing HCL data structures
+- Supports the
+  [expression](https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#expressions)
+  and
+  [template](https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#templates)
+  sub-languages in attribute values
+- Support for deserializing and serializing arbitrary types that
+  implement `serde::Deserialize` or `serde::Serialize`
+
+## Planned Features
+
+- Evaluation of HCL expressions and the template sub-language (currently in
+  progress)
 
 ## Deserialization examples
 
