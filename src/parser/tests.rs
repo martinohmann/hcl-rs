@@ -650,7 +650,7 @@ fn negative_numbers() {
 fn template_expr() {
     use crate::{
         structure::TemplateExpr,
-        template::{IfDirective, IfExpr, StripMode, Template},
+        template::{IfDirective, StripMode, Template},
     };
 
     let input = r#"foo = "bar ${baz} %{~ if cond}qux%{ endif ~}""#;
@@ -675,13 +675,11 @@ fn template_expr() {
                 .add_literal(" ")
                 .add_directive(
                     IfDirective::new(
-                        IfExpr::new(
-                            Expression::VariableExpr(Identifier::new("cond")),
-                            Template::new().add_literal("qux"),
-                        )
-                        .with_strip_mode(StripMode::Start),
+                        Expression::VariableExpr(Identifier::new("cond")),
+                        Template::new().add_literal("qux"),
                     )
-                    .with_strip_mode(StripMode::End),
+                    .with_if_strip(StripMode::Start)
+                    .with_endif_strip(StripMode::End),
                 );
 
             assert_eq!(template, expected_template);

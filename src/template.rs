@@ -2,13 +2,13 @@
 //!
 //! When parsing an HCL document, template expressions are emitted as
 //! [`TemplateExpr`][`crate::structure::TemplateExpr`] (as the `TemplateExpr` variant of the
-//! [`Expression`][`crate::structure::Expression`] enum) which contain the raw unparsed template
-//! strings.
+//! [`Expression`][`crate::structure::Expression`] enum) which contains the raw unparsed template
+//! expressions.
 //!
-//! These template expression can be further parsed into a [`Template`] which is composed literal
-//! strings, template interpolations and template directives.
+//! These template expressions can be further parsed into a [`Template`] which is composed of
+//! literal strings, template interpolations and template directives.
 //!
-//! Refer to the [HCL syntax specification][hcl-syntax-spec] for the detail.
+//! Refer to the [HCL syntax specification][hcl-syntax-spec] for the details.
 //!
 //! [hcl-syntax-spec]: https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#templates
 //!
@@ -36,15 +36,15 @@
 //! # }
 //! ```
 //!
-//! It is also possible to use the template sub-language in a standalone way by parsing template
+//! It is also possible to use the template sub-language in a standalone way to parse template
 //! strings directly:
 //!
 //! ```
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl::{template::{ForDirective, ForExpr, StripMode, Template}};
 //! use hcl::{Expression, Identifier};
+//! use hcl::template::{ForDirective, StripMode, Template};
 //! use std::str::FromStr;
 //!
 //! let raw = r#"
@@ -60,19 +60,17 @@
 //!     .add_literal("Bill of materials:\n")
 //!     .add_directive(
 //!         ForDirective::new(
-//!             ForExpr::new(
-//!                 Identifier::new("item"),
-//!                 Expression::VariableExpr(Identifier::new("items")),
-//!                 Template::new()
-//!                     .add_literal("- ")
-//!                     .add_interpolation(
-//!                         Expression::VariableExpr(Identifier::new("item"))
-//!                     )
-//!                     .add_literal("\n")
-//!             )
-//!             .with_strip_mode(StripMode::End)
+//!             Identifier::new("item"),
+//!             Expression::VariableExpr(Identifier::new("items")),
+//!             Template::new()
+//!                 .add_literal("- ")
+//!                 .add_interpolation(
+//!                     Expression::VariableExpr(Identifier::new("item"))
+//!                 )
+//!                 .add_literal("\n")
 //!         )
-//!         .with_strip_mode(StripMode::End)
+//!         .with_for_strip(StripMode::End)
+//!         .with_endfor_strip(StripMode::End)
 //!     )
 //!     .add_literal("\n");
 //!
@@ -241,7 +239,7 @@ impl Interpolation {
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after this interpolation sequence and returns the modified `Interpolation`.
-    pub fn with_strip_mode(mut self, strip: StripMode) -> Interpolation {
+    pub fn with_strip(mut self, strip: StripMode) -> Interpolation {
         self.strip = strip;
         self
     }
@@ -281,111 +279,71 @@ impl From<ForDirective> for Directive {
 /// selection of one of two sub-templates based on the condition result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
-    /// The `if` branch expression.
-    pub if_expr: IfExpr,
-    /// The optional `else` branch expression.
-    pub else_expr: Option<ElseExpr>,
+    /// The condition expression.
+    pub cond_expr: Expression,
+    /// The template that is included in the result string if the conditional expression evaluates
+    /// to `true`.
+    pub true_template: Template,
+    /// The template that is included in the result string if the `if` branch's conditional
+    /// expression evaluates to `false`. This is `None` if there is no `else` branch in which case
+    /// the result string will be empty.
+    pub false_template: Option<Template>,
+    /// The whitespace strip mode to use on the template elements preceeding and following after
+    /// the `if` expression.
+    pub if_strip: StripMode,
+    /// The whitespace strip mode to use on the template elements preceeding and following after
+    /// the `else` expression. This has no effect if `false_template` is `None`.
+    pub else_strip: StripMode,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `endif` marker of this directive.
-    pub strip: StripMode,
+    pub endif_strip: StripMode,
 }
 
 impl IfDirective {
-    /// Creates a new `IfDirective` from an `if` expression.
-    pub fn new<T>(if_expr: T) -> IfDirective
+    /// Creates a new `IfDirective` from a conditional expression and a template that is included
+    /// in the result string if the conditional expression evaluates to `true`.
+    pub fn new<T>(cond_expr: T, true_template: Template) -> IfDirective
     where
-        T: Into<IfExpr>,
+        T: Into<Expression>,
     {
         IfDirective {
-            if_expr: if_expr.into(),
-            else_expr: None,
-            strip: StripMode::default(),
+            cond_expr: cond_expr.into(),
+            true_template,
+            false_template: None,
+            if_strip: StripMode::default(),
+            else_strip: StripMode::default(),
+            endif_strip: StripMode::default(),
         }
     }
 
-    /// Adds an `else` expression and returns the modified `IfDirective`.
-    pub fn with_else_expr<T>(mut self, else_expr: T) -> IfDirective
+    /// Adds a template for the `else` branch which is included in the result string if the
+    /// condition of the `IfDirective` evaluates to `false` and returns the modified `IfDirective`.
+    pub fn with_false_template<T>(mut self, else_template: T) -> IfDirective
     where
-        T: Into<ElseExpr>,
+        T: Into<Template>,
     {
-        self.else_expr = Some(else_expr.into());
+        self.false_template = Some(else_template.into());
+        self
+    }
+
+    /// Sets the whitespace strip mode to use on the template elements preceeding and following
+    /// after the `if` expression and returns the modified `IfDirective`.
+    pub fn with_if_strip(mut self, strip: StripMode) -> IfDirective {
+        self.if_strip = strip;
+        self
+    }
+
+    /// Sets the whitespace strip mode to use on the template elements preceeding and following
+    /// after the `else` expression and returns the modified `IfDirective`.
+    pub fn with_else_strip(mut self, strip: StripMode) -> IfDirective {
+        self.else_strip = strip;
         self
     }
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after the `endif` marker of this directive and returns the modified `IfDirective`.
-    pub fn with_strip_mode(mut self, strip: StripMode) -> IfDirective {
-        self.strip = strip;
-        self
-    }
-}
-
-impl From<IfExpr> for IfDirective {
-    fn from(if_expr: IfExpr) -> Self {
-        IfDirective::new(if_expr)
-    }
-}
-
-/// The `if` branch of an `if` directive.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfExpr {
-    /// The condition expression.
-    pub cond_expr: Expression,
-    /// The template that is included in the result string if the conditional expression evaluates
-    /// to `true`.
-    pub template: Template,
-    /// The whitespace strip mode to use on the template elements preceeding and following after
-    /// the `if` expression.
-    pub strip: StripMode,
-}
-
-impl IfExpr {
-    /// Creates a new `IfExpr` from an expression and a template that is included in the result
-    /// string if the conditional expression evaluates to `true`.
-    pub fn new<T>(expr: T, template: Template) -> IfExpr
-    where
-        T: Into<Expression>,
-    {
-        IfExpr {
-            cond_expr: expr.into(),
-            template,
-            strip: StripMode::default(),
-        }
-    }
-
-    /// Sets the whitespace strip mode to use on the template elements preceeding and following
-    /// after the `if` expression and returns the modified `IfExpr`.
-    pub fn with_strip_mode(mut self, strip: StripMode) -> IfExpr {
-        self.strip = strip;
-        self
-    }
-}
-
-/// The `else` branch expression of an `if` directive.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ElseExpr {
-    /// The template that is included in the result string if the `if` branch's conditional
-    /// expression evaluates to `false`.
-    pub template: Template,
-    /// The whitespace strip mode to use on the template elements preceeding and following after
-    /// the `else` expression.
-    pub strip: StripMode,
-}
-
-impl ElseExpr {
-    /// Creates a new `ElseExpr` from a template that is included in the result string if the `if`
-    /// branch's conditional expression evaluates to `false`.
-    pub fn new(template: Template) -> ElseExpr {
-        ElseExpr {
-            template,
-            strip: StripMode::default(),
-        }
-    }
-
-    /// Sets the whitespace strip mode to use on the template elements preceeding and following
-    /// after the `else` expression and returns the modified `ElseExpr`.
-    pub fn with_strip_mode(mut self, strip: StripMode) -> ElseExpr {
-        self.strip = strip;
+    pub fn with_endif_strip(mut self, strip: StripMode) -> IfDirective {
+        self.endif_strip = strip;
         self
     }
 }
@@ -394,83 +352,58 @@ impl ElseExpr {
 /// or more copies of its sub-template based on the elements of a collection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForDirective {
-    /// The loop expression.
-    pub for_expr: ForExpr,
-    /// The whitespace strip mode to use on the template elements preceeding and following after
-    /// the `endfor` marker of this directive.
-    pub strip: StripMode,
-}
-
-impl ForDirective {
-    /// Creates a new `ForDirective` from a `for` expression.
-    pub fn new<T>(for_expr: T) -> ForDirective
-    where
-        T: Into<ForExpr>,
-    {
-        ForDirective {
-            for_expr: for_expr.into(),
-            strip: StripMode::default(),
-        }
-    }
-
-    /// Sets the whitespace strip mode to use on the template elements preceeding and following
-    /// after the `endfor` marker of this directive and returns the modified `ForDirective`.
-    pub fn with_strip_mode(mut self, strip: StripMode) -> ForDirective {
-        self.strip = strip;
-        self
-    }
-}
-
-impl From<ForExpr> for ForDirective {
-    fn from(for_expr: ForExpr) -> Self {
-        ForDirective::new(for_expr)
-    }
-}
-
-/// The `for` expression header of a `for` directive.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ForExpr {
     /// Optional iterator key variable identifier.
-    pub key: Option<Identifier>,
+    pub key_var: Option<Identifier>,
     /// The iterator value variable identifier.
-    pub value: Identifier,
+    pub value_var: Identifier,
     /// The expression that produces the list or object of elements to iterate over.
-    pub expr: Expression,
+    pub collection_expr: Expression,
     /// The template that is included in the result string for each loop iteration.
     pub template: Template,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `for` expression.
-    pub strip: StripMode,
+    pub for_strip: StripMode,
+    /// The whitespace strip mode to use on the template elements preceeding and following after
+    /// the `endfor` marker of this directive.
+    pub endfor_strip: StripMode,
 }
 
-impl ForExpr {
-    /// Creates a new `ForExpr` from the provided iterator value identifier, an expression that
-    /// produces the list or object of elements to iterate over, and the template the is included
-    /// in the result string for each loop iteration.
-    pub fn new<T>(value: Identifier, expr: T, template: Template) -> ForExpr
+impl ForDirective {
+    /// Creates a new `ForDirective` from the provided iterator value identifier, an expression
+    /// that produces the list or object of elements to iterate over, and the template the is
+    /// included in the result string for each loop iteration.
+    pub fn new<T>(value: Identifier, collection_expr: T, template: Template) -> ForDirective
     where
         T: Into<Expression>,
     {
-        ForExpr {
-            key: None,
-            value,
-            expr: expr.into(),
+        ForDirective {
+            key_var: None,
+            value_var: value,
+            collection_expr: collection_expr.into(),
             template,
-            strip: StripMode::default(),
+            for_strip: StripMode::default(),
+            endfor_strip: StripMode::default(),
         }
     }
 
     /// Adds the iterator key variable identifier to the `for` expression and returns the modified
-    /// `ForExpr`.
-    pub fn with_key(mut self, key: Identifier) -> ForExpr {
-        self.key = Some(key);
+    /// `ForDirective`.
+    pub fn with_key_var(mut self, key_var: Identifier) -> ForDirective {
+        self.key_var = Some(key_var);
         self
     }
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
-    /// after the `for` expression and returns the modified `ForExpr`.
-    pub fn with_strip_mode(mut self, strip: StripMode) -> ForExpr {
-        self.strip = strip;
+    /// after the `for` expression and returns the modified `ForDirective`.
+    pub fn with_for_strip(mut self, strip: StripMode) -> ForDirective {
+        self.for_strip = strip;
+        self
+    }
+
+    /// Sets the whitespace strip mode to use on the template elements preceeding and following
+    /// after the `endfor` marker of this directive and returns the modified `ForDirective`.
+    pub fn with_endfor_strip(mut self, strip: StripMode) -> ForDirective {
+        self.endfor_strip = strip;
         self
     }
 }
