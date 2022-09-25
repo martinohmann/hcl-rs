@@ -34,7 +34,7 @@ pub struct ForListExpr {
     /// The name of the variable that will be temporarily assigned the value of each element
     /// during iteration.
     pub value_var: Identifier,
-    /// An expression that must evaluate to an array value that can be iterated.
+    /// An expression that must evaluate to a value that can be iterated.
     pub collection_expr: Expression,
     /// An expression that is evaluated once for each element in the source collection.
     pub element_expr: Expression,
@@ -45,8 +45,9 @@ pub struct ForListExpr {
 
 impl ForListExpr {
     /// Create a new `ForListExpr` with the name of the variable that will be temporarily assigned
-    /// the value of each element during iteration, an expression that must evaluate to an array
-    /// and an expression that is evaluated once for each element in the source array.
+    /// the value of each element during iteration, an expression that must evaluate to a value
+    /// that can be iterated and an expression that is evaluated once for each element in the
+    /// source array.
     pub fn new<C, E>(value_var: Identifier, collection_expr: C, element_expr: E) -> ForListExpr
     where
         C: Into<Expression>,
@@ -89,7 +90,7 @@ pub struct ForObjectExpr {
     /// The name of the variable that will be temporarily assigned the value of each element
     /// during iteration.
     pub value_var: Identifier,
-    /// An expression that must evaluate to an object value that can be iterated.
+    /// An expression that must evaluate to a value that can be iterated.
     pub collection_expr: Expression,
     /// An expression that is evaluated once for each element key in the source collection.
     pub key_expr: Expression,
@@ -105,9 +106,9 @@ pub struct ForObjectExpr {
 
 impl ForObjectExpr {
     /// Create a new `ForObjectExpr` with the name of the variable that will be temporarily
-    /// assigned the value of each element during iteration, an expression that must evaluate to
-    /// an object, and two expressions that are evaluated once for each element's key and value in
-    /// the source object.
+    /// assigned the value of each element during iteration, an expression that must evaluate to a
+    /// value that can be iterated and two expressions that are evaluated once for each element's
+    /// key and value in the source object.
     pub fn new<C, K, V>(
         value_var: Identifier,
         collection_expr: C,
