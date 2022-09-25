@@ -283,7 +283,7 @@ fn parse_func_call(pair: Pair<Rule>) -> Result<FuncCall> {
     let builder = FuncCall::builder(name.as_str());
 
     args.try_fold(builder, |builder, pair| match pair.as_rule() {
-        Rule::Variadic => Ok(builder.variadic(true)),
+        Rule::ExpandFinal => Ok(builder.expand_final(true)),
         _ => Ok(builder.arg(parse_expression(pair)?)),
     })
     .map(FuncCallBuilder::build)

@@ -529,7 +529,7 @@ impl<'de> IntoDeserializer<'de, Error> for FuncCall {
 pub struct FuncCallAccess {
     name: Option<Identifier>,
     args: Option<Vec<Expression>>,
-    variadic: Option<bool>,
+    expand_final: Option<bool>,
 }
 
 impl FuncCallAccess {
@@ -537,7 +537,7 @@ impl FuncCallAccess {
         FuncCallAccess {
             name: Some(func_call.name),
             args: Some(func_call.args),
-            variadic: Some(func_call.variadic),
+            expand_final: Some(func_call.expand_final),
         }
     }
 }
@@ -553,8 +553,9 @@ impl<'de> de::MapAccess<'de> for FuncCallAccess {
             seed.deserialize("name".into_deserializer()).map(Some)
         } else if self.args.is_some() {
             seed.deserialize("args".into_deserializer()).map(Some)
-        } else if self.variadic.is_some() {
-            seed.deserialize("variadic".into_deserializer()).map(Some)
+        } else if self.expand_final.is_some() {
+            seed.deserialize("expand_final".into_deserializer())
+                .map(Some)
         } else {
             Ok(None)
         }
@@ -568,8 +569,8 @@ impl<'de> de::MapAccess<'de> for FuncCallAccess {
             seed.deserialize(name.into_deserializer())
         } else if let Some(args) = self.args.take() {
             seed.deserialize(args.into_deserializer())
-        } else if let Some(variadic) = self.variadic.take() {
-            seed.deserialize(variadic.into_deserializer())
+        } else if let Some(expand_final) = self.expand_final.take() {
+            seed.deserialize(expand_final.into_deserializer())
         } else {
             Err(de::Error::custom("invalid HCL function call"))
         }
