@@ -31,7 +31,7 @@ impl ser::Serializer for FuncCallSerializer {
 pub struct SerializeFuncCallStruct {
     name: Option<Identifier>,
     args: Option<Vec<Expression>>,
-    variadic: Option<bool>,
+    expand_final: Option<bool>,
 }
 
 impl SerializeFuncCallStruct {
@@ -39,7 +39,7 @@ impl SerializeFuncCallStruct {
         SerializeFuncCallStruct {
             name: None,
             args: None,
-            variadic: None,
+            expand_final: None,
         }
     }
 }
@@ -55,10 +55,10 @@ impl ser::SerializeStruct for SerializeFuncCallStruct {
         match key {
             "name" => self.name = Some(Identifier::from(value.serialize(StringSerializer)?)),
             "args" => self.args = Some(value.serialize(SeqSerializer::new(ExpressionSerializer))?),
-            "variadic" => self.variadic = Some(value.serialize(BoolSerializer)?),
+            "expand_final" => self.expand_final = Some(value.serialize(BoolSerializer)?),
             _ => {
                 return Err(ser::Error::custom(
-                    "expected struct with fields `name`, `args` and optional `variadic`",
+                    "expected struct with fields `name`, `args` and optional `expand_final`",
                 ))
             }
         };
@@ -71,10 +71,10 @@ impl ser::SerializeStruct for SerializeFuncCallStruct {
             (Some(name), Some(args)) => Ok(FuncCall {
                 name,
                 args,
-                variadic: self.variadic.unwrap_or_default(),
+                expand_final: self.expand_final.unwrap_or_default(),
             }),
             (_, _) => Err(ser::Error::custom(
-                "expected struct with fields `name`, `args` and optional `variadic`",
+                "expected struct with fields `name`, `args` and optional `expand_final`",
             )),
         }
     }

@@ -1,8 +1,7 @@
 use crate::{Expression, Identifier};
 use serde::{Deserialize, Serialize};
 
-/// Represents a function call expression with zero or more arguments. Function calls can be
-/// variadic.
+/// Represents a function call expression with zero or more arguments.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::func_call")]
 pub struct FuncCall {
@@ -10,8 +9,9 @@ pub struct FuncCall {
     pub name: Identifier,
     /// The function arguments.
     pub args: Vec<Expression>,
-    /// Specifies whether this is a variadic function call or not.
-    pub variadic: bool,
+    /// If `true`, the final argument should be an array which will expand to be one argument per
+    /// element.
+    pub expand_final: bool,
 }
 
 impl FuncCall {
@@ -23,7 +23,7 @@ impl FuncCall {
         FuncCall {
             name: name.into(),
             args: Vec::new(),
-            variadic: false,
+            expand_final: false,
         }
     }
 
@@ -54,9 +54,10 @@ impl FuncCallBuilder {
         self
     }
 
-    /// Marks the function as variadic or not.
-    pub fn variadic(mut self, yes: bool) -> FuncCallBuilder {
-        self.f.variadic = yes;
+    /// If `true`, the final argument should be an array which will expand to be one argument per
+    /// element.
+    pub fn expand_final(mut self, yes: bool) -> FuncCallBuilder {
+        self.f.expand_final = yes;
         self
     }
 

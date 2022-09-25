@@ -320,7 +320,7 @@ fn serialize_func_call() {
             FuncCall::builder("foo")
                 .arg(1)
                 .arg(vec!["two", "three"])
-                .variadic(true)
+                .expand_final(true)
                 .build(),
         ))
         .build();

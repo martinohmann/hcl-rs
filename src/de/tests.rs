@@ -204,7 +204,7 @@ fn deserialize_func_call() {
                 .arg(1)
                 .arg("bar")
                 .arg(vec!["baz", "qux"])
-                .variadic(true)
+                .expand_final(true)
                 .build(),
         ))
         .build();

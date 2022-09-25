@@ -308,7 +308,7 @@ impl Format for FuncCall {
 
         fmt.compact_mode(false);
 
-        if self.variadic {
+        if self.expand_final {
             fmt.write_all(b"...)")?;
         } else {
             fmt.write_all(b")")?;

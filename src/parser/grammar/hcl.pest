@@ -92,8 +92,8 @@ FunctionCall = ${
     ")"
 }
 
-Arguments = !{ (Expression ~ ("," ~ Expression)* ~ ("," | Variadic)?)? }
-Variadic  =  { "..." }
+Arguments   = !{ (Expression ~ ("," ~ Expression)* ~ ("," | ExpandFinal)?)? }
+ExpandFinal =  { "..." }
 
 // For expressions
 ForExpr       = { ForTupleExpr | ForObjectExpr }
