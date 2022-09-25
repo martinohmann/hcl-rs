@@ -156,7 +156,7 @@ impl Evaluate for FuncCall {
         let mut args = Vec::with_capacity(len);
 
         for (index, arg) in self.args.into_iter().enumerate() {
-            if self.variadic && index == len - 1 {
+            if self.expand_final && index == len - 1 {
                 let array = expr::evaluate_array(arg, ctx)?;
                 args.extend(array);
             } else {
