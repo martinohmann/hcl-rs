@@ -1,9 +1,11 @@
 use super::*;
-use crate::{ForExpr, Object};
+use crate::{ForExpr, Identifier, Object};
 
 pub(super) struct Collection<'a> {
     ctx: &'a Context<'a>,
-    for_expr: &'a ForExpr,
+    key_var: Option<&'a Identifier>,
+    value_var: &'a Identifier,
+    cond_expr: Option<&'a Expression>,
     collection: Object<ObjectKey, Expression>,
 }
 
@@ -11,8 +13,10 @@ impl<'a> Collection<'a> {
     pub(super) fn new(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> EvalResult<Self> {
         Ok(Collection {
             ctx,
-            for_expr,
-            collection: expr::evaluate_collection(for_expr.collection_expr.clone(), ctx)?,
+            key_var: for_expr.key_var.as_ref(),
+            value_var: &for_expr.value_var,
+            cond_expr: for_expr.cond_expr.as_ref(),
+            collection: expr::evaluate_collection(&for_expr.collection_expr, ctx)?,
         })
     }
 
@@ -28,34 +32,39 @@ impl<'a> IntoIterator for Collection<'a> {
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
             ctx: self.ctx,
-            for_expr: self.for_expr,
+            key_var: self.key_var,
+            value_var: self.value_var,
+            cond_expr: self.cond_expr,
             iter: self.collection.into_iter(),
         }
     }
 }
 
-pub struct IntoIter<'a> {
+pub(super) struct IntoIter<'a> {
     ctx: &'a Context<'a>,
-    for_expr: &'a ForExpr,
+    key_var: Option<&'a Identifier>,
+    value_var: &'a Identifier,
+    cond_expr: Option<&'a Expression>,
     iter: vecmap::map::IntoIter<ObjectKey, Expression>,
 }
 
 impl<'a> IntoIter<'a> {
     fn cond(&self, ctx: &Context) -> EvalResult<bool> {
-        match &self.for_expr.cond_expr {
+        match &self.cond_expr {
             None => Ok(true),
-            Some(cond_expr) => expr::evaluate_bool(cond_expr.clone(), ctx),
+            Some(cond_expr) => expr::evaluate_bool(cond_expr, ctx),
         }
     }
 
-    fn iteration_ctx(&self, key: ObjectKey, value: Expression) -> Context<'a> {
+    fn next_ctx(&mut self) -> Option<Context<'a>> {
+        let (key, value) = self.iter.next()?;
         let mut ctx = self.ctx.new_scope();
-        if let Some(key_var) = &self.for_expr.key_var {
+        if let Some(key_var) = &self.key_var {
             ctx.set_variable(key_var.as_str().to_string(), key);
         }
 
-        ctx.set_variable(self.for_expr.value_var.as_str().to_string(), value);
-        ctx
+        ctx.set_variable(self.value_var.as_str().to_string(), value);
+        Some(ctx)
     }
 }
 
@@ -64,8 +73,7 @@ impl<'a> Iterator for IntoIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let (key, value) = self.iter.next()?;
-            let ctx = self.iteration_ctx(key, value);
+            let ctx = self.next_ctx()?;
 
             match self.cond(&ctx) {
                 Ok(false) => {}

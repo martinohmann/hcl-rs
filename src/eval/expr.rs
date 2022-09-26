@@ -2,14 +2,14 @@ use super::*;
 use crate::{Object, TraversalOperator};
 use std::collections::VecDeque;
 
-pub(super) fn evaluate_bool(expr: Expression, ctx: &Context) -> EvalResult<bool> {
+pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool> {
     match expr.evaluate(ctx)? {
         Expression::Bool(value) => Ok(value),
         other => Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))),
     }
 }
 
-pub(super) fn evaluate_array(expr: Expression, ctx: &Context) -> EvalResult<Vec<Expression>> {
+pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> EvalResult<Vec<Expression>> {
     match expr.evaluate(ctx)? {
         Expression::Array(array) => Ok(array),
         other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
@@ -17,7 +17,7 @@ pub(super) fn evaluate_array(expr: Expression, ctx: &Context) -> EvalResult<Vec<
 }
 
 pub(super) fn evaluate_object(
-    expr: Expression,
+    expr: &Expression,
     ctx: &Context,
 ) -> EvalResult<Object<ObjectKey, Expression>> {
     match expr.evaluate(ctx)? {
@@ -27,7 +27,7 @@ pub(super) fn evaluate_object(
 }
 
 pub(super) fn evaluate_collection(
-    expr: Expression,
+    expr: &Expression,
     ctx: &Context,
 ) -> EvalResult<Object<ObjectKey, Expression>> {
     match expr.evaluate(ctx)? {
@@ -42,18 +42,20 @@ pub(super) fn evaluate_collection(
 }
 
 pub(super) fn evaluate_traversal(
-    mut expr: Expression,
+    expr: &Expression,
     mut operators: VecDeque<TraversalOperator>,
     ctx: &Context,
 ) -> EvalResult<Expression> {
+    let mut expr = expr.clone();
+
     while let Some(operator) = operators.pop_front() {
         expr = match operator {
             TraversalOperator::LegacyIndex(index) => {
-                evaluate_array_value(expr, index as usize, ctx)?
+                evaluate_array_value(&expr, index as usize, ctx)?
             }
-            TraversalOperator::Index(index_expr) => evaluate_index_expr(expr, index_expr, ctx)?,
+            TraversalOperator::Index(index_expr) => evaluate_index_expr(&expr, &index_expr, ctx)?,
             TraversalOperator::GetAttr(name) => {
-                evaluate_object_value(expr, name.into_inner(), ctx)?
+                evaluate_object_value(&expr, name.into_inner(), ctx)?
             }
             TraversalOperator::AttrSplat => {
                 // Consume all immediately following GetAttr operators and apply them to each array
@@ -66,11 +68,11 @@ pub(super) fn evaluate_traversal(
 
                 let array = match expr.evaluate(ctx)? {
                     Expression::Array(array) => array
-                        .into_iter()
+                        .iter()
                         .map(|expr| evaluate_traversal(expr, remaining.clone(), ctx))
                         .collect::<EvalResult<_>>()?,
                     Expression::Null => vec![],
-                    other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
+                    other => evaluate_traversal(&other, remaining, ctx).map(|expr| vec![expr])?,
                 };
 
                 Expression::Array(array)
@@ -81,11 +83,11 @@ pub(super) fn evaluate_traversal(
 
                 let array = match expr.evaluate(ctx)? {
                     Expression::Array(array) => array
-                        .into_iter()
+                        .iter()
                         .map(|expr| evaluate_traversal(expr, remaining.clone(), ctx))
                         .collect::<EvalResult<_>>()?,
                     Expression::Null => vec![],
-                    other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
+                    other => evaluate_traversal(&other, remaining, ctx).map(|expr| vec![expr])?,
                 };
 
                 Expression::Array(array)
@@ -97,8 +99,8 @@ pub(super) fn evaluate_traversal(
 }
 
 fn evaluate_index_expr(
-    expr: Expression,
-    index_expr: Expression,
+    expr: &Expression,
+    index_expr: &Expression,
     ctx: &Context,
 ) -> EvalResult<Expression> {
     match index_expr.evaluate(ctx)? {
@@ -117,7 +119,7 @@ fn evaluate_index_expr(
     }
 }
 
-fn evaluate_array_value(expr: Expression, index: usize, ctx: &Context) -> EvalResult<Expression> {
+fn evaluate_array_value(expr: &Expression, index: usize, ctx: &Context) -> EvalResult<Expression> {
     let mut array = evaluate_array(expr, ctx)?;
 
     if index >= array.len() {
@@ -127,7 +129,7 @@ fn evaluate_array_value(expr: Expression, index: usize, ctx: &Context) -> EvalRe
     Ok(array.swap_remove(index))
 }
 
-fn evaluate_object_value(expr: Expression, key: String, ctx: &Context) -> EvalResult<Expression> {
+fn evaluate_object_value(expr: &Expression, key: String, ctx: &Context) -> EvalResult<Expression> {
     let mut object = evaluate_object(expr, ctx)?;
 
     let key = ObjectKey::from(key);

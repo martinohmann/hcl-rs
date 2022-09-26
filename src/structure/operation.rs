@@ -49,7 +49,7 @@ impl UnaryOp {
 }
 
 /// An operator that can be applied to an expression.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnaryOperator {
     /// Negate operator (`-`).
     Neg,
@@ -220,7 +220,7 @@ fn normalize_rhs(lhs_expr: Expression, operator: BinaryOperator, rhs: BinaryOp) 
 }
 
 /// An operator that can be applied to two expressions.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinaryOperator {
     /// Equal operator (`==`).
     Eq,
