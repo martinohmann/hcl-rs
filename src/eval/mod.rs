@@ -36,7 +36,6 @@ impl EvalError {
 
 impl fmt::Display for EvalError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("eval error: ")?;
         fmt::Display::fmt(&self.inner, f)
     }
 }
@@ -61,7 +60,7 @@ impl From<Error> for EvalError {
 
 impl std::error::Error for EvalError {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EvalErrorKind {
     RawExpression,

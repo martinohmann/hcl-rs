@@ -16,17 +16,13 @@ where
 }
 
 #[track_caller]
-fn eval_error<T, E>(value: T, expected: E)
+fn eval_error<T>(value: T, expected: EvalErrorKind)
 where
     T: Evaluate + fmt::Debug + PartialEq,
     <T as Evaluate>::Output: fmt::Debug,
-    E: ToString,
 {
     let mut ctx = Context::new();
-    assert_eq!(
-        value.evaluate(&mut ctx).unwrap_err().to_string(),
-        expected.to_string()
-    );
+    assert_eq!(value.evaluate(&mut ctx).unwrap_err().kind(), &expected);
 }
 
 #[test]
@@ -62,7 +58,7 @@ fn eval_conditional() {
     eval_to(Conditional::new(false, "yes", "no"), Expression::from("no"));
     eval_error(
         Conditional::new("foo", "yes", "no"),
-        "eval error: unexpected expression `\"foo\"`, expected a boolean",
+        EvalErrorKind::Unexpected(Expression::from("foo"), "a boolean"),
     );
 }
 
@@ -294,6 +290,6 @@ fn eval_traversal() {
     // errors
     eval_error(
         Traversal::new(vec![1, 2, 3], [LegacyIndex(5)]),
-        "eval error: index out of bounds: 5",
+        EvalErrorKind::IndexOutOfBounds(5),
     );
 }
