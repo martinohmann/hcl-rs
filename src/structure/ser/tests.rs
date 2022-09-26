@@ -91,32 +91,28 @@ fn identity() {
     );
     test_identity(
         ForExprSerializer,
-        ForExpr::List(
-            ForListExpr::new(
-                Identifier::new("value"),
-                vec![Expression::String(String::from("foo"))],
-                Identifier::new("other_value"),
-            )
-            .with_index_var(Identifier::new("index"))
-            .with_cond_expr(Expression::Bool(true)),
-        ),
+        ForExpr::new(
+            Identifier::new("value"),
+            vec![Expression::String(String::from("foo"))],
+            Identifier::new("other_value"),
+        )
+        .with_key_var(Identifier::new("index"))
+        .with_cond_expr(Expression::Bool(true)),
     );
     test_identity(
         ForExprSerializer,
-        ForExpr::Object(
-            ForObjectExpr::new(
-                Identifier::new("value"),
-                Expression::Object(Object::from([(
-                    ObjectKey::from("k"),
-                    Expression::String(String::from("v")),
-                )])),
-                Identifier::new("other_key"),
-                Identifier::new("other_value"),
-            )
-            .with_key_var(Identifier::new("index"))
-            .with_cond_expr(Expression::Bool(true))
-            .with_grouping(true),
-        ),
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::Object(Object::from([(
+                ObjectKey::from("k"),
+                Expression::String(String::from("v")),
+            )])),
+            Identifier::new("other_value"),
+        )
+        .with_key_var(Identifier::new("index"))
+        .with_key_expr(Identifier::new("other_key"))
+        .with_cond_expr(Expression::Bool(true))
+        .with_grouping(true),
     );
 }
 
@@ -237,44 +233,44 @@ fn custom() {
 
     test_serialize(
         ExpressionSerializer,
-        ForExpr::List(
-            ForListExpr::new(
-                Identifier::new("value"),
-                vec![Expression::String(String::from("foo"))],
-                Identifier::new("other_value"),
-            )
-            .with_index_var(Identifier::new("index"))
-            .with_cond_expr(Expression::Bool(true)),
-        ),
-        Expression::from(ForExpr::List(
-            ForListExpr::new(
-                Identifier::new("value"),
-                vec![Expression::String(String::from("foo"))],
-                Identifier::new("other_value"),
-            )
-            .with_index_var(Identifier::new("index"))
-            .with_cond_expr(Expression::Bool(true)),
-        )),
-    );
-
-    test_serialize(
-        ExpressionSerializer,
-        ForListExpr::new(
+        ForExpr::new(
             Identifier::new("value"),
             vec![Expression::String(String::from("foo"))],
             Identifier::new("other_value"),
         )
-        .with_index_var(Identifier::new("index"))
+        .with_key_var(Identifier::new("index"))
         .with_cond_expr(Expression::Bool(true)),
-        Expression::from(ForExpr::List(
-            ForListExpr::new(
+        Expression::from(
+            ForExpr::new(
                 Identifier::new("value"),
                 vec![Expression::String(String::from("foo"))],
                 Identifier::new("other_value"),
             )
-            .with_index_var(Identifier::new("index"))
+            .with_key_var(Identifier::new("index"))
             .with_cond_expr(Expression::Bool(true)),
-        )),
+        ),
+    );
+
+    test_serialize(
+        ExpressionSerializer,
+        ForExpr::new(
+            Identifier::new("value"),
+            vec![Expression::String(String::from("foo"))],
+            Identifier::new("other_value"),
+        )
+        .with_key_var(Identifier::new("key"))
+        .with_key_expr(Expression::VariableExpr(Identifier::new("key")))
+        .with_cond_expr(Expression::Bool(true)),
+        Expression::from(
+            ForExpr::new(
+                Identifier::new("value"),
+                vec![Expression::String(String::from("foo"))],
+                Identifier::new("other_value"),
+            )
+            .with_key_var(Identifier::new("key"))
+            .with_key_expr(Expression::VariableExpr(Identifier::new("key")))
+            .with_cond_expr(Expression::Bool(true)),
+        ),
     );
 
     test_serialize(

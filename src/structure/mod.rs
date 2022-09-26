@@ -67,7 +67,7 @@ pub use self::{
     body::{Body, BodyBuilder},
     conditional::Conditional,
     expression::{Expression, Object, ObjectKey, RawExpression},
-    for_expr::{ForExpr, ForListExpr, ForObjectExpr},
+    for_expr::ForExpr,
     func::{FuncCall, FuncCallBuilder},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template::{Heredoc, HeredocStripMode, TemplateExpr},

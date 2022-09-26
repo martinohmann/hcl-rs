@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
-    ForListExpr, ForObjectExpr, FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey,
-    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator,
+    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr, FuncCall,
+    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
+    TemplateExpr, Traversal, TraversalOperator,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -256,38 +256,36 @@ fn serialize_for_expr() {
     let body = Body::builder()
         .add_attribute((
             "list",
-            ForExpr::List(
-                ForListExpr::new(
-                    Identifier::new("item"),
-                    Expression::VariableExpr(Identifier::new("items")),
-                    FuncCall::builder("func")
-                        .arg(Identifier::new("item"))
-                        .build(),
-                )
-                .with_cond_expr(Identifier::new("item")),
-            ),
+            ForExpr::new(
+                Identifier::new("item"),
+                Expression::VariableExpr(Identifier::new("items")),
+                FuncCall::builder("func")
+                    .arg(Identifier::new("item"))
+                    .build(),
+            )
+            .with_cond_expr(Identifier::new("item")),
         ))
         .add_attribute((
             "object",
-            ForExpr::Object(
-                ForObjectExpr::new(
-                    Identifier::new("value"),
-                    Expression::VariableExpr(Identifier::new("items")),
-                    FuncCall::builder("toupper")
-                        .arg(Identifier::new("key"))
-                        .build(),
-                    FuncCall::builder("tolower")
-                        .arg(Identifier::new("value"))
-                        .build(),
-                )
-                .with_key_var(Identifier::new("key"))
-                .with_cond_expr(Operation::Binary(BinaryOp::new(
-                    Identifier::new("value"),
-                    BinaryOperator::NotEq,
-                    Expression::Null,
-                )))
-                .with_grouping(true),
-            ),
+            ForExpr::new(
+                Identifier::new("value"),
+                Expression::VariableExpr(Identifier::new("items")),
+                FuncCall::builder("tolower")
+                    .arg(Identifier::new("value"))
+                    .build(),
+            )
+            .with_key_var(Identifier::new("key"))
+            .with_key_expr(
+                FuncCall::builder("toupper")
+                    .arg(Identifier::new("key"))
+                    .build(),
+            )
+            .with_cond_expr(Operation::Binary(BinaryOp::new(
+                Identifier::new("value"),
+                BinaryOperator::NotEq,
+                Expression::Null,
+            )))
+            .with_grouping(true),
         ))
         .build();
 

@@ -382,48 +382,14 @@ impl Format for ForExpr {
     where
         W: io::Write,
     {
-        match self {
-            ForExpr::List(expr) => expr.format(fmt),
-            ForExpr::Object(expr) => expr.format(fmt),
+        let object_result = self.key_expr.is_some();
+
+        if object_result {
+            fmt.write_all(b"{")?;
+        } else {
+            fmt.write_all(b"[")?;
         }
-    }
-}
 
-impl private::Sealed for ForListExpr {}
-
-impl Format for ForListExpr {
-    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
-    where
-        W: io::Write,
-    {
-        fmt.write_all(b"[")?;
-        fmt.write_all(b"for ")?;
-        if let Some(key) = &self.index_var {
-            key.format(fmt)?;
-            fmt.write_all(b", ")?;
-        }
-        self.value_var.format(fmt)?;
-        fmt.write_all(b" in ")?;
-        self.collection_expr.format(fmt)?;
-        fmt.write_all(b" : ")?;
-        self.element_expr.format(fmt)?;
-        if let Some(cond) = &self.cond_expr {
-            fmt.write_all(b" if ")?;
-            cond.format(fmt)?;
-        }
-        fmt.write_all(b"]")?;
-        Ok(())
-    }
-}
-
-impl private::Sealed for ForObjectExpr {}
-
-impl Format for ForObjectExpr {
-    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
-    where
-        W: io::Write,
-    {
-        fmt.write_all(b"{")?;
         fmt.write_all(b"for ")?;
         if let Some(key) = &self.key_var {
             key.format(fmt)?;
@@ -433,17 +399,25 @@ impl Format for ForObjectExpr {
         fmt.write_all(b" in ")?;
         self.collection_expr.format(fmt)?;
         fmt.write_all(b" : ")?;
-        self.key_expr.format(fmt)?;
-        fmt.write_all(b" => ")?;
+
+        if let Some(key_expr) = &self.key_expr {
+            key_expr.format(fmt)?;
+            fmt.write_all(b" => ")?;
+        }
         self.value_expr.format(fmt)?;
-        if self.grouping {
+        if object_result && self.grouping {
             fmt.write_all(b"...")?;
         }
         if let Some(cond) = &self.cond_expr {
             fmt.write_all(b" if ")?;
             cond.format(fmt)?;
         }
-        fmt.write_all(b"}")?;
+
+        if object_result {
+            fmt.write_all(b"}")?;
+        } else {
+            fmt.write_all(b"]")?;
+        }
         Ok(())
     }
 }

@@ -800,136 +800,26 @@ impl<'de> IntoDeserializer<'de, Error> for BinaryOperator {
 }
 
 impl<'de> IntoDeserializer<'de, Error> for ForExpr {
-    type Deserializer = Self;
+    type Deserializer = MapAccessDeserializer<ForExprAccess>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        self
+        MapAccessDeserializer::new(ForExprAccess::new(self))
     }
 }
 
-impl<'de> de::Deserializer<'de> for ForExpr {
-    type Error = Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct identifier ignored_any
-    }
-    impl_deserialize_enum!();
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Error>
-    where
-        V: de::Visitor<'de>,
-    {
-        match self {
-            ForExpr::List(expr) => expr.into_deserializer().deserialize_any(visitor),
-            ForExpr::Object(expr) => expr.into_deserializer().deserialize_any(visitor),
-        }
-    }
-}
-
-impl VariantName for ForExpr {
-    fn variant_name(&self) -> &'static str {
-        match self {
-            ForExpr::List(_) => "List",
-            ForExpr::Object(_) => "Object",
-        }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, Error> for ForListExpr {
-    type Deserializer = MapAccessDeserializer<ForListExprAccess>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        MapAccessDeserializer::new(ForListExprAccess::new(self))
-    }
-}
-
-pub struct ForListExprAccess {
-    index_var: Option<Option<Identifier>>,
-    value_var: Option<Identifier>,
-    collection_expr: Option<Expression>,
-    element_expr: Option<Expression>,
-    cond_expr: Option<Option<Expression>>,
-}
-
-impl ForListExprAccess {
-    fn new(expr: ForListExpr) -> Self {
-        ForListExprAccess {
-            index_var: Some(expr.index_var),
-            value_var: Some(expr.value_var),
-            collection_expr: Some(expr.collection_expr),
-            element_expr: Some(expr.element_expr),
-            cond_expr: Some(expr.cond_expr),
-        }
-    }
-}
-
-impl<'de> de::MapAccess<'de> for ForListExprAccess {
-    type Error = Error;
-
-    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
-    where
-        K: de::DeserializeSeed<'de>,
-    {
-        if self.index_var.is_some() {
-            seed.deserialize("key_var".into_deserializer()).map(Some)
-        } else if self.value_var.is_some() {
-            seed.deserialize("value_var".into_deserializer()).map(Some)
-        } else if self.collection_expr.is_some() {
-            seed.deserialize("collection_expr".into_deserializer())
-                .map(Some)
-        } else if self.element_expr.is_some() {
-            seed.deserialize("element_expr".into_deserializer())
-                .map(Some)
-        } else if self.cond_expr.is_some() {
-            seed.deserialize("cond_expr".into_deserializer()).map(Some)
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Error>
-    where
-        V: de::DeserializeSeed<'de>,
-    {
-        if let Some(index_var) = self.index_var.take() {
-            seed.deserialize(OptionDeserializer::new(index_var))
-        } else if let Some(value_var) = self.value_var.take() {
-            seed.deserialize(value_var.into_deserializer())
-        } else if let Some(collection_expr) = self.collection_expr.take() {
-            seed.deserialize(collection_expr.into_deserializer())
-        } else if let Some(element_expr) = self.element_expr.take() {
-            seed.deserialize(element_expr.into_deserializer())
-        } else if let Some(cond_expr) = self.cond_expr.take() {
-            seed.deserialize(OptionDeserializer::new(cond_expr))
-        } else {
-            Err(de::Error::custom("invalid HCL for list expression"))
-        }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, Error> for ForObjectExpr {
-    type Deserializer = MapAccessDeserializer<ForObjectExprAccess>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        MapAccessDeserializer::new(ForObjectExprAccess::new(self))
-    }
-}
-
-pub struct ForObjectExprAccess {
+pub struct ForExprAccess {
     key_var: Option<Option<Identifier>>,
     value_var: Option<Identifier>,
     collection_expr: Option<Expression>,
-    key_expr: Option<Expression>,
+    key_expr: Option<Option<Expression>>,
     value_expr: Option<Expression>,
     grouping: Option<bool>,
     cond_expr: Option<Option<Expression>>,
 }
 
-impl ForObjectExprAccess {
-    fn new(expr: ForObjectExpr) -> Self {
-        ForObjectExprAccess {
+impl ForExprAccess {
+    fn new(expr: ForExpr) -> Self {
+        ForExprAccess {
             key_var: Some(expr.key_var),
             value_var: Some(expr.value_var),
             collection_expr: Some(expr.collection_expr),
@@ -941,7 +831,7 @@ impl ForObjectExprAccess {
     }
 }
 
-impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
+impl<'de> de::MapAccess<'de> for ForExprAccess {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Error>
@@ -979,7 +869,7 @@ impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
         } else if let Some(collection_expr) = self.collection_expr.take() {
             seed.deserialize(collection_expr.into_deserializer())
         } else if let Some(key_expr) = self.key_expr.take() {
-            seed.deserialize(key_expr.into_deserializer())
+            seed.deserialize(OptionDeserializer::new(key_expr))
         } else if let Some(value_expr) = self.value_expr.take() {
             seed.deserialize(value_expr.into_deserializer())
         } else if let Some(grouping) = self.grouping.take() {
@@ -987,7 +877,7 @@ impl<'de> de::MapAccess<'de> for ForObjectExprAccess {
         } else if let Some(cond_expr) = self.cond_expr.take() {
             seed.deserialize(OptionDeserializer::new(cond_expr))
         } else {
-            Err(de::Error::custom("invalid HCL for object expression"))
+            Err(de::Error::custom("invalid HCL `for` expression"))
         }
     }
 }
