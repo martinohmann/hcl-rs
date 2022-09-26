@@ -64,9 +64,7 @@ impl Evaluate for Expression {
             Expression::Array(array) => array.evaluate(ctx).map(Expression::Array),
             Expression::Object(object) => object.evaluate(ctx).map(Expression::Object),
             Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Expression::String),
-            Expression::VariableExpr(ident) => {
-                ctx.get_variable(ident.as_str()).cloned().map(Into::into)
-            }
+            Expression::VariableExpr(ident) => ctx.get_var(ident).cloned().map(Into::into),
             Expression::Traversal(traversal) => traversal.evaluate(ctx),
             Expression::FuncCall(func_call) => func_call.evaluate(ctx),
             Expression::SubExpr(expr) => expr.evaluate(ctx),
@@ -153,7 +151,7 @@ impl Evaluate for FuncCall {
     type Output = Expression;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
-        let func = ctx.get_func(self.name.as_str())?;
+        let func = ctx.get_func(&self.name)?;
 
         let len = self.args.len();
         let mut args = Vec::with_capacity(len);

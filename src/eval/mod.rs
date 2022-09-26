@@ -6,7 +6,9 @@ mod impls;
 #[cfg(test)]
 mod tests;
 
-use crate::{BinaryOperator, Error, Expression, Map, ObjectKey, Result, UnaryOperator, Value};
+use crate::{
+    BinaryOperator, Error, Expression, Identifier, Map, ObjectKey, Result, UnaryOperator, Value,
+};
 use std::fmt;
 
 mod private {
@@ -64,8 +66,8 @@ impl std::error::Error for EvalError {}
 pub enum EvalErrorKind {
     RawExpression,
     Message(String),
-    UndefinedVariable(String),
-    UndefinedFunc(String),
+    UndefinedVariable(Identifier),
+    UndefinedFunc(Identifier),
     Unexpected(Expression, &'static str),
     IndexOutOfBounds(usize),
     InvalidUnaryOp(UnaryOperator, Expression),
@@ -120,12 +122,11 @@ pub trait Evaluate: private::Sealed {
 
 type Func = fn(Vec<Expression>) -> EvalResult<Expression>;
 
-// @TODO(mohmann): support functions as well.
 /// The evaluation context.
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
-    vars: Map<String, Value>,
-    funcs: Map<String, Func>,
+    vars: Map<Identifier, Value>,
+    funcs: Map<Identifier, Func>,
     parent: Option<&'a Context<'a>>,
 }
 
@@ -145,8 +146,8 @@ impl<'a> Context<'a> {
         }
     }
 
-    // Create a new context scope which has the current one as parent.
-    fn new_scope(&self) -> Context<'_> {
+    // Create a new child `Context` which has the current one as parent.
+    fn new_child(&self) -> Context<'_> {
         Context {
             vars: Map::new(),
             funcs: Map::new(),
@@ -156,20 +157,20 @@ impl<'a> Context<'a> {
 
     /// Lookup a variable's value. Variables defined in the current scope take precedence over
     /// variables defined in parent scopes.
-    pub fn get_variable(&self, name: &str) -> EvalResult<&Value> {
+    pub fn get_var(&self, name: &Identifier) -> EvalResult<&Value> {
         match self.vars.get(name) {
             Some(value) => Ok(value),
-            None => match &self.parent {
-                Some(parent) => parent.get_variable(name),
+            None => match self.parent {
+                Some(parent) => parent.get_var(name),
                 None => Err(EvalError::new(EvalErrorKind::UndefinedVariable(
-                    name.to_string(),
+                    name.clone(),
                 ))),
             },
         }
     }
 
     /// Set a variable which is available in the current and all child scopes.
-    pub fn set_variable<T>(&mut self, name: String, value: T) -> Option<Value>
+    pub fn set_var<T>(&mut self, name: Identifier, value: T) -> Option<Value>
     where
         T: Into<Value>,
     {
@@ -178,20 +179,18 @@ impl<'a> Context<'a> {
 
     /// Lookup a func. Functions defined in the current scope take precedence over
     /// functions defined in parent scopes.
-    pub fn get_func(&self, name: &str) -> EvalResult<&Func> {
+    pub fn get_func(&self, name: &Identifier) -> EvalResult<&Func> {
         match self.funcs.get(name) {
             Some(func) => Ok(func),
-            None => match &self.parent {
+            None => match self.parent {
                 Some(parent) => parent.get_func(name),
-                None => Err(EvalError::new(EvalErrorKind::UndefinedFunc(
-                    name.to_string(),
-                ))),
+                None => Err(EvalError::new(EvalErrorKind::UndefinedFunc(name.clone()))),
             },
         }
     }
 
     /// Set a func which is available in the current and all child scopes.
-    pub fn set_func(&mut self, name: String, func: Func) -> Option<Func> {
+    pub fn set_func(&mut self, name: Identifier, func: Func) -> Option<Func> {
         self.funcs.insert(name, func)
     }
 
