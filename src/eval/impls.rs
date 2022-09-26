@@ -1,7 +1,6 @@
-use std::collections::VecDeque;
-
-use super::*;
+use super::{for_expr::Collection, *};
 use crate::{structure::*, template::Template};
+use std::collections::VecDeque;
 use vecmap::map::Entry;
 
 impl private::Sealed for Body {}
@@ -252,116 +251,52 @@ impl Evaluate for ForExpr {
     type Output = Expression;
 
     fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        match self {
-            ForExpr::List(expr) => expr.evaluate(ctx).map(Expression::Array),
-            ForExpr::Object(expr) => expr.evaluate(ctx).map(Expression::Object),
-        }
-    }
-}
+        let collection = Collection::new(&self, ctx)?;
 
-impl private::Sealed for ForListExpr {}
+        match &self.key_expr {
+            Some(key_expr) => {
+                // Result will be an object.
+                let mut result = Object::with_capacity(collection.len());
 
-impl Evaluate for ForListExpr {
-    type Output = Vec<Expression>;
+                for ctx in collection.into_iter() {
+                    let ctx = &ctx?;
+                    let key = key_expr.clone().evaluate(ctx).map(ObjectKey::from)?;
+                    let value = self.value_expr.clone().evaluate(ctx)?;
 
-    fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let values = expr::evaluate_array(self.collection_expr, ctx)?;
-        let index_var = self.index_var.as_ref().map(|key| key.as_str());
-        let value_var = self.value_var.as_str();
-
-        let mut result = Vec::with_capacity(values.len());
-
-        for (index, value) in values.into_iter().enumerate() {
-            let mut ctx = ctx.new_scope();
-            if let Some(key_var) = &index_var {
-                ctx.set_variable(key_var.to_string(), index);
-            }
-
-            ctx.set_variable(value_var.to_owned(), value);
-
-            let keep = match &self.cond_expr {
-                None => true,
-                Some(cond_expr) => expr::evaluate_bool(cond_expr.clone(), &ctx)?,
-            };
-
-            if keep {
-                result.push(self.element_expr.clone().evaluate(&ctx)?);
-            }
-        }
-
-        Ok(result)
-    }
-}
-
-impl private::Sealed for ForObjectExpr {}
-
-impl Evaluate for ForObjectExpr {
-    type Output = Object<ObjectKey, Expression>;
-
-    fn evaluate(self, ctx: &Context) -> EvalResult<Self::Output> {
-        let object = expr::evaluate_object(self.collection_expr, ctx)?;
-        let key_var = self.key_var.as_ref().map(|key| key.as_str());
-        let value_var = self.value_var.as_str();
-
-        fn keep(cond: Option<&Expression>, ctx: &Context) -> EvalResult<bool> {
-            match cond {
-                Some(cond) => expr::evaluate_bool(cond.clone(), ctx),
-                None => Ok(true),
-            }
-        }
-
-        if self.grouping {
-            let mut result: Object<String, Vec<Expression>> = Object::with_capacity(object.len());
-
-            for (key, value) in object.into_iter() {
-                let mut ctx = ctx.new_scope();
-                if let Some(key_var) = &key_var {
-                    ctx.set_variable(key_var.to_string(), key.to_string());
-                }
-
-                ctx.set_variable(value_var.to_string(), value);
-
-                if keep(self.cond_expr.as_ref(), &ctx)? {
-                    let key = expr::evaluate_string(self.key_expr.clone(), &ctx)?;
-                    let value = self.value_expr.clone().evaluate(&ctx)?;
-
-                    result.entry(key).or_default().push(value);
-                }
-            }
-
-            Ok(result
-                .into_iter()
-                .map(|(k, v)| (ObjectKey::from(k), Expression::Array(v)))
-                .collect())
-        } else {
-            let mut result: Object<String, Expression> = Object::with_capacity(object.len());
-
-            for (key, value) in object.into_iter() {
-                let mut ctx = ctx.new_scope();
-                if let Some(key_var) = &key_var {
-                    ctx.set_variable(key_var.to_string(), key.to_string());
-                }
-
-                ctx.set_variable(value_var.to_string(), value);
-
-                if keep(self.cond_expr.as_ref(), &ctx)? {
-                    let key = expr::evaluate_string(self.key_expr.clone(), &ctx)?;
-
-                    match result.entry(key) {
-                        Entry::Occupied(entry) => {
-                            return Err(ctx.error(EvalErrorKind::KeyAlreadyExists(entry.into_key())))
+                    if self.grouping {
+                        match result
+                            .entry(key)
+                            .or_insert_with(|| Expression::Array(Vec::new()))
+                        {
+                            Expression::Array(array) => array.push(value),
+                            _ => unreachable!(),
                         }
-                        Entry::Vacant(entry) => {
-                            entry.insert(self.value_expr.clone().evaluate(&ctx)?);
+                    } else {
+                        match result.entry(key) {
+                            Entry::Occupied(entry) => {
+                                return Err(
+                                    ctx.error(EvalErrorKind::KeyAlreadyExists(entry.into_key()))
+                                )
+                            }
+                            Entry::Vacant(entry) => {
+                                entry.insert(value);
+                            }
                         }
                     }
                 }
-            }
 
-            Ok(result
-                .into_iter()
-                .map(|(k, v)| (ObjectKey::from(k), v))
-                .collect())
+                Ok(Expression::Object(result))
+            }
+            None => {
+                // Result will be an array.
+                let mut result = Vec::with_capacity(collection.len());
+
+                for ctx in collection.into_iter() {
+                    result.push(self.value_expr.clone().evaluate(&ctx?)?);
+                }
+
+                Ok(Expression::Array(result))
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 //! HCL expression evaluation.
 
 mod expr;
+mod for_expr;
 mod impls;
 #[cfg(test)]
 mod tests;
@@ -69,8 +70,8 @@ pub enum EvalErrorKind {
     IndexOutOfBounds(usize),
     InvalidUnaryOp(UnaryOperator, Expression),
     InvalidBinaryOp(Expression, BinaryOperator, Expression),
-    NoSuchKey(String),
-    KeyAlreadyExists(String),
+    NoSuchKey(ObjectKey),
+    KeyAlreadyExists(ObjectKey),
 }
 
 impl fmt::Display for EvalErrorKind {

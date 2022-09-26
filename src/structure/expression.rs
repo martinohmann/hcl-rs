@@ -270,6 +270,15 @@ impl From<ObjectKey> for String {
     }
 }
 
+impl From<ObjectKey> for Value {
+    fn from(key: ObjectKey) -> Self {
+        match key {
+            ObjectKey::Expression(expr) => expr.into(),
+            ObjectKey::Identifier(ident) => Value::String(ident.into_inner()),
+        }
+    }
+}
+
 impl Display for ObjectKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

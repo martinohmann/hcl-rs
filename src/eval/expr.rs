@@ -9,13 +9,6 @@ pub(super) fn evaluate_bool(expr: Expression, ctx: &Context) -> EvalResult<bool>
     }
 }
 
-pub(super) fn evaluate_string(expr: Expression, ctx: &Context) -> EvalResult<String> {
-    match expr.evaluate(ctx)? {
-        Expression::String(value) => Ok(value),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "a string"))),
-    }
-}
-
 pub(super) fn evaluate_array(expr: Expression, ctx: &Context) -> EvalResult<Vec<Expression>> {
     match expr.evaluate(ctx)? {
         Expression::Array(array) => Ok(array),
@@ -30,6 +23,21 @@ pub(super) fn evaluate_object(
     match expr.evaluate(ctx)? {
         Expression::Object(object) => Ok(object),
         other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an object"))),
+    }
+}
+
+pub(super) fn evaluate_collection(
+    expr: Expression,
+    ctx: &Context,
+) -> EvalResult<Object<ObjectKey, Expression>> {
+    match expr.evaluate(ctx)? {
+        Expression::Array(array) => Ok(array
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| (ObjectKey::from(index), value))
+            .collect()),
+        Expression::Object(object) => Ok(object),
+        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array or object"))),
     }
 }
 
@@ -126,6 +134,6 @@ fn evaluate_object_value(expr: Expression, key: String, ctx: &Context) -> EvalRe
 
     match object.swap_remove(&key) {
         Some(value) => Ok(value),
-        None => Err(ctx.error(EvalErrorKind::NoSuchKey(key.to_string()))),
+        None => Err(ctx.error(EvalErrorKind::NoSuchKey(key))),
     }
 }

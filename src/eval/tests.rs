@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Conditional, ForExpr, ForListExpr, ForObjectExpr, Identifier,
-    Operation, Traversal, TraversalOperator,
+    BinaryOp, BinaryOperator, Conditional, ForExpr, Identifier, Operation, Traversal,
+    TraversalOperator,
 };
 use std::fmt;
 
@@ -69,59 +69,85 @@ fn eval_conditional() {
 #[test]
 fn eval_for_expr() {
     eval_to(
-        ForExpr::List(
-            ForListExpr::new(
-                Identifier::new("item"),
-                Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
-                Operation::Binary(BinaryOp::new(
-                    Expression::VariableExpr(Identifier::new("item")),
-                    BinaryOperator::Mul,
-                    2,
-                )),
-            )
-            .with_cond_expr(Operation::Binary(BinaryOp::new(
+        ForExpr::new(
+            Identifier::new("item"),
+            Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
+            Operation::Binary(BinaryOp::new(
                 Expression::VariableExpr(Identifier::new("item")),
-                BinaryOperator::Less,
-                5,
-            ))),
-        ),
+                BinaryOperator::Mul,
+                2,
+            )),
+        )
+        .with_cond_expr(Operation::Binary(BinaryOp::new(
+            Expression::VariableExpr(Identifier::new("item")),
+            BinaryOperator::Less,
+            5,
+        ))),
         Expression::from_iter([2, 4, 6, 8]),
     );
 
     eval_to(
-        ForExpr::Object(
-            ForObjectExpr::new(
-                Identifier::new("value"),
-                Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
-                Expression::VariableExpr(Identifier::new("value")),
-                Expression::VariableExpr(Identifier::new("key")),
-            )
-            .with_key_var(Identifier::new("key"))
-            .with_cond_expr(Operation::Binary(BinaryOp::new(
-                Expression::VariableExpr(Identifier::new("key")),
-                BinaryOperator::NotEq,
-                Expression::from("d"),
-            ))),
-        ),
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
+            Expression::VariableExpr(Identifier::new("key")),
+        )
+        .with_key_var(Identifier::new("key"))
+        .with_key_expr(Expression::VariableExpr(Identifier::new("value")))
+        .with_cond_expr(Operation::Binary(BinaryOp::new(
+            Expression::VariableExpr(Identifier::new("key")),
+            BinaryOperator::NotEq,
+            Expression::from("d"),
+        ))),
         Expression::from_iter([("1", "a"), ("2", "b"), ("3", "c")]),
     );
 
     eval_to(
-        ForExpr::Object(
-            ForObjectExpr::new(
-                Identifier::new("value"),
-                Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
-                Expression::from("foo"),
-                Expression::VariableExpr(Identifier::new("value")),
-            )
-            .with_key_var(Identifier::new("key"))
-            .with_cond_expr(Operation::Binary(BinaryOp::new(
-                Expression::VariableExpr(Identifier::new("key")),
-                BinaryOperator::NotEq,
-                Expression::from("d"),
-            )))
-            .with_grouping(true),
-        ),
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter(["a", "b", "c", "d"]),
+            Expression::VariableExpr(Identifier::new("value")),
+        )
+        .with_key_var(Identifier::new("index"))
+        .with_key_expr(Expression::VariableExpr(Identifier::new("index"))),
+        Expression::from_iter([(0, "a"), (1, "b"), (2, "c"), (3, "d")]),
+    );
+
+    eval_to(
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
+            Expression::VariableExpr(Identifier::new("key")),
+        )
+        .with_key_var(Identifier::new("key")),
+        Expression::from_iter(["a", "b", "c", "d"]),
+    );
+
+    eval_to(
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter(["a", "b", "c", "d"]),
+            Expression::VariableExpr(Identifier::new("value")),
+        )
+        .with_key_var(Identifier::new("index"))
+        .with_key_expr(Expression::VariableExpr(Identifier::new("index"))),
+        Expression::from_iter([(0, "a"), (1, "b"), (2, "c"), (3, "d")]),
+    );
+
+    eval_to(
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
+            Expression::VariableExpr(Identifier::new("value")),
+        )
+        .with_key_var(Identifier::new("key"))
+        .with_key_expr(Expression::from("foo"))
+        .with_cond_expr(Operation::Binary(BinaryOp::new(
+            Expression::VariableExpr(Identifier::new("key")),
+            BinaryOperator::NotEq,
+            Expression::from("d"),
+        )))
+        .with_grouping(true),
         Expression::from_iter([("foo", vec![1, 2, 3])]),
     );
 }
