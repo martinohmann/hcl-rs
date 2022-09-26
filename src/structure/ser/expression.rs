@@ -144,7 +144,7 @@ impl ser::Serializer for ExpressionSerializer {
             ("$hcl::expression", "Operation") | ("$hcl::operation", _) => {
                 Ok(Expression::from(value.serialize(OperationSerializer)?))
             }
-            ("$hcl::expression", "ForExpr") | ("$hcl::for_expr", _) => {
+            ("$hcl::expression", "ForExpr") => {
                 Ok(Expression::from(value.serialize(ForExprSerializer)?))
             }
             ("$hcl::expression", "SubExpr") => {
@@ -337,9 +337,7 @@ impl SerializeExpressionStruct {
             "$hcl::traversal" => {
                 SerializeExpressionStruct::Traversal(SerializeTraversalStruct::new())
             }
-            "$hcl::for_list_expr" | "$hcl::for_object_expr" => {
-                SerializeExpressionStruct::ForExpr(SerializeForExprStruct::new(name))
-            }
+            "$hcl::for_expr" => SerializeExpressionStruct::ForExpr(SerializeForExprStruct::new()),
             "$hcl::func_call" => {
                 SerializeExpressionStruct::FuncCall(SerializeFuncCallStruct::new())
             }

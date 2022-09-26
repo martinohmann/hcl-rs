@@ -207,31 +207,33 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
 
 fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     match pair.as_rule() {
-        Rule::ForTupleExpr => parse_for_list_expr(pair).map(ForExpr::List),
-        Rule::ForObjectExpr => parse_for_object_expr(pair).map(ForExpr::Object),
+        Rule::ForTupleExpr => parse_for_list_expr(pair),
+        Rule::ForObjectExpr => parse_for_object_expr(pair),
         rule => unexpected_rule(rule),
     }
 }
 
-fn parse_for_list_expr(pair: Pair<Rule>) -> Result<ForListExpr> {
+fn parse_for_list_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     let mut pairs = pair.into_inner();
     let (key_var, value_var, collection_expr) = parse_for_intro(pairs.next().unwrap())?;
-    let element_expr = parse_expression(pairs.next().unwrap())?;
+    let value_expr = parse_expression(pairs.next().unwrap())?;
     let cond_expr = match pairs.next() {
         Some(pair) => Some(parse_expression(inner(pair))?),
         None => None,
     };
 
-    Ok(ForListExpr {
-        index_var: key_var,
+    Ok(ForExpr {
+        key_var,
         value_var,
         collection_expr,
-        element_expr,
+        key_expr: None,
+        value_expr,
+        grouping: false,
         cond_expr,
     })
 }
 
-fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForObjectExpr> {
+fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     let mut pairs = pair.into_inner();
     let (key_var, value_var, collection_expr) = parse_for_intro(pairs.next().unwrap())?;
     let key_expr = parse_expression(pairs.next().unwrap())?;
@@ -246,11 +248,11 @@ fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForObjectExpr> {
         (_, _) => (false, None),
     };
 
-    Ok(ForObjectExpr {
+    Ok(ForExpr {
         key_var,
         value_var,
         collection_expr,
-        key_expr,
+        key_expr: Some(key_expr),
         value_expr,
         grouping,
         cond_expr,
