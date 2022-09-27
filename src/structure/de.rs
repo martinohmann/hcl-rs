@@ -256,14 +256,14 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
-            Expression::VariableExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::Variable(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::Traversal(traversal) => {
                 traversal.into_deserializer().deserialize_any(visitor)
             }
             Expression::FuncCall(func_call) => {
                 func_call.into_deserializer().deserialize_any(visitor)
             }
-            Expression::SubExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::Parenthesis(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::Conditional(cond) => cond.into_deserializer().deserialize_any(visitor),
             Expression::Operation(op) => op.into_deserializer().deserialize_any(visitor),
             Expression::ForExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
@@ -294,10 +294,10 @@ impl VariantName for Expression {
             Expression::Object(_) => "Object",
             Expression::Raw(_) => "Raw",
             Expression::TemplateExpr(_) => "TemplateExpr",
-            Expression::VariableExpr(_) => "VariableExpr",
+            Expression::Variable(_) => "Variable",
             Expression::Traversal(_) => "Traversal",
             Expression::FuncCall(_) => "FuncCall",
-            Expression::SubExpr(_) => "SubExpr",
+            Expression::Parenthesis(_) => "Parenthesis",
             Expression::Conditional(_) => "Conditional",
             Expression::Operation(_) => "Operation",
             Expression::ForExpr(_) => "ForExpr",
@@ -333,7 +333,7 @@ impl<'de> de::VariantAccess<'de> for Expression {
     {
         match self {
             Expression::TemplateExpr(expr) => seed.deserialize(expr.into_deserializer()),
-            Expression::SubExpr(expr) => seed.deserialize(expr.into_deserializer()),
+            Expression::Parenthesis(expr) => seed.deserialize(expr.into_deserializer()),
             Expression::Operation(op) => seed.deserialize(op.into_deserializer()),
             Expression::ForExpr(expr) => seed.deserialize(expr.into_deserializer()),
             value => seed.deserialize(value.into_deserializer()),

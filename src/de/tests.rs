@@ -246,7 +246,7 @@ fn deserialize_for_expr() {
             "list",
             ForExpr::new(
                 Identifier::new("item"),
-                Expression::VariableExpr(Identifier::new("items")),
+                Expression::Variable(Identifier::new("items")),
                 FuncCall::builder("func")
                     .arg(Identifier::new("item"))
                     .build(),
@@ -257,7 +257,7 @@ fn deserialize_for_expr() {
             "object",
             ForExpr::new(
                 Identifier::new("value"),
-                Expression::VariableExpr(Identifier::new("items")),
+                Expression::Variable(Identifier::new("items")),
                 FuncCall::builder("tolower")
                     .arg(Identifier::new("value"))
                     .build(),

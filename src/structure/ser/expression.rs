@@ -1,9 +1,9 @@
 use super::{
     conditional::{ConditionalSerializer, SerializeConditionalStruct},
     for_expr::{ForExprSerializer, SerializeForExprStruct},
-    func::SerializeFuncCallStruct,
+    func_call::SerializeFuncCallStruct,
     operation::{OperationSerializer, SerializeOperationStruct},
-    template::{SerializeTemplateExprStruct, TemplateExprSerializer},
+    template_expr::{SerializeTemplateExprStruct, TemplateExprSerializer},
     traversal::SerializeTraversalStruct,
     StringSerializer,
 };
@@ -119,7 +119,7 @@ impl ser::Serializer for ExpressionSerializer {
                 value.serialize(StringSerializer)?,
             )))
         } else if name == "$hcl::identifier" {
-            Ok(Expression::VariableExpr(Identifier::from(
+            Ok(Expression::Variable(Identifier::from(
                 value.serialize(StringSerializer)?,
             )))
         } else {
@@ -147,8 +147,8 @@ impl ser::Serializer for ExpressionSerializer {
             ("$hcl::expression", "ForExpr") => {
                 Ok(Expression::from(value.serialize(ForExprSerializer)?))
             }
-            ("$hcl::expression", "SubExpr") => {
-                Ok(Expression::SubExpr(Box::new(value.serialize(self)?)))
+            ("$hcl::expression", "Parenthesis") => {
+                Ok(Expression::Parenthesis(Box::new(value.serialize(self)?)))
             }
             ("$hcl::expression", "TemplateExpr") | ("$hcl::template_expr", _) => {
                 Ok(Expression::from(value.serialize(TemplateExprSerializer)?))

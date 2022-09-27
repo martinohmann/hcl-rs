@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr, FuncCall,
-    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
+    Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
+    FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
     TemplateExpr, Traversal, TraversalOperator,
 };
 use pretty_assertions::assert_eq;
@@ -258,7 +258,7 @@ fn serialize_for_expr() {
             "list",
             ForExpr::new(
                 Identifier::new("item"),
-                Expression::VariableExpr(Identifier::new("items")),
+                Expression::Variable(Identifier::new("items")),
                 FuncCall::builder("func")
                     .arg(Identifier::new("item"))
                     .build(),
@@ -269,7 +269,7 @@ fn serialize_for_expr() {
             "object",
             ForExpr::new(
                 Identifier::new("value"),
-                Expression::VariableExpr(Identifier::new("items")),
+                Expression::Variable(Identifier::new("items")),
                 FuncCall::builder("tolower")
                     .arg(Identifier::new("value"))
                     .build(),
@@ -433,11 +433,18 @@ fn serialize_nested_expression() {
     let body = Body::builder()
         .add_attribute((
             "attr",
-            Expression::SubExpr(Box::new(Expression::VariableExpr("foo".into()))),
+            Expression::Parenthesis(Box::new(Expression::Variable("foo".into()))),
         ))
         .build();
 
     assert_eq!(to_string(&body).unwrap(), "attr = (foo)\n");
+}
+
+#[test]
+fn serialize_identifiers_with_hyphens() {
+    let attr = Attribute::new("hyphen-ated", Expression::Null);
+
+    assert_eq!(to_string(&attr).unwrap(), "hyphen-ated = null\n");
 }
 
 #[test]
@@ -488,7 +495,7 @@ fn roundtrip() {
                         ),
                         (
                             ObjectKey::Identifier("environment".into()),
-                            Expression::SubExpr(Box::new(Expression::VariableExpr(
+                            Expression::Parenthesis(Box::new(Expression::Variable(
                                 "environment".into(),
                             ))),
                         ),

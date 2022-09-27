@@ -113,10 +113,10 @@ impl Format for Expression {
             Expression::Object(object) => format_object(fmt, object.iter()),
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
-            Expression::VariableExpr(ident) => ident.format(fmt),
+            Expression::Variable(ident) => ident.format(fmt),
             Expression::Traversal(traversal) => traversal.format(fmt),
             Expression::FuncCall(func_call) => func_call.format(fmt),
-            Expression::SubExpr(expr) => {
+            Expression::Parenthesis(expr) => {
                 fmt.write_all(b"(")?;
                 expr.format(fmt)?;
                 fmt.write_all(b")")?;

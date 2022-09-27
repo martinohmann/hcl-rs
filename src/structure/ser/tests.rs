@@ -6,7 +6,7 @@ use super::{
     expression::ExpressionSerializer,
     for_expr::ForExprSerializer,
     operation::OperationSerializer,
-    template::TemplateExprSerializer,
+    template_expr::TemplateExprSerializer,
 };
 use crate::structure::*;
 use serde::{ser, Serialize};
@@ -259,7 +259,7 @@ fn custom() {
             Identifier::new("other_value"),
         )
         .with_key_var(Identifier::new("key"))
-        .with_key_expr(Expression::VariableExpr(Identifier::new("key")))
+        .with_key_expr(Expression::Variable(Identifier::new("key")))
         .with_cond_expr(Expression::Bool(true)),
         Expression::from(
             ForExpr::new(
@@ -268,7 +268,7 @@ fn custom() {
                 Identifier::new("other_value"),
             )
             .with_key_var(Identifier::new("key"))
-            .with_key_expr(Expression::VariableExpr(Identifier::new("key")))
+            .with_key_expr(Expression::Variable(Identifier::new("key")))
             .with_cond_expr(Expression::Bool(true)),
         ),
     );
@@ -276,7 +276,7 @@ fn custom() {
     test_serialize(
         ConditionalSerializer,
         (
-            Expression::VariableExpr(Identifier::new("some_cond_var")),
+            Expression::Variable(Identifier::new("some_cond_var")),
             Expression::String("yes".into()),
             Expression::String("no".into()),
         ),
