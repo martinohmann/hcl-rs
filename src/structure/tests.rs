@@ -106,7 +106,7 @@ fn normalize_binary_op() {
     assert_eq!(op.normalize(), expected);
 
     fn sub_expr(op: Operation) -> Expression {
-        Expression::SubExpr(Box::new(Expression::from(op)))
+        Expression::Parenthesis(Box::new(Expression::from(op)))
     }
 
     let op = BinaryOp::new(

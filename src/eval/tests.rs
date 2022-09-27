@@ -69,13 +69,13 @@ fn eval_for_expr() {
             Identifier::new("item"),
             Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
             Operation::Binary(BinaryOp::new(
-                Expression::VariableExpr(Identifier::new("item")),
+                Expression::Variable(Identifier::new("item")),
                 BinaryOperator::Mul,
                 2,
             )),
         )
         .with_cond_expr(Operation::Binary(BinaryOp::new(
-            Expression::VariableExpr(Identifier::new("item")),
+            Expression::Variable(Identifier::new("item")),
             BinaryOperator::Less,
             5,
         ))),
@@ -86,12 +86,12 @@ fn eval_for_expr() {
         ForExpr::new(
             Identifier::new("value"),
             Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
-            Expression::VariableExpr(Identifier::new("key")),
+            Expression::Variable(Identifier::new("key")),
         )
         .with_key_var(Identifier::new("key"))
-        .with_key_expr(Expression::VariableExpr(Identifier::new("value")))
+        .with_key_expr(Expression::Variable(Identifier::new("value")))
         .with_cond_expr(Operation::Binary(BinaryOp::new(
-            Expression::VariableExpr(Identifier::new("key")),
+            Expression::Variable(Identifier::new("key")),
             BinaryOperator::NotEq,
             Expression::from("d"),
         ))),
@@ -102,10 +102,10 @@ fn eval_for_expr() {
         ForExpr::new(
             Identifier::new("value"),
             Expression::from_iter(["a", "b", "c", "d"]),
-            Expression::VariableExpr(Identifier::new("value")),
+            Expression::Variable(Identifier::new("value")),
         )
         .with_key_var(Identifier::new("index"))
-        .with_key_expr(Expression::VariableExpr(Identifier::new("index"))),
+        .with_key_expr(Expression::Variable(Identifier::new("index"))),
         Expression::from_iter([(0, "a"), (1, "b"), (2, "c"), (3, "d")]),
     );
 
@@ -113,7 +113,7 @@ fn eval_for_expr() {
         ForExpr::new(
             Identifier::new("value"),
             Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
-            Expression::VariableExpr(Identifier::new("key")),
+            Expression::Variable(Identifier::new("key")),
         )
         .with_key_var(Identifier::new("key")),
         Expression::from_iter(["a", "b", "c", "d"]),
@@ -123,10 +123,10 @@ fn eval_for_expr() {
         ForExpr::new(
             Identifier::new("value"),
             Expression::from_iter(["a", "b", "c", "d"]),
-            Expression::VariableExpr(Identifier::new("value")),
+            Expression::Variable(Identifier::new("value")),
         )
         .with_key_var(Identifier::new("index"))
-        .with_key_expr(Expression::VariableExpr(Identifier::new("index"))),
+        .with_key_expr(Expression::Variable(Identifier::new("index"))),
         Expression::from_iter([(0, "a"), (1, "b"), (2, "c"), (3, "d")]),
     );
 
@@ -134,12 +134,12 @@ fn eval_for_expr() {
         ForExpr::new(
             Identifier::new("value"),
             Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
-            Expression::VariableExpr(Identifier::new("value")),
+            Expression::Variable(Identifier::new("value")),
         )
         .with_key_var(Identifier::new("key"))
         .with_key_expr(Expression::from("foo"))
         .with_cond_expr(Operation::Binary(BinaryOp::new(
-            Expression::VariableExpr(Identifier::new("key")),
+            Expression::Variable(Identifier::new("key")),
             BinaryOperator::NotEq,
             Expression::from("d"),
         )))
