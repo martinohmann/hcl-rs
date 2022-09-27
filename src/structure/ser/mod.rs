@@ -6,10 +6,10 @@ pub(crate) mod body;
 mod conditional;
 mod expression;
 mod for_expr;
-mod func;
+mod func_call;
 mod operation;
 mod structure;
-mod template;
+mod template_expr;
 #[cfg(test)]
 mod tests;
 mod traversal;

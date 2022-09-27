@@ -53,10 +53,10 @@ mod conditional;
 pub(crate) mod de;
 mod expression;
 mod for_expr;
-mod func;
+mod func_call;
 mod operation;
 pub(crate) mod ser;
-mod template;
+mod template_expr;
 #[cfg(test)]
 mod tests;
 mod traversal;
@@ -68,9 +68,9 @@ pub use self::{
     conditional::Conditional,
     expression::{Expression, Object, ObjectKey, RawExpression},
     for_expr::ForExpr,
-    func::{FuncCall, FuncCallBuilder},
+    func_call::{FuncCall, FuncCallBuilder},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
-    template::{Heredoc, HeredocStripMode, TemplateExpr},
+    template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
     traversal::{Traversal, TraversalOperator},
 };
 use crate::{Map, Value};
