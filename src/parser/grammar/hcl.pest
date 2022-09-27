@@ -12,8 +12,8 @@ BlockBody = { "{" ~ Body ~ "}" }
 // Expressions
 Expression    = _{ Conditional | Operation | ExprTerm }
 ExprTerm      =  { ExprTermInner ~ (Splat | GetAttr | Index)* }
-ExprTermInner = _{ Value | TemplateExpr | FunctionCall | VariableExpr | ForExpr | SubExpression }
-SubExpression =  { "(" ~ Expression ~ ")" }
+ExprTermInner = _{ Value | TemplateExpr | FunctionCall | VariableExpr | ForExpr | Parenthesis }
+Parenthesis   =  { "(" ~ Expression ~ ")" }
 
 // Values
 Value = _{ LiteralValue | CollectionValue }

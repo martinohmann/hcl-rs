@@ -37,7 +37,7 @@ pub enum Expression {
     /// Represents a function call.
     FuncCall(Box<FuncCall>),
     /// Represents a sub-expression that is wrapped in parenthesis.
-    SubExpr(Box<Expression>),
+    Parenthesis(Box<Expression>),
     /// A conditional operator which selects one of two rexpressions based on the outcome of a
     /// boolean expression.
     Conditional(Box<Conditional>),
@@ -60,7 +60,7 @@ impl From<Expression> for Value {
             Expression::Array(array) => array.into_iter().collect(),
             Expression::Object(object) => object.into_iter().collect(),
             Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
-            Expression::SubExpr(expr) => Value::from(*expr),
+            Expression::Parenthesis(expr) => Value::from(*expr),
             Expression::Raw(raw) => Value::String(raw.into()),
             other => Value::String(RawExpression(other.to_string()).into()),
         }

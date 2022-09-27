@@ -433,7 +433,7 @@ fn serialize_nested_expression() {
     let body = Body::builder()
         .add_attribute((
             "attr",
-            Expression::SubExpr(Box::new(Expression::VariableExpr("foo".into()))),
+            Expression::Parenthesis(Box::new(Expression::VariableExpr("foo".into()))),
         ))
         .build();
 
@@ -488,7 +488,7 @@ fn roundtrip() {
                         ),
                         (
                             ObjectKey::Identifier("environment".into()),
-                            Expression::SubExpr(Box::new(Expression::VariableExpr(
+                            Expression::Parenthesis(Box::new(Expression::VariableExpr(
                                 "environment".into(),
                             ))),
                         ),

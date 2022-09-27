@@ -147,8 +147,8 @@ impl ser::Serializer for ExpressionSerializer {
             ("$hcl::expression", "ForExpr") => {
                 Ok(Expression::from(value.serialize(ForExprSerializer)?))
             }
-            ("$hcl::expression", "SubExpr") => {
-                Ok(Expression::SubExpr(Box::new(value.serialize(self)?)))
+            ("$hcl::expression", "Parenthesis") => {
+                Ok(Expression::Parenthesis(Box::new(value.serialize(self)?)))
             }
             ("$hcl::expression", "TemplateExpr") | ("$hcl::template_expr", _) => {
                 Ok(Expression::from(value.serialize(TemplateExprSerializer)?))
