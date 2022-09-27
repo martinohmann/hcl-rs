@@ -256,7 +256,7 @@ impl<'de> de::Deserializer<'de> for Expression {
             Expression::Object(object) => visitor.visit_map(object.into_deserializer()),
             Expression::Raw(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::TemplateExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
-            Expression::VariableExpr(expr) => expr.into_deserializer().deserialize_any(visitor),
+            Expression::Variable(expr) => expr.into_deserializer().deserialize_any(visitor),
             Expression::Traversal(traversal) => {
                 traversal.into_deserializer().deserialize_any(visitor)
             }
@@ -294,7 +294,7 @@ impl VariantName for Expression {
             Expression::Object(_) => "Object",
             Expression::Raw(_) => "Raw",
             Expression::TemplateExpr(_) => "TemplateExpr",
-            Expression::VariableExpr(_) => "VariableExpr",
+            Expression::Variable(_) => "Variable",
             Expression::Traversal(_) => "Traversal",
             Expression::FuncCall(_) => "FuncCall",
             Expression::Parenthesis(_) => "Parenthesis",

@@ -31,7 +31,7 @@ pub enum Expression {
     /// A quoted string or heredoc that embeds a program written in the template sub-language.
     TemplateExpr(Box<TemplateExpr>),
     /// Represents a variable name identifier.
-    VariableExpr(Identifier),
+    Variable(Identifier),
     /// Represents an attribute or element traversal.
     Traversal(Box<Traversal>),
     /// Represents a function call.
@@ -221,7 +221,7 @@ impl From<TemplateExpr> for Expression {
 
 impl From<Identifier> for Expression {
     fn from(ident: Identifier) -> Self {
-        Expression::VariableExpr(ident)
+        Expression::Variable(ident)
     }
 }
 

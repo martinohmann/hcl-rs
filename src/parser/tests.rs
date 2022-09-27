@@ -77,7 +77,7 @@ fn conditional() {
         tokens: [
             Conditional(0, 19, [
                 ExprTerm(0, 11, [
-                    VariableExpr(0, 3),
+                    Variable(0, 3),
                     GetAttr(3, 11, [
                         Identifier(4, 11)
                     ])
@@ -154,7 +154,7 @@ resource "aws_s3_bucket" "mybucket" {
                                                                 Attribute(200, 241, [
                                                                     Identifier(200, 217),
                                                                     ExprTerm(220, 241, [
-                                                                        VariableExpr(220, 231),
+                                                                        Variable(220, 231),
                                                                         GetAttr(231, 237, [
                                                                             Identifier(232, 237)
                                                                         ]),
@@ -244,7 +244,7 @@ fn parse_collections() {
                             ])
                         ]),
                         ExprTerm(29, 35, [
-                            VariableExpr(29, 34)
+                            Variable(29, 34)
                         ])
                     ])
                 ])
@@ -285,7 +285,7 @@ fn parse_template() {
                             TemplateInterpolation(5, 11, [
                                 TemplateIExprStartNormal(5, 7),
                                 ExprTerm(7, 10, [
-                                    VariableExpr(7, 10)
+                                    Variable(7, 10)
                                 ]),
                                 TemplateExprEndNormal(10, 11)
                             ]),
@@ -295,7 +295,7 @@ fn parse_template() {
                                     TemplateIfExpr(21, 38, [
                                         TemplateDExprStartNormal(21, 23),
                                         ExprTerm(26, 31, [
-                                            VariableExpr(26, 30)
+                                            Variable(26, 30)
                                         ]),
                                         TemplateExprEndStrip(31, 33),
                                         Template(34, 38, [
@@ -333,7 +333,7 @@ fn parse_cond_in_interpolation() {
                                     TemplateIExprStartNormal(8, 10),
                                     Conditional(10, 35, [
                                         ExprTerm(10, 15, [
-                                            VariableExpr(10, 13),
+                                            Variable(10, 13),
                                             GetAttr(13, 15, [
                                                 Identifier(14, 15)
                                             ])
@@ -377,25 +377,25 @@ providers = {
                     ExprTerm(13, 89, [
                         Object(13, 89, [
                             ExprTerm(17, 33, [
-                                VariableExpr(17, 20),
+                                Variable(17, 20),
                                 GetAttr(20, 33, [
                                     Identifier(21, 33)
                                 ]),
                             ]),
                             ExprTerm(36, 52, [
-                                VariableExpr(36, 39),
+                                Variable(36, 39),
                                 GetAttr(39, 52, [
                                     Identifier(40, 52)
                                 ]),
                             ]),
                             ExprTerm(55, 68, [
-                                VariableExpr(55, 58),
+                                Variable(55, 58),
                                 GetAttr(58, 68, [
                                     Identifier(59, 68)
                                 ]),
                             ]),
                             ExprTerm(74, 87, [
-                                VariableExpr(74, 77),
+                                Variable(74, 77),
                                 GetAttr(77, 87, [
                                     Identifier(78, 87)
                                 ])
@@ -423,7 +423,7 @@ fn parse_nested_function_call_with_splat() {
                             Identifier(8, 14),
                             Arguments(15, 67, [
                                 ExprTerm(15, 40, [
-                                    VariableExpr(15, 26),
+                                    Variable(15, 26),
                                     GetAttr(26, 34, [
                                         Identifier(27, 34)
                                     ]),
@@ -433,7 +433,7 @@ fn parse_nested_function_call_with_splat() {
                                     ]),
                                 ]),
                                 ExprTerm(42, 67, [
-                                    VariableExpr(42, 53),
+                                    Variable(42, 53),
                                     GetAttr(53, 61, [
                                         Identifier(54, 61)
                                     ]),
@@ -464,7 +464,7 @@ fn parse_traversal_with_expression() {
             Attribute(0, 86, [
                 Identifier(0, 14),
                 ExprTerm(17, 86, [
-                    VariableExpr(17, 32),
+                    Variable(17, 32),
                     GetAttr(32, 40, [
                         Identifier(33, 40)
                     ]),
@@ -472,7 +472,7 @@ fn parse_traversal_with_expression() {
                         Operation(41, 82, [
                             BinaryOp(41, 82, [
                                 ExprTerm(41, 52, [
-                                    VariableExpr(41, 46),
+                                    Variable(41, 46),
                                     GetAttr(46, 52, [
                                         Identifier(47, 52)
                                     ]),
@@ -481,7 +481,7 @@ fn parse_traversal_with_expression() {
                                     ArithmeticOperator(53, 54)
                                 ]),
                                 ExprTerm(55, 82, [
-                                    VariableExpr(55, 58),
+                                    Variable(55, 58),
                                     GetAttr(58, 82, [
                                         Identifier(59, 82)
                                     ]),
@@ -508,7 +508,7 @@ fn parse_null_in_variable_expr() {
             Attribute(0, 14, [
                 Identifier(0, 3),
                 ExprTerm(6, 14, [
-                    VariableExpr(6, 14)
+                    Variable(6, 14)
                 ])
             ])
         ]
@@ -671,11 +671,11 @@ fn template_expr() {
 
             let expected_template = Template::new()
                 .add_literal("bar ")
-                .add_interpolation(Expression::VariableExpr(Identifier::new("baz")))
+                .add_interpolation(Expression::Variable(Identifier::new("baz")))
                 .add_literal(" ")
                 .add_directive(
                     IfDirective::new(
-                        Expression::VariableExpr(Identifier::new("cond")),
+                        Expression::Variable(Identifier::new("cond")),
                         Template::new().add_literal("qux"),
                     )
                     .with_if_strip(StripMode::Start)

@@ -12,7 +12,7 @@ BlockBody = { "{" ~ Body ~ "}" }
 // Expressions
 Expression    = _{ Conditional | Operation | ExprTerm }
 ExprTerm      =  { ExprTermInner ~ (Splat | GetAttr | Index)* }
-ExprTermInner = _{ Value | TemplateExpr | FunctionCall | VariableExpr | ForExpr | Parenthesis }
+ExprTermInner = _{ Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis }
 Parenthesis   =  { "(" ~ Expression ~ ")" }
 
 // Values
@@ -103,8 +103,8 @@ ForIntro      = { "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~
 ForCond       = { "if" ~ Expression }
 ValueGrouping = { "..." }
 
-// Variables and variable expressions
-VariableExpr = @{ Identifier }
+// Variables
+Variable = @{ Identifier }
 
 // Index operator
 Index       =  { ("[" ~ Expression ~ "]") | LegacyIndex }

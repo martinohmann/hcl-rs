@@ -258,7 +258,7 @@ fn serialize_for_expr() {
             "list",
             ForExpr::new(
                 Identifier::new("item"),
-                Expression::VariableExpr(Identifier::new("items")),
+                Expression::Variable(Identifier::new("items")),
                 FuncCall::builder("func")
                     .arg(Identifier::new("item"))
                     .build(),
@@ -269,7 +269,7 @@ fn serialize_for_expr() {
             "object",
             ForExpr::new(
                 Identifier::new("value"),
-                Expression::VariableExpr(Identifier::new("items")),
+                Expression::Variable(Identifier::new("items")),
                 FuncCall::builder("tolower")
                     .arg(Identifier::new("value"))
                     .build(),
@@ -433,7 +433,7 @@ fn serialize_nested_expression() {
     let body = Body::builder()
         .add_attribute((
             "attr",
-            Expression::Parenthesis(Box::new(Expression::VariableExpr("foo".into()))),
+            Expression::Parenthesis(Box::new(Expression::Variable("foo".into()))),
         ))
         .build();
 
@@ -488,7 +488,7 @@ fn roundtrip() {
                         ),
                         (
                             ObjectKey::Identifier("environment".into()),
-                            Expression::Parenthesis(Box::new(Expression::VariableExpr(
+                            Expression::Parenthesis(Box::new(Expression::Variable(
                                 "environment".into(),
                             ))),
                         ),

@@ -119,7 +119,7 @@ impl ser::Serializer for ExpressionSerializer {
                 value.serialize(StringSerializer)?,
             )))
         } else if name == "$hcl::identifier" {
-            Ok(Expression::VariableExpr(Identifier::from(
+            Ok(Expression::Variable(Identifier::from(
                 value.serialize(StringSerializer)?,
             )))
         } else {
