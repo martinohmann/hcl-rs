@@ -1,9 +1,18 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Conditional, ForExpr, Identifier, Operation, Traversal,
+    BinaryOp, BinaryOperator, Conditional, ForExpr, FuncCall, Identifier, Operation, Traversal,
     TraversalOperator,
 };
 use std::fmt;
+
+#[track_caller]
+fn eval_to_ctx<T, U>(ctx: &Context, value: T, expected: U)
+where
+    T: Evaluate<Output = U> + fmt::Debug + PartialEq,
+    U: fmt::Debug + PartialEq,
+{
+    assert_eq!(value.evaluate(ctx).unwrap(), expected);
+}
 
 #[track_caller]
 fn eval_to<T, U>(value: T, expected: U)
@@ -11,8 +20,8 @@ where
     T: Evaluate<Output = U> + fmt::Debug + PartialEq,
     U: fmt::Debug + PartialEq,
 {
-    let mut ctx = Context::new();
-    assert_eq!(value.evaluate(&mut ctx).unwrap(), expected);
+    let ctx = Context::new();
+    eval_to_ctx(&ctx, value, expected);
 }
 
 #[track_caller]
@@ -21,8 +30,8 @@ where
     T: Evaluate + fmt::Debug + PartialEq,
     <T as Evaluate>::Output: fmt::Debug,
 {
-    let mut ctx = Context::new();
-    assert_eq!(value.evaluate(&mut ctx).unwrap_err().kind(), &expected);
+    let ctx = Context::new();
+    assert_eq!(value.evaluate(&ctx).unwrap_err().kind(), &expected);
 }
 
 #[test]
@@ -292,4 +301,33 @@ fn eval_traversal() {
         Traversal::new(vec![1, 2, 3], [LegacyIndex(5)]),
         EvalErrorKind::IndexOutOfBounds(5),
     );
+}
+
+#[test]
+fn eval_func_call() {
+    fn add(ctx: FuncContext) -> EvalResult<Value> {
+        ctx.ensure_exact_args(2)?;
+        let a = ctx.get_number_arg(0)?;
+        let b = ctx.get_number_arg(1)?;
+        Ok(Value::Number(*a + *b))
+    }
+
+    fn strlen(ctx: FuncContext) -> EvalResult<Value> {
+        ctx.ensure_exact_args(1)?;
+        let s = ctx.get_str_arg(0)?;
+        Ok(Value::from(s.len()))
+    }
+
+    let mut ctx = Context::new();
+    ctx.set_func(Identifier::new("add"), add);
+    ctx.set_func(Identifier::new("strlen"), strlen);
+
+    eval_to_ctx(
+        &ctx,
+        FuncCall::builder("add")
+            .arg(FuncCall::builder("strlen").arg("foo").build())
+            .arg(2)
+            .build(),
+        Expression::from(5),
+    )
 }
