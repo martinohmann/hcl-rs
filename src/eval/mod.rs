@@ -2,10 +2,12 @@
 
 mod expr;
 mod for_expr;
+mod func;
 mod impls;
 #[cfg(test)]
 mod tests;
 
+use self::func::{Func, FuncContext};
 use crate::{
     BinaryOperator, Error, Expression, Identifier, Map, ObjectKey, Result, UnaryOperator, Value,
 };
@@ -118,8 +120,6 @@ pub trait Evaluate: private::Sealed {
     /// unevaluated expressions anymore.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
 }
-
-type Func = fn(Vec<Expression>) -> EvalResult<Expression>;
 
 /// The evaluation context.
 #[derive(Debug, Clone)]
