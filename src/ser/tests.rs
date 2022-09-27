@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr, FuncCall,
-    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
+    Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
+    FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
     TemplateExpr, Traversal, TraversalOperator,
 };
 use pretty_assertions::assert_eq;
@@ -438,6 +438,13 @@ fn serialize_nested_expression() {
         .build();
 
     assert_eq!(to_string(&body).unwrap(), "attr = (foo)\n");
+}
+
+#[test]
+fn serialize_identifiers_with_hyphens() {
+    let attr = Attribute::new("hyphen-ated", Expression::Null);
+
+    assert_eq!(to_string(&attr).unwrap(), "hyphen-ated = null\n");
 }
 
 #[test]

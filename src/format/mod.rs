@@ -263,7 +263,7 @@ where
         let mut chars = ident.chars();
         let first = chars.next().unwrap();
 
-        if !is_xid_start(first) || !chars.all(is_xid_continue) {
+        if !is_xid_start(first) || !chars.all(|ch| ch == '-' || is_xid_continue(ch)) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid identifier",
