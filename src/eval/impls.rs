@@ -165,7 +165,7 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func(FuncContext::new(args)).map(Into::into)
+        func(FuncArgs::new(args)).map(Into::into)
     }
 }
 

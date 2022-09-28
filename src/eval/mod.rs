@@ -7,7 +7,7 @@ mod impls;
 #[cfg(test)]
 mod tests;
 
-use self::func::{Func, FuncContext};
+use self::func::{Func, FuncArgs};
 use crate::{
     BinaryOperator, Error, Expression, Identifier, Map, ObjectKey, Result, UnaryOperator, Value,
 };

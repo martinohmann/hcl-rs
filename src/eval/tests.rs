@@ -305,16 +305,16 @@ fn eval_traversal() {
 
 #[test]
 fn eval_func_call() {
-    fn add(ctx: FuncContext) -> EvalResult<Value> {
-        ctx.ensure_exact_args(2)?;
-        let a = ctx.get_number_arg(0)?;
-        let b = ctx.get_number_arg(1)?;
+    fn add(args: FuncArgs) -> EvalResult<Value> {
+        args.ensure_len(2)?;
+        let a = args.get_number(0)?;
+        let b = args.get_number(1)?;
         Ok(Value::Number(*a + *b))
     }
 
-    fn strlen(ctx: FuncContext) -> EvalResult<Value> {
-        ctx.ensure_exact_args(1)?;
-        let s = ctx.get_str_arg(0)?;
+    fn strlen(args: FuncArgs) -> EvalResult<Value> {
+        args.ensure_len(1)?;
+        let s = args.get_str(0)?;
         Ok(Value::from(s.len()))
     }
 
