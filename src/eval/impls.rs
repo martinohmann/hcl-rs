@@ -117,10 +117,8 @@ impl Evaluate for TemplateExpr {
     type Output = String;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
-        match Template::from_expr(self) {
-            Ok(template) => template.evaluate(ctx),
-            Err(err) => Err(err.into()),
-        }
+        let template = Template::from_expr(self)?;
+        template.evaluate(ctx)
     }
 }
 
