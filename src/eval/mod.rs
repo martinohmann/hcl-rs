@@ -175,7 +175,7 @@ impl<'a> Context<'a> {
         I: Into<Identifier>,
         T: Into<Value>,
     {
-        self.vars.insert(name, value.into())
+        self.vars.insert(name.into(), value.into())
     }
 
     /// Lookup a func. Functions defined in the current scope take precedence over
@@ -195,7 +195,7 @@ impl<'a> Context<'a> {
     where
         I: Into<Identifier>,
     {
-        self.funcs.insert(name, func)
+        self.funcs.insert(name.into(), func)
     }
 
     // Creates an `EvalError`.
