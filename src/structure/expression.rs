@@ -282,7 +282,7 @@ impl From<ObjectKey> for Value {
 impl Display for ObjectKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ObjectKey::Identifier(ident) => Display::fmt(ident.as_str(), f),
+            ObjectKey::Identifier(ident) => Display::fmt(ident, f),
             ObjectKey::Expression(expr) => match expr {
                 Expression::String(string) => Display::fmt(string, f),
                 expr => Display::fmt(expr, f),

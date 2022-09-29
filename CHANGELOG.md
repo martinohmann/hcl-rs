@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.8.0](https://github.com/martinohmann/hcl-rs/compare/v0.7.0...v0.8.0) (2022-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* The `Number` type was changed from an `enum` to an opaque `struct`. Use `Number::from` to create a number from an integer. Furthermore, the `From` implementations for `f32` and `f64` were removed. Use the newly added `Number::from_f64` instead.
+* The `RawExpression` and `String` variants of the `ObjectKey` enum were removed in favor of the newly added `Expression` variant. Furthermore the methods `Object::raw_expression` and `ObjectKey::string` were removed. Use `ObjectKey::from` instead.
+* The underlying map implementation for the `Object<K, V>` type changed from `IndexMap<K, V>` to `VecMap<K, V>`. For the most common operations this is a drop-in replacement, but `VecMap` lacks some of the more exotic APIs the `IndexMap` provides.
+* Heredocs and quoted strings containing template interpolations and/or template directives are not parsed as `Expression::String` anymore, but end up as `Expression::TemplateExpr` (which can be further parsed into the template elements via `Template::from_expr`) instead. Expressions of kind `Expression::String` are guaranteed to not include any templating anymore.
+
+### Features
+
+* add `Expression::Conditional` ([#68](https://github.com/martinohmann/hcl-rs/issues/68)) ([e953ce1](https://github.com/martinohmann/hcl-rs/commit/e953ce151a5069ed951c22a5b313413498d7a3a8))
+* add `Expression::ElementAccess` ([#63](https://github.com/martinohmann/hcl-rs/issues/63)) ([1f8c4d8](https://github.com/martinohmann/hcl-rs/commit/1f8c4d8708c23db59676b843393aa8c522bf2ad2))
+* add `Expression::ForExpr` ([#70](https://github.com/martinohmann/hcl-rs/issues/70)) ([522bc80](https://github.com/martinohmann/hcl-rs/commit/522bc80c81ebc71050108c711326754a41d7c3db))
+* add `Expression::FuncCall` ([#64](https://github.com/martinohmann/hcl-rs/issues/64)) ([d660712](https://github.com/martinohmann/hcl-rs/commit/d6607125c6309fe42b217a02a6f871368c540b14))
+* add `Expression::Operation` ([#69](https://github.com/martinohmann/hcl-rs/issues/69)) ([4961a7c](https://github.com/martinohmann/hcl-rs/commit/4961a7cedbb04fb692df4dcb8c8720b73064c5b0))
+* add `Expression::SubExpr` ([#65](https://github.com/martinohmann/hcl-rs/issues/65)) ([e37f090](https://github.com/martinohmann/hcl-rs/commit/e37f090373a100ca943a1f22ae8712d37191162e))
+* add `Expression::VariableExpr` ([#62](https://github.com/martinohmann/hcl-rs/issues/62)) ([2b6e81f](https://github.com/martinohmann/hcl-rs/commit/2b6e81f106600b0ff23afabb690e1f1a4b8fcedf))
+* allow any HCL expression as object key ([#73](https://github.com/martinohmann/hcl-rs/issues/73)) ([e39496c](https://github.com/martinohmann/hcl-rs/commit/e39496c09c6aa884c6d64b785d63372a611d1d1f))
+* implement `PartialOrd` for `Number` ([#75](https://github.com/martinohmann/hcl-rs/issues/75)) ([b520f4e](https://github.com/martinohmann/hcl-rs/commit/b520f4e17bc567e91cbdea08c5ff1864716981c5))
+* implement arithmetic ops for `Number` ([8d677d6](https://github.com/martinohmann/hcl-rs/commit/8d677d645b8e6a40260deeec181dbf2b01d93ed2))
+* implement template sub-language ([#60](https://github.com/martinohmann/hcl-rs/issues/60)) ([12e88a3](https://github.com/martinohmann/hcl-rs/commit/12e88a37608f1921107e4cec8e82ab11b74c4395))
+* use `VecMap` for object expressions ([#72](https://github.com/martinohmann/hcl-rs/issues/72)) ([025cb68](https://github.com/martinohmann/hcl-rs/commit/025cb68053ff50ee8161a20b40aa43293e49159b))
+
+
+### Bug Fixes
+
+* allow `-` in identifiers ([be06f53](https://github.com/martinohmann/hcl-rs/commit/be06f53c78f0f0811c9f47dcc2c5f4dfc6171e90))
+* always do `f64` division ([5591e22](https://github.com/martinohmann/hcl-rs/commit/5591e226454d870794f26bbf371fed5b9056d6a2))
+* correctly handle `Expression::Null` in serializer ([ae74def](https://github.com/martinohmann/hcl-rs/commit/ae74def273daee36f785f2ae1ff4ab207b687497))
+* correctly handle `Expression` variants in `ExpressionSerializer` ([#71](https://github.com/martinohmann/hcl-rs/issues/71)) ([8d89437](https://github.com/martinohmann/hcl-rs/commit/8d89437aa33c99ab1c914a8048e46bf393796f1d))
+* prevent creation of infinite and NaN `Number` ([#74](https://github.com/martinohmann/hcl-rs/issues/74)) ([f751fc0](https://github.com/martinohmann/hcl-rs/commit/f751fc0dc29a7977728ed6010ae77d269eb7ab44))
+* use correct deserializer for index element access ([#67](https://github.com/martinohmann/hcl-rs/issues/67)) ([f7bdd5c](https://github.com/martinohmann/hcl-rs/commit/f7bdd5c97a9c03f00e0e6440b42f4dd6bbbfbd63))
+
+
+### Miscellaneous
+
+* **deps:** bump vecmap-rs to 0.1.3 ([5670415](https://github.com/martinohmann/hcl-rs/commit/5670415bb043bdd7908d656d07b1e59af19a9a55))
+
 ## [0.7.0](https://github.com/martinohmann/hcl-rs/compare/v0.6.5...v0.7.0) (2022-09-01)
 
 
