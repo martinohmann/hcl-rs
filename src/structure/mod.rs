@@ -76,6 +76,8 @@ pub use self::{
 use crate::{Map, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
+use std::fmt;
+use std::ops;
 
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -123,6 +125,20 @@ impl<'a> From<Cow<'a, str>> for Identifier {
 impl From<Identifier> for String {
     fn from(ident: Identifier) -> Self {
         ident.0
+    }
+}
+
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self)
+    }
+}
+
+impl ops::Deref for Identifier {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
     }
 }
 

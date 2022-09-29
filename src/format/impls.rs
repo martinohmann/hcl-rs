@@ -206,10 +206,8 @@ impl Format for Heredoc {
     where
         W: io::Write,
     {
-        let delimiter = self.delimiter.as_str();
-
         fmt.write_string_fragment(self.strip.as_str())?;
-        fmt.write_string_fragment(delimiter)?;
+        fmt.write_string_fragment(&self.delimiter)?;
         fmt.write_all(b"\n")?;
         fmt.write_string_fragment(&self.template)?;
 
@@ -219,10 +217,10 @@ impl Format for Heredoc {
 
         match self.strip {
             HeredocStripMode::None => {
-                fmt.write_string_fragment(delimiter)?;
+                fmt.write_string_fragment(&self.delimiter)?;
             }
             HeredocStripMode::Indent => {
-                fmt.write_indented(fmt.current_indent, delimiter)?;
+                fmt.write_indented(fmt.current_indent, &self.delimiter)?;
             }
         }
 
@@ -237,7 +235,7 @@ impl Format for Identifier {
     where
         W: io::Write,
     {
-        fmt.write_ident(self.as_str())?;
+        fmt.write_ident(self)?;
         Ok(())
     }
 }
