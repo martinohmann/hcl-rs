@@ -190,6 +190,24 @@ pub enum Element {
     Directive(Directive),
 }
 
+impl Element {
+    pub(crate) fn strip_prev_end(&self) -> bool {
+        match self {
+            Element::Literal(_) => false,
+            Element::Interpolation(interp) => interp.strip_prev_end(),
+            Element::Directive(directive) => directive.strip_prev_end(),
+        }
+    }
+
+    pub(crate) fn strip_next_start(&self) -> bool {
+        match self {
+            Element::Literal(_) => false,
+            Element::Interpolation(interp) => interp.strip_next_start(),
+            Element::Directive(directive) => directive.strip_next_start(),
+        }
+    }
+}
+
 impl From<&str> for Element {
     fn from(literal: &str) -> Self {
         Element::Literal(literal.to_owned())
@@ -243,6 +261,14 @@ impl Interpolation {
         self.strip = strip;
         self
     }
+
+    pub(crate) fn strip_prev_end(&self) -> bool {
+        self.strip.strip_start()
+    }
+
+    pub(crate) fn strip_next_start(&self) -> bool {
+        self.strip.strip_end()
+    }
 }
 
 impl From<Expression> for Interpolation {
@@ -261,6 +287,22 @@ pub enum Directive {
     If(IfDirective),
     /// Represents a template `for` directive.
     For(ForDirective),
+}
+
+impl Directive {
+    pub(crate) fn strip_prev_end(&self) -> bool {
+        match self {
+            Directive::If(directive) => directive.strip_prev(),
+            Directive::For(directive) => directive.strip_prev(),
+        }
+    }
+
+    pub(crate) fn strip_next_start(&self) -> bool {
+        match self {
+            Directive::If(directive) => directive.strip_next(),
+            Directive::For(directive) => directive.strip_next(),
+        }
+    }
 }
 
 impl From<IfDirective> for Directive {
@@ -346,6 +388,14 @@ impl IfDirective {
         self.endif_strip = strip;
         self
     }
+
+    pub(crate) fn strip_prev(&self) -> bool {
+        self.if_strip.strip_start()
+    }
+
+    pub(crate) fn strip_next(&self) -> bool {
+        self.endif_strip.strip_end()
+    }
 }
 
 /// The template `for` directive is the template equivalent of the for expression, producing zero
@@ -406,10 +456,18 @@ impl ForDirective {
         self.endfor_strip = strip;
         self
     }
+
+    pub(crate) fn strip_prev(&self) -> bool {
+        self.for_strip.strip_start()
+    }
+
+    pub(crate) fn strip_next(&self) -> bool {
+        self.endfor_strip.strip_end()
+    }
 }
 
 /// Controls the whitespace strip behaviour on adjacent string literals.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StripMode {
     /// Don't strip adjacent spaces.
     None,
@@ -426,5 +484,30 @@ pub enum StripMode {
 impl Default for StripMode {
     fn default() -> StripMode {
         StripMode::None
+    }
+}
+
+impl StripMode {
+    pub(crate) fn strip_start(&self) -> bool {
+        matches!(self, StripMode::Start | StripMode::Both)
+    }
+
+    pub(crate) fn strip_end(&self) -> bool {
+        matches!(self, StripMode::End | StripMode::Both)
+    }
+
+    pub(crate) fn from_adjacent(prev: StripMode, next: StripMode) -> Self {
+        StripMode::from((prev.strip_end(), next.strip_start()))
+    }
+}
+
+impl From<(bool, bool)> for StripMode {
+    fn from((start, end): (bool, bool)) -> Self {
+        match (start, end) {
+            (true, true) => StripMode::Both,
+            (true, false) => StripMode::Start,
+            (false, true) => StripMode::End,
+            (false, false) => StripMode::None,
+        }
     }
 }

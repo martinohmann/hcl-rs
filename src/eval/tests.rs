@@ -1,9 +1,10 @@
 use super::*;
 use crate::{
-    BinaryOp, BinaryOperator, Conditional, ForExpr, FuncCall, Identifier, Operation, Traversal,
-    TraversalOperator,
+    template::Template, BinaryOp, BinaryOperator, Conditional, ForExpr, FuncCall, Identifier,
+    Operation, Traversal, TraversalOperator,
 };
 use std::fmt;
+use std::str::FromStr;
 
 #[track_caller]
 fn eval_to_ctx<T, U>(ctx: &Context, value: T, expected: U)
@@ -330,4 +331,16 @@ fn eval_func_call() {
             .build(),
         Expression::from(5),
     )
+}
+
+#[test]
+fn eval_template() {
+    let mut ctx = Context::new();
+    ctx.set_var(Identifier::new("name"), "World");
+
+    eval_to_ctx(
+        &ctx,
+        Template::from_str("Hello, ${name ~} !").unwrap(),
+        String::from("Hello, World!"),
+    );
 }

@@ -4,6 +4,7 @@ mod expr;
 mod for_expr;
 mod func;
 mod impls;
+mod template;
 #[cfg(test)]
 mod tests;
 

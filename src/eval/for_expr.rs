@@ -1,5 +1,5 @@
 use super::*;
-use crate::{ForExpr, Identifier, Object};
+use crate::{template::ForDirective, ForExpr, Identifier, Object};
 
 pub(super) struct Collection<'a> {
     ctx: &'a Context<'a>,
@@ -10,13 +10,26 @@ pub(super) struct Collection<'a> {
 }
 
 impl<'a> Collection<'a> {
-    pub(super) fn new(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> EvalResult<Self> {
+    pub(super) fn from_for_expr(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> EvalResult<Self> {
         Ok(Collection {
             ctx,
             key_var: for_expr.key_var.as_ref(),
             value_var: &for_expr.value_var,
             cond_expr: for_expr.cond_expr.as_ref(),
             collection: expr::evaluate_collection(&for_expr.collection_expr, ctx)?,
+        })
+    }
+
+    pub(super) fn from_for_directive(
+        for_directive: &'a ForDirective,
+        ctx: &'a Context<'a>,
+    ) -> EvalResult<Self> {
+        Ok(Collection {
+            ctx,
+            key_var: for_directive.key_var.as_ref(),
+            value_var: &for_directive.value_var,
+            cond_expr: None,
+            collection: expr::evaluate_collection(&for_directive.collection_expr, ctx)?,
         })
     }
 

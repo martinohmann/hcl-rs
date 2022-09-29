@@ -1,5 +1,8 @@
 use super::{for_expr::Collection, *};
-use crate::{structure::*, template::Template};
+use crate::{
+    structure::*,
+    template::{StripMode, Template},
+};
 use vecmap::map::Entry;
 
 impl private::Sealed for Body {}
@@ -130,8 +133,10 @@ impl private::Sealed for Template {}
 impl Evaluate for Template {
     type Output = String;
 
-    fn evaluate(&self, _ctx: &Context) -> EvalResult<Self::Output> {
-        todo!()
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+        let mut result = String::new();
+        template::evaluate_template(&mut result, self, ctx, StripMode::None)?;
+        Ok(result)
     }
 }
 
@@ -253,7 +258,7 @@ impl Evaluate for ForExpr {
     type Output = Expression;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
-        let collection = Collection::new(self, ctx)?;
+        let collection = Collection::from_for_expr(self, ctx)?;
 
         match &self.key_expr {
             Some(key_expr) => {
