@@ -1,5 +1,4 @@
 use super::*;
-use crate::{Object, TraversalOperator};
 use std::collections::VecDeque;
 
 pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool> {

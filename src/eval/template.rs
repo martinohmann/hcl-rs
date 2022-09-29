@@ -1,7 +1,4 @@
-use super::{for_expr::Collection, *};
-use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
-};
+use super::*;
 
 pub(super) fn evaluate_template(
     result: &mut String,

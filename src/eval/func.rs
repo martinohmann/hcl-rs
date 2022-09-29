@@ -1,5 +1,4 @@
 use super::*;
-use crate::Number;
 
 pub type Func = fn(FuncArgs) -> EvalResult<Value>;
 

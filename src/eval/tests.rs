@@ -1,8 +1,4 @@
 use super::*;
-use crate::{
-    template::Template, BinaryOp, BinaryOperator, Conditional, ForExpr, FuncCall, Identifier,
-    Operation, Traversal, TraversalOperator,
-};
 use std::fmt;
 use std::str::FromStr;
 

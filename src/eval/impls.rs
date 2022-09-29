@@ -1,8 +1,4 @@
-use super::{for_expr::Collection, *};
-use crate::{
-    structure::*,
-    template::{StripMode, Template},
-};
+use super::*;
 use vecmap::map::Entry;
 
 impl private::Sealed for Body {}
