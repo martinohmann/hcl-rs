@@ -320,8 +320,8 @@ fn eval_func_call() {
     }
 
     let mut ctx = Context::new();
-    ctx.set_func(Identifier::new("add"), add);
-    ctx.set_func(Identifier::new("strlen"), strlen);
+    ctx.set_func("add", add);
+    ctx.set_func("strlen", strlen);
 
     eval_to_ctx(
         &ctx,
@@ -336,7 +336,7 @@ fn eval_func_call() {
 #[test]
 fn eval_template() {
     let mut ctx = Context::new();
-    ctx.set_var(Identifier::new("name"), "World");
+    ctx.set_var("name", "World");
 
     eval_to_ctx(
         &ctx,
@@ -357,8 +357,8 @@ fn eval_template() {
 - baz"#;
 
     let mut ctx = Context::new();
-    ctx.set_var(Identifier::new("what"), " render a list");
-    ctx.set_var(Identifier::new("items"), vec!["foo", "bar", "baz"]);
+    ctx.set_var("what", " render a list");
+    ctx.set_var("items", vec!["foo", "bar", "baz"]);
 
     eval_to_ctx(
         &ctx,

@@ -170,8 +170,9 @@ impl<'a> Context<'a> {
     }
 
     /// Set a variable which is available in the current and all child scopes.
-    pub fn set_var<T>(&mut self, name: Identifier, value: T) -> Option<Value>
+    pub fn set_var<I, T>(&mut self, name: I, value: T) -> Option<Value>
     where
+        I: Into<Identifier>,
         T: Into<Value>,
     {
         self.vars.insert(name, value.into())
@@ -190,7 +191,10 @@ impl<'a> Context<'a> {
     }
 
     /// Set a func which is available in the current and all child scopes.
-    pub fn set_func(&mut self, name: Identifier, func: Func) -> Option<Func> {
+    pub fn set_func<I>(&mut self, name: I, func: Func) -> Option<Func>
+    where
+        I: Into<Identifier>,
+    {
         self.funcs.insert(name, func)
     }
 
