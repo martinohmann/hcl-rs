@@ -343,4 +343,26 @@ fn eval_template() {
         Template::from_str("Hello, ${name ~} !").unwrap(),
         String::from("Hello, World!"),
     );
+
+    let template_str = r#"Let's ${~ what ~} :
+%{ for item in items ~}
+- ${item}
+%{~ endfor ~}
+
+"#;
+
+    let expected = r#"Let's render a list:
+- foo
+- bar
+- baz"#;
+
+    let mut ctx = Context::new();
+    ctx.set_var(Identifier::new("what"), " render a list");
+    ctx.set_var(Identifier::new("items"), vec!["foo", "bar", "baz"]);
+
+    eval_to_ctx(
+        &ctx,
+        Template::from_str(template_str).unwrap(),
+        String::from(expected),
+    );
 }
