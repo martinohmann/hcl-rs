@@ -5,7 +5,7 @@ pub(super) struct Collection<'a> {
     key_var: Option<&'a Identifier>,
     value_var: &'a Identifier,
     cond_expr: Option<&'a Expression>,
-    collection: Object<ObjectKey, Expression>,
+    collection: Map<String, Value>,
 }
 
 impl<'a> Collection<'a> {
@@ -57,7 +57,7 @@ pub(super) struct IntoIter<'a> {
     key_var: Option<&'a Identifier>,
     value_var: &'a Identifier,
     cond_expr: Option<&'a Expression>,
-    iter: vecmap::map::IntoIter<ObjectKey, Expression>,
+    iter: indexmap::map::IntoIter<String, Value>,
 }
 
 impl<'a> IntoIter<'a> {

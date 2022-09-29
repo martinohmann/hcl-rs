@@ -10,7 +10,7 @@ use crate::number::Number;
 pub type Map<K, V> = indexmap::IndexMap<K, V>;
 
 /// Represents any valid HCL value.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Value {
     /// Represents a HCL null value.
     Null,

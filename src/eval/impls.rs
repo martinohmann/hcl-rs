@@ -1,5 +1,5 @@
 use super::*;
-use vecmap::map::Entry;
+use indexmap::map::Entry;
 
 impl private::Sealed for Body {}
 
@@ -34,7 +34,7 @@ impl Evaluate for Attribute {
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         Ok(Attribute {
             key: self.key.clone(),
-            expr: self.expr.evaluate(ctx)?,
+            expr: self.expr.evaluate(ctx).map(Into::into)?,
         })
     }
 }
@@ -56,14 +56,14 @@ impl Evaluate for Block {
 impl private::Sealed for Expression {}
 
 impl Evaluate for Expression {
-    type Output = Self;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
-            Expression::Array(array) => array.evaluate(ctx).map(Expression::Array),
-            Expression::Object(object) => object.evaluate(ctx).map(Expression::Object),
-            Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Expression::String),
-            Expression::Variable(ident) => ctx.get_var(ident).cloned().map(Into::into),
+            Expression::Array(array) => array.evaluate(ctx).map(Value::Array),
+            Expression::Object(object) => object.evaluate(ctx).map(Value::Object),
+            Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Value::String),
+            Expression::Variable(ident) => ctx.get_var(ident).cloned(),
             Expression::Traversal(traversal) => traversal.evaluate(ctx),
             Expression::FuncCall(func_call) => func_call.evaluate(ctx),
             Expression::Parenthesis(expr) => expr.evaluate(ctx),
@@ -71,7 +71,7 @@ impl Evaluate for Expression {
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
             Expression::Raw(_) => Err(EvalError::new(EvalErrorKind::RawExpression)),
-            other => Ok(other.clone()),
+            other => Ok(Value::from(other.clone())),
         }
     }
 }
@@ -79,7 +79,7 @@ impl Evaluate for Expression {
 impl private::Sealed for Vec<Expression> {}
 
 impl Evaluate for Vec<Expression> {
-    type Output = Self;
+    type Output = Vec<Value>;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter().map(|expr| expr.evaluate(ctx)).collect()
@@ -89,7 +89,7 @@ impl Evaluate for Vec<Expression> {
 impl private::Sealed for Object<ObjectKey, Expression> {}
 
 impl Evaluate for Object<ObjectKey, Expression> {
-    type Output = Self;
+    type Output = Map<String, Value>;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter()
@@ -101,12 +101,12 @@ impl Evaluate for Object<ObjectKey, Expression> {
 impl private::Sealed for ObjectKey {}
 
 impl Evaluate for ObjectKey {
-    type Output = Self;
+    type Output = String;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
-            ObjectKey::Expression(expr) => expr.evaluate(ctx).map(ObjectKey::Expression),
-            ident => Ok(ident.clone()),
+            ObjectKey::Expression(expr) => expr::evaluate_string(expr, ctx),
+            ident => Ok(ident.to_string()),
         }
     }
 }
@@ -137,17 +137,18 @@ impl Evaluate for Template {
 impl private::Sealed for Traversal {}
 
 impl Evaluate for Traversal {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
-        expr::evaluate_traversal(&self.expr, self.operators.iter().cloned().collect(), ctx)
+        let value = self.expr.evaluate(ctx)?;
+        expr::evaluate_traversal(value, self.operators.iter().cloned().collect(), ctx)
     }
 }
 
 impl private::Sealed for FuncCall {}
 
 impl Evaluate for FuncCall {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let func = ctx.get_func(&self.name)?;
@@ -164,14 +165,14 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func(FuncArgs::new(args)).map(Into::into)
+        func(FuncArgs::new(args))
     }
 }
 
 impl private::Sealed for Conditional {}
 
 impl Evaluate for Conditional {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         if expr::evaluate_bool(&self.cond_expr, ctx)? {
@@ -185,7 +186,7 @@ impl Evaluate for Conditional {
 impl private::Sealed for Operation {}
 
 impl Evaluate for Operation {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
@@ -198,16 +199,16 @@ impl Evaluate for Operation {
 impl private::Sealed for UnaryOp {}
 
 impl Evaluate for UnaryOp {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
-        let expr = self.expr.evaluate(ctx)?;
+        let value = self.expr.evaluate(ctx)?;
 
-        match (self.operator, expr) {
-            (UnaryOperator::Not, Expression::Bool(v)) => Ok(Expression::Bool(!v)),
-            (UnaryOperator::Neg, Expression::Number(n)) => Ok(Expression::Number(-n)),
-            (operator, expr) => Err(EvalError::new(EvalErrorKind::InvalidUnaryOp(
-                operator, expr,
+        match (self.operator, value) {
+            (UnaryOperator::Not, Value::Bool(v)) => Ok(Value::Bool(!v)),
+            (UnaryOperator::Neg, Value::Number(n)) => Ok(Value::Number(-n)),
+            (operator, value) => Err(EvalError::new(EvalErrorKind::InvalidUnaryOp(
+                operator, value,
             ))),
         }
     }
@@ -216,16 +217,16 @@ impl Evaluate for UnaryOp {
 impl private::Sealed for BinaryOp {}
 
 impl Evaluate for BinaryOp {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
-        use {BinaryOperator::*, Expression::*};
+        use {BinaryOperator::*, Value::*};
 
         let op = self.clone().normalize();
         let lhs = op.lhs_expr.evaluate(ctx)?;
         let rhs = op.rhs_expr.evaluate(ctx)?;
 
-        let expr = match (lhs, op.operator, rhs) {
+        let value = match (lhs, op.operator, rhs) {
             (lhs, Eq, rhs) => Bool(lhs == rhs),
             (lhs, NotEq, rhs) => Bool(lhs != rhs),
             (Bool(lhs), And, Bool(rhs)) => Bool(lhs && rhs),
@@ -246,14 +247,14 @@ impl Evaluate for BinaryOp {
             }
         };
 
-        Ok(expr)
+        Ok(value)
     }
 }
 
 impl private::Sealed for ForExpr {}
 
 impl Evaluate for ForExpr {
-    type Output = Expression;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let collection = Collection::from_for_expr(self, ctx)?;
@@ -261,26 +262,26 @@ impl Evaluate for ForExpr {
         match &self.key_expr {
             Some(key_expr) => {
                 // Result will be an object.
-                let mut result = Object::with_capacity(collection.len());
+                let mut result = Map::with_capacity(collection.len());
 
                 for ctx in collection.into_iter() {
                     let ctx = &ctx?;
-                    let key = key_expr.evaluate(ctx).map(ObjectKey::from)?;
+                    let key = expr::evaluate_string(key_expr, ctx)?;
                     let value = self.value_expr.evaluate(ctx)?;
 
                     if self.grouping {
                         match result
                             .entry(key)
-                            .or_insert_with(|| Expression::Array(Vec::new()))
+                            .or_insert_with(|| Value::Array(Vec::new()))
                         {
-                            Expression::Array(array) => array.push(value),
+                            Value::Array(array) => array.push(value),
                             _ => unreachable!(),
                         }
                     } else {
                         match result.entry(key) {
                             Entry::Occupied(entry) => {
                                 return Err(EvalError::new(EvalErrorKind::KeyAlreadyExists(
-                                    entry.into_key(),
+                                    entry.key().clone(),
                                 )))
                             }
                             Entry::Vacant(entry) => {
@@ -290,7 +291,7 @@ impl Evaluate for ForExpr {
                     }
                 }
 
-                Ok(Expression::Object(result))
+                Ok(Value::Object(result))
             }
             None => {
                 // Result will be an array.
@@ -300,7 +301,7 @@ impl Evaluate for ForExpr {
                     result.push(self.value_expr.evaluate(&ctx?)?);
                 }
 
-                Ok(Expression::Array(result))
+                Ok(Value::Array(result))
             }
         }
     }

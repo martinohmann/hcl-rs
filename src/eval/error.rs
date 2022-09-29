@@ -62,10 +62,10 @@ pub enum EvalErrorKind {
     UndefinedFunc(Identifier),
     Unexpected(Expression, &'static str),
     IndexOutOfBounds(usize),
-    InvalidUnaryOp(UnaryOperator, Expression),
-    InvalidBinaryOp(Expression, BinaryOperator, Expression),
-    NoSuchKey(ObjectKey),
-    KeyAlreadyExists(ObjectKey),
+    InvalidUnaryOp(UnaryOperator, Value),
+    InvalidBinaryOp(Value, BinaryOperator, Value),
+    NoSuchKey(String),
+    KeyAlreadyExists(String),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -87,13 +87,13 @@ impl fmt::Display for EvalErrorKind {
             EvalErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
             EvalErrorKind::InvalidUnaryOp(operator, expr) => write!(
                 f,
-                "unary operator `{}` is not applicable to `{}`",
+                "unary operator `{}` is not applicable to `{:?}`",
                 operator.as_str(),
                 expr,
             ),
             EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
                 f,
-                "binary operator `{}` is not applicable to `{}` and `{}`",
+                "binary operator `{}` is not applicable to `{:?}` and `{:?}`",
                 operator.as_str(),
                 lhs,
                 rhs
