@@ -5,14 +5,14 @@ use std::collections::VecDeque;
 pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool> {
     match expr.evaluate(ctx)? {
         Expression::Bool(value) => Ok(value),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "a boolean"))),
+        other => Err(EvalError::unexpected(other, "a boolean")),
     }
 }
 
 pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> EvalResult<Vec<Expression>> {
     match expr.evaluate(ctx)? {
         Expression::Array(array) => Ok(array),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array"))),
+        other => Err(EvalError::unexpected(other, "an array")),
     }
 }
 
@@ -22,7 +22,7 @@ pub(super) fn evaluate_object(
 ) -> EvalResult<Object<ObjectKey, Expression>> {
     match expr.evaluate(ctx)? {
         Expression::Object(object) => Ok(object),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an object"))),
+        other => Err(EvalError::unexpected(other, "an object")),
     }
 }
 
@@ -37,7 +37,7 @@ pub(super) fn evaluate_collection(
             .map(|(index, value)| (ObjectKey::from(index), value))
             .collect()),
         Expression::Object(object) => Ok(object),
-        other => Err(ctx.error(EvalErrorKind::Unexpected(other, "an array or object"))),
+        other => Err(EvalError::unexpected(other, "an array or object")),
     }
 }
 
@@ -107,15 +107,9 @@ fn evaluate_index_expr(
         Expression::String(name) => evaluate_object_value(expr, name, ctx),
         Expression::Number(num) => match num.as_u64() {
             Some(index) => evaluate_array_value(expr, index as usize, ctx),
-            None => Err(ctx.error(EvalErrorKind::Unexpected(
-                Expression::Number(num),
-                "an unsigned integer",
-            ))),
+            None => Err(EvalError::unexpected(num, "an unsigned integer")),
         },
-        other => Err(ctx.error(EvalErrorKind::Unexpected(
-            other,
-            "a string or unsigned integer",
-        ))),
+        other => Err(EvalError::unexpected(other, "a string or unsigned integer")),
     }
 }
 
@@ -123,7 +117,7 @@ fn evaluate_array_value(expr: &Expression, index: usize, ctx: &Context) -> EvalR
     let mut array = evaluate_array(expr, ctx)?;
 
     if index >= array.len() {
-        return Err(ctx.error(EvalErrorKind::IndexOutOfBounds(index)));
+        return Err(EvalError::new(EvalErrorKind::IndexOutOfBounds(index)));
     }
 
     Ok(array.swap_remove(index))
@@ -136,6 +130,6 @@ fn evaluate_object_value(expr: &Expression, key: String, ctx: &Context) -> EvalR
 
     match object.swap_remove(&key) {
         Some(value) => Ok(value),
-        None => Err(ctx.error(EvalErrorKind::NoSuchKey(key))),
+        None => Err(EvalError::new(EvalErrorKind::NoSuchKey(key))),
     }
 }

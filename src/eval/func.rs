@@ -52,35 +52,35 @@ impl FuncArgs {
     pub fn get_bool(&self, index: usize) -> EvalResult<bool> {
         match self.get(index)? {
             Value::Bool(b) => Ok(*b),
-            other => Err(Self::unexpected(other, "a boolean")),
+            other => Err(EvalError::unexpected(other.clone(), "a boolean")),
         }
     }
 
     pub fn get_number(&self, index: usize) -> EvalResult<&Number> {
         match self.get(index)? {
             Value::Number(num) => Ok(num),
-            other => Err(Self::unexpected(other, "a number")),
+            other => Err(EvalError::unexpected(other.clone(), "a number")),
         }
     }
 
     pub fn get_str(&self, index: usize) -> EvalResult<&str> {
         match self.get(index)? {
             Value::String(string) => Ok(string),
-            other => Err(Self::unexpected(other, "a string")),
+            other => Err(EvalError::unexpected(other.clone(), "a string")),
         }
     }
 
     pub fn get_array(&self, index: usize) -> EvalResult<&Vec<Value>> {
         match self.get(index)? {
             Value::Array(array) => Ok(array),
-            other => Err(Self::unexpected(other, "an array")),
+            other => Err(EvalError::unexpected(other.clone(), "an array")),
         }
     }
 
     pub fn get_object(&self, index: usize) -> EvalResult<&Map<String, Value>> {
         match self.get(index)? {
             Value::Object(object) => Ok(object),
-            other => Err(Self::unexpected(other, "an object")),
+            other => Err(EvalError::unexpected(other.clone(), "an object")),
         }
     }
 
@@ -94,9 +94,5 @@ impl FuncArgs {
 
     pub fn into_inner(self) -> Vec<Value> {
         self.args
-    }
-
-    fn unexpected(other: &Value, expected: &'static str) -> EvalError {
-        EvalError::new(EvalErrorKind::Unexpected(other.clone().into(), expected))
     }
 }

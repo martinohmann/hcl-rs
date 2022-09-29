@@ -26,7 +26,7 @@ pub struct EvalError {
 }
 
 impl EvalError {
-    pub fn new(inner: EvalErrorKind) -> Self {
+    pub fn new(inner: EvalErrorKind) -> EvalError {
         EvalError {
             inner: Box::new(inner),
         }
@@ -34,6 +34,13 @@ impl EvalError {
 
     pub fn kind(&self) -> &EvalErrorKind {
         &self.inner
+    }
+
+    fn unexpected<T>(value: T, expected: &'static str) -> EvalError
+    where
+        T: Into<Expression>,
+    {
+        EvalError::new(EvalErrorKind::Unexpected(value.into(), expected))
     }
 }
 
@@ -84,10 +91,10 @@ impl fmt::Display for EvalErrorKind {
             EvalErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
             EvalErrorKind::Message(msg) => f.write_str(msg),
             EvalErrorKind::UndefinedVariable(ident) => {
-                write!(f, "undefined variable `{}`", ident.as_str())
+                write!(f, "undefined variable `{}`", ident)
             }
             EvalErrorKind::UndefinedFunc(ident) => {
-                write!(f, "undefined function `{}`", ident.as_str())
+                write!(f, "undefined function `{}`", ident)
             }
             EvalErrorKind::Unexpected(expr, expected) => {
                 write!(f, "unexpected expression `{}`, expected {}", expr, expected)
@@ -196,10 +203,5 @@ impl<'a> Context<'a> {
         I: Into<Identifier>,
     {
         self.funcs.insert(name.into(), func)
-    }
-
-    // Creates an `EvalError`.
-    fn error(&self, kind: EvalErrorKind) -> EvalError {
-        EvalError::new(kind)
     }
 }

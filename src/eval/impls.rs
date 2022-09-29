@@ -74,7 +74,7 @@ impl Evaluate for Expression {
             Expression::Conditional(cond) => cond.evaluate(ctx),
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
-            Expression::Raw(_) => Err(ctx.error(EvalErrorKind::RawExpression)),
+            Expression::Raw(_) => Err(EvalError::new(EvalErrorKind::RawExpression)),
             other => Ok(other.clone()),
         }
     }
@@ -212,7 +212,9 @@ impl Evaluate for UnaryOp {
         match (self.operator, expr) {
             (UnaryOperator::Not, Expression::Bool(v)) => Ok(Expression::Bool(!v)),
             (UnaryOperator::Neg, Expression::Number(n)) => Ok(Expression::Number(-n)),
-            (operator, expr) => Err(ctx.error(EvalErrorKind::InvalidUnaryOp(operator, expr))),
+            (operator, expr) => Err(EvalError::new(EvalErrorKind::InvalidUnaryOp(
+                operator, expr,
+            ))),
         }
     }
 }
@@ -244,7 +246,9 @@ impl Evaluate for BinaryOp {
             (Number(lhs), Div, Number(rhs)) => Number(lhs / rhs),
             (Number(lhs), Mod, Number(rhs)) => Number(lhs % rhs),
             (lhs, operator, rhs) => {
-                return Err(ctx.error(EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
+                return Err(EvalError::new(EvalErrorKind::InvalidBinaryOp(
+                    lhs, operator, rhs,
+                )))
             }
         };
 
@@ -281,9 +285,9 @@ impl Evaluate for ForExpr {
                     } else {
                         match result.entry(key) {
                             Entry::Occupied(entry) => {
-                                return Err(
-                                    ctx.error(EvalErrorKind::KeyAlreadyExists(entry.into_key()))
-                                )
+                                return Err(EvalError::new(EvalErrorKind::KeyAlreadyExists(
+                                    entry.into_key(),
+                                )))
                             }
                             Entry::Vacant(entry) => {
                                 entry.insert(value);
