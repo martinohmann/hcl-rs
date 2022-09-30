@@ -1,12 +1,11 @@
 use super::*;
-use vecmap::VecMap;
 
 pub(super) struct Collection<'a> {
     ctx: &'a Context<'a>,
     key_var: Option<&'a Identifier>,
     value_var: &'a Identifier,
     cond_expr: Option<&'a Expression>,
-    collection: VecMap<Value, Value>,
+    collection: Vec<(Value, Value)>,
 }
 
 impl<'a> Collection<'a> {
@@ -58,7 +57,7 @@ pub(super) struct IntoIter<'a> {
     key_var: Option<&'a Identifier>,
     value_var: &'a Identifier,
     cond_expr: Option<&'a Expression>,
-    iter: vecmap::map::IntoIter<Value, Value>,
+    iter: std::vec::IntoIter<(Value, Value)>,
 }
 
 impl<'a> IntoIter<'a> {
