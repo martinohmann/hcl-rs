@@ -409,7 +409,7 @@ impl ForDirective {
 }
 
 /// Controls the whitespace strip behaviour on adjacent string literals.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StripMode {
     /// Don't strip adjacent spaces.
     None,

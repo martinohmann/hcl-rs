@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 
 /// Represents a HCL number.
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd)]
 pub struct Number {
     n: N,
 }
