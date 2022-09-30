@@ -302,16 +302,14 @@ fn eval_traversal() {
 
 #[test]
 fn eval_func_call() {
-    fn add(args: FuncArgs) -> EvalResult<Value> {
-        args.ensure_len(2)?;
-        let a = args.get_number(0)?;
-        let b = args.get_number(1)?;
+    fn add(args: Vec<Value>) -> EvalResult<Value> {
+        let a = args[0].as_number().unwrap();
+        let b = args[1].as_number().unwrap();
         Ok(Value::Number(*a + *b))
     }
 
-    fn strlen(args: FuncArgs) -> EvalResult<Value> {
-        args.ensure_len(1)?;
-        let s = args.get_str(0)?;
+    fn strlen(args: Vec<Value>) -> EvalResult<Value> {
+        let s = args[0].as_str().unwrap();
         Ok(Value::from(s.len()))
     }
 
@@ -323,7 +321,7 @@ fn eval_func_call() {
     );
     ctx.add_func(
         Func::builder("strlen")
-            .param(("string", ParamType::String))
+            .param(("s", ParamType::String))
             .build(strlen),
     );
 

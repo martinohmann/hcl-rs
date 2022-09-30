@@ -15,7 +15,7 @@ use self::for_expr::Collection;
 use self::func::*;
 use crate::structure::*;
 use crate::template::*;
-use crate::{Error, Map, Number, Result, Value};
+use crate::{Error, Map, Result, Value};
 
 mod private {
     pub trait Sealed {}
