@@ -97,7 +97,7 @@ impl Heredoc {
 }
 
 /// The strip behaviour for the template contained in the heredoc.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HeredocStripMode {
     /// Do not strip leading whitespace.
     None,
