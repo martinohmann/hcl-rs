@@ -35,7 +35,7 @@ impl fmt::Display for EvalError {
 
 impl From<&str> for EvalError {
     fn from(msg: &str) -> Self {
-        EvalError::from(msg.to_string())
+        From::from(msg.to_string())
     }
 }
 
@@ -47,7 +47,7 @@ impl From<String> for EvalError {
 
 impl From<Error> for EvalError {
     fn from(err: Error) -> Self {
-        EvalError::from(err.to_string())
+        From::from(err.to_string())
     }
 }
 
@@ -66,6 +66,7 @@ pub enum EvalErrorKind {
     InvalidBinaryOp(Value, BinaryOperator, Value),
     NoSuchKey(String),
     KeyAlreadyExists(String),
+    FuncCall(Identifier, String),
 }
 
 impl fmt::Display for EvalErrorKind {
@@ -95,6 +96,9 @@ impl fmt::Display for EvalErrorKind {
                 "binary operator `{}` is not applicable to `{}` and `{}`",
                 operator, lhs, rhs
             ),
+            EvalErrorKind::FuncCall(name, msg) => {
+                write!(f, "invalid call to function `{}`: {}", name, msg)
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 use super::*;
+use std::fmt;
 
 pub type FuncImpl = fn(Vec<Value>) -> EvalResult<Value>;
 
@@ -10,6 +11,7 @@ pub enum ParamType {
     String,
     Array(Box<ParamType>),
     Object(Box<ParamType>),
+    Nullable(Box<ParamType>),
 }
 
 impl ParamType {
@@ -19,6 +21,42 @@ impl ParamType {
 
     pub fn object_of(element: ParamType) -> Self {
         ParamType::Object(Box::new(element))
+    }
+
+    pub fn nullable(element: ParamType) -> Self {
+        ParamType::Nullable(Box::new(element))
+    }
+
+    fn matches(&self, value: &Value) -> bool {
+        match self {
+            ParamType::Any => true,
+            ParamType::Bool => value.is_boolean(),
+            ParamType::Number => value.is_number(),
+            ParamType::String => value.is_string(),
+            ParamType::Array(elem_type) => match value.as_array() {
+                Some(array) => array.iter().all(|elem| elem_type.matches(elem)),
+                None => false,
+            },
+            ParamType::Object(elem_type) => match value.as_object() {
+                Some(object) => object.values().all(|elem| elem_type.matches(elem)),
+                None => false,
+            },
+            ParamType::Nullable(elem_type) => value.is_null() || elem_type.matches(value),
+        }
+    }
+}
+
+impl fmt::Display for ParamType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParamType::Any => f.write_str("any"),
+            ParamType::Bool => f.write_str("bool"),
+            ParamType::Number => f.write_str("number"),
+            ParamType::String => f.write_str("string"),
+            ParamType::Array(element) => write!(f, "array({})", element),
+            ParamType::Object(element) => write!(f, "object({})", element),
+            ParamType::Nullable(element) => write!(f, "nullable({})", element),
+        }
     }
 }
 
@@ -46,6 +84,10 @@ impl Param {
 
     pub fn type_(&self) -> &ParamType {
         &self.type_
+    }
+
+    fn matches(&self, value: &Value) -> bool {
+        self.type_.matches(value)
     }
 }
 
@@ -100,9 +142,63 @@ impl Func {
         self.variadic_param.as_ref()
     }
 
-    pub fn call(&self, args: Vec<Value>) -> EvalResult<Value> {
-        // @TODO(mohmann): validate args
+    pub fn call<I>(&self, args: I) -> EvalResult<Value>
+    where
+        I: IntoIterator,
+        I::Item: Into<Value>,
+    {
+        let args: Vec<Value> = args.into_iter().map(Into::into).collect();
+
+        let params_len = self.params.len();
+        let pos_args = &args[..params_len];
+        let var_args = &args[params_len..];
+
+        if pos_args.len() != params_len {
+            return Err(self.error(format!(
+                "expected {} positional arguments, got {}",
+                params_len,
+                pos_args.len(),
+            )));
+        }
+
+        if self.variadic_param.is_none() && !var_args.is_empty() {
+            return Err(self.error(format!(
+                "expected {} positional arguments, got {}",
+                params_len,
+                pos_args.len() + var_args.len(),
+            )));
+        }
+
+        for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
+            if !param.matches(arg) {
+                return Err(self.error(format!(
+                    "expected argument at position {} to be of type `{}`, got `{}`",
+                    param.type_, pos, arg
+                )));
+            }
+        }
+
+        if let Some(var_param) = &self.variadic_param {
+            for (pos, arg) in var_args.iter().enumerate() {
+                if !var_param.matches(arg) {
+                    return Err(self.error(format!(
+                        "expected argument at position {} to be of type `{}`, got `{}`",
+                        var_param.type_,
+                        pos_args.len() + pos,
+                        arg
+                    )));
+                }
+            }
+        }
+
         (self.func)(args)
+    }
+
+    fn error<T>(&self, msg: T) -> EvalError
+    where
+        T: fmt::Display,
+    {
+        EvalError::new(EvalErrorKind::FuncCall(self.name.clone(), msg.to_string()))
     }
 }
 
