@@ -97,18 +97,21 @@ fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> 
             Some(index) => evaluate_array_value(value, index as usize),
             None => Err(EvalError::unexpected(num, "an unsigned integer")),
         },
-        other => Err(EvalError::unexpected(other, "a string or unsigned integer")),
+        other => Err(EvalError::unexpected(
+            other,
+            "an unsigned integer or string",
+        )),
     }
 }
 
 fn evaluate_array_value(mut value: Value, index: usize) -> EvalResult<Value> {
     match value.as_array_mut() {
         Some(array) => {
-            if index >= array.len() {
-                return Err(EvalError::new(EvalErrorKind::IndexOutOfBounds(index)));
+            if index < array.len() {
+                Ok(array.swap_remove(index))
+            } else {
+                Err(EvalError::new(EvalErrorKind::IndexOutOfBounds(index)))
             }
-
-            Ok(array.swap_remove(index))
         }
         None => Err(EvalError::unexpected(value, "an array")),
     }
@@ -116,10 +119,9 @@ fn evaluate_array_value(mut value: Value, index: usize) -> EvalResult<Value> {
 
 fn evaluate_object_value(mut value: Value, key: String) -> EvalResult<Value> {
     match value.as_object_mut() {
-        Some(object) => match object.swap_remove(&key) {
-            Some(value) => Ok(value),
-            None => Err(EvalError::new(EvalErrorKind::NoSuchKey(key))),
-        },
+        Some(object) => object
+            .swap_remove(&key)
+            .ok_or_else(|| EvalError::new(EvalErrorKind::NoSuchKey(key))),
         None => Err(EvalError::unexpected(value, "an object")),
     }
 }
