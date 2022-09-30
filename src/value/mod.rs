@@ -4,13 +4,14 @@ pub(crate) mod de;
 mod from;
 mod ser;
 
-use crate::number::Number;
+use crate::{format, Number};
+use std::fmt;
 
 /// The map type used for HCL objects.
 pub type Map<K, V> = indexmap::IndexMap<K, V>;
 
 /// Represents any valid HCL value.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Value {
     /// Represents a HCL null value.
     Null,
@@ -197,5 +198,14 @@ impl Value {
     /// Takes the value out of the `Value`, leaving a `Null` in its place.
     pub fn take(&mut self) -> Value {
         std::mem::replace(self, Value::Null)
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match format::to_string(self) {
+            Ok(s) => f.write_str(&s),
+            Err(_) => Err(fmt::Error),
+        }
     }
 }
