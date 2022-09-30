@@ -88,15 +88,12 @@ impl fmt::Display for EvalErrorKind {
             EvalErrorKind::InvalidUnaryOp(operator, value) => write!(
                 f,
                 "unary operator `{}` is not applicable to `{}`",
-                operator.as_str(),
-                value,
+                operator, value,
             ),
             EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
                 f,
                 "binary operator `{}` is not applicable to `{}` and `{}`",
-                operator.as_str(),
-                lhs,
-                rhs
+                operator, lhs, rhs
             ),
         }
     }
