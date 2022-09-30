@@ -104,16 +104,16 @@ fn eval_for_expr() {
         Value::from_iter([("1", "a"), ("2", "b"), ("3", "c")]),
     );
 
-    //     eval_to(
-    //         ForExpr::new(
-    //             Identifier::new("value"),
-    //             Expression::from_iter(["a", "b", "c", "d"]),
-    //             Expression::Variable(Identifier::new("value")),
-    //         )
-    //         .with_key_var(Identifier::new("index"))
-    //         .with_key_expr(Expression::Variable(Identifier::new("index"))),
-    //         Value::from_iter([(0, "a"), (1, "b"), (2, "c"), (3, "d")]),
-    //     );
+    eval_to(
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter(["a", "b", "c", "d"]),
+            Expression::Variable(Identifier::new("value")),
+        )
+        .with_key_var(Identifier::new("index"))
+        .with_key_expr(TemplateExpr::QuotedString("${index}".into())),
+        Value::from_iter([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]),
+    );
 
     eval_to(
         ForExpr::new(
@@ -125,16 +125,16 @@ fn eval_for_expr() {
         Value::from_iter(["a", "b", "c", "d"]),
     );
 
-    //     eval_to(
-    //         ForExpr::new(
-    //             Identifier::new("value"),
-    //             Expression::from_iter(["a", "b", "c", "d"]),
-    //             Expression::Variable(Identifier::new("value")),
-    //         )
-    //         .with_key_var(Identifier::new("index"))
-    //         .with_key_expr(Expression::Variable(Identifier::new("index"))),
-    //         Value::from_iter([(0, "a"), (1, "b"), (2, "c"), (3, "d")]),
-    //     );
+    eval_to(
+        ForExpr::new(
+            Identifier::new("value"),
+            Expression::from_iter(["a", "b", "c", "d"]),
+            Expression::Variable(Identifier::new("value")),
+        )
+        .with_key_var(Identifier::new("index"))
+        .with_key_expr(TemplateExpr::QuotedString("${index}".into())),
+        Value::from_iter([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]),
+    );
 
     eval_to(
         ForExpr::new(
@@ -192,13 +192,13 @@ fn eval_traversal() {
     );
 
     // full-splat non-array
-    // eval_to(
-    //     Traversal::new(
-    //         expression!({"foo" = [1, 2, 3], "bar" = []}),
-    //         [FullSplat, GetAttr(Identifier::new("foo"))],
-    //     ),
-    //     Value::from_iter([[1, 2, 3]]),
-    // );
+    eval_to(
+        Traversal::new(
+            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            [FullSplat, GetAttr(Identifier::new("foo"))],
+        ),
+        Value::from_iter([vec![1, 2, 3]]),
+    );
 
     // full-splat array
     eval_to(
@@ -215,22 +215,22 @@ fn eval_traversal() {
     );
 
     // full-splat null
-    // eval_to(
-    //     Traversal::new(
-    //         Expression::Null,
-    //         [FullSplat, GetAttr(Identifier::new("foo"))],
-    //     ),
-    //     Value::from_iter([]),
-    // );
+    eval_to(
+        Traversal::new(
+            Expression::Null,
+            [FullSplat, GetAttr(Identifier::new("foo"))],
+        ),
+        Value::Array(vec![]),
+    );
 
     // attr-splat non-array
-    // eval_to(
-    //     Traversal::new(
-    //         expression!({"foo" = [1, 2, 3], "bar" = []}),
-    //         [AttrSplat, GetAttr(Identifier::new("foo"))],
-    //     ),
-    //     Value::from_iter([[1, 2, 3]]),
-    // );
+    eval_to(
+        Traversal::new(
+            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            [AttrSplat, GetAttr(Identifier::new("foo"))],
+        ),
+        Value::from_iter([vec![1, 2, 3]]),
+    );
 
     // attr-splat array
     eval_to(
@@ -247,32 +247,32 @@ fn eval_traversal() {
     );
 
     // attr-splat null
-    // eval_to(
-    //     Traversal::new(
-    //         Expression::Null,
-    //         [AttrSplat, GetAttr(Identifier::new("foo"))],
-    //     ),
-    //     Value::from_iter([]),
-    // );
+    eval_to(
+        Traversal::new(
+            Expression::Null,
+            [AttrSplat, GetAttr(Identifier::new("foo"))],
+        ),
+        Value::Array(vec![]),
+    );
 
     // attr-splat followed by non-get-attr
-    // eval_to(
-    //     Traversal::new(
-    //         expression! {
-    //             [
-    //                 { "foo" = { "bar" = [1, 2, 3] } },
-    //                 { "foo" = { "bar" = [10, 20, 30] } }
-    //             ]
-    //         },
-    //         [
-    //             AttrSplat,
-    //             GetAttr(Identifier::new("foo")),
-    //             GetAttr(Identifier::new("bar")),
-    //             Index(expression!(1)),
-    //         ],
-    //     ),
-    //     Value::from_iter([[1, 2, 3], [10, 20, 30]]),
-    // );
+    eval_to(
+        Traversal::new(
+            expression! {
+                [
+                    { "foo" = { "bar" = [1, 2, 3] } },
+                    { "foo" = { "bar" = [10, 20, 30] } }
+                ]
+            },
+            [
+                AttrSplat,
+                GetAttr(Identifier::new("foo")),
+                GetAttr(Identifier::new("bar")),
+                Index(expression!(1)),
+            ],
+        ),
+        Value::from_iter([vec![1, 2, 3], vec![10, 20, 30]]),
+    );
 
     // full-splat followed by non-get-attr
     eval_to(
