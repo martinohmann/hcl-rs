@@ -1,6 +1,7 @@
 use super::{de::FromStrVisitor, Expression};
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::str::FromStr;
 
 /// Operations apply a particular operator to either one or two expression terms.
@@ -64,6 +65,12 @@ impl UnaryOperator {
             UnaryOperator::Neg => "-",
             UnaryOperator::Not => "!",
         }
+    }
+}
+
+impl fmt::Display for UnaryOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.as_str().fmt(f)
     }
 }
 
@@ -283,6 +290,12 @@ impl BinaryOperator {
             BinaryOperator::And => 2,
             BinaryOperator::Or => 1,
         }
+    }
+}
+
+impl fmt::Display for BinaryOperator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.as_str().fmt(f)
     }
 }
 

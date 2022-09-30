@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1](https://github.com/martinohmann/hcl-rs/compare/v0.8.0...v0.8.1) (2022-09-30)
+
+
+### Features
+
+* implement `Copy` for some types ([66fba96](https://github.com/martinohmann/hcl-rs/commit/66fba96d672900bf74061e422f12b95e3eac8e95))
+* implement `Display` and `Deref` for `Identifier` ([c06cec0](https://github.com/martinohmann/hcl-rs/commit/c06cec0466398fc6578058953f21c9cfae6fddbe))
+* implement `Eq` and `Display` for `Value` ([cfb41fe](https://github.com/martinohmann/hcl-rs/commit/cfb41fecefb677f97144292d33814480f859cb98))
+
 ## [0.8.0](https://github.com/martinohmann/hcl-rs/compare/v0.7.0...v0.8.0) (2022-09-29)
 
 

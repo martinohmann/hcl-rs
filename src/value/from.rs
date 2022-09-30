@@ -30,7 +30,7 @@ impl From<f64> for Value {
 
 impl From<Number> for Value {
     fn from(num: Number) -> Self {
-        Value::Number(num)
+        Self::Number(num)
     }
 }
 
