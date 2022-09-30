@@ -165,7 +165,7 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func(FuncArgs::new(args))
+        func.call(args)
     }
 }
 

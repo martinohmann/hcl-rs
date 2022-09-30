@@ -316,8 +316,16 @@ fn eval_func_call() {
     }
 
     let mut ctx = Context::new();
-    ctx.set_func("add", add);
-    ctx.set_func("strlen", strlen);
+    ctx.add_func(
+        Func::builder("add")
+            .params([("a", ParamType::Number), ("b", ParamType::Number)])
+            .build(add),
+    );
+    ctx.add_func(
+        Func::builder("strlen")
+            .param(("string", ParamType::String))
+            .build(strlen),
+    );
 
     eval_to_ctx(
         &ctx,

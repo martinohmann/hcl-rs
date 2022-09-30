@@ -3,7 +3,8 @@
 mod error;
 mod expr;
 mod for_expr;
-mod func;
+#[allow(dead_code)]
+pub mod func;
 mod impls;
 mod template;
 #[cfg(test)]
@@ -11,7 +12,7 @@ mod tests;
 
 pub use self::error::{EvalError, EvalErrorKind, EvalResult};
 use self::for_expr::Collection;
-pub use self::func::{Func, FuncArgs};
+use self::func::*;
 use crate::structure::*;
 use crate::template::*;
 use crate::{Error, Map, Number, Result, Value};
@@ -99,10 +100,7 @@ impl<'a> Context<'a> {
     }
 
     /// Set a func which is available in the current and all child scopes.
-    pub fn set_func<I>(&mut self, name: I, func: Func) -> Option<Func>
-    where
-        I: Into<Identifier>,
-    {
-        self.funcs.insert(name.into(), func)
+    pub fn add_func(&mut self, func: Func) -> Option<Func> {
+        self.funcs.insert(func.name().clone(), func)
     }
 }
