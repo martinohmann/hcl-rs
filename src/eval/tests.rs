@@ -64,7 +64,7 @@ fn eval_conditional() {
     eval_to(Conditional::new(false, "yes", "no"), Value::from("no"));
     eval_error(
         Conditional::new("foo", "yes", "no"),
-        EvalErrorKind::Unexpected(Expression::from("foo"), "a boolean"),
+        EvalErrorKind::Unexpected(Value::from("foo"), "a boolean"),
     );
 }
 

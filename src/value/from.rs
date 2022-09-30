@@ -28,6 +28,12 @@ impl From<f64> for Value {
     }
 }
 
+impl From<Number> for Value {
+    fn from(num: Number) -> Self {
+        Value::Number(num)
+    }
+}
+
 impl From<bool> for Value {
     fn from(b: bool) -> Self {
         Self::Bool(b)

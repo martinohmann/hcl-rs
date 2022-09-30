@@ -60,7 +60,7 @@ pub(super) fn evaluate_traversal(
                     remaining.push_back(TraversalOperator::GetAttr(ident));
                 }
 
-                evaluate_splat(value, operators, ctx)?
+                evaluate_splat(value, remaining, ctx)?
             }
             TraversalOperator::FullSplat => {
                 // Consume all remaining operators and apply them to each array element.
@@ -82,10 +82,10 @@ fn evaluate_splat(
     let array = match value {
         Value::Array(array) => array
             .into_iter()
-            .map(|value| evaluate_traversal(value, remaining.clone(), ctx))
+            .map(|value| evaluate_traversal(value, operators.clone(), ctx))
             .collect::<EvalResult<_>>()?,
         Value::Null => vec![],
-        other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
+        other => evaluate_traversal(other, operators, ctx).map(|expr| vec![expr])?,
     };
 
     Ok(Value::Array(array))

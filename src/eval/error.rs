@@ -21,7 +21,7 @@ impl EvalError {
 
     pub(super) fn unexpected<T>(value: T, expected: &'static str) -> EvalError
     where
-        T: Into<Expression>,
+        T: Into<Value>,
     {
         EvalError::new(EvalErrorKind::Unexpected(value.into(), expected))
     }
@@ -60,7 +60,7 @@ pub enum EvalErrorKind {
     Message(String),
     UndefinedVariable(Identifier),
     UndefinedFunc(Identifier),
-    Unexpected(Expression, &'static str),
+    Unexpected(Value, &'static str),
     IndexOutOfBounds(usize),
     InvalidUnaryOp(UnaryOperator, Value),
     InvalidBinaryOp(Value, BinaryOperator, Value),
@@ -79,21 +79,21 @@ impl fmt::Display for EvalErrorKind {
             EvalErrorKind::UndefinedFunc(ident) => {
                 write!(f, "undefined function `{}`", ident)
             }
-            EvalErrorKind::Unexpected(expr, expected) => {
-                write!(f, "unexpected expression `{}`, expected {}", expr, expected)
+            EvalErrorKind::Unexpected(value, expected) => {
+                write!(f, "unexpected value `{}`, expected {}", value, expected)
             }
             EvalErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
             EvalErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
             EvalErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
-            EvalErrorKind::InvalidUnaryOp(operator, expr) => write!(
+            EvalErrorKind::InvalidUnaryOp(operator, value) => write!(
                 f,
-                "unary operator `{}` is not applicable to `{:?}`",
+                "unary operator `{}` is not applicable to `{}`",
                 operator.as_str(),
-                expr,
+                value,
             ),
             EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
                 f,
-                "binary operator `{}` is not applicable to `{:?}` and `{:?}`",
+                "binary operator `{}` is not applicable to `{}` and `{}`",
                 operator.as_str(),
                 lhs,
                 rhs
