@@ -1,6 +1,6 @@
 [package]
 name = "hcl-rs"
-version = "0.8.0"
+version = "0.8.1"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT"
 description = "An HCL deserializer"
