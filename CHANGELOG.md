@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.2](https://github.com/martinohmann/hcl-rs/compare/v0.8.1...v0.8.2) (2022-09-30)
+
+
+### Features
+
+* implement `Display` for `{Unary,Binary}Operator` ([765ae4e](https://github.com/martinohmann/hcl-rs/commit/765ae4e6fba64d6ff27ac5619c978068106f7bcc))
+* implement `From<Numbe>` for `Value` ([5bc621a](https://github.com/martinohmann/hcl-rs/commit/5bc621a715e325da6e071b0a314b56dc30c06dcc))
+
 ## [0.8.1](https://github.com/martinohmann/hcl-rs/compare/v0.8.0...v0.8.1) (2022-09-30)
 
 
