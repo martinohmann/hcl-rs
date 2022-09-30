@@ -60,36 +60,35 @@ pub(super) fn evaluate_traversal(
                     remaining.push_back(TraversalOperator::GetAttr(ident));
                 }
 
-                let array = match value {
-                    Value::Array(array) => array
-                        .into_iter()
-                        .map(|value| evaluate_traversal(value, remaining.clone(), ctx))
-                        .collect::<EvalResult<_>>()?,
-                    Value::Null => vec![],
-                    other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
-                };
-
-                Value::Array(array)
+                evaluate_splat(value, operators, ctx)?
             }
             TraversalOperator::FullSplat => {
                 // Consume all remaining operators and apply them to each array element.
                 let remaining: VecDeque<TraversalOperator> = operators.drain(..).collect();
 
-                let array = match value {
-                    Value::Array(array) => array
-                        .into_iter()
-                        .map(|value| evaluate_traversal(value, remaining.clone(), ctx))
-                        .collect::<EvalResult<_>>()?,
-                    Value::Null => vec![],
-                    other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
-                };
-
-                Value::Array(array)
+                evaluate_splat(value, remaining, ctx)?
             }
         }
     }
 
     Ok(value)
+}
+
+fn evaluate_splat(
+    value: Value,
+    operators: VecDeque<TraversalOperator>,
+    ctx: &Context,
+) -> EvalResult<Value> {
+    let array = match value {
+        Value::Array(array) => array
+            .into_iter()
+            .map(|value| evaluate_traversal(value, remaining.clone(), ctx))
+            .collect::<EvalResult<_>>()?,
+        Value::Null => vec![],
+        other => evaluate_traversal(other, remaining, ctx).map(|expr| vec![expr])?,
+    };
+
+    Ok(Value::Array(array))
 }
 
 fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> EvalResult<Value> {
