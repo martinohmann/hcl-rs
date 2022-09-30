@@ -58,7 +58,7 @@ fn evaluate_interpolation(
 ) -> EvalResult<()> {
     let string = match interp.expr.evaluate(ctx)? {
         Value::String(string) => string,
-        other => crate::format::to_string(&other)?,
+        other => other.to_string(),
     };
 
     result.push_str(&string);

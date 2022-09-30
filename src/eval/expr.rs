@@ -1,5 +1,6 @@
 use super::*;
 use std::collections::VecDeque;
+use vecmap::VecMap;
 
 pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool> {
     match expr.evaluate(ctx)? {
@@ -25,14 +26,17 @@ pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> EvalResult<Vec
 pub(super) fn evaluate_collection(
     expr: &Expression,
     ctx: &Context,
-) -> EvalResult<Map<String, Value>> {
+) -> EvalResult<VecMap<Value, Value>> {
     match expr.evaluate(ctx)? {
         Value::Array(array) => Ok(array
             .into_iter()
             .enumerate()
-            .map(|(index, value)| (index.to_string(), value))
+            .map(|(index, value)| (Value::from(index), value))
             .collect()),
-        Value::Object(object) => Ok(object),
+        Value::Object(object) => Ok(object
+            .into_iter()
+            .map(|(key, value)| (Value::from(key), value))
+            .collect()),
         other => Err(EvalError::unexpected(other, "an array or object")),
     }
 }
