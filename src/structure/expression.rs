@@ -1,7 +1,7 @@
 //! Types to represent HCL attribute value expressions.
 
 use super::*;
-use crate::Number;
+use crate::{format, Number};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
@@ -227,7 +227,7 @@ impl From<Identifier> for Expression {
 
 impl Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match crate::format::to_string(self) {
+        match format::to_string(self) {
             Ok(s) => f.write_str(&s),
             Err(_) => Err(fmt::Error),
         }
