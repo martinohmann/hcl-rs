@@ -9,7 +9,7 @@ pub struct EvalError {
 }
 
 impl EvalError {
-    pub fn new(inner: EvalErrorKind) -> EvalError {
+    pub(super) fn new(inner: EvalErrorKind) -> EvalError {
         EvalError {
             inner: Box::new(inner),
         }
