@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3](https://github.com/martinohmann/hcl-rs/compare/v0.8.2...v0.8.3) (2022-10-01)
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.8 to 3.0.9 ([#78](https://github.com/martinohmann/hcl-rs/issues/78)) ([2abc271](https://github.com/martinohmann/hcl-rs/commit/2abc27156e67f698e4d219f0759dce6a1a5da43e))
+* **deps:** update criterion requirement from 0.3 to 0.4 ([#79](https://github.com/martinohmann/hcl-rs/issues/79)) ([ac023bd](https://github.com/martinohmann/hcl-rs/commit/ac023bda2afcfd142422292eca7f9a8fb099ae73))
+
 ## [0.8.2](https://github.com/martinohmann/hcl-rs/compare/v0.8.1...v0.8.2) (2022-09-30)
 
 
