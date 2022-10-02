@@ -237,6 +237,13 @@ impl FuncBuilder {
     }
 }
 
+/// Wrapper type for function argument values.
+///
+/// During expression evaluation it is passed to functions referenced by function call
+/// expressions with the values of the evaluated argument expressions.
+///
+/// `FuncArgs` behaves exactly like a `Vec<Value>` due to its `Deref` implementation, but exposes
+/// additional methods to iterate over positional and variadic arguments.
 #[derive(Debug, Clone)]
 pub struct FuncArgs {
     values: Vec<Value>,
@@ -251,16 +258,19 @@ impl FuncArgs {
         }
     }
 
+    /// Takes ownership of the function argument values.
     pub fn into_values(self) -> Vec<Value> {
         self.values
     }
 
+    /// Returns an iterator over all positional arguments.
     pub fn positional_args(&self) -> PositionalArgs<'_> {
         PositionalArgs {
             iter: self.values.iter().take(self.pos_args_len),
         }
     }
 
+    /// Returns an iterator over all variadic arguments.
     pub fn variadic_args(&self) -> VariadicArgs<'_> {
         VariadicArgs {
             iter: self.values.iter().skip(self.pos_args_len),
@@ -268,6 +278,20 @@ impl FuncArgs {
     }
 }
 
+impl ops::Deref for FuncArgs {
+    type Target = Vec<Value>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.values
+    }
+}
+
+/// An iterator over positional function arguments.
+///
+/// This `struct` is created by the [`positional_args`] method on [`FuncArgs`]. See its
+/// documentation for more.
+///
+/// [`positional_args`]: FuncArgs::positional_args
 #[derive(Debug, Clone)]
 pub struct PositionalArgs<'a> {
     iter: iter::Take<slice::Iter<'a, Value>>,
@@ -281,6 +305,12 @@ impl<'a> Iterator for PositionalArgs<'a> {
     }
 }
 
+/// An iterator over variadic function arguments.
+///
+/// This `struct` is created by the [`variadic_args`] method on [`FuncArgs`]. See its
+/// documentation for more.
+///
+/// [`variadic_args`]: FuncArgs::variadic_args
 #[derive(Debug, Clone)]
 pub struct VariadicArgs<'a> {
     iter: iter::Skip<slice::Iter<'a, Value>>,
@@ -291,13 +321,5 @@ impl<'a> Iterator for VariadicArgs<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
-    }
-}
-
-impl ops::Deref for FuncArgs {
-    type Target = Vec<Value>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.values
     }
 }
