@@ -302,15 +302,14 @@ fn eval_traversal() {
 
 #[test]
 fn eval_func_call() {
-    fn add(args: Vec<Value>) -> EvalResult<Value> {
+    fn add(args: FuncArgs) -> EvalResult<Value> {
         let a = args[0].as_number().unwrap();
         let b = args[1].as_number().unwrap();
         Ok(Value::Number(*a + *b))
     }
 
-    fn strlen(args: Vec<Value>) -> EvalResult<Value> {
-        let s = args[0].as_str().unwrap();
-        Ok(Value::from(s.len()))
+    fn strlen(args: FuncArgs) -> EvalResult<Value> {
+        Ok(Value::from(args[0].as_str().unwrap().len()))
     }
 
     let mut ctx = Context::new();

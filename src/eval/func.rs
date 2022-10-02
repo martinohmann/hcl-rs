@@ -1,7 +1,10 @@
 use super::*;
 use std::fmt;
+use std::iter;
+use std::ops;
+use std::slice;
 
-pub type FuncImpl = fn(Vec<Value>) -> EvalResult<Value>;
+pub type FuncImpl = fn(FuncArgs) -> EvalResult<Value>;
 
 #[derive(Debug, Clone)]
 pub enum ParamType {
@@ -142,35 +145,22 @@ impl Func {
         self.variadic_param.as_ref()
     }
 
-    pub fn call<I>(&self, args: I) -> EvalResult<Value>
-    where
-        I: IntoIterator,
-        I::Item: Into<Value>,
-    {
-        let args: Vec<Value> = args.into_iter().map(Into::into).collect();
-
+    pub fn call(&self, args: Vec<Value>) -> EvalResult<Value> {
         let params_len = self.params.len();
-        let pos_args = &args[..params_len];
-        let var_args = &args[params_len..];
+        let args_len = args.len();
+        let var_param = &self.variadic_param;
 
-        if pos_args.len() != params_len {
+        if args_len < params_len || (var_param.is_none() && args_len > params_len) {
             return Err(self.error(format!(
                 "expected {} positional arguments, got {}",
-                params_len,
-                pos_args.len(),
+                params_len, args_len,
             )));
         }
 
-        if self.variadic_param.is_none() && !var_args.is_empty() {
-            return Err(self.error(format!(
-                "expected {} positional arguments, got {}",
-                params_len,
-                pos_args.len() + var_args.len(),
-            )));
-        }
+        let (pos_args, var_args) = args.split_at(params_len);
 
         for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
-            if !param.matches(arg) {
+            if !param.matches(&arg) {
                 return Err(self.error(format!(
                     "expected argument at position {} to be of type `{}`, got `{}`",
                     param.type_, pos, arg
@@ -178,20 +168,22 @@ impl Func {
             }
         }
 
-        if let Some(var_param) = &self.variadic_param {
+        if let Some(var_param) = &var_param {
             for (pos, arg) in var_args.iter().enumerate() {
-                if !var_param.matches(arg) {
+                if !var_param.matches(&arg) {
                     return Err(self.error(format!(
-                        "expected argument at position {} to be of type `{}`, got `{}`",
+                        "expected variadic argument at position {} to be of type `{}`, got `{}`",
                         var_param.type_,
-                        pos_args.len() + pos,
+                        params_len + pos,
                         arg
                     )));
                 }
             }
         }
 
-        (self.func)(args)
+        let func_args = FuncArgs::new(args, params_len);
+
+        (self.func)(func_args)
     }
 
     fn error<T>(&self, msg: T) -> EvalError
@@ -242,5 +234,70 @@ impl FuncBuilder {
             params: self.params,
             variadic_param: self.variadic_param,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FuncArgs {
+    values: Vec<Value>,
+    pos_args_len: usize,
+}
+
+impl FuncArgs {
+    pub(super) fn new(values: Vec<Value>, pos_args_len: usize) -> FuncArgs {
+        FuncArgs {
+            values,
+            pos_args_len,
+        }
+    }
+
+    pub fn into_values(self) -> Vec<Value> {
+        self.values
+    }
+
+    pub fn positional_args(&self) -> PositionalArgs<'_> {
+        PositionalArgs {
+            iter: self.values.iter().take(self.pos_args_len),
+        }
+    }
+
+    pub fn variadic_args(&self) -> VariadicArgs<'_> {
+        VariadicArgs {
+            iter: self.values.iter().skip(self.pos_args_len),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PositionalArgs<'a> {
+    iter: iter::Take<slice::Iter<'a, Value>>,
+}
+
+impl<'a> Iterator for PositionalArgs<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VariadicArgs<'a> {
+    iter: iter::Skip<slice::Iter<'a, Value>>,
+}
+
+impl<'a> Iterator for VariadicArgs<'a> {
+    type Item = &'a Value;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+impl ops::Deref for FuncArgs {
+    type Target = Vec<Value>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.values
     }
 }
