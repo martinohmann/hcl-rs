@@ -6,28 +6,54 @@ use std::slice;
 
 pub type FuncImpl = fn(FuncArgs) -> EvalResult<Value>;
 
+/// A type hint for a function parameter.
+///
+/// This is used to validate the parameters of a function call expression before evaluating the
+/// function.
 #[derive(Debug, Clone)]
 pub enum ParamType {
+    /// Any type is allowed.
     Any,
+    /// The parameter must be a boolean value.
     Bool,
+    /// The parameter must be a number.
     Number,
+    /// The parameter must be a string value.
     String,
+    /// The parameter must be an array which must contain only elements of the given element type.
     Array(Box<ParamType>),
+    /// The parameter must be an object which must contain only entries with values of the given
+    /// element type. The object key type is always a string.
     Object(Box<ParamType>),
+    /// The parameter can be one of the provided types. If the `Vec` is empty, any type is
+    /// allowed.
+    OneOf(Vec<ParamType>),
+    /// The parameter must be either `null` or of the provided type.
     Nullable(Box<ParamType>),
 }
 
 impl ParamType {
+    /// Creates a new `Array` parameter type with the given element type.
     pub fn array_of(element: ParamType) -> Self {
         ParamType::Array(Box::new(element))
     }
 
+    /// Creates a new `Object` parameter type with the given element type.
     pub fn object_of(element: ParamType) -> Self {
         ParamType::Object(Box::new(element))
     }
 
-    pub fn nullable(element: ParamType) -> Self {
-        ParamType::Nullable(Box::new(element))
+    /// Creates a new `OneOf` parameter type from the provided alternatives.
+    pub fn one_of<I>(alternatives: I) -> Self
+    where
+        I: IntoIterator<Item = ParamType>,
+    {
+        ParamType::OneOf(alternatives.into_iter().collect())
+    }
+
+    /// Creates a new `Nullable` parameter type from a non-null parameter type.
+    pub fn nullable(non_null: ParamType) -> Self {
+        ParamType::Nullable(Box::new(non_null))
     }
 
     fn matches(&self, value: &Value) -> bool {
@@ -45,6 +71,9 @@ impl ParamType {
                 None => false,
             },
             ParamType::Nullable(elem_type) => value.is_null() || elem_type.matches(value),
+            ParamType::OneOf(elem_types) => {
+                elem_types.iter().any(|elem_type| elem_type.matches(value))
+            }
         }
     }
 }
@@ -52,13 +81,29 @@ impl ParamType {
 impl fmt::Display for ParamType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParamType::Any => f.write_str("any"),
-            ParamType::Bool => f.write_str("bool"),
-            ParamType::Number => f.write_str("number"),
-            ParamType::String => f.write_str("string"),
-            ParamType::Array(element) => write!(f, "array({})", element),
-            ParamType::Object(element) => write!(f, "object({})", element),
-            ParamType::Nullable(element) => write!(f, "nullable({})", element),
+            ParamType::Any => f.write_str("`any`"),
+            ParamType::Bool => f.write_str("`bool`"),
+            ParamType::Number => f.write_str("`number`"),
+            ParamType::String => f.write_str("`string`"),
+            ParamType::Array(elem_type) => write!(f, "`array({})`", elem_type),
+            ParamType::Object(elem_type) => write!(f, "`object({})`", elem_type),
+            ParamType::Nullable(elem_type) => write!(f, "`nullable({})`", elem_type),
+            ParamType::OneOf(elem_types) => match elem_types.len() {
+                0 => f.write_str("`any`"),
+                1 => fmt::Display::fmt(&elem_types[0], f),
+                n => {
+                    for (i, elem_type) in elem_types.iter().enumerate() {
+                        if i == n - 1 {
+                            f.write_str("or ")?;
+                        } else if i > 0 {
+                            f.write_str(", ")?;
+                        }
+
+                        fmt::Display::fmt(elem_type, f)?;
+                    }
+                    Ok(())
+                }
+            },
         }
     }
 }
@@ -160,9 +205,9 @@ impl Func {
         let (pos_args, var_args) = args.split_at(params_len);
 
         for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
-            if !param.matches(&arg) {
+            if !param.matches(arg) {
                 return Err(self.error(format!(
-                    "expected argument at position {} to be of type `{}`, got `{}`",
+                    "expected argument at position {} to be of type {}, got `{}`",
                     param.type_, pos, arg
                 )));
             }
@@ -170,9 +215,9 @@ impl Func {
 
         if let Some(var_param) = &var_param {
             for (pos, arg) in var_args.iter().enumerate() {
-                if !var_param.matches(&arg) {
+                if !var_param.matches(arg) {
                     return Err(self.error(format!(
-                        "expected variadic argument at position {} to be of type `{}`, got `{}`",
+                        "expected variadic argument at position {} to be of type {}, got `{}`",
                         var_param.type_,
                         params_len + pos,
                         arg

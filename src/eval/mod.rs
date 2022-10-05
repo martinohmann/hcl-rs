@@ -3,8 +3,7 @@
 mod error;
 mod expr;
 mod for_expr;
-#[allow(dead_code)]
-pub mod func;
+mod func;
 mod impls;
 mod template;
 #[cfg(test)]
@@ -12,7 +11,7 @@ mod tests;
 
 pub use self::error::{EvalError, EvalErrorKind, EvalResult};
 use self::for_expr::Collection;
-use self::func::*;
+pub use self::func::*;
 use crate::structure::*;
 use crate::template::*;
 use crate::{Error, Map, Result, Value};

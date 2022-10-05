@@ -1,8 +1,10 @@
 use super::*;
 use std::fmt;
 
+/// The result type used by this module.
 pub type EvalResult<T> = Result<T, EvalError>;
 
+/// The error type returned by all fallible operations within this module.
 #[derive(Debug)]
 pub struct EvalError {
     inner: Box<EvalErrorKind>,
@@ -15,6 +17,7 @@ impl EvalError {
         }
     }
 
+    /// Returns a reference to the `EvalErrorKind` for further error matching.
     pub fn kind(&self) -> &EvalErrorKind {
         &self.inner
     }
@@ -53,6 +56,8 @@ impl From<Error> for EvalError {
 
 impl std::error::Error for EvalError {}
 
+/// An enum representing all kinds of errors that can happen during the evaluation of HCL
+/// expressions and templates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EvalErrorKind {
