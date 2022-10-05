@@ -141,7 +141,8 @@ impl Evaluate for Traversal {
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let value = self.expr.evaluate(ctx)?;
-        expr::evaluate_traversal(value, self.operators.iter().cloned().collect(), ctx)
+        let deque = self.operators.iter().collect();
+        expr::evaluate_traversal(value, deque, ctx)
     }
 }
 

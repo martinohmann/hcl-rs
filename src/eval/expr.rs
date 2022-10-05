@@ -39,28 +39,28 @@ pub(super) fn evaluate_collection(expr: &Expression, ctx: &Context) -> Result<Ve
 
 pub(super) fn evaluate_traversal(
     mut value: Value,
-    mut operators: VecDeque<TraversalOperator>,
+    mut operators: VecDeque<&TraversalOperator>,
     ctx: &Context,
 ) -> Result<Value> {
     while let Some(operator) = operators.pop_front() {
         value = match operator {
-            TraversalOperator::LegacyIndex(index) => evaluate_array_value(value, index as usize)?,
-            TraversalOperator::Index(index_expr) => evaluate_index_expr(value, &index_expr, ctx)?,
-            TraversalOperator::GetAttr(name) => evaluate_object_value(value, name.into_inner())?,
+            TraversalOperator::LegacyIndex(index) => evaluate_array_value(value, *index as usize)?,
+            TraversalOperator::Index(index_expr) => evaluate_index_expr(value, index_expr, ctx)?,
+            TraversalOperator::GetAttr(name) => evaluate_object_value(value, name)?,
             TraversalOperator::AttrSplat => {
                 // Consume all immediately following GetAttr operators and apply them to each array
                 // element.
                 let mut remaining = VecDeque::with_capacity(operators.len());
 
-                while let Some(TraversalOperator::GetAttr(ident)) = operators.pop_front() {
-                    remaining.push_back(TraversalOperator::GetAttr(ident));
+                while let Some(op @ TraversalOperator::GetAttr(_)) = operators.pop_front() {
+                    remaining.push_back(op);
                 }
 
                 evaluate_splat(value, remaining, ctx)?
             }
             TraversalOperator::FullSplat => {
                 // Consume all remaining operators and apply them to each array element.
-                let remaining: VecDeque<TraversalOperator> = operators.drain(..).collect();
+                let remaining: VecDeque<&TraversalOperator> = operators.drain(..).collect();
 
                 evaluate_splat(value, remaining, ctx)?
             }
@@ -72,7 +72,7 @@ pub(super) fn evaluate_traversal(
 
 fn evaluate_splat(
     value: Value,
-    operators: VecDeque<TraversalOperator>,
+    operators: VecDeque<&TraversalOperator>,
     ctx: &Context,
 ) -> Result<Value> {
     let array = match value {
@@ -89,7 +89,7 @@ fn evaluate_splat(
 
 fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> Result<Value> {
     match index_expr.evaluate(ctx)? {
-        Value::String(name) => evaluate_object_value(value, name),
+        Value::String(name) => evaluate_object_value(value, &name),
         Value::Number(num) => match num.as_u64() {
             Some(index) => evaluate_array_value(value, index as usize),
             None => Err(Error::unexpected(num, "an unsigned integer")),
@@ -111,11 +111,11 @@ fn evaluate_array_value(mut value: Value, index: usize) -> Result<Value> {
     }
 }
 
-fn evaluate_object_value(mut value: Value, key: String) -> Result<Value> {
+fn evaluate_object_value(mut value: Value, key: &str) -> Result<Value> {
     match value.as_object_mut() {
         Some(object) => object
-            .swap_remove(&key)
-            .ok_or_else(|| Error::new(ErrorKind::NoSuchKey(key))),
+            .swap_remove(key)
+            .ok_or_else(|| Error::new(ErrorKind::NoSuchKey(key.to_string()))),
         None => Err(Error::unexpected(value, "an object")),
     }
 }
