@@ -1,31 +1,28 @@
 use super::*;
 use std::collections::VecDeque;
 
-pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool> {
+pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> Result<bool> {
     match expr.evaluate(ctx)? {
         Value::Bool(value) => Ok(value),
-        other => Err(EvalError::unexpected(other, "a boolean")),
+        other => Err(Error::unexpected(other, "a boolean")),
     }
 }
 
-pub(super) fn evaluate_string(expr: &Expression, ctx: &Context) -> EvalResult<String> {
+pub(super) fn evaluate_string(expr: &Expression, ctx: &Context) -> Result<String> {
     match expr.evaluate(ctx)? {
         Value::String(value) => Ok(value),
-        other => Err(EvalError::unexpected(other, "a string")),
+        other => Err(Error::unexpected(other, "a string")),
     }
 }
 
-pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> EvalResult<Vec<Value>> {
+pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> Result<Vec<Value>> {
     match expr.evaluate(ctx)? {
         Value::Array(array) => Ok(array),
-        other => Err(EvalError::unexpected(other, "an array")),
+        other => Err(Error::unexpected(other, "an array")),
     }
 }
 
-pub(super) fn evaluate_collection(
-    expr: &Expression,
-    ctx: &Context,
-) -> EvalResult<Vec<(Value, Value)>> {
+pub(super) fn evaluate_collection(expr: &Expression, ctx: &Context) -> Result<Vec<(Value, Value)>> {
     match expr.evaluate(ctx)? {
         Value::Array(array) => Ok(array
             .into_iter()
@@ -36,7 +33,7 @@ pub(super) fn evaluate_collection(
             .into_iter()
             .map(|(key, value)| (Value::from(key), value))
             .collect()),
-        other => Err(EvalError::unexpected(other, "an array or object")),
+        other => Err(Error::unexpected(other, "an array or object")),
     }
 }
 
@@ -44,7 +41,7 @@ pub(super) fn evaluate_traversal(
     mut value: Value,
     mut operators: VecDeque<TraversalOperator>,
     ctx: &Context,
-) -> EvalResult<Value> {
+) -> Result<Value> {
     while let Some(operator) = operators.pop_front() {
         value = match operator {
             TraversalOperator::LegacyIndex(index) => evaluate_array_value(value, index as usize)?,
@@ -77,12 +74,12 @@ fn evaluate_splat(
     value: Value,
     operators: VecDeque<TraversalOperator>,
     ctx: &Context,
-) -> EvalResult<Value> {
+) -> Result<Value> {
     let array = match value {
         Value::Array(array) => array
             .into_iter()
             .map(|value| evaluate_traversal(value, operators.clone(), ctx))
-            .collect::<EvalResult<_>>()?,
+            .collect::<Result<_>>()?,
         Value::Null => vec![],
         other => evaluate_traversal(other, operators, ctx).map(|expr| vec![expr])?,
     };
@@ -90,38 +87,35 @@ fn evaluate_splat(
     Ok(Value::Array(array))
 }
 
-fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> EvalResult<Value> {
+fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> Result<Value> {
     match index_expr.evaluate(ctx)? {
         Value::String(name) => evaluate_object_value(value, name),
         Value::Number(num) => match num.as_u64() {
             Some(index) => evaluate_array_value(value, index as usize),
-            None => Err(EvalError::unexpected(num, "an unsigned integer")),
+            None => Err(Error::unexpected(num, "an unsigned integer")),
         },
-        other => Err(EvalError::unexpected(
-            other,
-            "an unsigned integer or string",
-        )),
+        other => Err(Error::unexpected(other, "an unsigned integer or string")),
     }
 }
 
-fn evaluate_array_value(mut value: Value, index: usize) -> EvalResult<Value> {
+fn evaluate_array_value(mut value: Value, index: usize) -> Result<Value> {
     match value.as_array_mut() {
         Some(array) => {
             if index < array.len() {
                 Ok(array.swap_remove(index))
             } else {
-                Err(EvalError::new(EvalErrorKind::IndexOutOfBounds(index)))
+                Err(Error::new(ErrorKind::IndexOutOfBounds(index)))
             }
         }
-        None => Err(EvalError::unexpected(value, "an array")),
+        None => Err(Error::unexpected(value, "an array")),
     }
 }
 
-fn evaluate_object_value(mut value: Value, key: String) -> EvalResult<Value> {
+fn evaluate_object_value(mut value: Value, key: String) -> Result<Value> {
     match value.as_object_mut() {
         Some(object) => object
             .swap_remove(&key)
-            .ok_or_else(|| EvalError::new(EvalErrorKind::NoSuchKey(key))),
-        None => Err(EvalError::unexpected(value, "an object")),
+            .ok_or_else(|| Error::new(ErrorKind::NoSuchKey(key))),
+        None => Err(Error::unexpected(value, "an object")),
     }
 }

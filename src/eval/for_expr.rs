@@ -9,7 +9,7 @@ pub(super) struct Collection<'a> {
 }
 
 impl<'a> Collection<'a> {
-    pub(super) fn from_for_expr(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> EvalResult<Self> {
+    pub(super) fn from_for_expr(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> Result<Self> {
         Ok(Collection {
             ctx,
             key_var: for_expr.key_var.as_ref(),
@@ -22,7 +22,7 @@ impl<'a> Collection<'a> {
     pub(super) fn from_for_directive(
         for_directive: &'a ForDirective,
         ctx: &'a Context<'a>,
-    ) -> EvalResult<Self> {
+    ) -> Result<Self> {
         Ok(Collection {
             ctx,
             key_var: for_directive.key_var.as_ref(),
@@ -38,7 +38,7 @@ impl<'a> Collection<'a> {
 }
 
 impl<'a> IntoIterator for Collection<'a> {
-    type Item = EvalResult<Context<'a>>;
+    type Item = Result<Context<'a>>;
     type IntoIter = IntoIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -61,7 +61,7 @@ pub(super) struct IntoIter<'a> {
 }
 
 impl<'a> IntoIter<'a> {
-    fn cond(&self, ctx: &Context) -> EvalResult<bool> {
+    fn cond(&self, ctx: &Context) -> Result<bool> {
         match &self.cond_expr {
             None => Ok(true),
             Some(cond_expr) => expr::evaluate_bool(cond_expr, ctx),
@@ -81,7 +81,7 @@ impl<'a> IntoIter<'a> {
 }
 
 impl<'a> Iterator for IntoIter<'a> {
-    type Item = EvalResult<Context<'a>>;
+    type Item = Result<Context<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

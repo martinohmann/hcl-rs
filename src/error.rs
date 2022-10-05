@@ -1,5 +1,5 @@
 //! The `Error` and `Result` types used by this crate.
-use crate::eval::EvalError;
+use crate::eval;
 use crate::parser::Rule;
 use pest::{error::LineColLocation, Span};
 use serde::{de, ser};
@@ -40,7 +40,7 @@ pub enum Error {
     InvalidUnicodeCodePoint(String),
 
     /// Represents errors during expression evaluation.
-    Eval(EvalError),
+    Eval(eval::Error),
 }
 
 impl Error {
@@ -110,8 +110,8 @@ impl From<pest::error::Error<Rule>> for Error {
     }
 }
 
-impl From<EvalError> for Error {
-    fn from(err: EvalError) -> Self {
+impl From<eval::Error> for Error {
+    fn from(err: eval::Error) -> Self {
         Error::Eval(err)
     }
 }

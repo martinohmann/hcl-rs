@@ -9,12 +9,12 @@ mod template;
 #[cfg(test)]
 mod tests;
 
-pub use self::error::{EvalError, EvalErrorKind, EvalResult};
+pub use self::error::{Error, ErrorKind, Result};
 use self::for_expr::Collection;
 pub use self::func::*;
 use crate::structure::*;
 use crate::template::*;
-use crate::{Error, Map, Result, Value};
+use crate::{Map, Value};
 
 mod private {
     pub trait Sealed {}
@@ -27,7 +27,7 @@ pub trait Evaluate: private::Sealed {
 
     /// Recursively evaluates HCL expressions and returns a result which does not contain any
     /// unevaluated expressions anymore.
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output>;
 }
 
 /// The evaluation context.
@@ -65,14 +65,12 @@ impl<'a> Context<'a> {
 
     /// Lookup a variable's value. Variables defined in the current scope take precedence over
     /// variables defined in parent scopes.
-    pub fn get_var(&self, name: &Identifier) -> EvalResult<&Value> {
+    pub fn get_var(&self, name: &Identifier) -> Result<&Value> {
         match self.vars.get(name) {
             Some(value) => Ok(value),
             None => match self.parent {
                 Some(parent) => parent.get_var(name),
-                None => Err(EvalError::new(EvalErrorKind::UndefinedVariable(
-                    name.clone(),
-                ))),
+                None => Err(Error::new(ErrorKind::UndefinedVariable(name.clone()))),
             },
         }
     }
@@ -88,12 +86,12 @@ impl<'a> Context<'a> {
 
     /// Lookup a func. Functions defined in the current scope take precedence over
     /// functions defined in parent scopes.
-    pub fn get_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
+    pub fn get_func(&self, name: &Identifier) -> Result<&FuncDef> {
         match self.funcs.get(name) {
             Some(func) => Ok(func),
             None => match self.parent {
                 Some(parent) => parent.get_func(name),
-                None => Err(EvalError::new(EvalErrorKind::UndefinedFunc(name.clone()))),
+                None => Err(Error::new(ErrorKind::UndefinedFunc(name.clone()))),
             },
         }
     }

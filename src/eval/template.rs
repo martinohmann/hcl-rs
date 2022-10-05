@@ -5,7 +5,7 @@ pub(super) fn evaluate_template(
     template: &Template,
     ctx: &Context,
     strip: StripMode,
-) -> EvalResult<()> {
+) -> Result<()> {
     let elems = template.elements();
     let len = elems.len();
 
@@ -34,7 +34,7 @@ fn evaluate_element(
     element: &Element,
     ctx: &Context,
     strip: StripMode,
-) -> EvalResult<()> {
+) -> Result<()> {
     match element {
         Element::Literal(literal) => {
             let stripped = match strip {
@@ -55,7 +55,7 @@ fn evaluate_interpolation(
     result: &mut String,
     interp: &Interpolation,
     ctx: &Context,
-) -> EvalResult<()> {
+) -> Result<()> {
     let string = match interp.expr.evaluate(ctx)? {
         Value::String(string) => string,
         other => other.to_string(),
@@ -65,14 +65,14 @@ fn evaluate_interpolation(
     Ok(())
 }
 
-fn evaluate_directive(result: &mut String, dir: &Directive, ctx: &Context) -> EvalResult<()> {
+fn evaluate_directive(result: &mut String, dir: &Directive, ctx: &Context) -> Result<()> {
     match dir {
         Directive::If(dir) => evaluate_if_directive(result, dir, ctx),
         Directive::For(dir) => evaluate_for_directive(result, dir, ctx),
     }
 }
 
-fn evaluate_if_directive(result: &mut String, dir: &IfDirective, ctx: &Context) -> EvalResult<()> {
+fn evaluate_if_directive(result: &mut String, dir: &IfDirective, ctx: &Context) -> Result<()> {
     if expr::evaluate_bool(&dir.cond_expr, ctx)? {
         let next_strip = if dir.false_template.is_some() {
             dir.else_strip
@@ -89,11 +89,7 @@ fn evaluate_if_directive(result: &mut String, dir: &IfDirective, ctx: &Context) 
     Ok(())
 }
 
-fn evaluate_for_directive(
-    result: &mut String,
-    dir: &ForDirective,
-    ctx: &Context,
-) -> EvalResult<()> {
+fn evaluate_for_directive(result: &mut String, dir: &ForDirective, ctx: &Context) -> Result<()> {
     let collection = Collection::from_for_directive(dir, ctx)?;
     let len = collection.len();
 

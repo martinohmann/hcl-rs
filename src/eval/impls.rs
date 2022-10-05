@@ -6,10 +6,10 @@ impl private::Sealed for Body {}
 impl Evaluate for Body {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         self.iter()
             .map(|structure| structure.evaluate(ctx))
-            .collect::<EvalResult<Body>>()
+            .collect::<Result<Body>>()
     }
 }
 
@@ -18,7 +18,7 @@ impl private::Sealed for Structure {}
 impl Evaluate for Structure {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         match self {
             Structure::Attribute(attr) => attr.evaluate(ctx).map(Structure::Attribute),
             Structure::Block(block) => block.evaluate(ctx).map(Structure::Block),
@@ -31,7 +31,7 @@ impl private::Sealed for Attribute {}
 impl Evaluate for Attribute {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         Ok(Attribute {
             key: self.key.clone(),
             expr: self.expr.evaluate(ctx).map(Into::into)?,
@@ -44,7 +44,7 @@ impl private::Sealed for Block {}
 impl Evaluate for Block {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         Ok(Block {
             identifier: self.identifier.clone(),
             labels: self.labels.clone(),
@@ -58,7 +58,7 @@ impl private::Sealed for Expression {}
 impl Evaluate for Expression {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         match self {
             Expression::Array(array) => array.evaluate(ctx).map(Value::Array),
             Expression::Object(object) => object.evaluate(ctx).map(Value::Object),
@@ -70,7 +70,7 @@ impl Evaluate for Expression {
             Expression::Conditional(cond) => cond.evaluate(ctx),
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
-            Expression::Raw(_) => Err(EvalError::new(EvalErrorKind::RawExpression)),
+            Expression::Raw(_) => Err(Error::new(ErrorKind::RawExpression)),
             other => Ok(Value::from(other.clone())),
         }
     }
@@ -81,7 +81,7 @@ impl private::Sealed for Vec<Expression> {}
 impl Evaluate for Vec<Expression> {
     type Output = Vec<Value>;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         self.iter().map(|expr| expr.evaluate(ctx)).collect()
     }
 }
@@ -91,7 +91,7 @@ impl private::Sealed for Object<ObjectKey, Expression> {}
 impl Evaluate for Object<ObjectKey, Expression> {
     type Output = Map<String, Value>;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         self.iter()
             .map(|(key, expr)| Ok((key.evaluate(ctx)?, expr.evaluate(ctx)?)))
             .collect()
@@ -103,7 +103,7 @@ impl private::Sealed for ObjectKey {}
 impl Evaluate for ObjectKey {
     type Output = String;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         match self {
             ObjectKey::Expression(expr) => expr::evaluate_string(expr, ctx),
             ident => Ok(ident.to_string()),
@@ -116,7 +116,7 @@ impl private::Sealed for TemplateExpr {}
 impl Evaluate for TemplateExpr {
     type Output = String;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let template = Template::from_expr(self)?;
         template.evaluate(ctx)
     }
@@ -127,7 +127,7 @@ impl private::Sealed for Template {}
 impl Evaluate for Template {
     type Output = String;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let mut result = String::new();
         template::evaluate_template(&mut result, self, ctx, StripMode::None)?;
         Ok(result)
@@ -139,7 +139,7 @@ impl private::Sealed for Traversal {}
 impl Evaluate for Traversal {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let value = self.expr.evaluate(ctx)?;
         expr::evaluate_traversal(value, self.operators.iter().cloned().collect(), ctx)
     }
@@ -150,7 +150,7 @@ impl private::Sealed for FuncCall {}
 impl Evaluate for FuncCall {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let func = ctx.get_func(&self.name)?;
 
         let len = self.args.len();
@@ -174,7 +174,7 @@ impl private::Sealed for Conditional {}
 impl Evaluate for Conditional {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         if expr::evaluate_bool(&self.cond_expr, ctx)? {
             self.true_expr.evaluate(ctx)
         } else {
@@ -188,7 +188,7 @@ impl private::Sealed for Operation {}
 impl Evaluate for Operation {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         match self {
             Operation::Unary(unary) => unary.evaluate(ctx),
             Operation::Binary(binary) => binary.evaluate(ctx),
@@ -201,15 +201,13 @@ impl private::Sealed for UnaryOp {}
 impl Evaluate for UnaryOp {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let value = self.expr.evaluate(ctx)?;
 
         match (self.operator, value) {
             (UnaryOperator::Not, Value::Bool(v)) => Ok(Value::Bool(!v)),
             (UnaryOperator::Neg, Value::Number(n)) => Ok(Value::Number(-n)),
-            (operator, value) => Err(EvalError::new(EvalErrorKind::InvalidUnaryOp(
-                operator, value,
-            ))),
+            (operator, value) => Err(Error::new(ErrorKind::InvalidUnaryOp(operator, value))),
         }
     }
 }
@@ -219,7 +217,7 @@ impl private::Sealed for BinaryOp {}
 impl Evaluate for BinaryOp {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         use {BinaryOperator::*, Value::*};
 
         let op = self.clone().normalize();
@@ -241,9 +239,7 @@ impl Evaluate for BinaryOp {
             (Number(lhs), Div, Number(rhs)) => Number(lhs / rhs),
             (Number(lhs), Mod, Number(rhs)) => Number(lhs % rhs),
             (lhs, operator, rhs) => {
-                return Err(EvalError::new(EvalErrorKind::InvalidBinaryOp(
-                    lhs, operator, rhs,
-                )))
+                return Err(Error::new(ErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
             }
         };
 
@@ -256,7 +252,7 @@ impl private::Sealed for ForExpr {}
 impl Evaluate for ForExpr {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         let collection = Collection::from_for_expr(self, ctx)?;
 
         match &self.key_expr {
@@ -280,7 +276,7 @@ impl Evaluate for ForExpr {
                     } else {
                         match result.entry(key) {
                             Entry::Occupied(entry) => {
-                                return Err(EvalError::new(EvalErrorKind::KeyAlreadyExists(
+                                return Err(Error::new(ErrorKind::KeyAlreadyExists(
                                     entry.key().clone(),
                                 )))
                             }

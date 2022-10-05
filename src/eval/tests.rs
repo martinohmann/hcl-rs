@@ -22,7 +22,7 @@ where
 }
 
 #[track_caller]
-fn eval_error<T>(value: T, expected: EvalErrorKind)
+fn eval_error<T>(value: T, expected: ErrorKind)
 where
     T: Evaluate + fmt::Debug + PartialEq,
     <T as Evaluate>::Output: fmt::Debug,
@@ -64,7 +64,7 @@ fn eval_conditional() {
     eval_to(Conditional::new(false, "yes", "no"), Value::from("no"));
     eval_error(
         Conditional::new("foo", "yes", "no"),
-        EvalErrorKind::Unexpected(Value::from("foo"), "a boolean"),
+        ErrorKind::Unexpected(Value::from("foo"), "a boolean"),
     );
 }
 
@@ -296,19 +296,19 @@ fn eval_traversal() {
     // errors
     eval_error(
         Traversal::new(vec![1, 2, 3], [LegacyIndex(5)]),
-        EvalErrorKind::IndexOutOfBounds(5),
+        ErrorKind::IndexOutOfBounds(5),
     );
 }
 
 #[test]
 fn eval_func_call() {
-    fn add(args: FuncArgs) -> EvalResult<Value> {
+    fn add(args: FuncArgs) -> Result<Value> {
         let a = args[0].as_number().unwrap();
         let b = args[1].as_number().unwrap();
         Ok(Value::Number(*a + *b))
     }
 
-    fn strlen(args: FuncArgs) -> EvalResult<Value> {
+    fn strlen(args: FuncArgs) -> Result<Value> {
         Ok(Value::from(args[0].as_str().unwrap().len()))
     }
 

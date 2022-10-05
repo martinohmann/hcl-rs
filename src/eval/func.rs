@@ -5,7 +5,7 @@ use std::ops;
 use std::slice;
 
 /// A type alias for the signature of functions expected by the [`FuncDef`] type.
-pub type Func = fn(FuncArgs) -> EvalResult<Value>;
+pub type Func = fn(FuncArgs) -> Result<Value>;
 
 /// A type hint for a function parameter.
 ///
@@ -225,10 +225,10 @@ where
 /// # Examples
 ///
 /// ```
-/// use hcl::eval::{EvalResult, FuncArgs, FuncDef, Param, ParamType};
+/// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
 /// use hcl::Value;
 ///
-/// fn add(args: FuncArgs) -> EvalResult<Value> {
+/// fn add(args: FuncArgs) -> Result<Value> {
 ///     let a = args[0].as_number().unwrap();
 ///     let b = args[1].as_number().unwrap();
 ///     Ok(Value::Number(*a + *b))
@@ -245,9 +245,9 @@ where
 /// Alternatively, the [`FuncDefBuilder`] can be used to construct the `FuncDef`:
 ///
 /// ```
-/// # use hcl::eval::{EvalResult, FuncArgs, FuncDef, Param, ParamType};
+/// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
 /// # use hcl::Value;
-/// # fn add(args: FuncArgs) -> EvalResult<Value> {
+/// # fn add(args: FuncArgs) -> Result<Value> {
 /// #    unimplemented!()
 /// # }
 /// let func_def = FuncDef::builder("add")
@@ -327,10 +327,10 @@ impl FuncDef {
     /// # Examples
     ///
     /// ```
-    /// use hcl::eval::{EvalResult, FuncArgs, FuncDef, Param, ParamType};
+    /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// use hcl::Value;
     ///
-    /// fn add(args: FuncArgs) -> EvalResult<Value> {
+    /// fn add(args: FuncArgs) -> Result<Value> {
     ///     let a = args[0].as_number().unwrap();
     ///     let b = args[1].as_number().unwrap();
     ///     Ok(Value::Number(*a + *b))
@@ -345,7 +345,7 @@ impl FuncDef {
     /// assert!(func_def.call([1]).is_err());
     /// assert_eq!(func_def.call([1, 2]).unwrap(), Value::from(3));
     /// ```
-    pub fn call<I>(&self, args: I) -> EvalResult<Value>
+    pub fn call<I>(&self, args: I) -> Result<Value>
     where
         I: IntoIterator,
         I::Item: Into<Value>,
@@ -392,11 +392,11 @@ impl FuncDef {
         (self.func)(func_args)
     }
 
-    fn error<T>(&self, msg: T) -> EvalError
+    fn error<T>(&self, msg: T) -> Error
     where
         T: fmt::Display,
     {
-        EvalError::new(EvalErrorKind::FuncCall(self.name.clone(), msg.to_string()))
+        Error::new(ErrorKind::FuncCall(self.name.clone(), msg.to_string()))
     }
 }
 
@@ -425,9 +425,9 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{EvalResult, FuncArgs, FuncDef, Param, ParamType};
+    /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// # use hcl::Value;
-    /// # fn strlen(_: FuncArgs) -> EvalResult<Value> {
+    /// # fn strlen(_: FuncArgs) -> Result<Value> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder("strlen")
@@ -452,9 +452,9 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{EvalResult, FuncArgs, FuncDef, Param, ParamType};
+    /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// # use hcl::Value;
-    /// # fn add3(_: FuncArgs) -> EvalResult<Value> {
+    /// # fn add3(_: FuncArgs) -> Result<Value> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder("add3")
@@ -482,9 +482,9 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{EvalResult, FuncArgs, FuncDef, Param, ParamType};
+    /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// # use hcl::Value;
-    /// # fn printf(_: FuncArgs) -> EvalResult<Value> {
+    /// # fn printf(_: FuncArgs) -> Result<Value> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder("printf")

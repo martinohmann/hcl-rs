@@ -2,65 +2,65 @@ use super::*;
 use std::fmt;
 
 /// The result type used by this module.
-pub type EvalResult<T> = Result<T, EvalError>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type returned by all fallible operations within this module.
 #[derive(Debug)]
-pub struct EvalError {
-    inner: Box<EvalErrorKind>,
+pub struct Error {
+    inner: Box<ErrorKind>,
 }
 
-impl EvalError {
-    pub(super) fn new(inner: EvalErrorKind) -> EvalError {
-        EvalError {
+impl Error {
+    pub(super) fn new(inner: ErrorKind) -> Error {
+        Error {
             inner: Box::new(inner),
         }
     }
 
-    /// Returns a reference to the `EvalErrorKind` for further error matching.
-    pub fn kind(&self) -> &EvalErrorKind {
+    /// Returns a reference to the `ErrorKind` for further error matching.
+    pub fn kind(&self) -> &ErrorKind {
         &self.inner
     }
 
-    pub(super) fn unexpected<T>(value: T, expected: &'static str) -> EvalError
+    pub(super) fn unexpected<T>(value: T, expected: &'static str) -> Error
     where
         T: Into<Value>,
     {
-        EvalError::new(EvalErrorKind::Unexpected(value.into(), expected))
+        Error::new(ErrorKind::Unexpected(value.into(), expected))
     }
 }
 
-impl fmt::Display for EvalError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.inner, f)
     }
 }
 
-impl From<&str> for EvalError {
+impl From<&str> for Error {
     fn from(msg: &str) -> Self {
         From::from(msg.to_string())
     }
 }
 
-impl From<String> for EvalError {
+impl From<String> for Error {
     fn from(msg: String) -> Self {
-        EvalError::new(EvalErrorKind::Message(msg))
+        Error::new(ErrorKind::Message(msg))
     }
 }
 
-impl From<Error> for EvalError {
-    fn from(err: Error) -> Self {
+impl From<crate::Error> for Error {
+    fn from(err: crate::Error) -> Self {
         From::from(err.to_string())
     }
 }
 
-impl std::error::Error for EvalError {}
+impl std::error::Error for Error {}
 
 /// An enum representing all kinds of errors that can happen during the evaluation of HCL
 /// expressions and templates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
-pub enum EvalErrorKind {
+pub enum ErrorKind {
     RawExpression,
     Message(String),
     UndefinedVariable(Identifier),
@@ -74,34 +74,34 @@ pub enum EvalErrorKind {
     FuncCall(Identifier, String),
 }
 
-impl fmt::Display for EvalErrorKind {
+impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EvalErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
-            EvalErrorKind::Message(msg) => f.write_str(msg),
-            EvalErrorKind::UndefinedVariable(ident) => {
+            ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
+            ErrorKind::Message(msg) => f.write_str(msg),
+            ErrorKind::UndefinedVariable(ident) => {
                 write!(f, "undefined variable `{}`", ident)
             }
-            EvalErrorKind::UndefinedFunc(ident) => {
+            ErrorKind::UndefinedFunc(ident) => {
                 write!(f, "undefined function `{}`", ident)
             }
-            EvalErrorKind::Unexpected(value, expected) => {
+            ErrorKind::Unexpected(value, expected) => {
                 write!(f, "unexpected value `{}`, expected {}", value, expected)
             }
-            EvalErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
-            EvalErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
-            EvalErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
-            EvalErrorKind::InvalidUnaryOp(operator, value) => write!(
+            ErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
+            ErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
+            ErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
+            ErrorKind::InvalidUnaryOp(operator, value) => write!(
                 f,
                 "unary operator `{}` is not applicable to `{}`",
                 operator, value,
             ),
-            EvalErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
+            ErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
                 f,
                 "binary operator `{}` is not applicable to `{}` and `{}`",
                 operator, lhs, rhs
             ),
-            EvalErrorKind::FuncCall(name, msg) => {
+            ErrorKind::FuncCall(name, msg) => {
                 write!(f, "invalid call to function `{}`: {}", name, msg)
             }
         }
