@@ -34,7 +34,7 @@ pub trait Evaluate: private::Sealed {
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     vars: Map<Identifier, Value>,
-    funcs: Map<Identifier, Func>,
+    funcs: Map<Identifier, FuncDef>,
     parent: Option<&'a Context<'a>>,
 }
 
@@ -88,7 +88,7 @@ impl<'a> Context<'a> {
 
     /// Lookup a func. Functions defined in the current scope take precedence over
     /// functions defined in parent scopes.
-    pub fn get_func(&self, name: &Identifier) -> EvalResult<&Func> {
+    pub fn get_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
         match self.funcs.get(name) {
             Some(func) => Ok(func),
             None => match self.parent {
@@ -99,7 +99,7 @@ impl<'a> Context<'a> {
     }
 
     /// Set a func which is available in the current and all child scopes.
-    pub fn add_func(&mut self, func: Func) -> Option<Func> {
+    pub fn add_func(&mut self, func: FuncDef) -> Option<FuncDef> {
         self.funcs.insert(func.name().clone(), func)
     }
 }

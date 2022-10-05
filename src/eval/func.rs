@@ -4,7 +4,7 @@ use std::iter;
 use std::ops;
 use std::slice;
 
-pub type FuncImpl = fn(FuncArgs) -> EvalResult<Value>;
+pub type Func = fn(FuncArgs) -> EvalResult<Value>;
 
 /// A type hint for a function parameter.
 ///
@@ -150,21 +150,21 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct Func {
+pub struct FuncDef {
     name: Identifier,
-    func: FuncImpl,
+    func: Func,
     params: Vec<Param>,
     variadic_param: Option<Param>,
 }
 
-impl Func {
-    pub fn new<I, P>(name: I, func: FuncImpl, params: P) -> Func
+impl FuncDef {
+    pub fn new<I, P>(name: I, func: Func, params: P) -> FuncDef
     where
         I: Into<Identifier>,
         P: IntoIterator,
         P::Item: Into<Param>,
     {
-        Func::builder(name).params(params).build(func)
+        FuncDef::builder(name).params(params).build(func)
     }
 
     pub fn builder<I>(name: I) -> FuncBuilder
@@ -272,8 +272,8 @@ impl FuncBuilder {
         self
     }
 
-    pub fn build(self, func: FuncImpl) -> Func {
-        Func {
+    pub fn build(self, func: Func) -> FuncDef {
+        FuncDef {
             name: self.name,
             func,
             params: self.params,

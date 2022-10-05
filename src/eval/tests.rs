@@ -314,12 +314,12 @@ fn eval_func_call() {
 
     let mut ctx = Context::new();
     ctx.add_func(
-        Func::builder("add")
+        FuncDef::builder("add")
             .params([("a", ParamType::Number), ("b", ParamType::Number)])
             .build(add),
     );
     ctx.add_func(
-        Func::builder("strlen")
+        FuncDef::builder("strlen")
             .param(("s", ParamType::String))
             .build(strlen),
     );
