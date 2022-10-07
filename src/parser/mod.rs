@@ -300,7 +300,9 @@ fn parse_traversal_operator(pair: Pair<Rule>) -> Result<TraversalOperator> {
             let pair = inner(pair);
 
             match pair.as_rule() {
-                Rule::LegacyIndex => TraversalOperator::LegacyIndex(parse_primitive::<u64>(pair)),
+                Rule::LegacyIndex => {
+                    TraversalOperator::LegacyIndex(parse_primitive::<u64>(inner(pair)))
+                }
                 _ => TraversalOperator::Index(parse_expression(pair)?),
             }
         }

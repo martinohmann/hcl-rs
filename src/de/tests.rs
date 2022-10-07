@@ -463,3 +463,24 @@ fn issue_81() {
 
     assert_eq!(body, expected);
 }
+
+#[test]
+fn issue_83() {
+    let body: Body = crate::from_str("attr = module.instance.0.id").unwrap();
+
+    let expected = Body::builder()
+        .add_attribute((
+            "attr",
+            Traversal::new(
+                Identifier::new("module"),
+                [
+                    TraversalOperator::GetAttr("instance".into()),
+                    TraversalOperator::LegacyIndex(0),
+                    TraversalOperator::GetAttr("id".into()),
+                ],
+            ),
+        ))
+        .build();
+
+    assert_eq!(body, expected);
+}
