@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     BinaryOp, BinaryOperator, Block, Body, Expression, ForExpr, FuncCall, Identifier, ObjectKey,
-    Operation, Traversal, UnaryOp, UnaryOperator,
+    Operation, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
 };
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -420,6 +420,43 @@ fn issue_66() {
             Traversal::new(
                 Identifier::new("b"),
                 [Expression::String(String::from("c"))],
+            ),
+        ))
+        .build();
+
+    assert_eq!(body, expected);
+}
+
+#[test]
+fn issue_81() {
+    let input = r#"
+        attr_splat = module.instance.*.id
+        full_splat = module.instance[*].id
+    "#;
+
+    let body: Body = crate::from_str(input).unwrap();
+
+    let expected = Body::builder()
+        .add_attribute((
+            "attr_splat",
+            Traversal::new(
+                Identifier::new("module"),
+                [
+                    TraversalOperator::GetAttr("instance".into()),
+                    TraversalOperator::AttrSplat,
+                    TraversalOperator::GetAttr("id".into()),
+                ],
+            ),
+        ))
+        .add_attribute((
+            "full_splat",
+            Traversal::new(
+                Identifier::new("module"),
+                [
+                    TraversalOperator::GetAttr("instance".into()),
+                    TraversalOperator::FullSplat,
+                    TraversalOperator::GetAttr("id".into()),
+                ],
             ),
         ))
         .build();
