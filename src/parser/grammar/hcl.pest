@@ -108,7 +108,7 @@ Variable = @{ Identifier }
 
 // Index operator
 Index       =  { ("[" ~ Expression ~ "]") | LegacyIndex }
-LegacyIndex = ${ "." ~ Decimal+ }
+LegacyIndex = ${ "." ~ Int }
 
 // Attribute access operator
 GetAttr = ${ "." ~ Identifier }
