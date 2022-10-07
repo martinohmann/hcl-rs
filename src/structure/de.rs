@@ -433,8 +433,7 @@ impl<'de> de::Deserializer<'de> for TraversalOperator {
         V: de::Visitor<'de>,
     {
         match self {
-            TraversalOperator::AttrSplat => visitor.visit_str(".*"),
-            TraversalOperator::FullSplat => visitor.visit_str("[*]"),
+            TraversalOperator::AttrSplat | TraversalOperator::FullSplat => visitor.visit_unit(),
             TraversalOperator::GetAttr(ident) => ident.into_deserializer().deserialize_any(visitor),
             TraversalOperator::Index(expr) => expr.into_deserializer().deserialize_any(visitor),
             TraversalOperator::LegacyIndex(index) => visitor.visit_u64(index),
