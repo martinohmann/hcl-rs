@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.4](https://github.com/martinohmann/hcl-rs/compare/v0.8.3...v0.8.4) (2022-10-07)
+
+
+### Bug Fixes
+
+* **parser:** comma between list items is not optional ([9d97a02](https://github.com/martinohmann/hcl-rs/commit/9d97a026c6ba52b3808ba45952a4b2ced16fef9e))
+* **parser:** panic when parsing `LegacyIndex` traversal operator ([#86](https://github.com/martinohmann/hcl-rs/issues/86)) ([f7e9f87](https://github.com/martinohmann/hcl-rs/commit/f7e9f87f9340afc11505cdff8b6846f1dd1b541b))
+* **traversal:** deserialize splat operators as unit ([#84](https://github.com/martinohmann/hcl-rs/issues/84)) ([9ff1894](https://github.com/martinohmann/hcl-rs/commit/9ff1894196528254f056f04807af65b3bfa5b9e2)), closes [#81](https://github.com/martinohmann/hcl-rs/issues/81)
+
 ## [0.8.3](https://github.com/martinohmann/hcl-rs/compare/v0.8.2...v0.8.3) (2022-10-01)
 
 
