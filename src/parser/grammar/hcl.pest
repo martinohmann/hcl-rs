@@ -44,7 +44,7 @@ Decimal    =  { '0'..'9' }
 
 // Collection values
 CollectionValue = _{ Tuple | Object }
-Tuple           =  { "[" ~ (Expression ~ (","? ~ Expression)* ~ ","?)? ~ "]" }
+Tuple           =  { "[" ~ (Expression ~ ("," ~ Expression)* ~ ","?)? ~ "]" }
 Object          =  { "{" ~ (ObjectItem ~ (","? ~ ObjectItem)* ~ ","?)? ~ "}" }
 ObjectItem      = _{ ObjectItemIdent | ObjectItemExpr }
 ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
