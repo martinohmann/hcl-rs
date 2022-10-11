@@ -112,21 +112,18 @@ fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
 }
 
 fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
-    match pair.as_rule() {
-        Rule::ExprTerm => parse_expr_term(pair),
-        Rule::Conditional => Ok(Expression::from(parse_conditional(pair)?)),
-        rule => unexpected_rule(rule),
-    }
-}
-
-fn parse_conditional(pair: Pair<Rule>) -> Result<Conditional> {
     let mut pairs = pair.into_inner();
 
-    Ok(Conditional {
-        cond_expr: parse_expression(pairs.next().unwrap())?,
-        true_expr: parse_expression(pairs.next().unwrap())?,
-        false_expr: parse_expression(pairs.next().unwrap())?,
-    })
+    let expr_term = parse_expr_term(pairs.next().unwrap())?;
+
+    match pairs.next() {
+        Some(pair) => Ok(Expression::from(Conditional {
+            cond_expr: expr_term,
+            true_expr: parse_expression(pair)?,
+            false_expr: parse_expression(pairs.next().unwrap())?,
+        })),
+        None => Ok(expr_term),
+    }
 }
 
 fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {

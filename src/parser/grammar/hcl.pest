@@ -10,7 +10,7 @@ Block     = { Identifier ~ (StringLit | Identifier)* ~ BlockBody }
 BlockBody = { "{" ~ Body ~ "}" }
 
 // Expressions
-Expression    = _{ Conditional | ExprTerm }
+Expression    =  { ExprTerm ~ ("?" ~ Expression ~ ":" ~ Expression)? }
 ExprTerm      =  { UnaryOperator? ~ ExprTermInner ~ Traversal ~ (BinaryOperator ~ Expression)? }
 ExprTermInner = _{ Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis }
 Parenthesis   =  { "(" ~ Expression ~ ")" }
@@ -127,8 +127,7 @@ LogicOperator      = { "&&" | "||" }
 
 
 // Conditional operator
-CondExpr    = _{ ExprTerm }
-Conditional =  { CondExpr ~ "?" ~ Expression ~ ":" ~ Expression }
+Conditional =  { ExprTerm ~ "?" ~ Expression ~ ":" ~ Expression }
 
 // Comments
 COMMENT         = _{ InlineComment | BlockComment }
