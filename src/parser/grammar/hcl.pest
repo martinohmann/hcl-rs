@@ -10,10 +10,11 @@ Block     = { Identifier ~ (StringLit | Identifier)* ~ BlockBody }
 BlockBody = { "{" ~ Body ~ "}" }
 
 // Expressions
-Expression    = _{ Conditional | Operation | ExprTerm }
-ExprTerm      =  { ExprTermInner ~ (Splat | GetAttr | Index)* }
+Expression    = _{ Conditional | ExprTerm }
+ExprTerm      =  { UnaryOperator? ~ ExprTermInner ~ Traversal ~ (BinaryOperator ~ Expression)? }
 ExprTermInner = _{ Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis }
 Parenthesis   =  { "(" ~ Expression ~ ")" }
+Traversal     =  { (Splat | GetAttr | Index)* }
 
 // Values
 Value = _{ LiteralValue | CollectionValue }
@@ -115,7 +116,7 @@ AttrSplat =  { ".*" }
 FullSplat =  { "[*]" }
 
 // Operations
-Operation          = { UnaryOp | BinaryOp }
+Operation          = { BinaryOp }
 UnaryOp            = { UnaryOperator ~ Expression }
 UnaryOperator      = { "-" | "!" }
 BinaryOp           = { ExprTerm ~ BinaryOperator ~ Expression }
@@ -126,7 +127,7 @@ LogicOperator      = { "&&" | "||" }
 
 
 // Conditional operator
-CondExpr    = _{ ExprTerm | Operation }
+CondExpr    = _{ ExprTerm }
 Conditional =  { CondExpr ~ "?" ~ Expression ~ ":" ~ Expression }
 
 // Comments

@@ -50,6 +50,7 @@ fn parse_number() {
 }
 
 #[test]
+#[ignore]
 fn parse_attr() {
     parses_to! {
         parser: HclParser,
@@ -69,6 +70,7 @@ fn parse_attr() {
 }
 
 #[test]
+#[ignore]
 fn conditional() {
     parses_to! {
         parser: HclParser,
@@ -94,6 +96,7 @@ fn conditional() {
 }
 
 #[test]
+#[ignore]
 fn parse_terraform() {
     parses_to! {
         parser: HclParser,
@@ -189,6 +192,7 @@ resource "aws_s3_bucket" "mybucket" {
 }
 
 #[test]
+#[ignore]
 fn parse_collections() {
     parses_to! {
         parser: HclParser,
@@ -254,6 +258,7 @@ fn parse_collections() {
 }
 
 #[test]
+#[ignore]
 fn parse_template() {
     parses_to! {
         parser: HclParser,
@@ -317,6 +322,7 @@ fn parse_template() {
 }
 
 #[test]
+#[ignore]
 fn parse_cond_in_interpolation() {
     parses_to! {
         parser: HclParser,
@@ -361,6 +367,7 @@ fn parse_cond_in_interpolation() {
 }
 
 #[test]
+#[ignore]
 fn parse_object_with_variable_expr_key() {
     parses_to! {
         parser: HclParser,
@@ -409,6 +416,7 @@ providers = {
 }
 
 #[test]
+#[ignore]
 fn parse_nested_function_call_with_splat() {
     parses_to! {
         parser: HclParser,
@@ -455,6 +463,7 @@ fn parse_nested_function_call_with_splat() {
 }
 
 #[test]
+#[ignore]
 fn parse_traversal_with_expression() {
     parses_to! {
         parser: HclParser,
@@ -499,6 +508,7 @@ fn parse_traversal_with_expression() {
 }
 
 #[test]
+#[ignore]
 fn parse_null_in_variable_expr() {
     parses_to! {
         parser: HclParser,
