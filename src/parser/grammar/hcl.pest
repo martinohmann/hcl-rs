@@ -43,9 +43,11 @@ ExpMark    =  { ("e" | "E") ~ ("+" | "-")? }
 Decimal    =  { '0'..'9' }
 
 // Collection values
-CollectionValue = _{ Tuple | Object }
-Tuple           =  { "[" ~ (Expression ~ ("," ~ Expression)* ~ ","?)? ~ "]" }
-Object          =  { "{" ~ (ObjectItem ~ (","? ~ ObjectItem)* ~ ","?)? ~ "}" }
+CollectionValue = _{ EmptyTuple | EmptyObject | Tuple | Object }
+EmptyTuple      =  { "[" ~ "]" }
+Tuple           =  { "[" ~ Expression ~ ("," ~ Expression)* ~ ","? ~ "]" }
+EmptyObject     =  { "{" ~ "}" }
+Object          =  { "{" ~ ObjectItem ~ (","? ~ ObjectItem)* ~ ","? ~ "}" }
 ObjectItem      = _{ ObjectItemIdent | ObjectItemExpr }
 ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
 ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
@@ -84,16 +86,10 @@ StringPart = {
 }
 
 // Functions and function calls
-FunctionCall = ${
-    Identifier ~ "(" ~
-    WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
-    Arguments ~
-    WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
-    ")"
-}
-
-Arguments   = !{ (Expression ~ ("," ~ Expression)* ~ ("," | ExpandFinal)?)? }
-ExpandFinal =  { "..." }
+FunctionCall = { Identifier ~ (NoArguments | Arguments) }
+NoArguments  = { "(" ~ ")" }
+Arguments    = { "(" ~ Expression ~ ("," ~ Expression)* ~ ("," | ExpandFinal)? ~ ")" }
+ExpandFinal  = { "..." }
 
 // For expressions
 ForExpr       = { ForTupleExpr | ForObjectExpr }

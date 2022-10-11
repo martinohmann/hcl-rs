@@ -417,11 +417,11 @@ fn parse_nested_function_call_with_splat() {
         tokens: [
             FunctionCall(0, 72, [
                 Identifier(0, 7),
-                Arguments(8, 71, [
+                Arguments(7, 72, [
                     ExprTerm(8, 68, [
                         FunctionCall(8, 68, [
                             Identifier(8, 14),
-                            Arguments(15, 67, [
+                            Arguments(14, 68, [
                                 ExprTerm(15, 40, [
                                     Variable(15, 26),
                                     GetAttr(26, 34, [
