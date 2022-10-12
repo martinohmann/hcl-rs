@@ -1,5 +1,5 @@
 use super::*;
-use crate::{Expression, FuncCall};
+use crate::{Attribute, Expression, FuncCall};
 
 #[test]
 fn issue_87() {
@@ -12,4 +12,12 @@ fn issue_87() {
     let result = to_string(&expr).unwrap();
 
     assert_eq!(result, "foo({\"bar\" = baz()})")
+}
+
+#[test]
+fn issue_91() {
+    let attr = Attribute::new("_foo", "bar");
+    let result = to_string(&attr).unwrap();
+
+    assert_eq!(result, "_foo = \"bar\"\n")
 }
