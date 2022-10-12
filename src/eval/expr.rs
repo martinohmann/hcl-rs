@@ -52,8 +52,14 @@ pub(super) fn evaluate_traversal(
                 // element.
                 let mut remaining = VecDeque::with_capacity(operators.len());
 
-                while let Some(op @ TraversalOperator::GetAttr(_)) = operators.pop_front() {
-                    remaining.push_back(op);
+                while let Some(operator) = operators.pop_front() {
+                    match operator {
+                        TraversalOperator::GetAttr(_) => remaining.push_back(operator),
+                        other => {
+                            operators.push_front(other);
+                            break;
+                        }
+                    }
                 }
 
                 evaluate_splat(value, remaining, ctx)?

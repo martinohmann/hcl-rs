@@ -271,7 +271,7 @@ fn eval_traversal() {
                 Index(expression!(1)),
             ],
         ),
-        Value::from_iter([vec![1, 2, 3], vec![10, 20, 30]]),
+        Value::from_iter([10, 20, 30]),
     );
 
     // full-splat followed by non-get-attr
