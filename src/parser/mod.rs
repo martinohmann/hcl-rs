@@ -183,9 +183,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::StringLit => parse_string(inner(pair)).map(Expression::String)?,
         Rule::TemplateExpr => Expression::TemplateExpr(Box::new(parse_template_expr(inner(pair)))),
         Rule::Tuple => parse_expressions(pair).map(Expression::Array)?,
-        Rule::EmptyTuple => Expression::Array(Vec::new()),
         Rule::Object => parse_object(pair).map(Expression::Object)?,
-        Rule::EmptyObject => Expression::Object(Object::new()),
         Rule::Variable => Expression::Variable(parse_ident(pair).into()),
         Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
         Rule::Parenthesis => Expression::Parenthesis(Box::new(parse_expression(inner(pair))?)),
@@ -284,22 +282,14 @@ fn parse_for_intro(pair: Pair<Rule>) -> Result<(Option<Identifier>, Identifier, 
 fn parse_func_call(pair: Pair<Rule>) -> Result<FuncCall> {
     let mut pairs = pair.into_inner();
     let name = pairs.next().unwrap();
-    let args = pairs.next().unwrap();
+    let mut args = pairs.next().unwrap().into_inner();
+    let builder = FuncCall::builder(name.as_str());
 
-    match args.as_rule() {
-        Rule::Arguments => {
-            let mut args = args.into_inner();
-            let builder = FuncCall::builder(name.as_str());
-
-            args.try_fold(builder, |builder, pair| match pair.as_rule() {
-                Rule::ExpandFinal => Ok(builder.expand_final(true)),
-                _ => Ok(builder.arg(parse_expression(pair)?)),
-            })
-            .map(FuncCallBuilder::build)
-        }
-        Rule::NoArguments => Ok(FuncCall::new(name.as_str())),
-        rule => unexpected_rule(rule),
-    }
+    args.try_fold(builder, |builder, pair| match pair.as_rule() {
+        Rule::ExpandFinal => Ok(builder.expand_final(true)),
+        _ => Ok(builder.arg(parse_expression(pair)?)),
+    })
+    .map(FuncCallBuilder::build)
 }
 
 fn parse_traversal_operator(pair: Pair<Rule>) -> Result<TraversalOperator> {
