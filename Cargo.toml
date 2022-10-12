@@ -1,6 +1,6 @@
 [package]
 name = "hcl-rs"
-version = "0.8.1"
+version = "0.8.5"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT"
 description = "An HCL deserializer"
@@ -47,7 +47,7 @@ features = ["serde"]
 version = "0.1.5"
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = "0.4"
 assert-json-diff = "2.0.1"
 pretty_assertions = "1.0.0"
 textwrap = "0.15.0"
