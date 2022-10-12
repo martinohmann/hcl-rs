@@ -112,18 +112,58 @@ fn parse_block_body(pair: Pair<Rule>) -> Result<Body> {
 }
 
 fn parse_expression(pair: Pair<Rule>) -> Result<Expression> {
-    let mut pairs = pair.into_inner();
+    let pairs = pair.into_inner();
+    let (expr, pairs) = parse_unary_op(pairs)?;
+    let (expr, pairs) = parse_binary_op(expr, pairs)?;
+    parse_conditional(expr, pairs)
+}
 
-    let expr_term = parse_expr_term(pairs.next().unwrap())?;
+fn parse_unary_op(mut pairs: Pairs<Rule>) -> Result<(Expression, Pairs<Rule>)> {
+    let pair = pairs.next().unwrap();
 
-    match pairs.next() {
-        Some(pair) => Ok(Expression::from(Conditional {
-            cond_expr: expr_term,
+    let expr = match pair.as_rule() {
+        Rule::UnaryOperator => {
+            let operator = UnaryOperator::from_str(pair.as_str())?;
+            let expr = parse_expr_term(pairs.next().unwrap())?;
+
+            match (operator, expr) {
+                (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
+                (operator, expr) => Expression::from(Operation::Unary(UnaryOp { operator, expr })),
+            }
+        }
+        _ => parse_expr_term(pair)?,
+    };
+
+    Ok((expr, pairs))
+}
+
+fn parse_binary_op(expr: Expression, mut pairs: Pairs<Rule>) -> Result<(Expression, Pairs<Rule>)> {
+    let expr = match pairs.peek() {
+        Some(pair) => match pair.as_rule() {
+            Rule::BinaryOperator => Expression::from(Operation::Binary(BinaryOp {
+                lhs_expr: expr,
+                operator: pairs.next().unwrap().as_str().parse()?,
+                rhs_expr: parse_expression(pairs.next().unwrap())?,
+            })),
+            _ => expr,
+        },
+        None => expr,
+    };
+
+    Ok((expr, pairs))
+}
+
+fn parse_conditional(expr: Expression, mut pairs: Pairs<Rule>) -> Result<Expression> {
+    let expr = match pairs.next() {
+        Some(pair) => Expression::from(Conditional {
+            cond_expr: expr,
             true_expr: parse_expression(pair)?,
             false_expr: parse_expression(pairs.next().unwrap())?,
-        })),
-        None => Ok(expr_term),
-    }
+        }),
+        None => expr,
+    };
+
+    Ok(expr)
 }
 
 fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {
@@ -133,13 +173,6 @@ fn parse_expressions(pair: Pair<Rule>) -> Result<Vec<Expression>> {
 fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
     let mut pairs = pair.into_inner();
     let pair = pairs.next().unwrap();
-    let (pair, unary_operator) = match pair.as_rule() {
-        Rule::UnaryOperator => {
-            let operator = UnaryOperator::from_str(pair.as_str())?;
-            (pairs.next().unwrap(), Some(operator))
-        }
-        _ => (pair, None),
-    };
 
     let expr = match pair.as_rule() {
         Rule::BooleanLit => Expression::Bool(parse_primitive(pair)),
@@ -148,10 +181,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::Int => Expression::Number(parse_primitive::<i64>(pair).into()),
         Rule::NullLit => Expression::Null,
         Rule::StringLit => parse_string(inner(pair)).map(Expression::String)?,
-        Rule::TemplateExpr => {
-            let expr = parse_template_expr(inner(pair));
-            Expression::TemplateExpr(Box::new(expr))
-        }
+        Rule::TemplateExpr => Expression::TemplateExpr(Box::new(parse_template_expr(inner(pair)))),
         Rule::Tuple => parse_expressions(pair).map(Expression::Array)?,
         Rule::EmptyTuple => Expression::Array(Vec::new()),
         Rule::Object => parse_object(pair).map(Expression::Object)?,
@@ -163,34 +193,18 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         rule => unexpected_rule(rule),
     };
 
-    let expr = match (unary_operator, expr) {
-        (Some(UnaryOperator::Neg), Expression::Number(num)) => Expression::Number(-num),
-        (Some(operator), expr) => Expression::from(Operation::Unary(UnaryOp { operator, expr })),
-        (None, expr) => expr,
-    };
-
-    let expr = parse_traversal(expr, pairs.next().unwrap())?;
-
-    match pairs.next() {
-        Some(pair) => Ok(Expression::from(Operation::Binary(BinaryOp {
-            lhs_expr: expr,
-            operator: pair.as_str().parse()?,
-            rhs_expr: parse_expression(pairs.next().unwrap())?,
-        }))),
-        None => Ok(expr),
-    }
+    parse_traversal(expr, pairs)
 }
 
-fn parse_traversal(expr: Expression, pair: Pair<Rule>) -> Result<Expression> {
-    let operators = pair
-        .into_inner()
+fn parse_traversal(expr: Expression, pairs: Pairs<Rule>) -> Result<Expression> {
+    let operators = pairs
         .map(parse_traversal_operator)
         .collect::<Result<Vec<TraversalOperator>>>()?;
 
-    if operators.is_empty() {
-        Ok(expr)
-    } else {
+    if !operators.is_empty() {
         Ok(Expression::from(Traversal { expr, operators }))
+    } else {
+        Ok(expr)
     }
 }
 

@@ -10,11 +10,17 @@ Block     = { Identifier ~ (StringLit | Identifier)* ~ BlockBody }
 BlockBody = { "{" ~ Body ~ "}" }
 
 // Expressions
-Expression    =  { ExprTerm ~ ("?" ~ Expression ~ ":" ~ Expression)? }
-ExprTerm      =  { UnaryOperator? ~ ExprTermInner ~ Traversal ~ (BinaryOperator ~ Expression)? }
-ExprTermInner = _{ Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis }
-Parenthesis   =  { "(" ~ Expression ~ ")" }
-Traversal     =  { (Splat | GetAttr | Index)* }
+Expression = {
+    UnaryOperator? ~
+    ExprTerm ~
+    (BinaryOperator ~ Expression)? ~
+    ("?" ~ Expression ~ ":" ~ Expression)?
+}
+ExprTerm = {
+    (Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis) ~
+    (Splat | GetAttr | Index)*
+}
+Parenthesis = { "(" ~ Expression ~ ")" }
 
 // Values
 Value = _{ LiteralValue | CollectionValue }
