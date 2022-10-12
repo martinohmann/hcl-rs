@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.5](https://github.com/martinohmann/hcl-rs/compare/v0.8.4...v0.8.5) (2022-10-12)
+
+
+### Bug Fixes
+
+* **format:** identifiers starting with underscores are valid ([#92](https://github.com/martinohmann/hcl-rs/issues/92)) ([6144b44](https://github.com/martinohmann/hcl-rs/commit/6144b44ebe7a36e5aae8ccbbda59065d1d181e8d)), closes [#91](https://github.com/martinohmann/hcl-rs/issues/91)
+* **format:** prevent subtract with overflow in compact mode ([#88](https://github.com/martinohmann/hcl-rs/issues/88)) ([7dd8e90](https://github.com/martinohmann/hcl-rs/commit/7dd8e90f0c97a2a2b2d549d4d667d87e44336920)), closes [#87](https://github.com/martinohmann/hcl-rs/issues/87)
+* **parser:** greatly improve expression parsing performance ([#90](https://github.com/martinohmann/hcl-rs/issues/90)) ([a5b57ef](https://github.com/martinohmann/hcl-rs/commit/a5b57ef0be8727a030c089b476f1a5475d8bf30e)), closes [#82](https://github.com/martinohmann/hcl-rs/issues/82)
+
 ## [0.8.4](https://github.com/martinohmann/hcl-rs/compare/v0.8.3...v0.8.4) (2022-10-07)
 
 
