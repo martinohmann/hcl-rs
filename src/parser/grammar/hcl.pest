@@ -121,19 +121,12 @@ Splat     = _{ (AttrSplat ~ GetAttr*) | (FullSplat ~ (GetAttr | Index)*) }
 AttrSplat =  { ".*" }
 FullSplat =  { "[*]" }
 
-// Operations
-Operation          = { BinaryOp }
-UnaryOp            = { UnaryOperator ~ Expression }
+// Unary and binary operators
 UnaryOperator      = { "-" | "!" }
-BinaryOp           = { ExprTerm ~ BinaryOperator ~ Expression }
 BinaryOperator     = { CompareOperator | ArithmeticOperator | LogicOperator }
 CompareOperator    = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
 ArithmeticOperator = { "+" | "-" | "*" | "/" | "%" }
 LogicOperator      = { "&&" | "||" }
-
-
-// Conditional operator
-Conditional =  { ExprTerm ~ "?" ~ Expression ~ ":" ~ Expression }
 
 // Comments
 COMMENT         = _{ InlineComment | BlockComment }
