@@ -36,6 +36,8 @@
 
 mod escape;
 mod impls;
+#[cfg(test)]
+mod tests;
 
 use self::escape::{CharEscape, ESCAPE};
 use crate::Result;
@@ -145,7 +147,7 @@ pub struct Formatter<'a, W> {
     first_element: bool,
     current_indent: usize,
     has_value: bool,
-    compact_mode: bool,
+    compact_mode_level: u64,
 }
 
 /// A builder to create a `Formatter`.
@@ -180,7 +182,7 @@ impl<'a, W> FormatterBuilder<'a, W> {
             first_element: false,
             current_indent: 0,
             has_value: false,
-            compact_mode: false,
+            compact_mode_level: 0,
         }
     }
 }
@@ -261,9 +263,12 @@ where
         }
 
         let mut chars = ident.chars();
-        let first = chars.next().unwrap();
+        let start = chars.next().unwrap();
 
-        if !is_xid_start(first) || !chars.all(|ch| ch == '-' || is_xid_continue(ch)) {
+        let start_valid = start == '_' || is_xid_start(start);
+        let continue_valid = chars.all(|ch| ch == '-' || is_xid_continue(ch));
+
+        if !start_valid || !continue_valid {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid identifier",
@@ -305,7 +310,7 @@ where
 
     /// Signals the start of an array to the formatter.
     fn begin_array(&mut self) -> io::Result<()> {
-        if !self.compact_mode {
+        if !self.in_compact_mode() {
             self.current_indent += 1;
         }
         self.has_value = false;
@@ -317,10 +322,10 @@ where
     fn begin_array_value(&mut self) -> io::Result<()> {
         if self.first_element {
             self.first_element = false;
-            if !self.compact_mode {
+            if !self.in_compact_mode() {
                 self.write_all(b"\n")?;
             }
-        } else if self.compact_mode {
+        } else if self.in_compact_mode() {
             self.write_all(b", ")?;
         } else {
             self.write_all(b",\n")?;
@@ -337,7 +342,7 @@ where
 
     /// Signals the end of an array to the formatter.
     fn end_array(&mut self) -> io::Result<()> {
-        if !self.compact_mode {
+        if !self.in_compact_mode() {
             self.current_indent -= 1;
 
             if self.has_value {
@@ -351,7 +356,7 @@ where
 
     /// Signals the start of an object to the formatter.
     fn begin_object(&mut self) -> io::Result<()> {
-        if !self.compact_mode {
+        if !self.in_compact_mode() {
             self.current_indent += 1;
         }
         self.has_value = false;
@@ -360,7 +365,7 @@ where
 
     /// Signals the start of an object key to the formatter.
     fn begin_object_key(&mut self) -> io::Result<()> {
-        if !self.compact_mode {
+        if !self.in_compact_mode() {
             self.write_all(b"\n")?;
             self.write_indent(self.current_indent)?;
         }
@@ -380,7 +385,7 @@ where
 
     /// Signals the end of an object to the formatter.
     fn end_object(&mut self) -> io::Result<()> {
-        if !self.compact_mode {
+        if !self.in_compact_mode() {
             self.current_indent -= 1;
 
             if self.has_value {
@@ -479,10 +484,22 @@ where
         Ok(())
     }
 
-    /// Enables compact mode for the formatter. This is mostly used while serializing array and
-    /// object function arguments.
-    fn compact_mode(&mut self, yes: bool) {
-        self.compact_mode = yes;
+    /// Enables compact mode, runs the closure and disables compact mode again unless it's enabled
+    /// via another call to `with_compact_mode`.
+    ///
+    /// This is mostly used for serializing array and object function arguments.
+    fn with_compact_mode<F>(&mut self, f: F) -> Result<()>
+    where
+        F: FnOnce(&mut Self) -> Result<()>,
+    {
+        self.compact_mode_level += 1;
+        let result = f(self);
+        self.compact_mode_level -= 1;
+        result
+    }
+
+    fn in_compact_mode(&self) -> bool {
+        self.compact_mode_level > 0
     }
 }
 

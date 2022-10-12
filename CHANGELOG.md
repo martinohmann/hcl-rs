@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.8.5](https://github.com/martinohmann/hcl-rs/compare/v0.8.4...v0.8.5) (2022-10-12)
+
+
+### Bug Fixes
+
+* **format:** identifiers starting with underscores are valid ([#92](https://github.com/martinohmann/hcl-rs/issues/92)) ([6144b44](https://github.com/martinohmann/hcl-rs/commit/6144b44ebe7a36e5aae8ccbbda59065d1d181e8d)), closes [#91](https://github.com/martinohmann/hcl-rs/issues/91)
+* **format:** prevent subtract with overflow in compact mode ([#88](https://github.com/martinohmann/hcl-rs/issues/88)) ([7dd8e90](https://github.com/martinohmann/hcl-rs/commit/7dd8e90f0c97a2a2b2d549d4d667d87e44336920)), closes [#87](https://github.com/martinohmann/hcl-rs/issues/87)
+* **parser:** greatly improve expression parsing performance ([#90](https://github.com/martinohmann/hcl-rs/issues/90)) ([a5b57ef](https://github.com/martinohmann/hcl-rs/commit/a5b57ef0be8727a030c089b476f1a5475d8bf30e)), closes [#82](https://github.com/martinohmann/hcl-rs/issues/82)
+
+## [0.8.4](https://github.com/martinohmann/hcl-rs/compare/v0.8.3...v0.8.4) (2022-10-07)
+
+
+### Bug Fixes
+
+* **parser:** comma between list items is not optional ([9d97a02](https://github.com/martinohmann/hcl-rs/commit/9d97a026c6ba52b3808ba45952a4b2ced16fef9e))
+* **parser:** panic when parsing `LegacyIndex` traversal operator ([#86](https://github.com/martinohmann/hcl-rs/issues/86)) ([f7e9f87](https://github.com/martinohmann/hcl-rs/commit/f7e9f87f9340afc11505cdff8b6846f1dd1b541b))
+* **traversal:** deserialize splat operators as unit ([#84](https://github.com/martinohmann/hcl-rs/issues/84)) ([9ff1894](https://github.com/martinohmann/hcl-rs/commit/9ff1894196528254f056f04807af65b3bfa5b9e2)), closes [#81](https://github.com/martinohmann/hcl-rs/issues/81)
+
+## [0.8.3](https://github.com/martinohmann/hcl-rs/compare/v0.8.2...v0.8.3) (2022-10-01)
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.8 to 3.0.9 ([#78](https://github.com/martinohmann/hcl-rs/issues/78)) ([2abc271](https://github.com/martinohmann/hcl-rs/commit/2abc27156e67f698e4d219f0759dce6a1a5da43e))
+* **deps:** update criterion requirement from 0.3 to 0.4 ([#79](https://github.com/martinohmann/hcl-rs/issues/79)) ([ac023bd](https://github.com/martinohmann/hcl-rs/commit/ac023bda2afcfd142422292eca7f9a8fb099ae73))
+
+## [0.8.2](https://github.com/martinohmann/hcl-rs/compare/v0.8.1...v0.8.2) (2022-09-30)
+
+
+### Features
+
+* implement `Display` for `{Unary,Binary}Operator` ([765ae4e](https://github.com/martinohmann/hcl-rs/commit/765ae4e6fba64d6ff27ac5619c978068106f7bcc))
+* implement `From<Numbe>` for `Value` ([5bc621a](https://github.com/martinohmann/hcl-rs/commit/5bc621a715e325da6e071b0a314b56dc30c06dcc))
+
 ## [0.8.1](https://github.com/martinohmann/hcl-rs/compare/v0.8.0...v0.8.1) (2022-09-30)
 
 

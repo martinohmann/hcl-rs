@@ -10,10 +10,17 @@ Block     = { Identifier ~ (StringLit | Identifier)* ~ BlockBody }
 BlockBody = { "{" ~ Body ~ "}" }
 
 // Expressions
-Expression    = _{ Conditional | Operation | ExprTerm }
-ExprTerm      =  { ExprTermInner ~ (Splat | GetAttr | Index)* }
-ExprTermInner = _{ Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis }
-Parenthesis   =  { "(" ~ Expression ~ ")" }
+Expression = {
+    UnaryOperator? ~
+    ExprTerm ~
+    (BinaryOperator ~ Expression)? ~
+    ("?" ~ Expression ~ ":" ~ Expression)?
+}
+ExprTerm = {
+    (Value | TemplateExpr | FunctionCall | Variable | ForExpr | Parenthesis) ~
+    (Splat | GetAttr | Index)*
+}
+Parenthesis = { "(" ~ Expression ~ ")" }
 
 // Values
 Value = _{ LiteralValue | CollectionValue }
@@ -44,7 +51,7 @@ Decimal    =  { '0'..'9' }
 
 // Collection values
 CollectionValue = _{ Tuple | Object }
-Tuple           =  { "[" ~ (Expression ~ (","? ~ Expression)* ~ ","?)? ~ "]" }
+Tuple           =  { "[" ~ (Expression ~ ("," ~ Expression)* ~ ","?)? ~ "]" }
 Object          =  { "{" ~ (ObjectItem ~ (","? ~ ObjectItem)* ~ ","?)? ~ "}" }
 ObjectItem      = _{ ObjectItemIdent | ObjectItemExpr }
 ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
@@ -84,16 +91,9 @@ StringPart = {
 }
 
 // Functions and function calls
-FunctionCall = ${
-    Identifier ~ "(" ~
-    WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
-    Arguments ~
-    WHITESPACE* ~ (COMMENT ~ WHITESPACE*)* ~
-    ")"
-}
-
-Arguments   = !{ (Expression ~ ("," ~ Expression)* ~ ("," | ExpandFinal)?)? }
-ExpandFinal =  { "..." }
+FunctionCall = { Identifier ~ Arguments }
+Arguments    = { "(" ~ (Expression ~ ("," ~ Expression)* ~ ("," | ExpandFinal)?)? ~ ")" }
+ExpandFinal  = { "..." }
 
 // For expressions
 ForExpr       = { ForTupleExpr | ForObjectExpr }
@@ -108,7 +108,7 @@ Variable = @{ Identifier }
 
 // Index operator
 Index       =  { ("[" ~ Expression ~ "]") | LegacyIndex }
-LegacyIndex = ${ "." ~ Decimal+ }
+LegacyIndex = ${ "." ~ Int }
 
 // Attribute access operator
 GetAttr = ${ "." ~ Identifier }
@@ -118,20 +118,12 @@ Splat     = _{ (AttrSplat ~ GetAttr*) | (FullSplat ~ (GetAttr | Index)*) }
 AttrSplat =  { ".*" }
 FullSplat =  { "[*]" }
 
-// Operations
-Operation          = { UnaryOp | BinaryOp }
-UnaryOp            = { UnaryOperator ~ Expression }
+// Unary and binary operators
 UnaryOperator      = { "-" | "!" }
-BinaryOp           = { ExprTerm ~ BinaryOperator ~ Expression }
 BinaryOperator     = { CompareOperator | ArithmeticOperator | LogicOperator }
 CompareOperator    = { "==" | "!=" | "<=" | ">=" | "<" | ">" }
 ArithmeticOperator = { "+" | "-" | "*" | "/" | "%" }
 LogicOperator      = { "&&" | "||" }
-
-
-// Conditional operator
-CondExpr    = _{ ExprTerm | Operation }
-Conditional =  { CondExpr ~ "?" ~ Expression ~ ":" ~ Expression }
 
 // Comments
 COMMENT         = _{ InlineComment | BlockComment }

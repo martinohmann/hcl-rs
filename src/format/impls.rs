@@ -294,17 +294,17 @@ impl Format for FuncCall {
         self.name.format(fmt)?;
         fmt.write_all(b"(")?;
 
-        fmt.compact_mode(true);
+        fmt.with_compact_mode(|fmt| {
+            for (i, arg) in self.args.iter().enumerate() {
+                if i > 0 {
+                    fmt.write_all(b", ")?;
+                }
 
-        for (i, arg) in self.args.iter().enumerate() {
-            if i > 0 {
-                fmt.write_all(b", ")?;
+                arg.format(fmt)?;
             }
 
-            arg.format(fmt)?;
-        }
-
-        fmt.compact_mode(false);
+            Ok(())
+        })?;
 
         if self.expand_final {
             fmt.write_all(b"...)")?;
