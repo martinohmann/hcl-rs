@@ -203,9 +203,7 @@ impl Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match format::to_string(self) {
-            Ok(s) => f.write_str(&s),
-            Err(_) => Err(fmt::Error),
-        }
+        let s = format::to_string_unchecked(self);
+        f.write_str(&s)
     }
 }
