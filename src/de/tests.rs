@@ -6,46 +6,48 @@ use crate::{
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::fmt::Debug;
+
+#[track_caller]
+fn expect_value<'de, T>(input: &'de str, expected: T)
+where
+    T: Deserialize<'de> + Debug + PartialEq,
+{
+    assert_eq!(from_str::<T>(input).unwrap(), expected);
+}
 
 #[test]
 fn deserialize_string_attribute() {
-    let input = r#"foo = "bar""#;
-    let expected: Value = json!({
-        "foo": "bar"
-    });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(r#"foo = "bar""#, json!({"foo": "bar"}))
 }
 
 #[test]
 fn deserialize_object() {
-    let input = r#"foo = { bar = 42, "baz" = true }"#;
-    let expected: Value = json!({
-        "foo": {"bar": 42, "baz": true}
-    });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(
+        r#"foo = { bar = 42, "baz" = true }"#,
+        json!({"foo": {"bar": 42, "baz": true}}),
+    )
 }
 
 #[test]
 fn deserialze_block() {
-    let input = r#"resource "aws_s3_bucket" "mybucket" { name = "mybucket" }"#;
-    let expected: Value = json!({
-        "resource": {
-            "aws_s3_bucket": {
-                "mybucket": {
-                    "name": "mybucket"
+    expect_value(
+        r#"resource "aws_s3_bucket" "mybucket" { name = "mybucket" }"#,
+        json!({
+            "resource": {
+                "aws_s3_bucket": {
+                    "mybucket": {
+                        "name": "mybucket"
+                    }
                 }
             }
-        }
-    });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+        }),
+    );
 
-    let input = r#"block { name = "asdf" }"#;
-    let expected: Value = json!({
-        "block": {
-            "name": "asdf"
-        }
-    });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(
+        r#"block { name = "asdf" }"#,
+        json!({"block": {"name": "asdf"}}),
+    );
 }
 
 #[test]
@@ -72,12 +74,8 @@ fn deserialize_duplicate_block() {
     let expected = json!({
         "block": {
             "foo": [
-                {
-                    "bar": "baz"
-                },
-                {
-                    "bar": 1
-                }
+                {"bar": "baz"},
+                {"bar": 1}
             ]
         },
         "other": {
@@ -93,7 +91,7 @@ fn deserialize_duplicate_block() {
             }
         }
     });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(input, expected);
 
     let input = r#"
         foo { bar = "baz" }
@@ -101,15 +99,11 @@ fn deserialize_duplicate_block() {
     "#;
     let expected = json!({
         "foo": [
-            {
-                "bar": "baz"
-            },
-            {
-                "bar": 1
-            }
+            {"bar": "baz"},
+            {"bar": 1}
         ]
     });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(input, expected);
 }
 
 #[test]
@@ -118,8 +112,7 @@ fn deserialize_duplicate_attribute() {
         foo = ["bar"]
         foo = ["baz"]
     "#;
-    let expected = json!({"foo": ["baz"]});
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(input, json!({"foo": ["baz"]}));
 }
 
 #[test]
@@ -128,24 +121,20 @@ fn deserialize_duplicate_attribute_and_block() {
         foo = ["bar"]
         foo { bar = "baz" }
     "#;
-    let expected = json!({"foo": {"bar": "baz"}});
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(input, json!({"foo": {"bar": "baz"}}));
 
     let input = r#"
         foo { bar = "baz" }
         foo = ["bar"]
     "#;
-    let expected = json!({"foo": ["bar"]});
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    expect_value(input, json!({"foo": ["bar"]}));
 }
 
 #[test]
 fn deserialize_tuple() {
     let input = r#"foo = [true, 2, "three", var.enabled]"#;
-    let expected: Value = json!({
-        "foo": [true, 2, "three", "${var.enabled}"]
-    });
-    assert_eq!(expected, from_str::<Value>(input).unwrap());
+    let expected = json!({"foo": [true, 2, "three", "${var.enabled}"]});
+    expect_value(input, expected);
 }
 
 #[test]
@@ -155,9 +144,7 @@ fn deserialize_struct() {
         foo: u32,
     }
 
-    let input = r#"foo = 1"#;
-    let expected = Test { foo: 1 };
-    assert_eq!(expected, from_str::<Test>(input).unwrap());
+    expect_value(r#"foo = 1"#, Test { foo: 1 });
 }
 
 #[test]
@@ -175,23 +162,15 @@ fn deserialize_enum() {
         value: E,
     }
 
-    let input = r#"value = "Unit""#;
-    let expected = Test { value: E::Unit };
-    assert_eq!(expected, from_str::<Test>(input).unwrap());
-
-    let input = r#"Newtype = 1"#;
-    let expected = E::Newtype(1);
-    assert_eq!(expected, from_str::<E>(input).unwrap());
-
-    let input = r#"Tuple = [1,2]"#;
-    let expected = E::Tuple(1, 2);
-    assert_eq!(expected, from_str::<E>(input).unwrap());
-
-    let input = r#"value = {"Struct" = {"a" = 1}}"#;
-    let expected = Test {
-        value: E::Struct { a: 1 },
-    };
-    assert_eq!(expected, from_str::<Test>(input).unwrap());
+    expect_value(r#"value = "Unit""#, Test { value: E::Unit });
+    expect_value(r#"Newtype = 1"#, E::Newtype(1));
+    expect_value(r#"Tuple = [1,2]"#, E::Tuple(1, 2));
+    expect_value(
+        r#"value = {"Struct" = {"a" = 1}}"#,
+        Test {
+            value: E::Struct { a: 1 },
+        },
+    );
 }
 
 #[test]
@@ -208,7 +187,8 @@ fn deserialize_func_call() {
                 .build(),
         ))
         .build();
-    assert_eq!(expected, from_str::<Body>(input).unwrap());
+
+    expect_value(input, expected);
 }
 
 #[test]
@@ -231,7 +211,8 @@ fn deserialize_operation() {
             Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
         ))
         .build();
-    assert_eq!(expected, from_str::<Body>(input).unwrap());
+
+    expect_value(input, expected);
 }
 
 #[test]
@@ -271,13 +252,13 @@ fn deserialize_for_expr() {
             .with_grouping(true),
         ))
         .build();
-    assert_eq!(expected, from_str::<Body>(input).unwrap());
+
+    expect_value(input, expected);
 }
 
 #[test]
 fn deserialize_invalid_hcl() {
-    let h = r#"invalid["#;
-    assert!(from_str::<Value>(h).is_err());
+    assert!(from_str::<Value>(r#"invalid["#).is_err());
 }
 
 #[test]
@@ -351,9 +332,7 @@ fn deserialize_terraform() {
         )
         .build();
 
-    let body: Body = from_str(input).unwrap();
-
-    assert_eq!(expected, body);
+    expect_value(input, expected);
 }
 
 // https://github.com/martinohmann/hcl-rs/issues/44
@@ -389,8 +368,6 @@ fn issue_44() {
         }
     "#;
 
-    let config: Config = crate::from_str(input).unwrap();
-
     let expected = Config {
         projects: {
             let mut map = HashMap::new();
@@ -407,13 +384,11 @@ fn issue_44() {
         },
     };
 
-    assert_eq!(config, expected);
+    expect_value(input, expected);
 }
 
 #[test]
 fn issue_66() {
-    let body: Body = crate::from_str("a = b[\"c\"]").unwrap();
-
     let expected = Body::builder()
         .add_attribute((
             "a",
@@ -424,7 +399,7 @@ fn issue_66() {
         ))
         .build();
 
-    assert_eq!(body, expected);
+    expect_value("a = b[\"c\"]", expected);
 }
 
 #[test]
@@ -433,8 +408,6 @@ fn issue_81() {
         attr_splat = module.instance.*.id
         full_splat = module.instance[*].id
     "#;
-
-    let body: Body = crate::from_str(input).unwrap();
 
     let expected = Body::builder()
         .add_attribute((
@@ -461,13 +434,11 @@ fn issue_81() {
         ))
         .build();
 
-    assert_eq!(body, expected);
+    expect_value(input, expected);
 }
 
 #[test]
 fn issue_83() {
-    let body: Body = crate::from_str("attr = module.instance.0.id").unwrap();
-
     let expected = Body::builder()
         .add_attribute((
             "attr",
@@ -482,5 +453,5 @@ fn issue_83() {
         ))
         .build();
 
-    assert_eq!(body, expected);
+    expect_value("attr = module.instance.0.id", expected);
 }
