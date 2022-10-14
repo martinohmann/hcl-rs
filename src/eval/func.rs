@@ -200,7 +200,7 @@ impl Param {
     {
         Param {
             name: name.into(),
-            type_: type_.into(),
+            type_,
         }
     }
 
