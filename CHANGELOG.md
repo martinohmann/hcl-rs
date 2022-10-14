@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.6](https://github.com/martinohmann/hcl-rs/compare/v0.8.5...v0.8.6) (2022-10-14)
+
+
+### Features
+
+* **format:** add `to_string_unchecked` and `strict_mode` ([#94](https://github.com/martinohmann/hcl-rs/issues/94)) ([c840d6d](https://github.com/martinohmann/hcl-rs/commit/c840d6dd5647199b3f4d395d338800cc1fbf613b))
+
 ## [0.8.5](https://github.com/martinohmann/hcl-rs/compare/v0.8.4...v0.8.5) (2022-10-12)
 
 

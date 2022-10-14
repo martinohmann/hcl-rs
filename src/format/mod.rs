@@ -76,6 +76,7 @@ enum FormatState {
 struct FormatConfig<'a> {
     indent: &'a [u8],
     dense: bool,
+    strict_mode: bool,
 }
 
 impl<'a> Default for FormatConfig<'a> {
@@ -83,6 +84,7 @@ impl<'a> Default for FormatConfig<'a> {
         FormatConfig {
             indent: b"  ",
             dense: false,
+            strict_mode: true,
         }
     }
 }
@@ -172,6 +174,18 @@ impl<'a, W> FormatterBuilder<'a, W> {
         self
     }
 
+    /// If set, additional validation is performed during formatting.
+    ///
+    /// When strict mode is disabled, formatting can only fail if writing to the underlying
+    /// writer fails but may produce invalid HCL if a value contains `Identifier` values which are
+    /// not valid according to the HCL spec.
+    ///
+    /// Strict mode is enabled by default.
+    pub(crate) fn strict_mode(mut self, yes: bool) -> Self {
+        self.config.strict_mode = yes;
+        self
+    }
+
     /// Consumes the `FormatterBuilder` and turns it into a `Formatter` which writes HCL to the
     /// provided writer.
     pub fn build(self, writer: W) -> Formatter<'a, W> {
@@ -250,29 +264,32 @@ where
         self.write_all(s.as_bytes())
     }
 
-    /// Writes an identifier to the writer. Ensures that `ident` is valid according to the [Unicode
-    /// Standard Annex #31][unicode-standard] before writing it to the writer.
+    /// Writes an identifier to the writer. If strict mode is enabled, also ensures that `ident` is
+    /// valid according to the [Unicode Standard Annex #31][unicode-standard] before writing it to
+    /// the writer.
     ///
     /// [unicode-standard]: http://www.unicode.org/reports/tr31/
     fn write_ident(&mut self, ident: &str) -> io::Result<()> {
-        if ident.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "identifiers must not be empty",
-            ));
-        }
+        if self.config.strict_mode {
+            if ident.is_empty() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "identifiers must not be empty",
+                ));
+            }
 
-        let mut chars = ident.chars();
-        let start = chars.next().unwrap();
+            let mut chars = ident.chars();
+            let start = chars.next().unwrap();
 
-        let start_valid = start == '_' || is_xid_start(start);
-        let continue_valid = chars.all(|ch| ch == '-' || is_xid_continue(ch));
+            let start_valid = start == '_' || is_xid_start(start);
+            let continue_valid = chars.all(|ch| ch == '-' || is_xid_continue(ch));
 
-        if !start_valid || !continue_valid {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "invalid identifier",
-            ));
+            if !start_valid || !continue_valid {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid identifier",
+                ));
+            }
         }
 
         self.write_string_fragment(ident)
@@ -569,4 +586,28 @@ where
 {
     let mut formatter = Formatter::new(writer);
     value.format(&mut formatter)
+}
+
+/// Format the given value as an HCL string.
+///
+/// This function will not perform any validation on the value. Callers need to ensure that
+/// all `Identifier` values contained in the value are valid HCL according to the HCL spec.
+///
+/// The function is not marked as unsafe because it does not cause undefined behaviour, but might
+/// produce strings that contain invalid HCL.
+pub(crate) fn to_string_unchecked<T>(value: &T) -> String
+where
+    T: ?Sized + Format,
+{
+    let mut vec = Vec::with_capacity(128);
+    let mut fmt = Formatter::builder().strict_mode(false).build(&mut vec);
+
+    value
+        .format(&mut fmt)
+        .expect("a Format implementation failed to format unexpectedly");
+
+    unsafe {
+        // We do not emit invalid UTF-8.
+        String::from_utf8_unchecked(vec)
+    }
 }
