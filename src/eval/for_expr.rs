@@ -70,12 +70,12 @@ impl<'a> IntoIter<'a> {
 
     fn next_ctx(&mut self) -> Option<Context<'a>> {
         let (key, value) = self.iter.next()?;
-        let mut ctx = self.ctx.new_child();
+        let mut ctx = self.ctx.child();
         if let Some(key_var) = self.key_var {
-            ctx.set_var(key_var.clone(), key);
+            ctx.define_var(key_var.clone(), key);
         }
 
-        ctx.set_var(self.value_var.clone(), value);
+        ctx.define_var(self.value_var.clone(), value);
         Some(ctx)
     }
 }

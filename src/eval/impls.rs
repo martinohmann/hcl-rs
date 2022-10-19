@@ -63,7 +63,7 @@ impl Evaluate for Expression {
             Expression::Array(array) => array.evaluate(ctx).map(Value::Array),
             Expression::Object(object) => object.evaluate(ctx).map(Value::Object),
             Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Value::String),
-            Expression::Variable(ident) => ctx.get_var(ident).cloned(),
+            Expression::Variable(ident) => ctx.lookup_var(ident).cloned(),
             Expression::Traversal(traversal) => traversal.evaluate(ctx),
             Expression::FuncCall(func_call) => func_call.evaluate(ctx),
             Expression::Parenthesis(expr) => expr.evaluate(ctx),
@@ -152,21 +152,19 @@ impl Evaluate for FuncCall {
     type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
-        let func = ctx.get_func(&self.name)?;
-
+        let func_def = ctx.lookup_func(&self.name)?;
         let len = self.args.len();
         let mut args = Vec::with_capacity(len);
 
         for (index, arg) in self.args.iter().enumerate() {
             if self.expand_final && index == len - 1 {
-                let array = expr::evaluate_array(arg, ctx)?;
-                args.extend(array);
+                args.extend(expr::evaluate_array(arg, ctx)?);
             } else {
                 args.push(arg.evaluate(ctx)?);
             }
         }
 
-        func.call(args)
+        func_def.call(args)
     }
 }
 
@@ -203,13 +201,19 @@ impl Evaluate for UnaryOp {
     type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+        use {UnaryOperator::*, Value::*};
+
         let value = self.expr.evaluate(ctx)?;
 
-        match (self.operator, value) {
-            (UnaryOperator::Not, Value::Bool(v)) => Ok(Value::Bool(!v)),
-            (UnaryOperator::Neg, Value::Number(n)) => Ok(Value::Number(-n)),
-            (operator, value) => Err(Error::new(ErrorKind::InvalidUnaryOp(operator, value))),
-        }
+        let value = match (self.operator, value) {
+            (Not, Bool(v)) => Bool(!v),
+            (Neg, Number(n)) => Number(-n),
+            (operator, value) => {
+                return Err(Error::new(ErrorKind::InvalidUnaryOp(operator, value)))
+            }
+        };
+
+        Ok(value)
     }
 }
 

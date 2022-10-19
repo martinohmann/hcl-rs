@@ -20,17 +20,25 @@ mod private {
     pub trait Sealed {}
 }
 
-/// A trait for evaluating HCL expressions.
+/// A trait for evaluating the HCL template and expression sub-languages.
+///
+/// The types implementing this trait must recursively evaluate all HCL templates and expressions
+/// in their fields.
+///
+/// This trait is sealed to prevent implementation outside of this crate.
 pub trait Evaluate: private::Sealed {
-    /// The type that is returned by `evaluate` on success.
+    /// The type that is returned by [`evaluate`][Evaluate::evaluate] on success.
     type Output;
 
-    /// Recursively evaluates HCL expressions and returns a result which does not contain any
-    /// unevaluated expressions anymore.
+    /// Recursively evaluates all HCL templates and expressions in the implementing type using the
+    /// variables and functions defined in the `Context`.
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output>;
 }
 
-/// The evaluation context.
+/// A type holding the evaluation context.
+///
+/// The `Context` is used to define variables and functions that are evaluated when evaluating a
+/// template or expression.
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     vars: Map<Identifier, Value>,
@@ -45,7 +53,7 @@ impl Default for Context<'_> {
 }
 
 impl<'a> Context<'a> {
-    /// Creates a new empty context.
+    /// Creates an empty `Context`.
     pub fn new() -> Self {
         Context {
             vars: Map::new(),
@@ -55,7 +63,7 @@ impl<'a> Context<'a> {
     }
 
     // Create a new child `Context` which has the current one as parent.
-    fn new_child(&self) -> Context<'_> {
+    fn child(&self) -> Context<'_> {
         Context {
             vars: Map::new(),
             funcs: Map::new(),
@@ -63,41 +71,80 @@ impl<'a> Context<'a> {
         }
     }
 
-    /// Lookup a variable's value. Variables defined in the current scope take precedence over
-    /// variables defined in parent scopes.
-    pub fn get_var(&self, name: &Identifier) -> Result<&Value> {
+    /// Defines a variable.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hcl::eval::Context;
+    /// let mut ctx = Context::new();
+    /// ctx.define_var("some_number", 42);
+    /// ```
+    pub fn define_var<I, T>(&mut self, name: I, value: T) -> &mut Self
+    where
+        I: Into<Identifier>,
+        T: Into<Value>,
+    {
+        self.vars.insert(name.into(), value.into());
+        self
+    }
+
+    /// Defines a function which is available in the current and all child scopes.
+    ///
+    /// See the documentation of the [`FuncDef`][FuncDef] type to learn about all available
+    /// options for constructing a function definition.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hcl::eval::Context;
+    /// use hcl::Value;
+    /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+    ///
+    /// fn strlen(args: FuncArgs) -> Result<Value> {
+    ///     // The arguments are already validated against the function
+    ///     // definition's parameters, so we know that there is exactly
+    ///     // one arg of type string.
+    ///     Ok(Value::from(args[0].as_str().unwrap().len()))
+    /// }
+    ///
+    /// let func_def = FuncDef::builder("strlen")
+    ///     .param(Param::new("s", ParamType::String))
+    ///     .build(strlen);
+    ///
+    /// let mut ctx = Context::new();
+    /// ctx.define_func(func_def);
+    /// ```
+    pub fn define_func(&mut self, func: FuncDef) -> &mut Self {
+        self.funcs.insert(func.name().clone(), func);
+        self
+    }
+
+    /// Lookup a variable's value.
+    ///
+    /// When the variable is defined in multiple parent scopes, the innermost variable's value is
+    /// returned.
+    fn lookup_var(&self, name: &Identifier) -> Result<&Value> {
         match self.vars.get(name) {
             Some(value) => Ok(value),
             None => match self.parent {
-                Some(parent) => parent.get_var(name),
+                Some(parent) => parent.lookup_var(name),
                 None => Err(Error::new(ErrorKind::UndefinedVariable(name.clone()))),
             },
         }
     }
 
-    /// Set a variable which is available in the current and all child scopes.
-    pub fn set_var<I, T>(&mut self, name: I, value: T) -> Option<Value>
-    where
-        I: Into<Identifier>,
-        T: Into<Value>,
-    {
-        self.vars.insert(name.into(), value.into())
-    }
-
-    /// Lookup a func. Functions defined in the current scope take precedence over
-    /// functions defined in parent scopes.
-    pub fn get_func(&self, name: &Identifier) -> Result<&FuncDef> {
+    /// Lookup a function definition.
+    ///
+    /// When the function is defined in multiple parent scopes, the innermost definition is
+    /// returned.
+    fn lookup_func(&self, name: &Identifier) -> Result<&FuncDef> {
         match self.funcs.get(name) {
             Some(func) => Ok(func),
             None => match self.parent {
-                Some(parent) => parent.get_func(name),
+                Some(parent) => parent.lookup_func(name),
                 None => Err(Error::new(ErrorKind::UndefinedFunc(name.clone()))),
             },
         }
-    }
-
-    /// Set a func which is available in the current and all child scopes.
-    pub fn add_func(&mut self, func: FuncDef) -> Option<FuncDef> {
-        self.funcs.insert(func.name().clone(), func)
     }
 }
