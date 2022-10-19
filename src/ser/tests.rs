@@ -7,6 +7,11 @@ use crate::{
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
+#[track_caller]
+fn expect_str<T: Serialize>(value: T, expected: &str) {
+    assert_eq!(to_string(&value).unwrap(), expected);
+}
+
 #[test]
 fn serialize_struct() {
     #[derive(serde::Serialize)]
@@ -15,9 +20,7 @@ fn serialize_struct() {
         bar: bool,
     }
 
-    let v = Test { foo: 1, bar: true };
-    let expected = "foo = 1\nbar = true\n";
-    assert_eq!(&to_string(&v).unwrap(), expected);
+    expect_str(Test { foo: 1, bar: true }, "foo = 1\nbar = true\n");
 }
 
 #[test]
@@ -35,9 +38,10 @@ fn serialize_tuple_struct() {
     #[derive(serde::Serialize)]
     struct TupleStruct(Test1, Test2);
 
-    let v = TupleStruct(Test1 { foo: 1 }, Test2 { bar: "baz" });
-    let expected = "foo = 1\nbar = \"baz\"\n";
-    assert_eq!(&to_string(&v).unwrap(), expected);
+    expect_str(
+        TupleStruct(Test1 { foo: 1 }, Test2 { bar: "baz" }),
+        "foo = 1\nbar = \"baz\"\n",
+    );
 }
 
 #[test]
@@ -55,23 +59,15 @@ fn serialize_enum() {
         value: E,
     }
 
-    let v = Test { value: E::Unit };
-    let expected = "value = \"Unit\"\n";
-    assert_eq!(&to_string(&v).unwrap(), expected);
-
-    let v = E::Newtype(1);
-    let expected = "Newtype = 1\n";
-    assert_eq!(&to_string(&v).unwrap(), expected);
-
-    let v = E::Tuple(1, 2);
-    let expected = "Tuple = [\n  1,\n  2\n]\n";
-    assert_eq!(&to_string(&v).unwrap(), expected);
-
-    let v = Test {
-        value: E::Struct { a: 1 },
-    };
-    let expected = "value = {\n  \"Struct\" = {\n    \"a\" = 1\n  }\n}\n";
-    assert_eq!(&to_string(&v).unwrap(), expected);
+    expect_str(Test { value: E::Unit }, "value = \"Unit\"\n");
+    expect_str(E::Newtype(1), "Newtype = 1\n");
+    expect_str(E::Tuple(1, 2), "Tuple = [\n  1,\n  2\n]\n");
+    expect_str(
+        Test {
+            value: E::Struct { a: 1 },
+        },
+        "value = {\n  \"Struct\" = {\n    \"a\" = 1\n  }\n}\n",
+    );
 }
 
 #[test]
@@ -128,7 +124,7 @@ qux {
 }
 "#;
 
-    assert_eq!(to_string(&value).unwrap(), expected);
+    expect_str(value, expected);
 }
 
 #[test]
@@ -154,7 +150,7 @@ qux = {
 }
 "#;
 
-    assert_eq!(to_string(&value).unwrap(), expected);
+    expect_str(value, expected);
 }
 
 #[test]
@@ -186,22 +182,18 @@ qux = {
 }
 "#;
 
-    assert_eq!(to_string(&value).unwrap(), expected);
+    expect_str(value, expected);
 }
 
 #[test]
 fn serialize_empty_block() {
-    let body = Body::builder()
-        .add_block(Block::builder("empty").build())
-        .build();
-
-    assert_eq!(to_string(&body).unwrap(), "empty {}\n");
+    expect_str(Block::builder("empty").build(), "empty {}\n");
 }
 
 #[test]
 fn serialize_traversal() {
-    let body = Body::builder()
-        .add_attribute((
+    expect_str(
+        Attribute::new(
             "attr",
             Traversal::new(
                 Identifier::new("var"),
@@ -215,40 +207,31 @@ fn serialize_traversal() {
                     TraversalOperator::LegacyIndex(42),
                 ],
             ),
-        ))
-        .build();
-
-    assert_eq!(
-        to_string(&body).unwrap(),
-        "attr = var.foo[*].bar[1].*.baz.42\n"
+        ),
+        "attr = var.foo[*].bar[1].*.baz.42\n",
     );
 }
 
 #[test]
 fn serialize_conditional() {
-    let body = Body::builder()
-        .add_attribute((
+    expect_str(
+        Attribute::new(
             "cond",
             Conditional::new(Identifier::new("cond_var"), "yes", "no"),
-        ))
-        .build();
-
-    assert_eq!(
-        to_string(&body).unwrap(),
-        "cond = cond_var ? \"yes\" : \"no\"\n"
+        ),
+        "cond = cond_var ? \"yes\" : \"no\"\n",
     );
 }
 
 #[test]
 fn serialize_operation() {
-    let body = Body::builder()
-        .add_attribute((
+    expect_str(
+        Attribute::new(
             "op",
-            Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
-        ))
-        .build();
-
-    assert_eq!(to_string(&body).unwrap(), "op = 1 + 1\n");
+            Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 2)),
+        ),
+        "op = 1 + 2\n",
+    );
 }
 
 #[test]
@@ -295,37 +278,29 @@ object = {for key, value in items : toupper(key) => tolower(value)... if value !
 "#
     .trim_start();
 
-    assert_eq!(to_string(&body).unwrap(), expected);
+    expect_str(body, expected);
 }
 
 #[test]
 fn serialize_func_call() {
-    let body = Body::builder()
-        .add_attribute(("attr", FuncCall::new("foo")))
-        .build();
-
-    assert_eq!(to_string(&body).unwrap(), "attr = foo()\n");
-
-    let body = Body::builder()
-        .add_attribute(("attr", FuncCall::builder("foo").arg(1).arg("two").build()))
-        .build();
-
-    assert_eq!(to_string(&body).unwrap(), "attr = foo(1, \"two\")\n");
-
-    let body = Body::builder()
-        .add_attribute((
+    expect_str(
+        Attribute::new("attr", FuncCall::new("foo")),
+        "attr = foo()\n",
+    );
+    expect_str(
+        Attribute::new("attr", FuncCall::builder("foo").arg(1).arg("two").build()),
+        "attr = foo(1, \"two\")\n",
+    );
+    expect_str(
+        Attribute::new(
             "attr",
             FuncCall::builder("foo")
                 .arg(1)
                 .arg(vec!["two", "three"])
                 .expand_final(true)
                 .build(),
-        ))
-        .build();
-
-    assert_eq!(
-        to_string(&body).unwrap(),
-        "attr = foo(1, [\"two\", \"three\"]...)\n"
+        ),
+        "attr = foo(1, [\"two\", \"three\"]...)\n",
     );
 }
 
@@ -366,7 +341,7 @@ HEREDOC
 }
 "#;
 
-    assert_eq!(to_string(&body).unwrap(), expected);
+    expect_str(body, expected);
 }
 
 #[test]
@@ -415,7 +390,7 @@ qux {
 }
 "#;
 
-    assert_eq!(to_string(&body).unwrap(), default_expected);
+    expect_str(&body, default_expected);
 
     let mut buf = Vec::new();
     let formatter = Formatter::builder()
@@ -430,21 +405,21 @@ qux {
 
 #[test]
 fn serialize_nested_expression() {
-    let body = Body::builder()
-        .add_attribute((
+    expect_str(
+        Attribute::new(
             "attr",
             Expression::Parenthesis(Box::new(Expression::Variable("foo".into()))),
-        ))
-        .build();
-
-    assert_eq!(to_string(&body).unwrap(), "attr = (foo)\n");
+        ),
+        "attr = (foo)\n",
+    );
 }
 
 #[test]
 fn serialize_identifiers_with_hyphens() {
-    let attr = Attribute::new("hyphen-ated", Expression::Null);
-
-    assert_eq!(to_string(&attr).unwrap(), "hyphen-ated = null\n");
+    expect_str(
+        Attribute::new("hyphen-ated", Expression::Null),
+        "hyphen-ated = null\n",
+    );
 }
 
 #[test]

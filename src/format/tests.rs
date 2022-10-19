@@ -1,6 +1,11 @@
 use super::*;
 use crate::{Attribute, Expression, FuncCall};
 
+#[track_caller]
+fn expect_format<T: Format>(value: T, expected: &str) {
+    assert_eq!(to_string(&value).unwrap(), expected);
+}
+
 #[test]
 fn issue_87() {
     let expr = Expression::from(
@@ -8,16 +13,10 @@ fn issue_87() {
             .arg(Expression::from_iter([("bar", FuncCall::new("baz"))]))
             .build(),
     );
-
-    let result = to_string(&expr).unwrap();
-
-    assert_eq!(result, "foo({\"bar\" = baz()})")
+    expect_format(expr, "foo({\"bar\" = baz()})");
 }
 
 #[test]
 fn issue_91() {
-    let attr = Attribute::new("_foo", "bar");
-    let result = to_string(&attr).unwrap();
-
-    assert_eq!(result, "_foo = \"bar\"\n")
+    expect_format(Attribute::new("_foo", "bar"), "_foo = \"bar\"\n");
 }
