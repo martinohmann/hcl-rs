@@ -1,6 +1,12 @@
 use super::*;
+use crate::template::{IfDirective, StripMode, Template};
 use pest::*;
 use pretty_assertions::assert_eq;
+
+#[track_caller]
+fn expect_body(input: &str, expected: Body) {
+    assert_eq!(parse(input).unwrap(), expected);
+}
 
 #[test]
 fn parse_identifier() {
@@ -50,28 +56,7 @@ fn parse_number() {
 }
 
 #[test]
-fn parse_attr() {
-    parses_to! {
-        parser: HclParser,
-        input: "foo = \"bar\"",
-        rule: Rule::Attribute,
-        tokens: [
-            Attribute(0, 11, [
-                Identifier(0, 3),
-                Expression(6, 11, [
-                    ExprTerm(6, 11, [
-                        StringLit(6, 11, [
-                            String(7, 10)
-                        ])
-                    ])
-                ])
-            ])
-        ]
-    };
-}
-
-#[test]
-fn conditional() {
+fn parse_conditional() {
     parses_to! {
         parser: HclParser,
         input: "var.enabled ? 1 : 0",
@@ -92,109 +77,6 @@ fn conditional() {
                 Expression(18, 19, [
                     ExprTerm(18, 19, [
                         Int(18, 19)
-                    ])
-                ])
-            ])
-        ]
-    };
-}
-
-#[test]
-fn parse_terraform() {
-    parses_to! {
-        parser: HclParser,
-        input: r#"
-resource "aws_s3_bucket" "mybucket" {
-  bucket        = "mybucket"
-  force_destroy = true
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.mykey.arn
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
-}
-            "#,
-        rule: Rule::Hcl,
-        tokens: [
-            Body(1, 299, [
-                Block(1, 299, [
-                    Identifier(1, 9),
-                    StringLit(10, 25, [
-                        String(11, 24)
-                    ]),
-                    StringLit(26, 36, [
-                        String(27, 35)
-                    ]),
-                    BlockBody(37, 299, [
-                        Body(41, 297, [
-                            Attribute(41, 70, [
-                                Identifier(41, 47),
-                                Expression(57, 70, [
-                                    ExprTerm(57, 70, [
-                                        StringLit(57, 67, [
-                                            String(58, 66)
-                                        ])
-                                    ])
-                                ])
-                            ]),
-                            Attribute(70, 94, [
-                                Identifier(70, 83),
-                                Expression(86, 94, [
-                                    ExprTerm(86, 94, [
-                                        BooleanLit(86, 90)
-                                    ])
-                                ])
-                            ]),
-                            Block(94, 297, [
-                                Identifier(94, 130),
-                                BlockBody(131, 297, [
-                                    Body(137, 293, [
-                                        Block(137, 293, [
-                                            Identifier(137, 141),
-                                            BlockBody(142, 293, [
-                                                Body(150, 287, [
-                                                    Block(150, 287, [
-                                                        Identifier(150, 189),
-                                                        BlockBody(190, 287, [
-                                                            Body(200, 286, [
-                                                                Attribute(200, 250, [
-                                                                    Identifier(200, 217),
-                                                                    Expression(220, 250, [
-                                                                        ExprTerm(220, 241, [
-                                                                            Variable(220, 231),
-                                                                            GetAttr(231, 237, [
-                                                                                Identifier(232, 237)
-                                                                            ]),
-                                                                            GetAttr(237, 241, [
-                                                                                Identifier(238, 241)
-                                                                            ])
-                                                                        ])
-                                                                    ])
-                                                                ]),
-                                                                Attribute(250, 286, [
-                                                                    Identifier(250, 263),
-                                                                    Expression(270, 286, [
-                                                                        ExprTerm(270, 286, [
-                                                                            StringLit(270, 279, [
-                                                                                String(271, 278)
-                                                                            ])
-                                                                        ])
-                                                                    ])
-                                                                ])
-                                                            ])
-                                                        ])
-                                                    ])
-                                                ])
-                                            ])
-                                        ])
-                                    ])
-                                ])
-                            ])
-                        ])
                     ])
                 ])
             ])
@@ -404,60 +286,25 @@ fn parse_cond_in_interpolation() {
 
 #[test]
 fn parse_object_with_variable_expr_key() {
-    parses_to! {
-        parser: HclParser,
-        input: r#"
-providers = {
-  aws.eu-central-1 = aws.eu-central-1
-  aws.eu-west-1    = aws.eu-west-1
-}"#,
-        rule: Rule::Hcl,
-        tokens: [
-            Body(1, 89, [
-                Attribute(1, 89, [
-                    Identifier(1, 10),
-                    Expression(13, 89, [
-                        ExprTerm(13, 89, [
-                            Object(13, 89, [
-                                Expression(17, 34, [
-                                    ExprTerm(17, 33, [
-                                        Variable(17, 20),
-                                        GetAttr(20, 33, [
-                                            Identifier(21, 33)
-                                        ]),
-                                    ])
-                                ]),
-                                Expression(36, 55, [
-                                    ExprTerm(36, 52, [
-                                        Variable(36, 39),
-                                        GetAttr(39, 52, [
-                                            Identifier(40, 52)
-                                        ]),
-                                    ])
-                                ]),
-                                Expression(55, 72, [
-                                    ExprTerm(55, 68, [
-                                        Variable(55, 58),
-                                        GetAttr(58, 68, [
-                                            Identifier(59, 68)
-                                        ]),
-                                    ])
-                                ]),
-                                Expression(74, 88, [
-                                    ExprTerm(74, 87, [
-                                        Variable(74, 77),
-                                        GetAttr(77, 87, [
-                                            Identifier(78, 87)
-                                        ])
-                                    ])
-                                ])
-                            ])
-                        ])
-                    ])
-                ])
-            ])
-        ]
-    };
+    let input = "providers = { aws.eu-central-1 = aws.eu-central-1 }";
+
+    let expected = Body::builder()
+        .add_attribute((
+            "providers",
+            Expression::from_iter([(
+                ObjectKey::Expression(Expression::from(Traversal::new(
+                    Identifier::new("aws"),
+                    [Identifier::new("eu-central-1")],
+                ))),
+                Expression::from(Traversal::new(
+                    Identifier::new("aws"),
+                    [Identifier::new("eu-central-1")],
+                )),
+            )]),
+        ))
+        .build();
+
+    expect_body(input, expected);
 }
 
 #[test]
@@ -516,67 +363,45 @@ fn parse_nested_function_call_with_splat() {
 
 #[test]
 fn parse_traversal_with_expression() {
-    parses_to! {
-        parser: HclParser,
-        input: r#"route_table_id = aws_route_table.private[count.index % var.availability_zone_count].id"#,
-        rule: Rule::Attribute,
-        tokens: [
-            Attribute(0, 86, [
-                Identifier(0, 14),
-                Expression(17, 86, [
-                    ExprTerm(17, 86, [
-                        Variable(17, 32),
-                        GetAttr(32, 40, [
-                            Identifier(33, 40)
-                        ]),
-                        Index(40, 83, [
-                            Expression(41, 82, [
-                                ExprTerm(41, 52, [
-                                    Variable(41, 46),
-                                    GetAttr(46, 52, [
-                                        Identifier(47, 52)
-                                    ]),
-                                ]),
-                                BinaryOperator(53, 54, [
-                                    ArithmeticOperator(53, 54)
-                                ]),
-                                Expression(55, 82, [
-                                    ExprTerm(55, 82, [
-                                        Variable(55, 58),
-                                        GetAttr(58, 82, [
-                                            Identifier(59, 82)
-                                        ]),
-                                    ])
-                                ])
-                            ])
-                        ]),
-                        GetAttr(83, 86, [
-                            Identifier(84, 86)
-                        ])
-                    ])
-                ])
-            ])
-        ]
-    };
+    let input =
+        "route_table_id = aws_route_table.private[count.index % var.availability_zone_count].id";
+
+    let expected = Body::builder()
+        .add_attribute((
+            "route_table_id",
+            Expression::from(Traversal::new(
+                Identifier::new("aws_route_table"),
+                [
+                    TraversalOperator::GetAttr("private".into()),
+                    TraversalOperator::Index(Expression::from(Operation::Binary(BinaryOp::new(
+                        Traversal::new(
+                            Identifier::new("count"),
+                            [TraversalOperator::GetAttr("index".into())],
+                        ),
+                        BinaryOperator::Mod,
+                        Traversal::new(
+                            Identifier::new("var"),
+                            [TraversalOperator::GetAttr("availability_zone_count".into())],
+                        ),
+                    )))),
+                    TraversalOperator::GetAttr("id".into()),
+                ],
+            )),
+        ))
+        .build();
+
+    expect_body(input, expected);
 }
 
 #[test]
 fn parse_null_in_variable_expr() {
-    parses_to! {
-        parser: HclParser,
-        input: r#"foo = null_foo"#,
-        rule: Rule::Attribute,
-        tokens: [
-            Attribute(0, 14, [
-                Identifier(0, 3),
-                Expression(6, 14, [
-                    ExprTerm(6, 14, [
-                        Variable(6, 14)
-                    ])
-                ])
-            ])
-        ]
-    };
+    let input = "foo = null_foo";
+
+    let expected = Body::builder()
+        .add_attribute(("foo", Identifier::new("null_foo")))
+        .build();
+
+    expect_body(input, expected);
 }
 
 #[test]
@@ -610,8 +435,6 @@ fn parse_hcl() {
           }
         }"#;
 
-    let body = parse(input).unwrap();
-
     let expected = Body::builder()
         .add_block(
             Block::builder("resource")
@@ -643,7 +466,7 @@ fn parse_hcl() {
         )
         .build();
 
-    assert_eq!(body, expected);
+    expect_body(input, expected);
 }
 
 #[test]
@@ -662,8 +485,6 @@ fn unescape_strings() {
           EOS
         }
     "#;
-
-    let body = parse(input).unwrap();
 
     let expected = Body::builder()
         .add_block(
@@ -688,18 +509,16 @@ fn unescape_strings() {
         )
         .build();
 
-    assert_eq!(body, expected);
+    expect_body(input, expected);
 }
 
 #[test]
-fn negative_numbers() {
+fn parse_negative_numbers() {
     let input = r#"
         float = -4.2
         float_exp = -4.2e10
         signed = -42
     "#;
-
-    let body = parse(input).unwrap();
 
     let expected = Body::builder()
         .add_attribute(("float", -4.2f64))
@@ -707,18 +526,12 @@ fn negative_numbers() {
         .add_attribute(("signed", -42))
         .build();
 
-    assert_eq!(body, expected);
+    expect_body(input, expected);
 }
 
 #[test]
-fn template_expr() {
-    use crate::{
-        structure::TemplateExpr,
-        template::{IfDirective, StripMode, Template},
-    };
-
+fn parse_template_expr() {
     let input = r#"foo = "bar ${baz} %{~ if cond}qux%{ endif ~}""#;
-    let body = parse(input).unwrap();
 
     let expected = Body::builder()
         .add_attribute((
@@ -726,6 +539,8 @@ fn template_expr() {
             TemplateExpr::QuotedString("bar ${baz} %{~ if cond}qux%{ endif ~}".into()),
         ))
         .build();
+
+    let body = parse(input).unwrap();
 
     assert_eq!(body, expected);
 
