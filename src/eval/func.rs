@@ -171,7 +171,7 @@ impl fmt::Display for ParamType {
                 n => {
                     for (i, elem_type) in elem_types.iter().enumerate() {
                         if i == n - 1 {
-                            f.write_str("or ")?;
+                            f.write_str(" or ")?;
                         } else if i > 0 {
                             f.write_str(", ")?;
                         }

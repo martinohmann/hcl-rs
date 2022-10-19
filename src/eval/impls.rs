@@ -258,7 +258,7 @@ impl Evaluate for ForExpr {
     type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
-        let collection = Collection::from_for_expr(self, ctx)?;
+        let collection = expr::Collection::from_for_expr(self, ctx)?;
 
         match &self.key_expr {
             Some(key_expr) => {

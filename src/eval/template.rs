@@ -90,7 +90,7 @@ fn evaluate_if_directive(result: &mut String, dir: &IfDirective, ctx: &Context) 
 }
 
 fn evaluate_for_directive(result: &mut String, dir: &ForDirective, ctx: &Context) -> Result<()> {
-    let collection = Collection::from_for_directive(dir, ctx)?;
+    let collection = expr::Collection::from_for_directive(dir, ctx)?;
     let len = collection.len();
 
     for (index, ctx) in collection.into_iter().enumerate() {

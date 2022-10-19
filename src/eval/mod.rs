@@ -2,7 +2,6 @@
 
 mod error;
 mod expr;
-mod for_expr;
 mod func;
 mod impls;
 mod template;
@@ -10,7 +9,6 @@ mod template;
 mod tests;
 
 pub use self::error::{Error, ErrorKind, Result};
-use self::for_expr::Collection;
 pub use self::func::*;
 use crate::structure::*;
 use crate::template::*;

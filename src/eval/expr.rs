@@ -22,21 +22,6 @@ pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> Result<Vec<Val
     }
 }
 
-pub(super) fn evaluate_collection(expr: &Expression, ctx: &Context) -> Result<Vec<(Value, Value)>> {
-    match expr.evaluate(ctx)? {
-        Value::Array(array) => Ok(array
-            .into_iter()
-            .enumerate()
-            .map(|(index, value)| (Value::from(index), value))
-            .collect()),
-        Value::Object(object) => Ok(object
-            .into_iter()
-            .map(|(key, value)| (Value::from(key), value))
-            .collect()),
-        other => Err(Error::unexpected(other, "an array or object")),
-    }
-}
-
 pub(super) fn evaluate_traversal(
     mut value: Value,
     mut operators: VecDeque<&TraversalOperator>,
@@ -123,5 +108,116 @@ fn evaluate_object_value(mut value: Value, key: &str) -> Result<Value> {
             .swap_remove(key)
             .ok_or_else(|| Error::new(ErrorKind::NoSuchKey(key.to_string()))),
         None => Err(Error::unexpected(value, "an object")),
+    }
+}
+
+fn evaluate_collection(expr: &Expression, ctx: &Context) -> Result<Vec<(Value, Value)>> {
+    match expr.evaluate(ctx)? {
+        Value::Array(array) => Ok(array
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| (Value::from(index), value))
+            .collect()),
+        Value::Object(object) => Ok(object
+            .into_iter()
+            .map(|(key, value)| (Value::from(key), value))
+            .collect()),
+        other => Err(Error::unexpected(other, "an array or object")),
+    }
+}
+
+pub(super) struct Collection<'a> {
+    ctx: &'a Context<'a>,
+    key_var: Option<&'a Identifier>,
+    value_var: &'a Identifier,
+    cond_expr: Option<&'a Expression>,
+    collection: Vec<(Value, Value)>,
+}
+
+impl<'a> Collection<'a> {
+    pub(super) fn from_for_expr(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> Result<Self> {
+        Ok(Collection {
+            ctx,
+            key_var: for_expr.key_var.as_ref(),
+            value_var: &for_expr.value_var,
+            cond_expr: for_expr.cond_expr.as_ref(),
+            collection: evaluate_collection(&for_expr.collection_expr, ctx)?,
+        })
+    }
+
+    pub(super) fn from_for_directive(
+        for_directive: &'a ForDirective,
+        ctx: &'a Context<'a>,
+    ) -> Result<Self> {
+        Ok(Collection {
+            ctx,
+            key_var: for_directive.key_var.as_ref(),
+            value_var: &for_directive.value_var,
+            cond_expr: None,
+            collection: evaluate_collection(&for_directive.collection_expr, ctx)?,
+        })
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.collection.len()
+    }
+}
+
+impl<'a> IntoIterator for Collection<'a> {
+    type Item = Result<Context<'a>>;
+    type IntoIter = IntoIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            ctx: self.ctx,
+            key_var: self.key_var,
+            value_var: self.value_var,
+            cond_expr: self.cond_expr,
+            iter: self.collection.into_iter(),
+        }
+    }
+}
+
+pub(super) struct IntoIter<'a> {
+    ctx: &'a Context<'a>,
+    key_var: Option<&'a Identifier>,
+    value_var: &'a Identifier,
+    cond_expr: Option<&'a Expression>,
+    iter: std::vec::IntoIter<(Value, Value)>,
+}
+
+impl<'a> IntoIter<'a> {
+    fn cond(&self, ctx: &Context) -> Result<bool> {
+        match &self.cond_expr {
+            None => Ok(true),
+            Some(cond_expr) => evaluate_bool(cond_expr, ctx),
+        }
+    }
+
+    fn next_ctx(&mut self) -> Option<Context<'a>> {
+        let (key, value) = self.iter.next()?;
+        let mut ctx = self.ctx.child();
+        if let Some(key_var) = self.key_var {
+            ctx.define_var(key_var.clone(), key);
+        }
+
+        ctx.define_var(self.value_var.clone(), value);
+        Some(ctx)
+    }
+}
+
+impl<'a> Iterator for IntoIter<'a> {
+    type Item = Result<Context<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let ctx = self.next_ctx()?;
+
+            match self.cond(&ctx) {
+                Ok(false) => {}
+                Ok(true) => return Some(Ok(ctx)),
+                Err(err) => return Some(Err(err)),
+            }
+        }
     }
 }
