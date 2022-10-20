@@ -71,7 +71,7 @@ impl Evaluate for Expression {
             Expression::Conditional(cond) => cond.evaluate(ctx),
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
-            Expression::Raw(_) => Err(ctx.error(ErrorKind::RawExpression)),
+            Expression::Raw(_) => Err(ctx.error("raw expressions cannot be evaluated")),
             other => Ok(Value::from(other.clone())),
         }
     }
@@ -165,7 +165,12 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func_def.call(args).map_err(|err| ctx.error(err))
+        func_def.call(args).map_err(|err| {
+            ctx.error(ErrorKind::FuncCall(
+                func_def.name().clone(),
+                err.to_string(),
+            ))
+        })
     }
 }
 
@@ -209,7 +214,9 @@ impl Evaluate for UnaryOp {
         let value = match (self.operator, value) {
             (Not, Bool(v)) => Bool(!v),
             (Neg, Number(n)) => Number(-n),
-            (operator, value) => return Err(ctx.error(ErrorKind::InvalidUnaryOp(operator, value))),
+            (operator, value) => {
+                return Err(ctx.error(ErrorKind::ImpossibleUnaryOp(operator, value)))
+            }
         };
 
         Ok(value)
@@ -243,7 +250,7 @@ impl Evaluate for BinaryOp {
             (Number(lhs), Div, Number(rhs)) => Number(lhs / rhs),
             (Number(lhs), Mod, Number(rhs)) => Number(lhs % rhs),
             (lhs, operator, rhs) => {
-                return Err(ctx.error(ErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
+                return Err(ctx.error(ErrorKind::ImpossibleBinaryOp(lhs, operator, rhs)))
             }
         };
 

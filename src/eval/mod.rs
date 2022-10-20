@@ -107,7 +107,7 @@ impl<'a> Context<'a> {
     /// use hcl::Value;
     /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     ///
-    /// fn strlen(args: FuncArgs) -> Result<Value> {
+    /// fn strlen(args: FuncArgs) -> Result<Value, String> {
     ///     // The arguments are already validated against the function
     ///     // definition's parameters, so we know that there is exactly
     ///     // one arg of type string.

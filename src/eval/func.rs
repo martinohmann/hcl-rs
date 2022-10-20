@@ -5,7 +5,7 @@ use std::ops;
 use std::slice;
 
 /// A type alias for the signature of functions expected by the [`FuncDef`] type.
-pub type Func = fn(FuncArgs) -> Result<Value>;
+pub type Func = fn(FuncArgs) -> Result<Value, String>;
 
 /// A type hint for a function parameter.
 ///
@@ -228,7 +228,7 @@ where
 /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
 /// use hcl::Value;
 ///
-/// fn add(args: FuncArgs) -> Result<Value> {
+/// fn add(args: FuncArgs) -> Result<Value, String> {
 ///     let a = args[0].as_number().unwrap();
 ///     let b = args[1].as_number().unwrap();
 ///     Ok(Value::Number(*a + *b))
@@ -247,7 +247,7 @@ where
 /// ```
 /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
 /// # use hcl::Value;
-/// # fn add(args: FuncArgs) -> Result<Value> {
+/// # fn add(args: FuncArgs) -> Result<Value, String> {
 /// #    unimplemented!()
 /// # }
 /// let func_def = FuncDef::builder("add")
@@ -330,7 +330,7 @@ impl FuncDef {
     /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// use hcl::Value;
     ///
-    /// fn add(args: FuncArgs) -> Result<Value> {
+    /// fn add(args: FuncArgs) -> Result<Value, String> {
     ///     let a = args[0].as_number().unwrap();
     ///     let b = args[1].as_number().unwrap();
     ///     Ok(Value::Number(*a + *b))
@@ -356,7 +356,7 @@ impl FuncDef {
         let var_param = &self.variadic_param;
 
         if args_len < params_len || (var_param.is_none() && args_len > params_len) {
-            return Err(self.error(format!(
+            return Err(Error::new(format!(
                 "expected {} positional arguments, got {}",
                 params_len, args_len,
             )));
@@ -366,7 +366,7 @@ impl FuncDef {
 
         for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
             if !param.is_satisfied_by(arg) {
-                return Err(self.error(format!(
+                return Err(Error::new(format!(
                     "expected argument `{}` at position {} to be of type {}, got `{}`",
                     param.name, param.type_, pos, arg
                 )));
@@ -376,7 +376,7 @@ impl FuncDef {
         if let Some(var_param) = &var_param {
             for (pos, arg) in var_args.iter().enumerate() {
                 if !var_param.is_satisfied_by(arg) {
-                    return Err(self.error(format!(
+                    return Err(Error::new(format!(
                         "expected variadic argument `{}` at position {} to be of type {}, got `{}`",
                         var_param.name,
                         var_param.type_,
@@ -389,14 +389,7 @@ impl FuncDef {
 
         let func_args = FuncArgs::new(args, params_len);
 
-        (self.func)(func_args)
-    }
-
-    fn error<T>(&self, msg: T) -> Error
-    where
-        T: fmt::Display,
-    {
-        Error::new(ErrorKind::FuncCall(self.name.clone(), msg.to_string()))
+        (self.func)(func_args).map_err(Error::new)
     }
 }
 
@@ -427,7 +420,7 @@ impl FuncDefBuilder {
     /// ```
     /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// # use hcl::Value;
-    /// # fn strlen(_: FuncArgs) -> Result<Value> {
+    /// # fn strlen(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder("strlen")
@@ -454,7 +447,7 @@ impl FuncDefBuilder {
     /// ```
     /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// # use hcl::Value;
-    /// # fn add3(_: FuncArgs) -> Result<Value> {
+    /// # fn add3(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder("add3")
@@ -484,7 +477,7 @@ impl FuncDefBuilder {
     /// ```
     /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
     /// # use hcl::Value;
-    /// # fn printf(_: FuncArgs) -> Result<Value> {
+    /// # fn printf(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder("printf")

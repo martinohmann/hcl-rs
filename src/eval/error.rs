@@ -2,7 +2,7 @@ use super::*;
 use std::fmt;
 
 /// The result type used by this module.
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// The error type returned by all fallible operations within this module.
 #[derive(Debug, Clone)]
@@ -64,7 +64,7 @@ impl From<ErrorKind> for Error {
 
 impl From<crate::Error> for Error {
     fn from(err: crate::Error) -> Self {
-        Error::new(ErrorKind::Custom(err.to_string()))
+        Error::new(ErrorKind::Message(err.to_string()))
     }
 }
 
@@ -101,14 +101,13 @@ impl fmt::Display for ErrorInner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
-    RawExpression,
-    Custom(String),
+    Message(String),
     UndefinedVariable(Identifier),
     UndefinedFunc(Identifier),
     Unexpected(Value, &'static str),
     IndexOutOfBounds(usize),
-    InvalidUnaryOp(UnaryOperator, Value),
-    InvalidBinaryOp(Value, BinaryOperator, Value),
+    ImpossibleUnaryOp(UnaryOperator, Value),
+    ImpossibleBinaryOp(Value, BinaryOperator, Value),
     NoSuchKey(String),
     KeyAlreadyExists(String),
     FuncCall(Identifier, String),
@@ -120,11 +119,22 @@ impl From<Error> for ErrorKind {
     }
 }
 
+impl From<&str> for ErrorKind {
+    fn from(msg: &str) -> Self {
+        ErrorKind::Message(msg.to_owned())
+    }
+}
+
+impl From<String> for ErrorKind {
+    fn from(msg: String) -> Self {
+        ErrorKind::Message(msg)
+    }
+}
+
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
-            ErrorKind::Custom(msg) => f.write_str(msg),
+            ErrorKind::Message(msg) => f.write_str(msg),
             ErrorKind::UndefinedVariable(ident) => {
                 write!(f, "undefined variable `{}`", ident)
             }
@@ -137,18 +147,18 @@ impl fmt::Display for ErrorKind {
             ErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
             ErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
             ErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
-            ErrorKind::InvalidUnaryOp(operator, value) => write!(
+            ErrorKind::ImpossibleUnaryOp(operator, value) => write!(
                 f,
                 "unary operator `{}` is not applicable to `{}`",
                 operator, value,
             ),
-            ErrorKind::InvalidBinaryOp(lhs, operator, rhs) => write!(
+            ErrorKind::ImpossibleBinaryOp(lhs, operator, rhs) => write!(
                 f,
                 "binary operator `{}` is not applicable to `{}` and `{}`",
                 operator, lhs, rhs
             ),
             ErrorKind::FuncCall(name, msg) => {
-                write!(f, "invalid call to function `{}`: {}", name, msg)
+                write!(f, "error calling function `{}`: {}", name, msg)
             }
         }
     }
