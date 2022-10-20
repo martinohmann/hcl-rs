@@ -101,15 +101,25 @@ impl fmt::Display for ErrorInner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// A generic error message.
     Message(String),
+    /// An expression contained an undefined variable.
     UndefinedVariable(Identifier),
+    /// An expression contained a call to an undefined function.
     UndefinedFunc(Identifier),
+    /// A different type of value was expected.
     Unexpected(Value, &'static str),
+    /// An expression tried to access a non-existing array index.
     IndexOutOfBounds(usize),
+    /// An unary operator was applied to a value that does not support it.
     ImpossibleUnaryOp(UnaryOperator, Value),
+    /// A binary operator was applied to values that do not support it.
     ImpossibleBinaryOp(Value, BinaryOperator, Value),
+    /// An expression tried to access an object key which does not exist.
     NoSuchKey(String),
+    /// A `for` expression attempted to set the same object key twice.
     KeyAlreadyExists(String),
+    /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
 }
 
