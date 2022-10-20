@@ -59,6 +59,7 @@ impl Evaluate for Expression {
     type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+        let ctx = &ctx.child_with_expr(self);
         match self {
             Expression::Array(array) => array.evaluate(ctx).map(Value::Array),
             Expression::Object(object) => object.evaluate(ctx).map(Value::Object),
@@ -70,7 +71,7 @@ impl Evaluate for Expression {
             Expression::Conditional(cond) => cond.evaluate(ctx),
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
-            Expression::Raw(_) => Err(Error::new(ErrorKind::RawExpression)),
+            Expression::Raw(_) => Err(ctx.error(ErrorKind::RawExpression)),
             other => Ok(Value::from(other.clone())),
         }
     }
@@ -164,7 +165,7 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func_def.call(args)
+        func_def.call(args).map_err(|err| ctx.error(err))
     }
 }
 
@@ -208,9 +209,7 @@ impl Evaluate for UnaryOp {
         let value = match (self.operator, value) {
             (Not, Bool(v)) => Bool(!v),
             (Neg, Number(n)) => Number(-n),
-            (operator, value) => {
-                return Err(Error::new(ErrorKind::InvalidUnaryOp(operator, value)))
-            }
+            (operator, value) => return Err(ctx.error(ErrorKind::InvalidUnaryOp(operator, value))),
         };
 
         Ok(value)
@@ -244,7 +243,7 @@ impl Evaluate for BinaryOp {
             (Number(lhs), Div, Number(rhs)) => Number(lhs / rhs),
             (Number(lhs), Mod, Number(rhs)) => Number(lhs % rhs),
             (lhs, operator, rhs) => {
-                return Err(Error::new(ErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
+                return Err(ctx.error(ErrorKind::InvalidBinaryOp(lhs, operator, rhs)))
             }
         };
 
@@ -281,9 +280,9 @@ impl Evaluate for ForExpr {
                     } else {
                         match result.entry(key) {
                             Entry::Occupied(entry) => {
-                                return Err(Error::new(ErrorKind::KeyAlreadyExists(
-                                    entry.key().clone(),
-                                )))
+                                return Err(
+                                    ctx.error(ErrorKind::KeyAlreadyExists(entry.key().clone()))
+                                )
                             }
                             Entry::Vacant(entry) => {
                                 entry.insert(value);

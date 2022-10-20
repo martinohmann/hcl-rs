@@ -22,13 +22,14 @@ where
 }
 
 #[track_caller]
-fn eval_error<T>(value: T, expected: ErrorKind)
+fn eval_error<T, E>(value: T, expected: E)
 where
     T: Evaluate + fmt::Debug + PartialEq,
     <T as Evaluate>::Output: fmt::Debug,
+    E: Into<Error>,
 {
     let ctx = Context::new();
-    assert_eq!(value.evaluate(&ctx).unwrap_err().kind(), &expected);
+    assert_eq!(value.evaluate(&ctx).unwrap_err(), expected.into());
 }
 
 #[test]

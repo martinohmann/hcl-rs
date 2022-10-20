@@ -42,31 +42,39 @@ pub struct Context<'a> {
     vars: Map<Identifier, Value>,
     funcs: Map<Identifier, FuncDef>,
     parent: Option<&'a Context<'a>>,
+    expr: Option<&'a Expression>,
 }
 
 impl Default for Context<'_> {
     fn default() -> Self {
-        Context::new()
+        Context {
+            vars: Map::new(),
+            funcs: Map::new(),
+            parent: None,
+            expr: None,
+        }
     }
 }
 
 impl<'a> Context<'a> {
     /// Creates an empty `Context`.
     pub fn new() -> Self {
-        Context {
-            vars: Map::new(),
-            funcs: Map::new(),
-            parent: None,
-        }
+        Context::default()
     }
 
     // Create a new child `Context` which has the current one as parent.
     fn child(&self) -> Context<'_> {
-        Context {
-            vars: Map::new(),
-            funcs: Map::new(),
-            parent: Some(self),
-        }
+        let mut ctx = Context::new();
+        ctx.parent = Some(self);
+        ctx
+    }
+
+    // Create a new child `Context` which has the current one as parent and also contains context
+    // about the expression that is currently evaluated.
+    fn child_with_expr(&self, expr: &'a Expression) -> Context<'_> {
+        let mut ctx = self.child();
+        ctx.expr = Some(expr);
+        ctx
     }
 
     /// Defines a variable.
@@ -144,5 +152,21 @@ impl<'a> Context<'a> {
                 None => Err(Error::new(ErrorKind::UndefinedFunc(name.clone()))),
             },
         }
+    }
+
+    /// Creates an error enriched with expression information, if available.
+    fn error<T>(&self, inner: T) -> Error
+    where
+        T: Into<ErrorKind>,
+    {
+        match self.expr() {
+            Some(expr) => Error::new_with_expr(inner, expr.clone()),
+            None => Error::new(inner),
+        }
+    }
+
+    fn expr(&self) -> Option<&Expression> {
+        self.expr
+            .or_else(|| self.parent.and_then(|parent| parent.expr()))
     }
 }

@@ -5,16 +5,30 @@ use std::fmt;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type returned by all fallible operations within this module.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     inner: Box<ErrorKind>,
+    expr: Option<Expression>,
 }
 
 impl Error {
-    pub(super) fn new(inner: ErrorKind) -> Error {
+    pub(super) fn new<T>(inner: T) -> Error
+    where
+        T: Into<ErrorKind>,
+    {
         Error {
-            inner: Box::new(inner),
+            inner: Box::new(inner.into()),
+            expr: None,
         }
+    }
+
+    pub(super) fn new_with_expr<T>(inner: T, expr: Expression) -> Error
+    where
+        T: Into<ErrorKind>,
+    {
+        let mut err = Error::new(inner);
+        err.expr = Some(expr);
+        err
     }
 
     /// Returns a reference to the `ErrorKind` for further error matching.
@@ -32,7 +46,13 @@ impl Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.inner, f)
+        write!(f, "{}", self.inner)?;
+
+        if let Some(expr) = &self.expr {
+            write!(f, " in expression: {}", expr)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -51,6 +71,18 @@ impl From<String> for Error {
 impl From<crate::Error> for Error {
     fn from(err: crate::Error) -> Self {
         From::from(err.to_string())
+    }
+}
+
+impl From<Error> for ErrorKind {
+    fn from(err: Error) -> Self {
+        *err.inner
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Error::new(kind)
     }
 }
 

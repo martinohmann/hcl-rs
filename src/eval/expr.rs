@@ -4,21 +4,21 @@ use std::collections::VecDeque;
 pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> Result<bool> {
     match expr.evaluate(ctx)? {
         Value::Bool(value) => Ok(value),
-        other => Err(Error::unexpected(other, "a boolean")),
+        other => Err(ctx.error(Error::unexpected(other, "a boolean"))),
     }
 }
 
 pub(super) fn evaluate_string(expr: &Expression, ctx: &Context) -> Result<String> {
     match expr.evaluate(ctx)? {
         Value::String(value) => Ok(value),
-        other => Err(Error::unexpected(other, "a string")),
+        other => Err(ctx.error(Error::unexpected(other, "a string"))),
     }
 }
 
 pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> Result<Vec<Value>> {
     match expr.evaluate(ctx)? {
         Value::Array(array) => Ok(array),
-        other => Err(Error::unexpected(other, "an array")),
+        other => Err(ctx.error(Error::unexpected(other, "an array"))),
     }
 }
 
@@ -29,9 +29,11 @@ pub(super) fn evaluate_traversal(
 ) -> Result<Value> {
     while let Some(operator) = operators.pop_front() {
         value = match operator {
-            TraversalOperator::LegacyIndex(index) => evaluate_array_value(value, *index as usize)?,
+            TraversalOperator::LegacyIndex(index) => {
+                evaluate_array_value(value, *index as usize, ctx)?
+            }
             TraversalOperator::Index(index_expr) => evaluate_index_expr(value, index_expr, ctx)?,
-            TraversalOperator::GetAttr(name) => evaluate_object_value(value, name)?,
+            TraversalOperator::GetAttr(name) => evaluate_object_value(value, name, ctx)?,
             TraversalOperator::AttrSplat => {
                 // Consume all immediately following GetAttr operators and apply them to each array
                 // element.
@@ -80,34 +82,34 @@ fn evaluate_splat(
 
 fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> Result<Value> {
     match index_expr.evaluate(ctx)? {
-        Value::String(name) => evaluate_object_value(value, &name),
+        Value::String(name) => evaluate_object_value(value, &name, ctx),
         Value::Number(num) => match num.as_u64() {
-            Some(index) => evaluate_array_value(value, index as usize),
-            None => Err(Error::unexpected(num, "an unsigned integer")),
+            Some(index) => evaluate_array_value(value, index as usize, ctx),
+            None => Err(ctx.error(Error::unexpected(num, "an unsigned integer"))),
         },
-        other => Err(Error::unexpected(other, "an unsigned integer or string")),
+        other => Err(ctx.error(Error::unexpected(other, "an unsigned integer or string"))),
     }
 }
 
-fn evaluate_array_value(mut value: Value, index: usize) -> Result<Value> {
+fn evaluate_array_value(mut value: Value, index: usize, ctx: &Context) -> Result<Value> {
     match value.as_array_mut() {
         Some(array) => {
             if index < array.len() {
                 Ok(array.swap_remove(index))
             } else {
-                Err(Error::new(ErrorKind::IndexOutOfBounds(index)))
+                Err(ctx.error(ErrorKind::IndexOutOfBounds(index)))
             }
         }
-        None => Err(Error::unexpected(value, "an array")),
+        None => Err(ctx.error(Error::unexpected(value, "an array"))),
     }
 }
 
-fn evaluate_object_value(mut value: Value, key: &str) -> Result<Value> {
+fn evaluate_object_value(mut value: Value, key: &str, ctx: &Context) -> Result<Value> {
     match value.as_object_mut() {
         Some(object) => object
             .swap_remove(key)
-            .ok_or_else(|| Error::new(ErrorKind::NoSuchKey(key.to_string()))),
-        None => Err(Error::unexpected(value, "an object")),
+            .ok_or_else(|| ctx.error(ErrorKind::NoSuchKey(key.to_string()))),
+        None => Err(ctx.error(Error::unexpected(value, "an object"))),
     }
 }
 
@@ -122,7 +124,7 @@ fn evaluate_collection(expr: &Expression, ctx: &Context) -> Result<Vec<(Value, V
             .into_iter()
             .map(|(key, value)| (Value::from(key), value))
             .collect()),
-        other => Err(Error::unexpected(other, "an array or object")),
+        other => Err(ctx.error(Error::unexpected(other, "an array or object"))),
     }
 }
 
