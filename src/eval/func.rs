@@ -35,19 +35,6 @@ pub enum ParamType {
 
 impl ParamType {
     /// Creates a new `Array` parameter type with the given element type.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use hcl::{eval::ParamType, Value};
-    /// let string_array = Value::from_iter(["foo", "bar"]);
-    /// let number_array = Value::from_iter([1, 2, 3]);
-    ///
-    /// let param = ParamType::array_of(ParamType::String);
-    ///
-    /// assert!(param.is_satisfied_by(&string_array));
-    /// assert!(!param.is_satisfied_by(&number_array));
-    /// ```
     pub fn array_of(element: ParamType) -> Self {
         ParamType::Array(Box::new(element))
     }
@@ -55,39 +42,11 @@ impl ParamType {
     /// Creates a new `Object` parameter type with the given element type.
     ///
     /// The object key type is always a string and thus not specified here.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use hcl::{eval::ParamType, Value};
-    /// let object_of_strings = Value::from_iter([("foo", "bar"), ("baz", "qux")]);
-    /// let object_of_numbers = Value::from_iter([("foo", 1), ("bar", 2)]);
-    ///
-    /// let param = ParamType::object_of(ParamType::String);
-    ///
-    /// assert!(param.is_satisfied_by(&object_of_strings));
-    /// assert!(!param.is_satisfied_by(&object_of_numbers));
-    /// ```
     pub fn object_of(element: ParamType) -> Self {
         ParamType::Object(Box::new(element))
     }
 
     /// Creates a new `OneOf` parameter type from the provided alternatives.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use hcl::{eval::ParamType, Value};
-    /// let string = Value::from("a string");
-    /// let number = Value::from(42);
-    /// let boolean = Value::from(true);
-    ///
-    /// let param = ParamType::one_of([ParamType::String, ParamType::Number]);
-    ///
-    /// assert!(param.is_satisfied_by(&string));
-    /// assert!(param.is_satisfied_by(&number));
-    /// assert!(!param.is_satisfied_by(&boolean));
-    /// ```
     pub fn one_of<I>(alternatives: I) -> Self
     where
         I: IntoIterator<Item = ParamType>,
@@ -96,44 +55,12 @@ impl ParamType {
     }
 
     /// Creates a new `Nullable` parameter type from a non-null parameter type.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use hcl::{eval::ParamType, Value};
-    /// let string = Value::from("a string");
-    /// let number = Value::from(42);
-    ///
-    /// let param = ParamType::nullable(ParamType::String);
-    ///
-    /// assert!(param.is_satisfied_by(&string));
-    /// assert!(param.is_satisfied_by(&Value::Null));
-    /// assert!(!param.is_satisfied_by(&number));
-    /// ```
     pub fn nullable(non_null: ParamType) -> Self {
         ParamType::Nullable(Box::new(non_null))
     }
 
     /// Tests the given value against the parameter type.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use hcl::{eval::ParamType, Value};
-    /// let string = Value::from("a string");
-    /// let number = Value::from(42);
-    ///
-    /// let param = ParamType::String;
-    ///
-    /// assert!(param.is_satisfied_by(&string));
-    /// assert!(!param.is_satisfied_by(&number));
-    ///
-    /// let param = ParamType::Any;
-    ///
-    /// assert!(param.is_satisfied_by(&string));
-    /// assert!(param.is_satisfied_by(&number));
-    /// ```
-    pub fn is_satisfied_by(&self, value: &Value) -> bool {
+    fn is_satisfied_by(&self, value: &Value) -> bool {
         match self {
             ParamType::Any => true,
             ParamType::Bool => value.is_boolean(),
@@ -251,16 +178,6 @@ impl FuncDef {
             params: Vec::new(),
             variadic_param: None,
         }
-    }
-
-    /// Returns a reference to the function parameters.
-    pub fn params(&self) -> &[ParamType] {
-        &self.params
-    }
-
-    /// Returns a reference to the function's variadic parameter, or `None` if none is defined.
-    pub fn variadic_param(&self) -> Option<&ParamType> {
-        self.variadic_param.as_ref()
     }
 
     /// Calls the function with the provided arguments.
@@ -529,5 +446,47 @@ impl<'a> Iterator for VariadicArgs<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn param_type() {
+        let string = Value::from("a string");
+        let number = Value::from(42);
+        let boolean = Value::from(true);
+        let string_array = Value::from_iter(["foo", "bar"]);
+        let number_array = Value::from_iter([1, 2, 3]);
+        let object_of_strings = Value::from_iter([("foo", "bar"), ("baz", "qux")]);
+        let object_of_numbers = Value::from_iter([("foo", 1), ("bar", 2)]);
+
+        let param = ParamType::String;
+        assert!(param.is_satisfied_by(&string));
+        assert!(!param.is_satisfied_by(&number));
+
+        let param = ParamType::Any;
+        assert!(param.is_satisfied_by(&string));
+        assert!(param.is_satisfied_by(&number));
+
+        let param = ParamType::nullable(ParamType::String);
+        assert!(param.is_satisfied_by(&string));
+        assert!(param.is_satisfied_by(&Value::Null));
+        assert!(!param.is_satisfied_by(&number));
+
+        let param = ParamType::one_of([ParamType::String, ParamType::Number]);
+        assert!(param.is_satisfied_by(&string));
+        assert!(param.is_satisfied_by(&number));
+        assert!(!param.is_satisfied_by(&boolean));
+
+        let param = ParamType::array_of(ParamType::String);
+        assert!(param.is_satisfied_by(&string_array));
+        assert!(!param.is_satisfied_by(&number_array));
+
+        let param = ParamType::object_of(ParamType::String);
+        assert!(param.is_satisfied_by(&object_of_strings));
+        assert!(!param.is_satisfied_by(&object_of_numbers));
     }
 }
