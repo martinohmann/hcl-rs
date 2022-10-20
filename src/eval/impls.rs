@@ -1,5 +1,6 @@
 use super::*;
 use indexmap::map::Entry;
+use std::hash::Hash;
 
 impl private::Sealed for Body {}
 
@@ -77,20 +78,33 @@ impl Evaluate for Expression {
     }
 }
 
-impl private::Sealed for Vec<Expression> {}
+impl<T> private::Sealed for Vec<T> where T: Evaluate {}
 
-impl Evaluate for Vec<Expression> {
-    type Output = Vec<Value>;
+impl<T> Evaluate for Vec<T>
+where
+    T: Evaluate,
+{
+    type Output = Vec<T::Output>;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         self.iter().map(|expr| expr.evaluate(ctx)).collect()
     }
 }
 
-impl private::Sealed for Object<ObjectKey, Expression> {}
+impl<K, V> private::Sealed for Object<K, V>
+where
+    K: Evaluate,
+    V: Evaluate,
+{
+}
 
-impl Evaluate for Object<ObjectKey, Expression> {
-    type Output = Map<String, Value>;
+impl<K, V> Evaluate for Object<K, V>
+where
+    K: Evaluate,
+    K::Output: Hash + Eq,
+    V: Evaluate,
+{
+    type Output = Map<K::Output, V::Output>;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
         self.iter()
