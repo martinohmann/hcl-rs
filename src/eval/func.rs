@@ -347,7 +347,7 @@ impl FuncDefBuilder {
     ///     .build(printf);
     /// ```
     pub fn variadic_param(mut self, param: ParamType) -> FuncDefBuilder {
-        self.variadic_param = Some(param.into());
+        self.variadic_param = Some(param);
         self
     }
 
