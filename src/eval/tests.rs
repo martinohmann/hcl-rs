@@ -29,7 +29,10 @@ where
     E: Into<Error>,
 {
     let ctx = Context::new();
-    assert_eq!(value.evaluate(&ctx).unwrap_err(), expected.into());
+    let err = value.evaluate(&ctx).unwrap_err();
+    let expected = expected.into();
+    assert_eq!(err.kind(), expected.kind());
+    assert_eq!(err.expr(), expected.expr());
 }
 
 #[test]

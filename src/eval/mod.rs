@@ -160,7 +160,7 @@ impl<'a> Context<'a> {
         T: Into<ErrorKind>,
     {
         match self.expr() {
-            Some(expr) => Error::new_with_expr(inner, expr.clone()),
+            Some(expr) => Error::new_with_expr(inner, Some(expr.clone())),
             None => Error::new(inner),
         }
     }

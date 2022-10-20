@@ -5,35 +5,26 @@ use std::fmt;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// The error type returned by all fallible operations within this module.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct Error {
-    inner: Box<ErrorKind>,
-    expr: Option<Expression>,
+    inner: Box<ErrorInner>,
 }
 
 impl Error {
-    pub(super) fn new<T>(inner: T) -> Error
+    pub(super) fn new<T>(kind: T) -> Error
+    where
+        T: Into<ErrorKind>,
+    {
+        Error::new_with_expr(kind, None)
+    }
+
+    pub(super) fn new_with_expr<T>(kind: T, expr: Option<Expression>) -> Error
     where
         T: Into<ErrorKind>,
     {
         Error {
-            inner: Box::new(inner.into()),
-            expr: None,
+            inner: Box::new(ErrorInner::new(kind.into(), expr)),
         }
-    }
-
-    pub(super) fn new_with_expr<T>(inner: T, expr: Expression) -> Error
-    where
-        T: Into<ErrorKind>,
-    {
-        let mut err = Error::new(inner);
-        err.expr = Some(expr);
-        err
-    }
-
-    /// Returns a reference to the `ErrorKind` for further error matching.
-    pub fn kind(&self) -> &ErrorKind {
-        &self.inner
     }
 
     pub(super) fn unexpected<T>(value: T, expected: &'static str) -> Error
@@ -42,41 +33,26 @@ impl Error {
     {
         Error::new(ErrorKind::Unexpected(value.into(), expected))
     }
+
+    /// Returns a reference to the `ErrorKind` for further error matching.
+    pub fn kind(&self) -> &ErrorKind {
+        &self.inner.kind
+    }
+
+    /// Returns a reference to the `Expression` that caused the error, if there is one.
+    pub fn expr(&self) -> Option<&Expression> {
+        self.inner.expr.as_ref()
+    }
+
+    /// Consumes the `Error` and returns the `ErrorKind`.
+    pub fn into_kind(self) -> ErrorKind {
+        self.inner.kind
+    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.inner)?;
-
-        if let Some(expr) = &self.expr {
-            write!(f, " in expression: {}", expr)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl From<&str> for Error {
-    fn from(msg: &str) -> Self {
-        From::from(msg.to_string())
-    }
-}
-
-impl From<String> for Error {
-    fn from(msg: String) -> Self {
-        Error::new(ErrorKind::Message(msg))
-    }
-}
-
-impl From<crate::Error> for Error {
-    fn from(err: crate::Error) -> Self {
-        From::from(err.to_string())
-    }
-}
-
-impl From<Error> for ErrorKind {
-    fn from(err: Error) -> Self {
-        *err.inner
+        fmt::Display::fmt(&self.inner, f)
     }
 }
 
@@ -86,7 +62,39 @@ impl From<ErrorKind> for Error {
     }
 }
 
+impl From<crate::Error> for Error {
+    fn from(err: crate::Error) -> Self {
+        Error::new(ErrorKind::Custom(err.to_string()))
+    }
+}
+
 impl std::error::Error for Error {}
+
+// The inner type that holds the actual error data. This is a separate type because it gets boxed
+// to keep the size of the `Error` struct small.
+#[derive(Debug, Clone)]
+struct ErrorInner {
+    kind: ErrorKind,
+    expr: Option<Expression>,
+}
+
+impl ErrorInner {
+    fn new(kind: ErrorKind, expr: Option<Expression>) -> ErrorInner {
+        ErrorInner { kind, expr }
+    }
+}
+
+impl fmt::Display for ErrorInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.kind)?;
+
+        if let Some(expr) = &self.expr {
+            write!(f, " in expression `{}`", expr)?;
+        }
+
+        Ok(())
+    }
+}
 
 /// An enum representing all kinds of errors that can happen during the evaluation of HCL
 /// expressions and templates.
@@ -94,7 +102,7 @@ impl std::error::Error for Error {}
 #[non_exhaustive]
 pub enum ErrorKind {
     RawExpression,
-    Message(String),
+    Custom(String),
     UndefinedVariable(Identifier),
     UndefinedFunc(Identifier),
     Unexpected(Value, &'static str),
@@ -106,11 +114,17 @@ pub enum ErrorKind {
     FuncCall(Identifier, String),
 }
 
+impl From<Error> for ErrorKind {
+    fn from(err: Error) -> Self {
+        err.into_kind()
+    }
+}
+
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
-            ErrorKind::Message(msg) => f.write_str(msg),
+            ErrorKind::Custom(msg) => f.write_str(msg),
             ErrorKind::UndefinedVariable(ident) => {
                 write!(f, "undefined variable `{}`", ident)
             }
