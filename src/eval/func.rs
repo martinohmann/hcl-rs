@@ -239,7 +239,7 @@ where
 ///     Param::new("b", ParamType::Number)
 /// ];
 ///
-/// let func_def = FuncDef::new("add", add, params);
+/// let func_def = FuncDef::new(add, params);
 /// ```
 ///
 /// Alternatively, the [`FuncDefBuilder`] can be used to construct the `FuncDef`:
@@ -250,7 +250,7 @@ where
 /// # fn add(args: FuncArgs) -> Result<Value, String> {
 /// #    unimplemented!()
 /// # }
-/// let func_def = FuncDef::builder("add")
+/// let func_def = FuncDef::builder()
 ///     .param(("a", ParamType::Number))
 ///     .param(("b", ParamType::Number))
 ///     .build(add);
@@ -259,14 +259,13 @@ where
 /// See the documentation of the [`FuncDefBuilder`] for all available methods.
 #[derive(Debug, Clone)]
 pub struct FuncDef {
-    name: Identifier,
     func: Func,
     params: Vec<Param>,
     variadic_param: Option<Param>,
 }
 
 impl FuncDef {
-    /// Creates a new `FuncDef` from a name, function and it parameters.
+    /// Creates a new `FuncDef` from a function and its parameters.
     ///
     /// **Note**: if you want to define a `FuncDef` with a variadic parameter, use the
     /// [`.builder()`] method. It provides a [`FuncDefBuilder`] which also lets you define
@@ -275,32 +274,22 @@ impl FuncDef {
     /// See the type-level documentation of [`FuncDef`] for usage examples.
     ///
     /// [`.builder()`]: FuncDef::builder
-    pub fn new<I, P>(name: I, func: Func, params: P) -> FuncDef
+    pub fn new<P>(func: Func, params: P) -> FuncDef
     where
-        I: Into<Identifier>,
         P: IntoIterator,
         P::Item: Into<Param>,
     {
-        FuncDef::builder(name).params(params).build(func)
+        FuncDef::builder().params(params).build(func)
     }
 
     /// Creates a [`FuncDefBuilder`].
     ///
     /// See the type-level documentation of [`FuncDef`] for usage examples.
-    pub fn builder<I>(name: I) -> FuncDefBuilder
-    where
-        I: Into<Identifier>,
-    {
+    pub fn builder() -> FuncDefBuilder {
         FuncDefBuilder {
-            name: name.into(),
             params: Vec::new(),
             variadic_param: None,
         }
-    }
-
-    /// Returns a reference to the function name.
-    pub fn name(&self) -> &Identifier {
-        &self.name
     }
 
     /// Returns a reference to the function parameters.
@@ -336,7 +325,7 @@ impl FuncDef {
     ///     Ok(Value::Number(*a + *b))
     /// }
     ///
-    /// let func_def = FuncDef::builder("add")
+    /// let func_def = FuncDef::builder()
     ///     .param(("a", ParamType::Number))
     ///     .param(("b", ParamType::Number))
     ///     .build(add);
@@ -402,7 +391,6 @@ impl FuncDef {
 /// [`.builder()`]: FuncDef::builder
 #[derive(Debug)]
 pub struct FuncDefBuilder {
-    name: Identifier,
     params: Vec<Param>,
     variadic_param: Option<Param>,
 }
@@ -423,7 +411,7 @@ impl FuncDefBuilder {
     /// # fn strlen(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
-    /// let func_def = FuncDef::builder("strlen")
+    /// let func_def = FuncDef::builder()
     ///     .param(("string", ParamType::String))
     ///     .build(strlen);
     /// ```
@@ -450,7 +438,7 @@ impl FuncDefBuilder {
     /// # fn add3(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
-    /// let func_def = FuncDef::builder("add3")
+    /// let func_def = FuncDef::builder()
     ///     .params([
     ///         ("a", ParamType::Number),
     ///         ("b", ParamType::Number),
@@ -480,7 +468,7 @@ impl FuncDefBuilder {
     /// # fn printf(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
-    /// let func_def = FuncDef::builder("printf")
+    /// let func_def = FuncDef::builder()
     ///     .param(("format", ParamType::String))
     ///     .variadic_param(("args", ParamType::Any))
     ///     .build(printf);
@@ -497,7 +485,6 @@ impl FuncDefBuilder {
     /// contents of the builder.
     pub fn build(self, func: Func) -> FuncDef {
         FuncDef {
-            name: self.name,
             func,
             params: self.params,
             variadic_param: self.variadic_param,

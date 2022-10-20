@@ -165,12 +165,9 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func_def.call(args).map_err(|err| {
-            ctx.error(ErrorKind::FuncCall(
-                func_def.name().clone(),
-                err.to_string(),
-            ))
-        })
+        func_def
+            .call(args)
+            .map_err(|err| ctx.error(ErrorKind::FuncCall(self.name.clone(), err.to_string())))
     }
 }
 

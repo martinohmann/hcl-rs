@@ -95,7 +95,7 @@ impl<'a> Context<'a> {
         self
     }
 
-    /// Defines a function which is available in the current and all child scopes.
+    /// Defines a function.
     ///
     /// See the documentation of the [`FuncDef`][FuncDef] type to learn about all available
     /// options for constructing a function definition.
@@ -114,15 +114,18 @@ impl<'a> Context<'a> {
     ///     Ok(Value::from(args[0].as_str().unwrap().len()))
     /// }
     ///
-    /// let func_def = FuncDef::builder("strlen")
+    /// let func_def = FuncDef::builder()
     ///     .param(Param::new("s", ParamType::String))
     ///     .build(strlen);
     ///
     /// let mut ctx = Context::new();
-    /// ctx.define_func(func_def);
+    /// ctx.define_func("strlen", func_def);
     /// ```
-    pub fn define_func(&mut self, func: FuncDef) -> &mut Self {
-        self.funcs.insert(func.name().clone(), func);
+    pub fn define_func<I>(&mut self, name: I, func: FuncDef) -> &mut Self
+    where
+        I: Into<Identifier>,
+    {
+        self.funcs.insert(name.into(), func);
         self
     }
 
