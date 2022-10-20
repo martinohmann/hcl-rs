@@ -43,10 +43,10 @@ impl ParamType {
     /// let string_array = Value::from_iter(["foo", "bar"]);
     /// let number_array = Value::from_iter([1, 2, 3]);
     ///
-    /// let param_type = ParamType::array_of(ParamType::String);
+    /// let param = ParamType::array_of(ParamType::String);
     ///
-    /// assert!(param_type.is_satisfied_by(&string_array));
-    /// assert!(!param_type.is_satisfied_by(&number_array));
+    /// assert!(param.is_satisfied_by(&string_array));
+    /// assert!(!param.is_satisfied_by(&number_array));
     /// ```
     pub fn array_of(element: ParamType) -> Self {
         ParamType::Array(Box::new(element))
@@ -63,10 +63,10 @@ impl ParamType {
     /// let object_of_strings = Value::from_iter([("foo", "bar"), ("baz", "qux")]);
     /// let object_of_numbers = Value::from_iter([("foo", 1), ("bar", 2)]);
     ///
-    /// let param_type = ParamType::object_of(ParamType::String);
+    /// let param = ParamType::object_of(ParamType::String);
     ///
-    /// assert!(param_type.is_satisfied_by(&object_of_strings));
-    /// assert!(!param_type.is_satisfied_by(&object_of_numbers));
+    /// assert!(param.is_satisfied_by(&object_of_strings));
+    /// assert!(!param.is_satisfied_by(&object_of_numbers));
     /// ```
     pub fn object_of(element: ParamType) -> Self {
         ParamType::Object(Box::new(element))
@@ -82,11 +82,11 @@ impl ParamType {
     /// let number = Value::from(42);
     /// let boolean = Value::from(true);
     ///
-    /// let param_type = ParamType::one_of([ParamType::String, ParamType::Number]);
+    /// let param = ParamType::one_of([ParamType::String, ParamType::Number]);
     ///
-    /// assert!(param_type.is_satisfied_by(&string));
-    /// assert!(param_type.is_satisfied_by(&number));
-    /// assert!(!param_type.is_satisfied_by(&boolean));
+    /// assert!(param.is_satisfied_by(&string));
+    /// assert!(param.is_satisfied_by(&number));
+    /// assert!(!param.is_satisfied_by(&boolean));
     /// ```
     pub fn one_of<I>(alternatives: I) -> Self
     where
@@ -104,11 +104,11 @@ impl ParamType {
     /// let string = Value::from("a string");
     /// let number = Value::from(42);
     ///
-    /// let param_type = ParamType::nullable(ParamType::String);
+    /// let param = ParamType::nullable(ParamType::String);
     ///
-    /// assert!(param_type.is_satisfied_by(&string));
-    /// assert!(param_type.is_satisfied_by(&Value::Null));
-    /// assert!(!param_type.is_satisfied_by(&number));
+    /// assert!(param.is_satisfied_by(&string));
+    /// assert!(param.is_satisfied_by(&Value::Null));
+    /// assert!(!param.is_satisfied_by(&number));
     /// ```
     pub fn nullable(non_null: ParamType) -> Self {
         ParamType::Nullable(Box::new(non_null))
@@ -123,15 +123,15 @@ impl ParamType {
     /// let string = Value::from("a string");
     /// let number = Value::from(42);
     ///
-    /// let param_type = ParamType::String;
+    /// let param = ParamType::String;
     ///
-    /// assert!(param_type.is_satisfied_by(&string));
-    /// assert!(!param_type.is_satisfied_by(&number));
+    /// assert!(param.is_satisfied_by(&string));
+    /// assert!(!param.is_satisfied_by(&number));
     ///
-    /// let param_type = ParamType::Any;
+    /// let param = ParamType::Any;
     ///
-    /// assert!(param_type.is_satisfied_by(&string));
-    /// assert!(param_type.is_satisfied_by(&number));
+    /// assert!(param.is_satisfied_by(&string));
+    /// assert!(param.is_satisfied_by(&number));
     /// ```
     pub fn is_satisfied_by(&self, value: &Value) -> bool {
         match self {
@@ -185,47 +185,12 @@ impl fmt::Display for ParamType {
     }
 }
 
-/// A function parameter.
-#[derive(Debug, Clone)]
-pub struct Param {
-    name: Identifier,
-    type_: ParamType,
-}
-
-impl Param {
-    /// Creates a new function parameter from a name and a type.
-    pub fn new<I>(name: I, type_: ParamType) -> Self
-    where
-        I: Into<Identifier>,
-    {
-        Param {
-            name: name.into(),
-            type_,
-        }
-    }
-
-    /// Tests the given value against the parameter's type.
-    pub fn is_satisfied_by(&self, value: &Value) -> bool {
-        self.type_.is_satisfied_by(value)
-    }
-}
-
-impl<I, T> From<(I, T)> for Param
-where
-    I: Into<Identifier>,
-    T: Into<ParamType>,
-{
-    fn from((name, type_): (I, T)) -> Self {
-        Param::new(name, type_.into())
-    }
-}
-
 /// The definition of a function that can be called in expressions and templates.
 ///
 /// # Examples
 ///
 /// ```
-/// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+/// use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
 /// use hcl::Value;
 ///
 /// fn add(args: FuncArgs) -> Result<Value, String> {
@@ -234,10 +199,7 @@ where
 ///     Ok(Value::Number(*a + *b))
 /// }
 ///
-/// let params = vec![
-///     Param::new("a", ParamType::Number),
-///     Param::new("b", ParamType::Number)
-/// ];
+/// let params = vec![ParamType::Number, ParamType::Number];
 ///
 /// let func_def = FuncDef::new(add, params);
 /// ```
@@ -245,14 +207,14 @@ where
 /// Alternatively, the [`FuncDefBuilder`] can be used to construct the `FuncDef`:
 ///
 /// ```
-/// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+/// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
 /// # use hcl::Value;
 /// # fn add(args: FuncArgs) -> Result<Value, String> {
 /// #    unimplemented!()
 /// # }
 /// let func_def = FuncDef::builder()
-///     .param(("a", ParamType::Number))
-///     .param(("b", ParamType::Number))
+///     .param(ParamType::Number)
+///     .param(ParamType::Number)
 ///     .build(add);
 /// ```
 ///
@@ -260,8 +222,8 @@ where
 #[derive(Debug, Clone)]
 pub struct FuncDef {
     func: Func,
-    params: Vec<Param>,
-    variadic_param: Option<Param>,
+    params: Vec<ParamType>,
+    variadic_param: Option<ParamType>,
 }
 
 impl FuncDef {
@@ -276,8 +238,7 @@ impl FuncDef {
     /// [`.builder()`]: FuncDef::builder
     pub fn new<P>(func: Func, params: P) -> FuncDef
     where
-        P: IntoIterator,
-        P::Item: Into<Param>,
+        P: IntoIterator<Item = ParamType>,
     {
         FuncDef::builder().params(params).build(func)
     }
@@ -293,12 +254,12 @@ impl FuncDef {
     }
 
     /// Returns a reference to the function parameters.
-    pub fn params(&self) -> &[Param] {
+    pub fn params(&self) -> &[ParamType] {
         &self.params
     }
 
     /// Returns a reference to the function's variadic parameter, or `None` if none is defined.
-    pub fn variadic_param(&self) -> Option<&Param> {
+    pub fn variadic_param(&self) -> Option<&ParamType> {
         self.variadic_param.as_ref()
     }
 
@@ -316,7 +277,7 @@ impl FuncDef {
     /// # Examples
     ///
     /// ```
-    /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+    /// use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
     /// use hcl::Value;
     ///
     /// fn add(args: FuncArgs) -> Result<Value, String> {
@@ -326,8 +287,8 @@ impl FuncDef {
     /// }
     ///
     /// let func_def = FuncDef::builder()
-    ///     .param(("a", ParamType::Number))
-    ///     .param(("b", ParamType::Number))
+    ///     .param(ParamType::Number)
+    ///     .param(ParamType::Number)
     ///     .build(add);
     ///
     /// assert!(func_def.call(["a", "b"]).is_err());
@@ -356,8 +317,8 @@ impl FuncDef {
         for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
             if !param.is_satisfied_by(arg) {
                 return Err(Error::new(format!(
-                    "expected argument `{}` at position {} to be of type {}, got `{}`",
-                    param.name, param.type_, pos, arg
+                    "expected argument at position {} to be of type {}, got `{}`",
+                    pos, param, arg
                 )));
             }
         }
@@ -366,10 +327,9 @@ impl FuncDef {
             for (pos, arg) in var_args.iter().enumerate() {
                 if !var_param.is_satisfied_by(arg) {
                     return Err(Error::new(format!(
-                        "expected variadic argument `{}` at position {} to be of type {}, got `{}`",
-                        var_param.name,
-                        var_param.type_,
+                        "expected variadic argument at position {} to be of type {}, got `{}`",
                         params_len + pos,
+                        var_param,
                         arg
                     )));
                 }
@@ -391,8 +351,8 @@ impl FuncDef {
 /// [`.builder()`]: FuncDef::builder
 #[derive(Debug)]
 pub struct FuncDefBuilder {
-    params: Vec<Param>,
-    variadic_param: Option<Param>,
+    params: Vec<ParamType>,
+    variadic_param: Option<ParamType>,
 }
 
 impl FuncDefBuilder {
@@ -406,20 +366,17 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
     /// # use hcl::Value;
     /// # fn strlen(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder()
-    ///     .param(("string", ParamType::String))
+    ///     .param(ParamType::String)
     ///     .build(strlen);
     /// ```
-    pub fn param<P>(mut self, param: P) -> FuncDefBuilder
-    where
-        P: Into<Param>,
-    {
-        self.params.push(param.into());
+    pub fn param(mut self, param: ParamType) -> FuncDefBuilder {
+        self.params.push(param);
         self
     }
 
@@ -433,25 +390,24 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
     /// # use hcl::Value;
     /// # fn add3(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder()
     ///     .params([
-    ///         ("a", ParamType::Number),
-    ///         ("b", ParamType::Number),
-    ///         ("c", ParamType::Number),
+    ///         ParamType::Number,
+    ///         ParamType::Number,
+    ///         ParamType::Number,
     ///     ])
     ///     .build(add3);
     /// ```
     pub fn params<I>(mut self, params: I) -> FuncDefBuilder
     where
-        I: IntoIterator,
-        I::Item: Into<Param>,
+        I: IntoIterator<Item = ParamType>,
     {
-        self.params.extend(params.into_iter().map(Into::into));
+        self.params.extend(params.into_iter());
         self
     }
 
@@ -463,20 +419,17 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
     /// # use hcl::Value;
     /// # fn printf(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
     /// # }
     /// let func_def = FuncDef::builder()
-    ///     .param(("format", ParamType::String))
-    ///     .variadic_param(("args", ParamType::Any))
+    ///     .param(ParamType::String)
+    ///     .variadic_param(ParamType::Any)
     ///     .build(printf);
     /// ```
-    pub fn variadic_param<P>(mut self, param: P) -> FuncDefBuilder
-    where
-        P: Into<Param>,
-    {
+    pub fn variadic_param(mut self, param: ParamType) -> FuncDefBuilder {
         self.variadic_param = Some(param.into());
         self
     }

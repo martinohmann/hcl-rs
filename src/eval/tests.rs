@@ -320,14 +320,12 @@ fn eval_func_call() {
     ctx.define_func(
         "add",
         FuncDef::builder()
-            .params([("a", ParamType::Number), ("b", ParamType::Number)])
+            .params([ParamType::Number, ParamType::Number])
             .build(add),
     );
     ctx.define_func(
         "strlen",
-        FuncDef::builder()
-            .param(("s", ParamType::String))
-            .build(strlen),
+        FuncDef::builder().param(ParamType::String).build(strlen),
     );
 
     eval_to_ctx(

@@ -105,7 +105,7 @@ impl<'a> Context<'a> {
     /// ```
     /// # use hcl::eval::Context;
     /// use hcl::Value;
-    /// use hcl::eval::{FuncArgs, FuncDef, Param, ParamType, Result};
+    /// use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
     ///
     /// fn strlen(args: FuncArgs) -> Result<Value, String> {
     ///     // The arguments are already validated against the function
@@ -115,7 +115,7 @@ impl<'a> Context<'a> {
     /// }
     ///
     /// let func_def = FuncDef::builder()
-    ///     .param(Param::new("s", ParamType::String))
+    ///     .param(ParamType::String)
     ///     .build(strlen);
     ///
     /// let mut ctx = Context::new();
