@@ -153,7 +153,8 @@ impl Evaluate for FuncCall {
     type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
-        let func_def = ctx.lookup_func(&self.name)?;
+        let name = &self.name;
+        let func = ctx.lookup_func(name)?;
         let len = self.args.len();
         let mut args = Vec::with_capacity(len);
 
@@ -165,9 +166,8 @@ impl Evaluate for FuncCall {
             }
         }
 
-        func_def
-            .call(args)
-            .map_err(|err| ctx.error(ErrorKind::FuncCall(self.name.clone(), err.to_string())))
+        func.call(args)
+            .map_err(|err| ctx.error(ErrorKind::FuncCall(name.clone(), err)))
     }
 }
 

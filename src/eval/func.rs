@@ -212,7 +212,7 @@ impl FuncDef {
     /// assert!(func_def.call([1]).is_err());
     /// assert_eq!(func_def.call([1, 2]).unwrap(), Value::from(3));
     /// ```
-    pub fn call<I>(&self, args: I) -> Result<Value>
+    pub fn call<I>(&self, args: I) -> Result<Value, String>
     where
         I: IntoIterator,
         I::Item: Into<Value>,
@@ -223,39 +223,39 @@ impl FuncDef {
         let var_param = &self.variadic_param;
 
         if args_len < params_len || (var_param.is_none() && args_len > params_len) {
-            return Err(Error::new(format!(
+            return Err(format!(
                 "expected {} positional arguments, got {}",
                 params_len, args_len,
-            )));
+            ));
         }
 
         let (pos_args, var_args) = args.split_at(params_len);
 
         for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
             if !param.is_satisfied_by(arg) {
-                return Err(Error::new(format!(
+                return Err(format!(
                     "expected argument at position {} to be of type {}, got `{}`",
                     pos, param, arg
-                )));
+                ));
             }
         }
 
         if let Some(var_param) = &var_param {
             for (pos, arg) in var_args.iter().enumerate() {
                 if !var_param.is_satisfied_by(arg) {
-                    return Err(Error::new(format!(
+                    return Err(format!(
                         "expected variadic argument at position {} to be of type {}, got `{}`",
                         params_len + pos,
                         var_param,
                         arg
-                    )));
+                    ));
                 }
             }
         }
 
         let func_args = FuncArgs::new(args, params_len);
 
-        (self.func)(func_args).map_err(Error::new)
+        (self.func)(func_args)
     }
 }
 
