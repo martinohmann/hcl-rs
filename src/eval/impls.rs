@@ -288,13 +288,12 @@ impl Evaluate for ForExpr {
                     let value = self.value_expr.evaluate(ctx)?;
 
                     if self.grouping {
-                        match result
+                        result
                             .entry(key)
                             .or_insert_with(|| Value::Array(Vec::new()))
-                        {
-                            Value::Array(array) => array.push(value),
-                            _ => unreachable!(),
-                        }
+                            .as_array_mut()
+                            .unwrap()
+                            .push(value);
                     } else {
                         match result.entry(key) {
                             Entry::Occupied(entry) => {
@@ -313,11 +312,10 @@ impl Evaluate for ForExpr {
             }
             None => {
                 // Result will be an array.
-                let mut result = Vec::with_capacity(collection.len());
-
-                for ctx in collection.into_iter() {
-                    result.push(self.value_expr.evaluate(&ctx?)?);
-                }
+                let result = collection
+                    .into_iter()
+                    .map(|ctx| self.value_expr.evaluate(&ctx?))
+                    .collect::<EvalResult<_>>()?;
 
                 Ok(Value::Array(result))
             }
