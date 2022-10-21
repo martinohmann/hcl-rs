@@ -10,7 +10,7 @@ impl Evaluate for Body {
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter()
             .map(|structure| structure.evaluate(ctx))
-            .collect::<EvalResult<Body>>()
+            .collect()
     }
 }
 
