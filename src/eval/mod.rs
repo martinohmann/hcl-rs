@@ -188,13 +188,8 @@ impl<'a> Context<'a> {
     /// When the variable is defined in multiple parent scopes, the innermost variable's value is
     /// returned.
     fn lookup_var(&self, name: &Identifier) -> EvalResult<&Value> {
-        match self.vars.get(name) {
-            Some(value) => Ok(value),
-            None => match self.parent {
-                Some(parent) => parent.lookup_var(name).map_err(|err| self.error(err)),
-                None => Err(self.error(ErrorKind::UndefinedVar(name.clone()))),
-            },
-        }
+        self.var(name)
+            .ok_or_else(|| self.error(ErrorKind::UndefinedVar(name.clone())))
     }
 
     /// Lookup a function definition.
@@ -202,13 +197,8 @@ impl<'a> Context<'a> {
     /// When the function is defined in multiple parent scopes, the innermost definition is
     /// returned.
     fn lookup_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
-        match self.funcs.get(name) {
-            Some(func) => Ok(func),
-            None => match self.parent {
-                Some(parent) => parent.lookup_func(name).map_err(|err| self.error(err)),
-                None => Err(self.error(ErrorKind::UndefinedFunc(name.clone()))),
-            },
-        }
+        self.func(name)
+            .ok_or_else(|| self.error(ErrorKind::UndefinedFunc(name.clone())))
     }
 
     /// Creates an error enriched with expression information, if available.
@@ -224,13 +214,24 @@ impl<'a> Context<'a> {
         }
     }
 
+    fn var(&self, name: &Identifier) -> Option<&Value> {
+        self.vars
+            .get(name)
+            .or_else(|| self.parent.and_then(|parent| parent.var(name)))
+    }
+
+    fn func(&self, name: &Identifier) -> Option<&FuncDef> {
+        self.funcs
+            .get(name)
+            .or_else(|| self.parent.and_then(|parent| parent.func(name)))
+    }
+
     fn expr(&self) -> Option<&Expression> {
-        self.expr
-            .or_else(|| self.parent.and_then(|parent| parent.expr()))
+        self.expr.or_else(|| self.parent.and_then(Context::expr))
     }
 
     fn parent_expr(&self) -> Option<&Expression> {
-        self.parent.and_then(|parent| parent.expr())
+        self.parent.and_then(Context::expr)
     }
 }
 
