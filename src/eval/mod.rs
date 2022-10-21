@@ -1,4 +1,57 @@
-//! HCL expression evaluation.
+//! Evaluate HCL templates and expressions.
+//!
+//! This module provides the [`Evaluate`] trait which enables HCL template and expression
+//! evaluation. It is implemented for various types that either directly or transitively contain
+//! templates or expressions that need to be evaluated.
+//!
+//! Additionally, the [`Context`] type is used to define variables and functions to make them
+//! available during expression evaluation.
+//!
+//! For convenience, the [`from_str`] and [`to_string`] functions are provided which enable
+//! expression evaluation during (de-)serialization directly. Check out their function docs for
+//! usage examples.
+//!
+//! # Example
+//!
+//! HCL expressions can contain variables and functions which are made available through the
+//! [`Context`] value passed to [`Evaluate::evaluate`][Evaluate::evaluate]. Function definitions
+//! are created via the [`FuncDef`] type which contains more information in its type-level
+//! documentation.
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::eval::{Context, Evaluate, FuncArgs, FuncDef, ParamType};
+//! use hcl::{TemplateExpr, Value};
+//!
+//! // A template expression which needs to be evaluated. It needs access
+//! // to the `uppercase` function and `name` variable.
+//! let expr = TemplateExpr::QuotedString("Hello ${uppercase(name)}!".into());
+//!
+//! // A function that is made available to expressions via the `Context` value.
+//! fn uppercase(args: FuncArgs) -> Result<Value, String> {
+//!     // We know that there is one argument and it is of type `String`
+//!     // because the function arguments are validated using the parameter
+//!     // type information in the `FuncDef` before calling the function.
+//!     Ok(Value::from(args[0].as_str().unwrap().to_uppercase()))
+//! }
+//!
+//! // Create a definition for the `uppercase` function.
+//! let uppercase_func = FuncDef::builder()
+//!     .param(ParamType::String)
+//!     .build(uppercase);
+//!
+//! // Create the context and add variables and functions to it.
+//! let mut ctx = Context::new();
+//! ctx.define_var("name", "world");
+//! ctx.define_func("uppercase", uppercase_func);
+//!
+//! // Evaluate the expression.
+//! assert_eq!(expr.evaluate(&ctx)?, "Hello WORLD!");
+//! #   Ok(())
+//! # }
+//! ```
 
 mod error;
 mod expr;
@@ -89,13 +142,12 @@ impl<'a> Context<'a> {
     /// let mut ctx = Context::new();
     /// ctx.define_var("some_number", 42);
     /// ```
-    pub fn define_var<I, T>(&mut self, name: I, value: T) -> &mut Self
+    pub fn define_var<I, T>(&mut self, name: I, value: T)
     where
         I: Into<Identifier>,
         T: Into<Value>,
     {
         self.vars.insert(name.into(), value.into());
-        self
     }
 
     /// Defines a function.
@@ -124,12 +176,11 @@ impl<'a> Context<'a> {
     /// let mut ctx = Context::new();
     /// ctx.define_func("strlen", func_def);
     /// ```
-    pub fn define_func<I>(&mut self, name: I, func: FuncDef) -> &mut Self
+    pub fn define_func<I>(&mut self, name: I, func: FuncDef)
     where
         I: Into<Identifier>,
     {
         self.funcs.insert(name.into(), func);
-        self
     }
 
     /// Lookup a variable's value.
@@ -187,7 +238,7 @@ impl<'a> Context<'a> {
 /// use hcl::eval::Context;
 /// use hcl::Body;
 ///
-/// let input = r#"hello = "Hello, ${name}!""#;
+/// let input = r#"hello_world = "Hello, ${name}!""#;
 ///
 /// let mut ctx = Context::new();
 /// ctx.define_var("name", "Rust");
@@ -195,7 +246,7 @@ impl<'a> Context<'a> {
 /// let body: Body = hcl::eval::from_str(input, &ctx)?;
 ///
 /// let expected = Body::builder()
-///     .add_attribute(("hello", "Hello, Rust!"))
+///     .add_attribute(("hello_world", "Hello, Rust!"))
 ///     .build();
 ///
 /// assert_eq!(body, expected);
@@ -222,8 +273,10 @@ where
 /// use hcl::eval::Context;
 /// use hcl::{Body, TemplateExpr};
 ///
+/// let expr = TemplateExpr::QuotedString("Hello, ${name}!".into());
+///
 /// let body = Body::builder()
-///     .add_attribute(("hello", TemplateExpr::QuotedString("Hello, ${name}!".into())))
+///     .add_attribute(("hello_world", expr))
 ///     .build();
 ///
 /// let mut ctx = Context::new();
@@ -231,7 +284,7 @@ where
 ///
 /// let string = hcl::eval::to_string(&body, &ctx)?;
 ///
-/// assert_eq!(string, "hello = \"Hello, Rust!\"\n");
+/// assert_eq!(string, "hello_world = \"Hello, Rust!\"\n");
 /// #   Ok(())
 /// # }
 /// ```

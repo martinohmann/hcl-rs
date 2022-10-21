@@ -20,11 +20,10 @@ A rust library for interacting with the Hashicorp Configuration Language (HCL).
   sub-languages in attribute values
 - Support for deserializing and serializing arbitrary types that
   implement `serde::Deserialize` or `serde::Serialize`
+- Evaluation of the HCL expression and template sub-languages
 
 ## Planned Features
 
-- Evaluation of HCL expressions and the template sub-language (currently in
-  progress)
 
 ## Deserialization examples
 

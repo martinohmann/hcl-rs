@@ -112,7 +112,7 @@ impl fmt::Display for ParamType {
     }
 }
 
-/// The definition of a function that can be called in expressions and templates.
+/// The definition of a function that can be called in HCL expressions.
 ///
 /// # Examples
 ///
@@ -259,7 +259,7 @@ impl FuncDef {
     }
 }
 
-/// A builder for `FuncDef` values.
+/// A builder for [`FuncDef`] values.
 ///
 /// The builder is created by the [`.builder()`] method of `FuncDef`.
 ///
