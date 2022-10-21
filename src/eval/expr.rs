@@ -97,7 +97,7 @@ fn evaluate_array_value(mut value: Value, index: usize, ctx: &Context) -> EvalRe
             if index < array.len() {
                 Ok(array.swap_remove(index))
             } else {
-                Err(ctx.error(ErrorKind::IndexOutOfBounds(index)))
+                Err(ctx.error(ErrorKind::Index(index)))
             }
         }
         None => Err(ctx.error(Error::unexpected(value, "an array"))),

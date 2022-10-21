@@ -225,9 +225,7 @@ impl Evaluate for UnaryOp {
         let value = match (self.operator, value) {
             (Not, Bool(v)) => Bool(!v),
             (Neg, Number(n)) => Number(-n),
-            (operator, value) => {
-                return Err(ctx.error(ErrorKind::ImpossibleUnaryOp(operator, value)))
-            }
+            (operator, value) => return Err(ctx.error(ErrorKind::UnaryOp(operator, value))),
         };
 
         Ok(value)
@@ -260,9 +258,7 @@ impl Evaluate for BinaryOp {
             (Number(lhs), Mul, Number(rhs)) => Number(lhs * rhs),
             (Number(lhs), Div, Number(rhs)) => Number(lhs / rhs),
             (Number(lhs), Mod, Number(rhs)) => Number(lhs % rhs),
-            (lhs, operator, rhs) => {
-                return Err(ctx.error(ErrorKind::ImpossibleBinaryOp(lhs, operator, rhs)))
-            }
+            (lhs, operator, rhs) => return Err(ctx.error(ErrorKind::BinaryOp(lhs, operator, rhs))),
         };
 
         Ok(value)
@@ -297,9 +293,7 @@ impl Evaluate for ForExpr {
                     } else {
                         match result.entry(key) {
                             Entry::Occupied(entry) => {
-                                return Err(
-                                    ctx.error(ErrorKind::KeyAlreadyExists(entry.key().clone()))
-                                )
+                                return Err(ctx.error(ErrorKind::KeyExists(entry.key().clone())))
                             }
                             Entry::Vacant(entry) => {
                                 entry.insert(value);

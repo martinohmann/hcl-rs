@@ -104,21 +104,21 @@ pub enum ErrorKind {
     /// A generic error message.
     Message(String),
     /// An expression contained an undefined variable.
-    UndefinedVariable(Identifier),
+    UndefinedVar(Identifier),
     /// An expression contained a call to an undefined function.
     UndefinedFunc(Identifier),
     /// A different type of value was expected.
     Unexpected(Value, &'static str),
     /// An expression tried to access a non-existing array index.
-    IndexOutOfBounds(usize),
+    Index(usize),
     /// An unary operator was applied to a value that does not support it.
-    ImpossibleUnaryOp(UnaryOperator, Value),
+    UnaryOp(UnaryOperator, Value),
     /// A binary operator was applied to values that do not support it.
-    ImpossibleBinaryOp(Value, BinaryOperator, Value),
+    BinaryOp(Value, BinaryOperator, Value),
     /// An expression tried to access an object key which does not exist.
     NoSuchKey(String),
     /// A `for` expression attempted to set the same object key twice.
-    KeyAlreadyExists(String),
+    KeyExists(String),
     /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
 }
@@ -145,7 +145,7 @@ impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ErrorKind::Message(msg) => f.write_str(msg),
-            ErrorKind::UndefinedVariable(ident) => {
+            ErrorKind::UndefinedVar(ident) => {
                 write!(f, "undefined variable `{}`", ident)
             }
             ErrorKind::UndefinedFunc(ident) => {
@@ -154,15 +154,15 @@ impl fmt::Display for ErrorKind {
             ErrorKind::Unexpected(value, expected) => {
                 write!(f, "unexpected value `{}`, expected {}", value, expected)
             }
-            ErrorKind::IndexOutOfBounds(index) => write!(f, "index out of bounds: {}", index),
+            ErrorKind::Index(index) => write!(f, "index out of bounds: {}", index),
             ErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
-            ErrorKind::KeyAlreadyExists(key) => write!(f, "key `{}` already exists", key),
-            ErrorKind::ImpossibleUnaryOp(operator, value) => write!(
+            ErrorKind::KeyExists(key) => write!(f, "key `{}` already exists", key),
+            ErrorKind::UnaryOp(operator, value) => write!(
                 f,
                 "unary operator `{}` is not applicable to `{}`",
                 operator, value,
             ),
-            ErrorKind::ImpossibleBinaryOp(lhs, operator, rhs) => write!(
+            ErrorKind::BinaryOp(lhs, operator, rhs) => write!(
                 f,
                 "binary operator `{}` is not applicable to `{}` and `{}`",
                 operator, lhs, rhs

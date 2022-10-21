@@ -300,7 +300,7 @@ fn eval_traversal() {
     // errors
     eval_error(
         Traversal::new(vec![1, 2, 3], [LegacyIndex(5)]),
-        ErrorKind::IndexOutOfBounds(5),
+        ErrorKind::Index(5),
     );
 }
 

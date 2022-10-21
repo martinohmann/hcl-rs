@@ -192,7 +192,7 @@ impl<'a> Context<'a> {
             Some(value) => Ok(value),
             None => match self.parent {
                 Some(parent) => parent.lookup_var(name),
-                None => Err(Error::new(ErrorKind::UndefinedVariable(name.clone()))),
+                None => Err(Error::new(ErrorKind::UndefinedVar(name.clone()))),
             },
         }
     }
