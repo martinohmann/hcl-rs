@@ -191,8 +191,8 @@ impl<'a> Context<'a> {
         match self.vars.get(name) {
             Some(value) => Ok(value),
             None => match self.parent {
-                Some(parent) => parent.lookup_var(name),
-                None => Err(Error::new(ErrorKind::UndefinedVar(name.clone()))),
+                Some(parent) => parent.lookup_var(name).map_err(|err| self.error(err)),
+                None => Err(self.error(ErrorKind::UndefinedVar(name.clone()))),
             },
         }
     }
@@ -205,8 +205,8 @@ impl<'a> Context<'a> {
         match self.funcs.get(name) {
             Some(func) => Ok(func),
             None => match self.parent {
-                Some(parent) => parent.lookup_func(name),
-                None => Err(Error::new(ErrorKind::UndefinedFunc(name.clone()))),
+                Some(parent) => parent.lookup_func(name).map_err(|err| self.error(err)),
+                None => Err(self.error(ErrorKind::UndefinedFunc(name.clone()))),
             },
         }
     }
@@ -216,7 +216,9 @@ impl<'a> Context<'a> {
     where
         T: Into<ErrorKind>,
     {
-        match self.expr() {
+        // The parent expression gives better context about the potential error location, use it
+        // if available.
+        match self.parent_expr().or_else(|| self.expr()) {
             Some(expr) => Error::new_with_expr(inner, Some(expr.clone())),
             None => Error::new(inner),
         }
@@ -225,6 +227,10 @@ impl<'a> Context<'a> {
     fn expr(&self) -> Option<&Expression> {
         self.expr
             .or_else(|| self.parent.and_then(|parent| parent.expr()))
+    }
+
+    fn parent_expr(&self) -> Option<&Expression> {
+        self.parent.and_then(|parent| parent.expr())
     }
 }
 

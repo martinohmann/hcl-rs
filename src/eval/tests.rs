@@ -371,3 +371,22 @@ fn eval_template() {
         String::from(expected),
     );
 }
+
+#[test]
+fn expr_error_context() {
+    let input = r#"
+        block {
+            attr = cond ? "yes" : "no"
+        }
+    "#;
+
+    // The `cond` variable is not defined which should forcefully fail the evaluation.
+    let ctx = Context::new();
+
+    let err = from_str::<Body>(input, &ctx).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        r#"eval error: undefined variable `cond` in expression `cond ? "yes" : "no"`"#,
+    )
+}
