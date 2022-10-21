@@ -2,7 +2,7 @@ use super::*;
 use std::fmt;
 
 /// The result type used by this module.
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type EvalResult<T, E = Error> = std::result::Result<T, E>;
 
 /// The error type returned by all fallible operations within this module.
 #[derive(Debug, Clone)]

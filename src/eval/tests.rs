@@ -306,13 +306,13 @@ fn eval_traversal() {
 
 #[test]
 fn eval_func_call() {
-    fn add(args: FuncArgs) -> Result<Value, String> {
+    fn add(args: FuncArgs) -> EvalResult<Value, String> {
         let a = args[0].as_number().unwrap();
         let b = args[1].as_number().unwrap();
         Ok(Value::Number(*a + *b))
     }
 
-    fn strlen(args: FuncArgs) -> Result<Value, String> {
+    fn strlen(args: FuncArgs) -> EvalResult<Value, String> {
         Ok(Value::from(args[0].as_str().unwrap().len()))
     }
 

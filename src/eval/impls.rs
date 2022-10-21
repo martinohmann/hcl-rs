@@ -7,10 +7,10 @@ impl private::Sealed for Body {}
 impl Evaluate for Body {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter()
             .map(|structure| structure.evaluate(ctx))
-            .collect::<Result<Body>>()
+            .collect::<EvalResult<Body>>()
     }
 }
 
@@ -19,7 +19,7 @@ impl private::Sealed for Structure {}
 impl Evaluate for Structure {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
             Structure::Attribute(attr) => attr.evaluate(ctx).map(Structure::Attribute),
             Structure::Block(block) => block.evaluate(ctx).map(Structure::Block),
@@ -32,7 +32,7 @@ impl private::Sealed for Attribute {}
 impl Evaluate for Attribute {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         Ok(Attribute {
             key: self.key.clone(),
             expr: self.expr.evaluate(ctx).map(Into::into)?,
@@ -45,7 +45,7 @@ impl private::Sealed for Block {}
 impl Evaluate for Block {
     type Output = Self;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         Ok(Block {
             identifier: self.identifier.clone(),
             labels: self.labels.clone(),
@@ -59,7 +59,7 @@ impl private::Sealed for Expression {}
 impl Evaluate for Expression {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let ctx = &ctx.child_with_expr(self);
         match self {
             Expression::Array(array) => array.evaluate(ctx).map(Value::Array),
@@ -86,7 +86,7 @@ where
 {
     type Output = Vec<T::Output>;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter().map(|expr| expr.evaluate(ctx)).collect()
     }
 }
@@ -106,7 +106,7 @@ where
 {
     type Output = Map<K::Output, V::Output>;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter()
             .map(|(key, expr)| Ok((key.evaluate(ctx)?, expr.evaluate(ctx)?)))
             .collect()
@@ -118,7 +118,7 @@ impl private::Sealed for ObjectKey {}
 impl Evaluate for ObjectKey {
     type Output = String;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
             ObjectKey::Expression(expr) => expr::evaluate_string(expr, ctx),
             ident => Ok(ident.to_string()),
@@ -131,7 +131,7 @@ impl private::Sealed for TemplateExpr {}
 impl Evaluate for TemplateExpr {
     type Output = String;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let template = Template::from_expr(self)?;
         template.evaluate(ctx)
     }
@@ -142,7 +142,7 @@ impl private::Sealed for Template {}
 impl Evaluate for Template {
     type Output = String;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let mut result = String::new();
         template::evaluate_template(&mut result, self, ctx, StripMode::None)?;
         Ok(result)
@@ -154,7 +154,7 @@ impl private::Sealed for Traversal {}
 impl Evaluate for Traversal {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let value = self.expr.evaluate(ctx)?;
         let deque = self.operators.iter().collect();
         expr::evaluate_traversal(value, deque, ctx)
@@ -166,7 +166,7 @@ impl private::Sealed for FuncCall {}
 impl Evaluate for FuncCall {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let name = &self.name;
         let func = ctx.lookup_func(name)?;
         let len = self.args.len();
@@ -190,7 +190,7 @@ impl private::Sealed for Conditional {}
 impl Evaluate for Conditional {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         if expr::evaluate_bool(&self.cond_expr, ctx)? {
             self.true_expr.evaluate(ctx)
         } else {
@@ -204,7 +204,7 @@ impl private::Sealed for Operation {}
 impl Evaluate for Operation {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
             Operation::Unary(unary) => unary.evaluate(ctx),
             Operation::Binary(binary) => binary.evaluate(ctx),
@@ -217,7 +217,7 @@ impl private::Sealed for UnaryOp {}
 impl Evaluate for UnaryOp {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         use {UnaryOperator::*, Value::*};
 
         let value = self.expr.evaluate(ctx)?;
@@ -239,7 +239,7 @@ impl private::Sealed for BinaryOp {}
 impl Evaluate for BinaryOp {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         use {BinaryOperator::*, Value::*};
 
         let op = self.clone().normalize();
@@ -274,7 +274,7 @@ impl private::Sealed for ForExpr {}
 impl Evaluate for ForExpr {
     type Output = Value;
 
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output> {
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let collection = expr::Collection::from_for_expr(self, ctx)?;
 
         match &self.key_expr {

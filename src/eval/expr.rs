@@ -1,21 +1,21 @@
 use super::*;
 use std::collections::VecDeque;
 
-pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> Result<bool> {
+pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool> {
     match expr.evaluate(ctx)? {
         Value::Bool(value) => Ok(value),
         other => Err(ctx.error(Error::unexpected(other, "a boolean"))),
     }
 }
 
-pub(super) fn evaluate_string(expr: &Expression, ctx: &Context) -> Result<String> {
+pub(super) fn evaluate_string(expr: &Expression, ctx: &Context) -> EvalResult<String> {
     match expr.evaluate(ctx)? {
         Value::String(value) => Ok(value),
         other => Err(ctx.error(Error::unexpected(other, "a string"))),
     }
 }
 
-pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> Result<Vec<Value>> {
+pub(super) fn evaluate_array(expr: &Expression, ctx: &Context) -> EvalResult<Vec<Value>> {
     match expr.evaluate(ctx)? {
         Value::Array(array) => Ok(array),
         other => Err(ctx.error(Error::unexpected(other, "an array"))),
@@ -26,7 +26,7 @@ pub(super) fn evaluate_traversal(
     mut value: Value,
     mut operators: VecDeque<&TraversalOperator>,
     ctx: &Context,
-) -> Result<Value> {
+) -> EvalResult<Value> {
     while let Some(operator) = operators.pop_front() {
         value = match operator {
             TraversalOperator::LegacyIndex(index) => {
@@ -67,12 +67,12 @@ fn evaluate_splat(
     value: Value,
     operators: VecDeque<&TraversalOperator>,
     ctx: &Context,
-) -> Result<Value> {
+) -> EvalResult<Value> {
     let array = match value {
         Value::Array(array) => array
             .into_iter()
             .map(|value| evaluate_traversal(value, operators.clone(), ctx))
-            .collect::<Result<_>>()?,
+            .collect::<EvalResult<_>>()?,
         Value::Null => vec![],
         other => evaluate_traversal(other, operators, ctx).map(|expr| vec![expr])?,
     };
@@ -80,7 +80,7 @@ fn evaluate_splat(
     Ok(Value::Array(array))
 }
 
-fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> Result<Value> {
+fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> EvalResult<Value> {
     match index_expr.evaluate(ctx)? {
         Value::String(name) => evaluate_object_value(value, &name, ctx),
         Value::Number(num) => match num.as_u64() {
@@ -91,7 +91,7 @@ fn evaluate_index_expr(value: Value, index_expr: &Expression, ctx: &Context) -> 
     }
 }
 
-fn evaluate_array_value(mut value: Value, index: usize, ctx: &Context) -> Result<Value> {
+fn evaluate_array_value(mut value: Value, index: usize, ctx: &Context) -> EvalResult<Value> {
     match value.as_array_mut() {
         Some(array) => {
             if index < array.len() {
@@ -104,7 +104,7 @@ fn evaluate_array_value(mut value: Value, index: usize, ctx: &Context) -> Result
     }
 }
 
-fn evaluate_object_value(mut value: Value, key: &str, ctx: &Context) -> Result<Value> {
+fn evaluate_object_value(mut value: Value, key: &str, ctx: &Context) -> EvalResult<Value> {
     match value.as_object_mut() {
         Some(object) => object
             .swap_remove(key)
@@ -113,7 +113,7 @@ fn evaluate_object_value(mut value: Value, key: &str, ctx: &Context) -> Result<V
     }
 }
 
-fn evaluate_collection(expr: &Expression, ctx: &Context) -> Result<Vec<(Value, Value)>> {
+fn evaluate_collection(expr: &Expression, ctx: &Context) -> EvalResult<Vec<(Value, Value)>> {
     match expr.evaluate(ctx)? {
         Value::Array(array) => Ok(array
             .into_iter()
@@ -137,7 +137,7 @@ pub(super) struct Collection<'a> {
 }
 
 impl<'a> Collection<'a> {
-    pub(super) fn from_for_expr(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> Result<Self> {
+    pub(super) fn from_for_expr(for_expr: &'a ForExpr, ctx: &'a Context<'a>) -> EvalResult<Self> {
         Ok(Collection {
             ctx,
             key_var: for_expr.key_var.as_ref(),
@@ -150,7 +150,7 @@ impl<'a> Collection<'a> {
     pub(super) fn from_for_directive(
         for_directive: &'a ForDirective,
         ctx: &'a Context<'a>,
-    ) -> Result<Self> {
+    ) -> EvalResult<Self> {
         Ok(Collection {
             ctx,
             key_var: for_directive.key_var.as_ref(),
@@ -166,7 +166,7 @@ impl<'a> Collection<'a> {
 }
 
 impl<'a> IntoIterator for Collection<'a> {
-    type Item = Result<Context<'a>>;
+    type Item = EvalResult<Context<'a>>;
     type IntoIter = IntoIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -189,7 +189,7 @@ pub(super) struct IntoIter<'a> {
 }
 
 impl<'a> IntoIter<'a> {
-    fn cond(&self, ctx: &Context) -> Result<bool> {
+    fn cond(&self, ctx: &Context) -> EvalResult<bool> {
         match &self.cond_expr {
             None => Ok(true),
             Some(cond_expr) => evaluate_bool(cond_expr, ctx),
@@ -209,7 +209,7 @@ impl<'a> IntoIter<'a> {
 }
 
 impl<'a> Iterator for IntoIter<'a> {
-    type Item = Result<Context<'a>>;
+    type Item = EvalResult<Context<'a>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

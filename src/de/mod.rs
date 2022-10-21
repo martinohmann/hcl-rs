@@ -27,7 +27,11 @@ impl Deserializer {
     /// [Error]: ../error/enum.Error.html
     pub fn from_str(input: &str) -> Result<Self> {
         let body = parser::parse(input)?;
-        Ok(Deserializer { body })
+        Ok(Deserializer::from_body(body))
+    }
+
+    pub(crate) fn from_body(body: Body) -> Self {
+        Deserializer { body }
     }
 }
 

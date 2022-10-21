@@ -117,7 +117,7 @@ impl fmt::Display for ParamType {
 /// # Examples
 ///
 /// ```
-/// use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+/// use hcl::eval::{FuncArgs, FuncDef, ParamType};
 /// use hcl::Value;
 ///
 /// fn add(args: FuncArgs) -> Result<Value, String> {
@@ -134,7 +134,7 @@ impl fmt::Display for ParamType {
 /// Alternatively, the [`FuncDefBuilder`] can be used to construct the `FuncDef`:
 ///
 /// ```
-/// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+/// # use hcl::eval::{FuncArgs, FuncDef, ParamType};
 /// # use hcl::Value;
 /// # fn add(args: FuncArgs) -> Result<Value, String> {
 /// #    unimplemented!()
@@ -194,7 +194,7 @@ impl FuncDef {
     /// # Examples
     ///
     /// ```
-    /// use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+    /// use hcl::eval::{FuncArgs, FuncDef, ParamType};
     /// use hcl::Value;
     ///
     /// fn add(args: FuncArgs) -> Result<Value, String> {
@@ -283,7 +283,7 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType};
     /// # use hcl::Value;
     /// # fn strlen(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
@@ -307,7 +307,7 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType};
     /// # use hcl::Value;
     /// # fn add3(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()
@@ -336,7 +336,7 @@ impl FuncDefBuilder {
     /// # Examples
     ///
     /// ```
-    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+    /// # use hcl::eval::{FuncArgs, FuncDef, ParamType};
     /// # use hcl::Value;
     /// # fn printf(_: FuncArgs) -> Result<Value, String> {
     /// #     unimplemented!()

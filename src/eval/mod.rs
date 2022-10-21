@@ -8,11 +8,14 @@ mod template;
 #[cfg(test)]
 mod tests;
 
-pub use self::error::{Error, ErrorKind, Result};
+pub use self::error::{Error, ErrorKind, EvalResult};
 pub use self::func::*;
+use crate::de::Deserializer;
+use crate::parser;
 use crate::structure::*;
 use crate::template::*;
-use crate::{Map, Value};
+use crate::{Map, Result, Value};
+use serde::{de, ser};
 
 mod private {
     pub trait Sealed {}
@@ -30,7 +33,7 @@ pub trait Evaluate: private::Sealed {
 
     /// Recursively evaluates all HCL templates and expressions in the implementing type using the
     /// variables and functions defined in the `Context`.
-    fn evaluate(&self, ctx: &Context) -> Result<Self::Output>;
+    fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
 }
 
 /// A type holding the evaluation context.
@@ -105,7 +108,7 @@ impl<'a> Context<'a> {
     /// ```
     /// # use hcl::eval::Context;
     /// use hcl::Value;
-    /// use hcl::eval::{FuncArgs, FuncDef, ParamType, Result};
+    /// use hcl::eval::{FuncArgs, FuncDef, ParamType};
     ///
     /// fn strlen(args: FuncArgs) -> Result<Value, String> {
     ///     // The arguments are already validated against the function
@@ -133,7 +136,7 @@ impl<'a> Context<'a> {
     ///
     /// When the variable is defined in multiple parent scopes, the innermost variable's value is
     /// returned.
-    fn lookup_var(&self, name: &Identifier) -> Result<&Value> {
+    fn lookup_var(&self, name: &Identifier) -> EvalResult<&Value> {
         match self.vars.get(name) {
             Some(value) => Ok(value),
             None => match self.parent {
@@ -147,7 +150,7 @@ impl<'a> Context<'a> {
     ///
     /// When the function is defined in multiple parent scopes, the innermost definition is
     /// returned.
-    fn lookup_func(&self, name: &Identifier) -> Result<&FuncDef> {
+    fn lookup_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
         match self.funcs.get(name) {
             Some(func) => Ok(func),
             None => match self.parent {
@@ -172,4 +175,71 @@ impl<'a> Context<'a> {
         self.expr
             .or_else(|| self.parent.and_then(|parent| parent.expr()))
     }
+}
+
+/// Deserialize an instance of type `T` from a string of HCL text and evaluate all expressions
+/// using the given context.
+///
+/// ```
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// use hcl::eval::Context;
+/// use hcl::Body;
+///
+/// let input = r#"hello = "Hello, ${name}!""#;
+///
+/// let mut ctx = Context::new();
+/// ctx.define_var("name", "Rust");
+///
+/// let body: Body = hcl::eval::from_str(input, &ctx)?;
+///
+/// let expected = Body::builder()
+///     .add_attribute(("hello", "Hello, Rust!"))
+///     .build();
+///
+/// assert_eq!(body, expected);
+/// #   Ok(())
+/// # }
+/// ```
+pub fn from_str<'de, T>(s: &str, ctx: &Context) -> Result<T>
+where
+    T: de::Deserialize<'de>,
+{
+    let body = parser::parse(s)?;
+    let evaluated = body.evaluate(ctx)?;
+    let deserializer = Deserializer::from_body(evaluated);
+    T::deserialize(deserializer)
+}
+
+/// Serialize the given value as an HCL string after evaulating all expressions using the given
+/// context.
+///
+/// ```
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// use hcl::eval::Context;
+/// use hcl::{Body, TemplateExpr};
+///
+/// let body = Body::builder()
+///     .add_attribute(("hello", TemplateExpr::QuotedString("Hello, ${name}!".into())))
+///     .build();
+///
+/// let mut ctx = Context::new();
+/// ctx.define_var("name", "Rust");
+///
+/// let string = hcl::eval::to_string(&body, &ctx)?;
+///
+/// assert_eq!(string, "hello = \"Hello, Rust!\"\n");
+/// #   Ok(())
+/// # }
+/// ```
+pub fn to_string<T>(value: &T, ctx: &Context) -> Result<String>
+where
+    T: ?Sized + Evaluate,
+    <T as Evaluate>::Output: ser::Serialize,
+{
+    let evaluated = value.evaluate(ctx)?;
+    super::to_string(&evaluated)
 }
