@@ -145,7 +145,7 @@ use hcl::TemplateExpr;
 let expr = TemplateExpr::from("Hello ${name}!");
 
 let mut ctx = Context::new();
-ctx.define_var("name", "World");
+ctx.declare_var("name", "World");
 
 assert_eq!(expr.evaluate(&ctx).unwrap(), "Hello World!");
 ```

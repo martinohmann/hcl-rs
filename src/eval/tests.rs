@@ -317,13 +317,13 @@ fn eval_func_call() {
     }
 
     let mut ctx = Context::new();
-    ctx.define_func(
+    ctx.declare_func(
         "add",
         FuncDef::builder()
             .params([ParamType::Number, ParamType::Number])
             .build(add),
     );
-    ctx.define_func(
+    ctx.declare_func(
         "strlen",
         FuncDef::builder().param(ParamType::String).build(strlen),
     );
@@ -341,7 +341,7 @@ fn eval_func_call() {
 #[test]
 fn eval_template() {
     let mut ctx = Context::new();
-    ctx.define_var("name", "World");
+    ctx.declare_var("name", "World");
 
     eval_to_ctx(
         &ctx,
@@ -362,8 +362,8 @@ fn eval_template() {
 - baz"#;
 
     let mut ctx = Context::new();
-    ctx.define_var("what", " render a list");
-    ctx.define_var("items", vec!["foo", "bar", "baz"]);
+    ctx.declare_var("what", " render a list");
+    ctx.declare_var("items", vec!["foo", "bar", "baz"]);
 
     eval_to_ctx(
         &ctx,

@@ -200,10 +200,10 @@ impl<'a> IntoIter<'a> {
         let (key, value) = self.iter.next()?;
         let mut ctx = self.ctx.child();
         if let Some(key_var) = self.key_var {
-            ctx.define_var(key_var.clone(), key);
+            ctx.declare_var(key_var.clone(), key);
         }
 
-        ctx.define_var(self.value_var.clone(), value);
+        ctx.declare_var(self.value_var.clone(), value);
         Some(ctx)
     }
 }

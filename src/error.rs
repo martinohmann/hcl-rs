@@ -21,24 +21,18 @@ pub enum Error {
         /// An optional location context where the error happened in the input.
         location: Option<Location>,
     },
-
     /// Represents the error emitted when the `Deserializer` hits an unexpected end of input.
     Eof,
-
     /// Represents an error that resulted from invalid UTF8 input.
     Utf8(Utf8Error),
-
     /// Represents generic IO errors.
     Io(io::Error),
-
     /// Represents errors due to invalid escape characters that may occur when unescaping
     /// user-provided strings.
     InvalidEscape(char),
-
     /// Represents errors due to invalid unicode code points that may occur when unescaping
     /// user-provided strings.
     InvalidUnicodeCodePoint(String),
-
     /// Represents errors during expression evaluation.
     Eval(eval::Error),
 }

@@ -4,7 +4,7 @@
 //! evaluation. It is implemented for various types that either directly or transitively contain
 //! templates or expressions that need to be evaluated.
 //!
-//! Additionally, the [`Context`] type is used to define variables and functions to make them
+//! Additionally, the [`Context`] type is used to declare variables and functions to make them
 //! available during expression evaluation.
 //!
 //! For convenience, the [`from_str`] and [`to_string`] functions are provided which enable
@@ -28,7 +28,7 @@
 //! let expr = TemplateExpr::from("Hello ${name}!");
 //!
 //! let mut ctx = Context::new();
-//! ctx.define_var("name", "World");
+//! ctx.declare_var("name", "World");
 //!
 //! assert_eq!(expr.evaluate(&ctx)?, "Hello World!");
 //! #   Ok(())
@@ -70,8 +70,8 @@
 //!
 //! // Create the context and add variables and functions to it.
 //! let mut ctx = Context::new();
-//! ctx.define_var("name", "world");
-//! ctx.define_func("uppercase", uppercase_func);
+//! ctx.declare_var("name", "world");
+//! ctx.declare_func("uppercase", uppercase_func);
 //!
 //! // Evaluate the expression.
 //! assert_eq!(expr.evaluate(&ctx)?, "Hello WORLD!");
@@ -101,7 +101,7 @@
 //! let input = r#"hello_world = "Hello, ${name}!""#;
 //!
 //! let mut ctx = Context::new();
-//! ctx.define_var("name", "Rust");
+//! ctx.declare_var("name", "Rust");
 //!
 //! let body: Body = hcl::eval::from_str(input, &ctx)?;
 //!
@@ -130,7 +130,7 @@
 //!     .build();
 //!
 //! let mut ctx = Context::new();
-//! ctx.define_var("name", "Rust");
+//! ctx.declare_var("name", "Rust");
 //!
 //! let string = hcl::eval::to_string(&body, &ctx)?;
 //!
@@ -170,13 +170,13 @@ pub trait Evaluate: private::Sealed {
     type Output;
 
     /// Recursively evaluates all HCL templates and expressions in the implementing type using the
-    /// variables and functions defined in the `Context`.
+    /// variables and functions declared in the `Context`.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
 }
 
 /// A type holding the evaluation context.
 ///
-/// The `Context` is used to define variables and functions that are evaluated when evaluating a
+/// The `Context` is used to declare variables and functions that are evaluated when evaluating a
 /// template or expression.
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
@@ -218,16 +218,16 @@ impl<'a> Context<'a> {
         ctx
     }
 
-    /// Defines a variable.
+    /// Declare a variable from a name and a value.
     ///
     /// # Example
     ///
     /// ```
     /// # use hcl::eval::Context;
     /// let mut ctx = Context::new();
-    /// ctx.define_var("some_number", 42);
+    /// ctx.declare_var("some_number", 42);
     /// ```
-    pub fn define_var<I, T>(&mut self, name: I, value: T)
+    pub fn declare_var<I, T>(&mut self, name: I, value: T)
     where
         I: Into<Identifier>,
         T: Into<Value>,
@@ -235,7 +235,7 @@ impl<'a> Context<'a> {
         self.vars.insert(name.into(), value.into());
     }
 
-    /// Defines a function.
+    /// Declare a function from a name and a function definition.
     ///
     /// See the documentation of the [`FuncDef`][FuncDef] type to learn about all available
     /// options for constructing a function definition.
@@ -259,9 +259,9 @@ impl<'a> Context<'a> {
     ///     .build(strlen);
     ///
     /// let mut ctx = Context::new();
-    /// ctx.define_func("strlen", func_def);
+    /// ctx.declare_func("strlen", func_def);
     /// ```
-    pub fn define_func<I>(&mut self, name: I, func: FuncDef)
+    pub fn declare_func<I>(&mut self, name: I, func: FuncDef)
     where
         I: Into<Identifier>,
     {
@@ -270,7 +270,7 @@ impl<'a> Context<'a> {
 
     /// Lookup a variable's value.
     ///
-    /// When the variable is defined in multiple parent scopes, the innermost variable's value is
+    /// When the variable is declared in multiple parent scopes, the innermost variable's value is
     /// returned.
     fn lookup_var(&self, name: &Identifier) -> EvalResult<&Value> {
         self.var(name)
@@ -279,7 +279,7 @@ impl<'a> Context<'a> {
 
     /// Lookup a function definition.
     ///
-    /// When the function is defined in multiple parent scopes, the innermost definition is
+    /// When the function is declared in multiple parent scopes, the innermost definition is
     /// returned.
     fn lookup_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
         self.func(name)

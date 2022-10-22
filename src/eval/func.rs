@@ -151,10 +151,12 @@ impl fmt::Display for ParamType {
 ///
 /// let mut ctx = Context::new();
 ///
-/// // Declare the function to make it available during expression evaluation.
-/// ctx.define_func("add", func_def);
+/// // Declare the function in the context to make it available
+/// // during expression evaluation.
+/// ctx.declare_func("add", func_def);
 ///
 /// // Use the context to evaluate an expression.
+/// // ...
 /// ```
 ///
 /// Alternatively, the [`FuncDefBuilder`] can be used to construct the `FuncDef`:
