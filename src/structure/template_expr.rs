@@ -36,6 +36,12 @@ impl TemplateExpr {
     }
 }
 
+impl From<&str> for TemplateExpr {
+    fn from(s: &str) -> Self {
+        TemplateExpr::QuotedString(s.to_owned())
+    }
+}
+
 impl From<String> for TemplateExpr {
     fn from(string: String) -> Self {
         TemplateExpr::QuotedString(string)
