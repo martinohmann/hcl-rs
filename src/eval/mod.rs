@@ -27,7 +27,7 @@
 //!
 //! // A template expression which needs to be evaluated. It needs access
 //! // to the `uppercase` function and `name` variable.
-//! let expr = TemplateExpr::QuotedString("Hello ${uppercase(name)}!".into());
+//! let expr = TemplateExpr::from("Hello ${uppercase(name)}!");
 //!
 //! // A function that is made available to expressions via the `Context` value.
 //! fn uppercase(args: FuncArgs) -> Result<Value, String> {
@@ -63,7 +63,6 @@ mod tests;
 
 pub use self::error::{Error, ErrorKind, EvalResult};
 pub use self::func::*;
-use crate::de::Deserializer;
 use crate::parser;
 use crate::structure::*;
 use crate::template::*;
@@ -260,14 +259,13 @@ impl<'a> Context<'a> {
 /// #   Ok(())
 /// # }
 /// ```
-pub fn from_str<'de, T>(s: &str, ctx: &Context) -> Result<T>
+pub fn from_str<T>(s: &str, ctx: &Context) -> Result<T>
 where
-    T: de::Deserialize<'de>,
+    T: de::DeserializeOwned,
 {
     let body = parser::parse(s)?;
     let evaluated = body.evaluate(ctx)?;
-    let deserializer = Deserializer::from_body(evaluated);
-    T::deserialize(deserializer)
+    super::from_body(evaluated)
 }
 
 /// Serialize the given value as an HCL string after evaulating all expressions using the given

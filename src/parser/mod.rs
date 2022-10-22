@@ -15,7 +15,7 @@ use std::str::FromStr;
 #[grammar = "parser/grammar/hcl.pest"]
 struct HclParser;
 
-/// Parses a HCL `Body` from a `&str`.
+/// Parse a `hcl::Body` from a `&str`.
 ///
 /// If deserialization into a different type is preferred consider using [`hcl::from_str`][from_str].
 ///

@@ -27,11 +27,16 @@ impl Deserializer {
     /// [Error]: ../error/enum.Error.html
     pub fn from_str(input: &str) -> Result<Self> {
         let body = parser::parse(input)?;
-        Ok(Deserializer::from_body(body))
+        Ok(Deserializer { body })
     }
+}
 
-    pub(crate) fn from_body(body: Body) -> Self {
-        Deserializer { body }
+impl<T> From<T> for Deserializer
+where
+    T: Into<Body>,
+{
+    fn from(value: T) -> Self {
+        Deserializer { body: value.into() }
     }
 }
 
@@ -164,6 +169,54 @@ where
 {
     let s = std::str::from_utf8(buf)?;
     from_str(s)
+}
+///
+/// Interpret a `hcl::Body` as an instance of type `T`.
+///
+/// # Example
+///
+/// ```
+/// use serde::Deserialize;
+/// use hcl::{Block, Body};
+///
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// #[derive(Deserialize, Debug)]
+/// struct User {
+///     name: String,
+///     email: String,
+/// }
+///
+/// #[derive(Deserialize, Debug)]
+/// struct Config {
+///     user: User,
+/// }
+///
+/// let body = Body::builder()
+///     .add_block(
+///         Block::builder("user")
+///             .add_attribute(("name", "John Doe"))
+///             .add_attribute(("email", "john@doe.tld"))
+///             .build()
+///     )
+///     .build();
+///
+/// let config: Config = hcl::from_body(body)?;
+/// println!("{:#?}", config);
+/// #   Ok(())
+/// # }
+/// ```
+///
+/// ## Errors
+///
+/// This functions fails with an error if the data does not match the structure of `T`.
+pub fn from_body<T>(body: Body) -> Result<T>
+where
+    T: de::DeserializeOwned,
+{
+    let deserializer = Deserializer::from(body);
+    T::deserialize(deserializer)
 }
 
 impl<'de> de::Deserializer<'de> for Deserializer {
