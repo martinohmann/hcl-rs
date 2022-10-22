@@ -205,9 +205,9 @@ impl<'a> Context<'a> {
     where
         T: Into<ErrorKind>,
     {
-        // The parent expression gives better context about the potential error location, use it
-        // if available.
-        match self.parent_expr().or_else(|| self.expr()) {
+        // The parent expression gives better context about the potential error location. Use it if
+        // available.
+        match self.parent_expr().or(self.expr) {
             Some(expr) => Error::new_with_expr(inner, Some(expr.clone())),
             None => Error::new(inner),
         }
@@ -226,11 +226,11 @@ impl<'a> Context<'a> {
     }
 
     fn expr(&self) -> Option<&Expression> {
-        self.expr.or_else(|| self.parent.and_then(Context::expr))
+        self.expr.or_else(|| self.parent_expr())
     }
 
     fn parent_expr(&self) -> Option<&Expression> {
-        self.parent.and_then(Context::expr)
+        self.parent.and_then(|parent| parent.expr())
     }
 }
 
