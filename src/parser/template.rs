@@ -176,10 +176,5 @@ fn parse_strip_mode(start: Pair<Rule>, end: Pair<Rule>) -> StripMode {
         rule => unexpected_rule(rule),
     };
 
-    match (strip_start, strip_end) {
-        (true, true) => StripMode::Both,
-        (true, false) => StripMode::Start,
-        (false, true) => StripMode::End,
-        (false, false) => StripMode::None,
-    }
+    StripMode::from((strip_start, strip_end))
 }

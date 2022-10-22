@@ -428,3 +428,14 @@ impl Default for StripMode {
         StripMode::None
     }
 }
+
+impl From<(bool, bool)> for StripMode {
+    fn from((start, end): (bool, bool)) -> Self {
+        match (start, end) {
+            (true, true) => StripMode::Both,
+            (true, false) => StripMode::Start,
+            (false, true) => StripMode::End,
+            (false, false) => StripMode::None,
+        }
+    }
+}
