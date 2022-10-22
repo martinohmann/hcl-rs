@@ -35,6 +35,76 @@
 //! # }
 //! ```
 //!
+//! Template directives like `for` loops can be evaluated as well, this time using a
+//! [`Template`][crate::template::Template] instead of
+//! [`TemplateExpr`][crate::structure::TemplateExpr]:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::eval::{Context, Evaluate};
+//! use hcl::template::Template;
+//! use std::str::FromStr;
+//!
+//! let input = r#"
+//! Bill of materials:
+//! %{ for item in items ~}
+//! - ${item}
+//! %{ endfor ~}
+//! "#;
+//!
+//! let template = Template::from_str(input)?;
+//!
+//! let mut ctx = Context::new();
+//! ctx.declare_var("items", vec!["time", "code", "sweat"]);
+//!
+//! let evaluated = r#"
+//! Bill of materials:
+//! - time
+//! - code
+//! - sweat
+//! "#;
+//!
+//! assert_eq!(template.evaluate(&ctx)?, evaluated);
+//! #   Ok(())
+//! # }
+//! ```
+//!
+//! Here's another example which evaluates some attribute expressions using [`from_str`] as
+//! described in the [deserialization
+//! example][crate::eval#expression-evaluation-during-de-serialization] below:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::eval::Context;
+//! use hcl::Body;
+//!
+//! let input = r#"
+//! operation   = 1 + 1
+//! conditional = cond ? "yes" : "no"
+//! for_expr    = [for item in items: item if item <= 3]
+//! "#;
+//!
+//! let mut ctx = Context::new();
+//! ctx.declare_var("cond", true);
+//! ctx.declare_var("items", vec![1, 2, 3, 4, 5]);
+//!
+//! let body: Body = hcl::eval::from_str(input, &ctx)?;
+//!
+//! let expected = Body::builder()
+//!     .add_attribute(("operation", 2))
+//!     .add_attribute(("conditional", "yes"))
+//!     .add_attribute(("for_expr", vec![1, 2, 3]))
+//!     .build();
+//!
+//! assert_eq!(body, expected);
+//! #   Ok(())
+//! # }
+//! ```
+//!
 //! ## Function calls in expressions
 //!
 //! To evaluate functions calls, you need to create a function definition and make it available to

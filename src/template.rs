@@ -78,6 +78,11 @@
 //! #   Ok(())
 //! # }
 //! ```
+//!
+//! # Template evaluation
+//!
+//! The [`eval`][crate::eval] module provides evaluation capabilities for templates and
+//! expressions. See the [module-level documentation][crate::eval] for examples.
 
 use crate::{parser, Error, Expression, Identifier, Result, TemplateExpr};
 use std::str::FromStr;
