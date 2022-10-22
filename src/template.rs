@@ -57,7 +57,7 @@
 //! let template = Template::from_str(raw)?;
 //!
 //! let expected = Template::new()
-//!     .add_literal("Bill of materials:\n")
+//!     .add_literal("\nBill of materials:\n")
 //!     .add_directive(
 //!         ForDirective::new(
 //!             Identifier::new("item"),

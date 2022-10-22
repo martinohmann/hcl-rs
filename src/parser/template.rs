@@ -3,7 +3,7 @@ use crate::template::*;
 
 pub fn parse(input: &str) -> Result<Template> {
     let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();
-    parse_template(pair)
+    parse_template(inner(pair))
 }
 
 fn parse_template(pair: Pair<Rule>) -> Result<Template> {

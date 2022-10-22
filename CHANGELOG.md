@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.7](https://github.com/martinohmann/hcl-rs/compare/v0.8.6...v0.8.7) (2022-10-22)
+
+
+### Features
+
+* add `hcl::from_body` ([c9f6a68](https://github.com/martinohmann/hcl-rs/commit/c9f6a6804760258fe06b6f0f07f69cc63d17efc9))
+* implement `From<(bool, bool)>` for `StripMode` ([79f85c7](https://github.com/martinohmann/hcl-rs/commit/79f85c740faeccd8b530e6e639c3dff1e8c96476))
+* implement `From<&str>` for `TemplateExpr` ([fb8023d](https://github.com/martinohmann/hcl-rs/commit/fb8023d29f469c74df18dc19a4154ff361bf8446))
+* implement `From<ObjectKey>` for `Value` ([f10fd07](https://github.com/martinohmann/hcl-rs/commit/f10fd07ebaac56073530b9d06a5344e54880a30e))
+
+
+### Miscellaneous
+
+* **deps:** bump vecmap-rs from 0.1.3 to 0.1.7 ([392e1b6](https://github.com/martinohmann/hcl-rs/commit/392e1b679053daca6fc61598b96c0863c93ecf99))
+
 ## [0.8.6](https://github.com/martinohmann/hcl-rs/compare/v0.8.5...v0.8.6) (2022-10-14)
 
 
