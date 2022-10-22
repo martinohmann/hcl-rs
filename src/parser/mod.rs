@@ -21,7 +21,7 @@ struct HclParser;
 ///
 /// [from_str]: ./de/fn.from_str.html
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use hcl::{Attribute, Block, Body};

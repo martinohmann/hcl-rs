@@ -481,12 +481,6 @@ pub enum StripMode {
     Both,
 }
 
-impl Default for StripMode {
-    fn default() -> StripMode {
-        StripMode::None
-    }
-}
-
 impl StripMode {
     pub(crate) fn strip_start(&self) -> bool {
         matches!(self, StripMode::Start | StripMode::Both)
@@ -498,6 +492,12 @@ impl StripMode {
 
     pub(crate) fn from_adjacent(prev: StripMode, next: StripMode) -> Self {
         StripMode::from((prev.strip_end(), next.strip_start()))
+    }
+}
+
+impl Default for StripMode {
+    fn default() -> StripMode {
+        StripMode::None
     }
 }
 

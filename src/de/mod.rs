@@ -20,7 +20,7 @@ pub struct Deserializer {
 impl Deserializer {
     /// Creates a HCL deserializer from a `&str`.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// An [`Error`][Error] is returned when the input is not valid HCL.
     ///
@@ -28,15 +28,6 @@ impl Deserializer {
     pub fn from_str(input: &str) -> Result<Self> {
         let body = parser::parse(input)?;
         Ok(Deserializer { body })
-    }
-}
-
-impl<T> From<T> for Deserializer
-where
-    T: Into<Body>,
-{
-    fn from(value: T) -> Self {
-        Deserializer { body: value.into() }
     }
 }
 
@@ -51,7 +42,7 @@ where
 /// [parse]: ../fn.parse.html
 /// [Body]: ../struct.Body.html
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use serde_json::{json, Value};
@@ -88,7 +79,7 @@ where
 /// # }
 /// ```
 ///
-/// ## Errors
+/// # Errors
 ///
 /// This functions fails with an error if the data does not match the structure of `T`.
 pub fn from_str<'de, T>(s: &'de str) -> Result<T>
@@ -103,7 +94,7 @@ where
 ///
 /// See the documentation of [`from_str`][from_str] for more information.
 ///
-/// ## Example
+/// # Example
 ///
 /// ```
 /// use serde_json::{json, Value};
@@ -140,7 +131,7 @@ where
 /// # }
 /// ```
 ///
-/// ## Errors
+/// # Errors
 ///
 /// This functions fails with an error if reading from the reader fails or if the data does not
 /// match the structure of `T`.
@@ -159,7 +150,7 @@ where
 ///
 /// See the documentation of [`from_str`][from_str] for more information.
 ///
-/// ## Errors
+/// # Errors
 ///
 /// This functions fails with an error if `buf` does not contain valid UTF-8 or if the data does
 /// not match the structure of `T`.
@@ -170,7 +161,7 @@ where
     let s = std::str::from_utf8(buf)?;
     from_str(s)
 }
-///
+
 /// Interpret a `hcl::Body` as an instance of type `T`.
 ///
 /// # Example
@@ -208,15 +199,14 @@ where
 /// # }
 /// ```
 ///
-/// ## Errors
+/// # Errors
 ///
 /// This functions fails with an error if the data does not match the structure of `T`.
 pub fn from_body<T>(body: Body) -> Result<T>
 where
     T: de::DeserializeOwned,
 {
-    let deserializer = Deserializer::from(body);
-    T::deserialize(deserializer)
+    T::deserialize(Deserializer { body })
 }
 
 impl<'de> de::Deserializer<'de> for Deserializer {
