@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.8](https://github.com/martinohmann/hcl-rs/compare/v0.8.7...v0.8.8) (2022-10-22)
+
+
+### Bug Fixes
+
+* **parser:** don't swallow leading whitespace in template ([9422195](https://github.com/martinohmann/hcl-rs/commit/942219524812025b0245317accd0ea97e37a4e61))
+
 ## [0.8.7](https://github.com/martinohmann/hcl-rs/compare/v0.8.6...v0.8.7) (2022-10-22)
 
 
