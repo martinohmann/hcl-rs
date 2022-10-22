@@ -136,7 +136,7 @@ WHITESPACE = _{ SpaceOrTab | NEWLINE }
 SpaceOrTab = _{ " " | "\t" }
 
 // Top-level rule for the template sub-language
-HclTemplate = _{ SOI ~ Template ~ EOI }
+HclTemplate = ${ SOI ~ Template ~ EOI }
 
 Template              = ${ (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
 TemplateLiteral       = @{ ("$${" | "%%{" | (!("${" | "%{") ~ ANY))+ }
