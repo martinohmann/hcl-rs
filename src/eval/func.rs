@@ -11,6 +11,8 @@ pub type Func = fn(FuncArgs) -> Result<Value, String>;
 ///
 /// The parameter type is used to validate the arguments of a function call expression before
 /// evaluating the function.
+///
+/// See the [documentation of `FuncDef`][FuncDef] for usage examples.
 #[derive(Debug, Clone)]
 pub enum ParamType {
     /// Any type is allowed.
@@ -114,10 +116,27 @@ impl fmt::Display for ParamType {
 
 /// The definition of a function that can be called in HCL expressions.
 ///
+/// It defines the function to call, and number and types of parameters that the function accepts.
+/// The parameter information is used to validate function arguments prior to calling it.
+///
+/// The signature of a function is defined by the [`Func`][Func] type alias. For available
+/// parameter types see the documentation of [`ParamType`][ParamType].
+///
+/// # Function call evaluation
+///
+/// When a [`FuncCall`][crate::structure::FuncCall] is evaluated (via its
+/// [`evaluate`][crate::eval::Evaluate::evaluate] method), the arguments are validated against the
+/// defined function parameters before calling the function. The evaluation will stop with an error
+/// if too few or too many arguments are provided, of if their types do not match the expected
+/// parameter types.
+///
+/// Because all arguments are validated before calling the function, unnecessary length and
+/// type checks on the function arguments can be avoided in the function body.
+///
 /// # Examples
 ///
 /// ```
-/// use hcl::eval::{FuncArgs, FuncDef, ParamType};
+/// use hcl::eval::{Context, FuncArgs, FuncDef, ParamType};
 /// use hcl::Value;
 ///
 /// fn add(args: FuncArgs) -> Result<Value, String> {
@@ -126,9 +145,16 @@ impl fmt::Display for ParamType {
 ///     Ok(Value::Number(*a + *b))
 /// }
 ///
-/// let params = vec![ParamType::Number, ParamType::Number];
+/// let params = [ParamType::Number, ParamType::Number];
 ///
 /// let func_def = FuncDef::new(add, params);
+///
+/// let mut ctx = Context::new();
+///
+/// // Declare the function to make it available during expression evaluation.
+/// ctx.define_func("add", func_def);
+///
+/// // Use the context to evaluate an expression.
 /// ```
 ///
 /// Alternatively, the [`FuncDefBuilder`] can be used to construct the `FuncDef`:
@@ -181,48 +207,11 @@ impl FuncDef {
     }
 
     /// Calls the function with the provided arguments.
-    ///
-    /// The arguments are validated against the defined function parameters. An error is returned
-    /// if too few or too many arguments are provided, of if their types do not match the expected
-    /// parameter types.
-    ///
-    /// If all arguments are valid, the function is called and the function result returned.
-    ///
-    /// Because all arguments are validated before calling the function, unnecessary length and
-    /// type checks on the function arguments can be avoided inside of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use hcl::eval::{FuncArgs, FuncDef, ParamType};
-    /// use hcl::Value;
-    ///
-    /// fn add(args: FuncArgs) -> Result<Value, String> {
-    ///     let a = args[0].as_number().unwrap();
-    ///     let b = args[1].as_number().unwrap();
-    ///     Ok(Value::Number(*a + *b))
-    /// }
-    ///
-    /// let func_def = FuncDef::builder()
-    ///     .param(ParamType::Number)
-    ///     .param(ParamType::Number)
-    ///     .build(add);
-    ///
-    /// assert!(func_def.call(["a", "b"]).is_err());
-    /// assert!(func_def.call([1]).is_err());
-    /// assert_eq!(func_def.call([1, 2]).unwrap(), Value::from(3));
-    /// ```
-    pub fn call<I>(&self, args: I) -> Result<Value, String>
-    where
-        I: IntoIterator,
-        I::Item: Into<Value>,
-    {
-        let args: Vec<_> = args.into_iter().map(Into::into).collect();
+    pub(super) fn call(&self, args: Vec<Value>) -> Result<Value, String> {
         let params_len = self.params.len();
         let args_len = args.len();
-        let var_param = &self.variadic_param;
 
-        if args_len < params_len || (var_param.is_none() && args_len > params_len) {
+        if args_len < params_len || (self.variadic_param.is_none() && args_len > params_len) {
             return Err(format!(
                 "expected {} positional arguments, got {}",
                 params_len, args_len,
@@ -240,7 +229,7 @@ impl FuncDef {
             }
         }
 
-        if let Some(var_param) = &var_param {
+        if let Some(var_param) = &self.variadic_param {
             for (pos, arg) in var_args.iter().enumerate() {
                 if !var_param.is_satisfied_by(arg) {
                     return Err(format!(

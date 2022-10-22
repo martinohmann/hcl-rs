@@ -39,7 +39,7 @@
 //!
 //! To evaluate functions calls, you need to create a function definition and make it available to
 //! the evaluation context. Function definitions are created via the [`FuncDef`] type which
-//! contains more information in its type-level documentation.
+//! contains more information in its [type-level documentation][FuncDef].
 //!
 //! Here's the example from above, updated to also include a function call to make the `name`
 //! uppercase:
