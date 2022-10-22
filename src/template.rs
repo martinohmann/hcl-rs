@@ -12,7 +12,7 @@
 //!
 //! [hcl-syntax-spec]: https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#templates
 //!
-//! ## Example
+//! # Example
 //!
 //! Parse a `TemplateExpr` into a `Template`:
 //!
@@ -262,11 +262,11 @@ impl Interpolation {
         self
     }
 
-    pub(crate) fn strip_prev_end(&self) -> bool {
+    fn strip_prev_end(&self) -> bool {
         self.strip.strip_start()
     }
 
-    pub(crate) fn strip_next_start(&self) -> bool {
+    fn strip_next_start(&self) -> bool {
         self.strip.strip_end()
     }
 }
@@ -290,14 +290,14 @@ pub enum Directive {
 }
 
 impl Directive {
-    pub(crate) fn strip_prev_end(&self) -> bool {
+    fn strip_prev_end(&self) -> bool {
         match self {
             Directive::If(directive) => directive.strip_prev(),
             Directive::For(directive) => directive.strip_prev(),
         }
     }
 
-    pub(crate) fn strip_next_start(&self) -> bool {
+    fn strip_next_start(&self) -> bool {
         match self {
             Directive::If(directive) => directive.strip_next(),
             Directive::For(directive) => directive.strip_next(),
@@ -389,11 +389,11 @@ impl IfDirective {
         self
     }
 
-    pub(crate) fn strip_prev(&self) -> bool {
+    fn strip_prev(&self) -> bool {
         self.if_strip.strip_start()
     }
 
-    pub(crate) fn strip_next(&self) -> bool {
+    fn strip_next(&self) -> bool {
         self.endif_strip.strip_end()
     }
 }
@@ -457,11 +457,11 @@ impl ForDirective {
         self
     }
 
-    pub(crate) fn strip_prev(&self) -> bool {
+    fn strip_prev(&self) -> bool {
         self.for_strip.strip_start()
     }
 
-    pub(crate) fn strip_next(&self) -> bool {
+    fn strip_next(&self) -> bool {
         self.endfor_strip.strip_end()
     }
 }
