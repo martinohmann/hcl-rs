@@ -11,12 +11,38 @@
 //! expression evaluation during (de-)serialization directly. Check out their function docs for
 //! usage examples.
 //!
-//! # Example
+//! # Examples
 //!
 //! HCL expressions can contain variables and functions which are made available through the
-//! [`Context`] value passed to [`Evaluate::evaluate`][Evaluate::evaluate]. Function definitions
-//! are created via the [`FuncDef`] type which contains more information in its type-level
-//! documentation.
+//! [`Context`] value passed to [`Evaluate::evaluate`][Evaluate::evaluate].
+//!
+//! Here's a short example which evaluates a template expression that contains a variable:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::eval::{Context, Evaluate};
+//! use hcl::TemplateExpr;
+//!
+//! let expr = TemplateExpr::from("Hello ${name}!");
+//!
+//! let mut ctx = Context::new();
+//! ctx.define_var("name", "World");
+//!
+//! assert_eq!(expr.evaluate(&ctx)?, "Hello World!");
+//! #   Ok(())
+//! # }
+//! ```
+//!
+//! ## Function calls in expressions
+//!
+//! To evaluate functions calls, you need to create a function definition and make it available to
+//! the evaluation context. Function definitions are created via the [`FuncDef`] type which
+//! contains more information in its type-level documentation.
+//!
+//! Here's the example from above, updated to also include a function call to make the `name`
+//! uppercase:
 //!
 //! ```
 //! # use std::error::Error;
@@ -49,6 +75,66 @@
 //!
 //! // Evaluate the expression.
 //! assert_eq!(expr.evaluate(&ctx)?, "Hello WORLD!");
+//! #   Ok(())
+//! # }
+//! ```
+//!
+//! ## Expression evaluation during (de-)serialization
+//!
+//! It's possible to evaluate expressions directly when deserializing HCL into a Rust value, or
+//! when serializing a Rust value that contains HCL expressions into HCL.
+//!
+//! For these use cases the convenience functions [`hcl::eval::from_str`][from_str] and
+//! [`hcl::eval::to_string`][to_string] are provided. Their usage is similar to
+//! [`hcl::from_str`][crate::from_str] and [`hcl::to_string`][crate::to_string] but they receive a
+//! reference to a [`Context`] value as second parameter.
+//!
+//! Here's a deserialization example using `from_str`:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::eval::Context;
+//! use hcl::Body;
+//!
+//! let input = r#"hello_world = "Hello, ${name}!""#;
+//!
+//! let mut ctx = Context::new();
+//! ctx.define_var("name", "Rust");
+//!
+//! let body: Body = hcl::eval::from_str(input, &ctx)?;
+//!
+//! let expected = Body::builder()
+//!     .add_attribute(("hello_world", "Hello, Rust!"))
+//!     .build();
+//!
+//! assert_eq!(body, expected);
+//! #   Ok(())
+//! # }
+//! ```
+//!
+//! And here's how expression evaluation during serialization via `to_string` works:
+//!
+//! ```
+//! # use std::error::Error;
+//! #
+//! # fn main() -> Result<(), Box<dyn Error>> {
+//! use hcl::eval::Context;
+//! use hcl::{Body, TemplateExpr};
+//!
+//! let expr = TemplateExpr::QuotedString("Hello, ${name}!".into());
+//!
+//! let body = Body::builder()
+//!     .add_attribute(("hello_world", expr))
+//!     .build();
+//!
+//! let mut ctx = Context::new();
+//! ctx.define_var("name", "Rust");
+//!
+//! let string = hcl::eval::to_string(&body, &ctx)?;
+//!
+//! assert_eq!(string, "hello_world = \"Hello, Rust!\"\n");
 //! #   Ok(())
 //! # }
 //! ```
@@ -237,28 +323,8 @@ impl<'a> Context<'a> {
 /// Deserialize an instance of type `T` from a string of HCL text and evaluate all expressions
 /// using the given context.
 ///
-/// ```
-/// # use std::error::Error;
-/// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
-/// use hcl::eval::Context;
-/// use hcl::Body;
-///
-/// let input = r#"hello_world = "Hello, ${name}!""#;
-///
-/// let mut ctx = Context::new();
-/// ctx.define_var("name", "Rust");
-///
-/// let body: Body = hcl::eval::from_str(input, &ctx)?;
-///
-/// let expected = Body::builder()
-///     .add_attribute(("hello_world", "Hello, Rust!"))
-///     .build();
-///
-/// assert_eq!(body, expected);
-/// #   Ok(())
-/// # }
-/// ```
+/// See the [module level documentation][crate::eval#expression-evaluation-during-de-serialization]
+/// for a usage example.
 pub fn from_str<T>(s: &str, ctx: &Context) -> Result<T>
 where
     T: de::DeserializeOwned,
@@ -271,28 +337,8 @@ where
 /// Serialize the given value as an HCL string after evaulating all expressions using the given
 /// context.
 ///
-/// ```
-/// # use std::error::Error;
-/// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
-/// use hcl::eval::Context;
-/// use hcl::{Body, TemplateExpr};
-///
-/// let expr = TemplateExpr::QuotedString("Hello, ${name}!".into());
-///
-/// let body = Body::builder()
-///     .add_attribute(("hello_world", expr))
-///     .build();
-///
-/// let mut ctx = Context::new();
-/// ctx.define_var("name", "Rust");
-///
-/// let string = hcl::eval::to_string(&body, &ctx)?;
-///
-/// assert_eq!(string, "hello_world = \"Hello, Rust!\"\n");
-/// #   Ok(())
-/// # }
-/// ```
+/// See the [module level documentation][crate::eval#expression-evaluation-during-de-serialization]
+/// for a usage example.
 pub fn to_string<T>(value: &T, ctx: &Context) -> Result<String>
 where
     T: ?Sized + Evaluate,

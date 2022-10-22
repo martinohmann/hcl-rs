@@ -22,9 +22,6 @@ A rust library for interacting with the Hashicorp Configuration Language (HCL).
   implement `serde::Deserialize` or `serde::Serialize`
 - Evaluation of the HCL expression and template sub-languages
 
-## Planned Features
-
-
 ## Deserialization examples
 
 Deserialize arbitrary HCL according to the [HCL JSON
@@ -133,6 +130,25 @@ assert_eq!(serialized, expected);
 
 Also have a look at the other examples provided in the [documentation of the
 `ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html).
+
+## Expression evaluation
+
+The [`eval` module
+documentation](https://docs.rs/hcl-rs/latest/hcl/eval/index.html) contains more
+details and examples for expression and template evaluation, but here's a very
+short example:
+
+```rust
+use hcl::eval::{Context, Evaluate};
+use hcl::TemplateExpr;
+
+let expr = TemplateExpr::from("Hello ${name}!");
+
+let mut ctx = Context::new();
+ctx.define_var("name", "World");
+
+assert_eq!(expr.evaluate(&ctx).unwrap(), "Hello World!");
+```
 
 ## Macros
 
