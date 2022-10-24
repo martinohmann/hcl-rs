@@ -1,4 +1,6 @@
-use super::{expression::ExpressionSerializer, BoolSerializer, OptionSerializer, StringSerializer};
+use super::{
+    expression::ExpressionSerializer, BoolSerializer, IdentifierSerializer, OptionSerializer,
+};
 use crate::{Error, Expression, ForExpr, Identifier, Result};
 use serde::ser::{self, Impossible};
 
@@ -62,11 +64,10 @@ impl ser::SerializeStruct for SerializeForExprStruct {
     {
         match key {
             "key_var" => {
-                let key_var = value.serialize(OptionSerializer::new(StringSerializer))?;
-                self.key_var = Some(key_var.map(Identifier::from))
+                self.key_var = Some(value.serialize(OptionSerializer::new(IdentifierSerializer))?)
             }
             "value_var" => {
-                self.value_var = Some(Identifier::from(value.serialize(StringSerializer)?))
+                self.value_var = Some(value.serialize(IdentifierSerializer)?)
             }
             "collection_expr" => {
                 self.collection_expr = Some(value.serialize(ExpressionSerializer)?)
