@@ -1,8 +1,8 @@
 use super::{
     body::BodySerializer, expression::ExpressionSerializer, structure::StructureSerializer,
-    SeqSerializer, StringSerializer,
+    IdentifierSerializer, SeqSerializer,
 };
-use crate::{Attribute, Block, BlockLabel, Body, Error, Result, Structure};
+use crate::{Attribute, Block, BlockLabel, Body, Error, Identifier, Result, Structure};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
 
@@ -38,7 +38,7 @@ impl ser::Serializer for BlockSerializer {
         T: ?Sized + Serialize,
     {
         Ok(Block {
-            identifier: variant.to_owned(),
+            identifier: variant.into(),
             labels: Vec::new(),
             body: value.serialize(BodySerializer)?,
         })
@@ -78,7 +78,7 @@ impl ser::Serializer for BlockSerializer {
 }
 
 pub struct SerializeBlockSeq {
-    identifier: Option<String>,
+    identifier: Option<Identifier>,
     labels: Option<Vec<BlockLabel>>,
     body: Option<Body>,
 }
@@ -102,7 +102,7 @@ impl ser::SerializeSeq for SerializeBlockSeq {
         T: ?Sized + ser::Serialize,
     {
         if self.identifier.is_none() {
-            self.identifier = Some(value.serialize(StringSerializer)?);
+            self.identifier = Some(value.serialize(IdentifierSerializer)?);
         } else if self.labels.is_none() {
             self.labels = Some(value.serialize(SeqSerializer::new(BlockLabelSerializer))?);
         } else if self.body.is_none() {
@@ -131,14 +131,14 @@ impl ser::SerializeTupleStruct for SerializeBlockSeq {
 }
 
 pub struct SerializeBlockVariant {
-    identifier: String,
+    identifier: Identifier,
     structures: Vec<Structure>,
 }
 
 impl SerializeBlockVariant {
     pub fn new(variant: &'static str, len: usize) -> Self {
         SerializeBlockVariant {
-            identifier: variant.to_owned(),
+            identifier: variant.into(),
             structures: Vec::with_capacity(len),
         }
     }
@@ -184,7 +184,7 @@ impl ser::SerializeStructVariant for SerializeBlockVariant {
 }
 
 pub struct SerializeBlockMap {
-    identifier: Option<String>,
+    identifier: Option<Identifier>,
     body: Option<Body>,
 }
 
@@ -206,7 +206,7 @@ impl ser::SerializeMap for SerializeBlockMap {
         T: ?Sized + ser::Serialize,
     {
         if self.identifier.is_none() {
-            self.identifier = Some(key.serialize(StringSerializer)?);
+            self.identifier = Some(key.serialize(IdentifierSerializer)?);
             Ok(())
         } else {
             Err(ser::Error::custom("expected map with 1 entry"))
@@ -227,14 +227,18 @@ impl ser::SerializeMap for SerializeBlockMap {
 
     fn end(self) -> Result<Self::Ok> {
         match (self.identifier, self.body) {
-            (Some(ident), Some(body)) => Ok(Block::new(ident, Vec::<BlockLabel>::new(), body)),
+            (Some(identifier), Some(body)) => Ok(Block {
+                identifier,
+                labels: Vec::new(),
+                body,
+            }),
             (_, _) => Err(ser::Error::custom("expected map with 1 entry")),
         }
     }
 }
 
 pub struct SerializeBlockStruct {
-    identifier: Option<String>,
+    identifier: Option<Identifier>,
     labels: Option<Vec<BlockLabel>>,
     body: Option<Body>,
 }
@@ -258,7 +262,7 @@ impl ser::SerializeStruct for SerializeBlockStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "identifier" => self.identifier = Some(value.serialize(StringSerializer)?),
+            "identifier" => self.identifier = Some(value.serialize(IdentifierSerializer)?),
             "labels" => {
                 self.labels = Some(value.serialize(SeqSerializer::new(BlockLabelSerializer))?)
             }
@@ -352,7 +356,7 @@ impl ser::Serializer for BlockLabelSerializer {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        Ok(BlockLabel::identifier(variant))
+        Ok(BlockLabel::Identifier(variant.into()))
     }
 
     fn serialize_newtype_variant<T>(
@@ -367,9 +371,9 @@ impl ser::Serializer for BlockLabelSerializer {
     {
         // Specialization for the `BlockLabel` type itself.
         match (name, variant) {
-            ("$hcl::block_label", "Identifier") => {
-                Ok(BlockLabel::identifier(value.serialize(StringSerializer)?))
-            }
+            ("$hcl::block_label", "Identifier") => Ok(BlockLabel::Identifier(
+                value.serialize(IdentifierSerializer)?,
+            )),
             (_, _) => value.serialize(self),
         }
     }

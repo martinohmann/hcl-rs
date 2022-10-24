@@ -278,7 +278,7 @@ impl IntoNodeMap for Block {
         let node = match labels.next() {
             Some(label) => {
                 let block = Block {
-                    identifier: label.into_inner(),
+                    identifier: Identifier::new(label.into_inner()),
                     labels: labels.collect(),
                     body: self.body,
                 };
@@ -288,7 +288,7 @@ impl IntoNodeMap for Block {
             None => Node::BlockInner(vec![self.body]),
         };
 
-        Map::from_iter(std::iter::once((self.identifier, node)))
+        Map::from_iter(std::iter::once((self.identifier.into_inner(), node)))
     }
 }
 

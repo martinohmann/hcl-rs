@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename = "$hcl::block")]
 pub struct Block {
     /// The block identifier.
-    pub identifier: String,
+    pub identifier: Identifier,
     /// Zero or more block labels.
     pub labels: Vec<BlockLabel>,
     /// Represents the `Block`'s body.
@@ -28,7 +28,7 @@ impl Block {
     /// Creates a new `Block` from a block identifier, block labels and a block body.
     pub fn new<I, L, B>(identifier: I, labels: L, body: B) -> Block
     where
-        I: Into<String>,
+        I: Into<Identifier>,
         L: IntoIterator,
         L::Item: Into<BlockLabel>,
         B: IntoIterator,
@@ -45,7 +45,7 @@ impl Block {
     /// identifier.
     pub fn builder<I>(identifier: I) -> BlockBuilder
     where
-        I: Into<String>,
+        I: Into<Identifier>,
     {
         BlockBuilder::new(identifier)
     }
@@ -74,14 +74,14 @@ impl From<Block> for Value {
 
 impl<I, B> From<(I, B)> for Block
 where
-    I: Into<String>,
+    I: Into<Identifier>,
     B: Into<Body>,
 {
-    fn from(pair: (I, B)) -> Block {
+    fn from((ident, body): (I, B)) -> Block {
         Block {
-            identifier: pair.0.into(),
+            identifier: ident.into(),
             labels: Vec::new(),
-            body: pair.1.into(),
+            body: body.into(),
         }
     }
 }
@@ -174,7 +174,7 @@ where
 /// ```
 #[derive(Debug)]
 pub struct BlockBuilder {
-    identifier: String,
+    identifier: Identifier,
     labels: Vec<BlockLabel>,
     body: BodyBuilder,
 }
@@ -184,7 +184,7 @@ impl BlockBuilder {
     /// identifier.
     pub fn new<I>(identifier: I) -> BlockBuilder
     where
-        I: Into<String>,
+        I: Into<Identifier>,
     {
         BlockBuilder {
             identifier: identifier.into(),

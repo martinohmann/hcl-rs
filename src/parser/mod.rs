@@ -81,7 +81,7 @@ fn parse_attribute(pair: Pair<Rule>) -> Result<Attribute> {
 fn parse_block(pair: Pair<Rule>) -> Result<Block> {
     let mut pairs = pair.into_inner();
 
-    let identifier = parse_ident(pairs.next().unwrap());
+    let identifier = parse_ident(pairs.next().unwrap()).into();
 
     let (labels, block_body): (Vec<Pair<Rule>>, Vec<Pair<Rule>>) =
         pairs.partition(|pair| pair.as_rule() != Rule::BlockBody);
