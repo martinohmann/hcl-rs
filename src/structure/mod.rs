@@ -73,22 +73,80 @@ pub use self::{
     template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
     traversal::{Traversal, TraversalOperator},
 };
-use crate::{Map, Value};
+use crate::{Error, Map, Result, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
 use std::ops;
+use std::str::FromStr;
 
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(rename = "$hcl::identifier")]
-pub struct Identifier(pub String);
+pub struct Identifier(String);
 
 impl Identifier {
-    /// Creates a new `Identifier` from something that can be converted to a `String`.
-    pub fn new<I>(ident: I) -> Self
+    /// Creates a new `Identifier`.
+    ///
+    /// If `ident` contains characters that are not allowed in HCL identifiers will be sanitized
+    /// according to the following rules:
+    ///
+    /// - An empty `ident` results in an identifier containing a single underscore.
+    /// - Invalid characters in `ident` will be replaced with underscores.
+    /// - If `ident` starts with a character that is invalid in the first position but would be
+    ///   valid in the rest of an HCL identifier it is prefixed with an underscore.
+    ///
+    /// See [`Identifier::from_str`][Identifier::from_str] for a fallible alternative to this
+    /// function if you prefer rejecting invalid identifiers instead of sanitizing them.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hcl::Identifier;
+    /// assert_eq!(Identifier::new("some_ident").as_str(), "some_ident");
+    /// assert_eq!(Identifier::new("").as_str(), "_");
+    /// assert_eq!(Identifier::new("1two3").as_str(), "_1two3");
+    /// assert_eq!(Identifier::new("with whitespace").as_str(), "with_whitespace");
+    /// ```
+    pub fn new<T>(ident: T) -> Self
     where
-        I: Into<String>,
+        T: AsRef<str>,
+    {
+        let input = ident.as_ref();
+
+        if input.is_empty() {
+            return Identifier::new_unchecked('_');
+        }
+
+        let mut ident = String::with_capacity(input.len());
+
+        for (i, ch) in input.chars().enumerate() {
+            if i == 0 && is_id_start(ch) {
+                ident.push(ch);
+            } else if is_id_continue(ch) {
+                if i == 0 {
+                    ident.push('_');
+                }
+                ident.push(ch);
+            } else {
+                ident.push('_');
+            }
+        }
+
+        Identifier::new_unchecked(ident)
+    }
+
+    /// Creates a new `Identifier` without checking if it is valid in HCL.
+    ///
+    /// It is the caller's responsibility to ensure that the identifier is valid.
+    ///
+    /// # Safety
+    ///
+    /// This function is not marked as unsafe because it does not cause undefined behaviour.
+    /// However, attempting to serialize an invalid identifier to HCL will produce invalid output.
+    pub fn new_unchecked<T>(ident: T) -> Self
+    where
+        T: Into<String>,
     {
         Identifier(ident.into())
     }
@@ -102,6 +160,54 @@ impl Identifier {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+}
+
+impl FromStr for Identifier {
+    type Err = Error;
+
+    /// Creates a new `Identifier` from a `str`.
+    ///
+    /// See [`Identifier::new`][Identifier::new] for an infallible alternative to this function.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use std::str::FromStr;
+    /// # use hcl::Identifier;
+    /// assert_eq!(Identifier::from_str("some_ident").unwrap(), Identifier::new("some_ident"));
+    /// assert!(Identifier::from_str("").is_err());
+    /// assert!(Identifier::from_str("1two3").is_err());
+    /// assert!(Identifier::from_str("with whitespace").is_err());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// If `s` contains characters that are not allowed in HCL identifiers an error will be
+    /// returned.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Err(Error::InvalidIdentifier(s.to_owned()));
+        }
+
+        let mut chars = s.chars();
+        let start = chars.next().unwrap();
+
+        if !is_id_start(start) || !chars.all(is_id_continue) {
+            return Err(Error::InvalidIdentifier(s.to_owned()));
+        }
+
+        Ok(Identifier::new_unchecked(s))
+    }
+}
+
+#[inline]
+fn is_id_start(ch: char) -> bool {
+    ch == '_' || unicode_ident::is_xid_start(ch)
+}
+
+#[inline]
+fn is_id_continue(ch: char) -> bool {
+    ch == '-' || unicode_ident::is_xid_continue(ch)
 }
 
 impl From<String> for Identifier {
@@ -124,7 +230,7 @@ impl<'a> From<Cow<'a, str>> for Identifier {
 
 impl From<Identifier> for String {
     fn from(ident: Identifier) -> Self {
-        ident.0
+        ident.into_inner()
     }
 }
 
