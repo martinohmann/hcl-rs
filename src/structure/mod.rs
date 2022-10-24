@@ -75,7 +75,7 @@ pub use self::{
 };
 use crate::{Map, Value};
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+use std::borrow::{Borrow, Cow};
 use std::fmt;
 use std::ops;
 
@@ -138,6 +138,18 @@ impl ops::Deref for Identifier {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for Identifier {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for Identifier {
+    fn borrow(&self) -> &str {
         self.as_str()
     }
 }
