@@ -1,7 +1,7 @@
 use super::{FromStrSerializer, IdentifierSerializer, StringSerializer};
 use crate::{Error, Heredoc, HeredocStripMode, Identifier, Result, TemplateExpr};
 use serde::ser::{self, Impossible, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 pub struct TemplateExprSerializer;
 
@@ -124,7 +124,7 @@ impl ser::Serializer for HeredocSerializer {
         T: ?Sized + Serialize,
     {
         Ok(Heredoc {
-            delimiter: variant.into(),
+            delimiter: Identifier::from_str(variant)?,
             template: value.serialize(StringSerializer)?,
             strip: HeredocStripMode::None,
         })

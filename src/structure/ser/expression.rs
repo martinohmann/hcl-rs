@@ -7,9 +7,10 @@ use super::{
     traversal::SerializeTraversalStruct,
     IdentifierSerializer, StringSerializer,
 };
-use crate::{Error, Expression, Number, Object, ObjectKey, RawExpression, Result};
+use crate::{Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result};
 use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
+use std::str::FromStr;
 
 #[derive(Clone)]
 pub struct ExpressionSerializer;
@@ -155,7 +156,7 @@ impl ser::Serializer for ExpressionSerializer {
             (_, _) => {
                 let mut object = Object::with_capacity(1);
                 object.insert(
-                    ObjectKey::Identifier(variant.into()),
+                    ObjectKey::Identifier(Identifier::from_str(variant)?),
                     value.serialize(self)?,
                 );
                 Ok(Expression::Object(object))
@@ -486,7 +487,7 @@ impl ser::Serializer for ObjectKeySerializer {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        Ok(ObjectKey::Identifier(variant.into()))
+        Identifier::from_str(variant).map(ObjectKey::Identifier)
     }
 
     fn serialize_newtype_variant<T>(
