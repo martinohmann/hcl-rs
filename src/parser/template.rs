@@ -130,13 +130,13 @@ struct ForExpr {
 fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
-    let mut value_var = Some(Identifier::new(pairs.next().unwrap().as_str()));
+    let mut value_var = Some(parse_ident(pairs.next().unwrap()));
     let mut expr = pairs.next().unwrap();
 
     // If there are two identifiers, the first one is the key and the second one the value.
     let key_var = match expr.as_rule() {
         Rule::Identifier => {
-            let key_var = value_var.replace(Identifier::new(expr.as_str()));
+            let key_var = value_var.replace(parse_ident(expr));
             expr = pairs.next().unwrap();
             key_var
         }
