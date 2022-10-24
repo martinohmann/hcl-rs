@@ -358,7 +358,7 @@ impl IntoNodeMap for Body {
         self.into_iter().fold(Map::new(), |mut map, structure| {
             match structure {
                 Structure::Attribute(attr) => {
-                    map.insert(attr.key, Node::Value(attr.expr.into()));
+                    map.insert(attr.key.into(), Node::Value(attr.expr.into()));
                 }
                 Structure::Block(block) => {
                     block

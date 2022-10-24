@@ -56,7 +56,7 @@ impl ser::Serializer for StructureSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeStructureTupleVariant::new(variant, len))
+        SerializeStructureTupleVariant::new(variant, len)
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -74,7 +74,7 @@ impl ser::Serializer for StructureSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeStructureStructVariant::new(variant, len))
+        SerializeStructureStructVariant::new(variant, len)
     }
 }
 
@@ -129,10 +129,10 @@ pub struct SerializeStructureTupleVariant {
 }
 
 impl SerializeStructureTupleVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
-        SerializeStructureTupleVariant {
-            inner: SerializeAttributeTupleVariant::new(variant, len),
-        }
+    pub fn new(variant: &'static str, len: usize) -> Result<Self> {
+        Ok(SerializeStructureTupleVariant {
+            inner: SerializeAttributeTupleVariant::new(variant, len)?,
+        })
     }
 }
 
@@ -204,10 +204,10 @@ pub struct SerializeStructureStructVariant {
 }
 
 impl SerializeStructureStructVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
-        SerializeStructureStructVariant {
-            inner: SerializeAttributeStructVariant::new(variant, len),
-        }
+    pub fn new(variant: &'static str, len: usize) -> Result<Self> {
+        Ok(SerializeStructureStructVariant {
+            inner: SerializeAttributeStructVariant::new(variant, len)?,
+        })
     }
 }
 

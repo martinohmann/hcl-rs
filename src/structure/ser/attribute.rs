@@ -1,6 +1,7 @@
-use super::{expression::ExpressionSerializer, StringSerializer};
-use crate::{Attribute, Error, Expression, Object, ObjectKey, Result};
+use super::{expression::ExpressionSerializer, IdentifierSerializer};
+use crate::{Attribute, Error, Expression, Identifier, Object, ObjectKey, Result};
 use serde::ser::{self, Serialize};
+use std::str::FromStr;
 
 pub struct AttributeSerializer;
 
@@ -33,10 +34,10 @@ impl ser::Serializer for AttributeSerializer {
     where
         T: ?Sized + Serialize,
     {
-        Ok(Attribute::new(
-            variant,
-            value.serialize(ExpressionSerializer)?,
-        ))
+        Ok(Attribute {
+            key: Identifier::from_str(variant)?,
+            expr: value.serialize(ExpressionSerializer)?,
+        })
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -50,7 +51,7 @@ impl ser::Serializer for AttributeSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeAttributeTupleVariant::new(variant, len))
+        SerializeAttributeTupleVariant::new(variant, len)
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -68,12 +69,12 @@ impl ser::Serializer for AttributeSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeAttributeStructVariant::new(variant, len))
+        SerializeAttributeStructVariant::new(variant, len)
     }
 }
 
 pub struct SerializeAttributeSeq {
-    key: Option<String>,
+    key: Option<Identifier>,
     expr: Option<Expression>,
 }
 
@@ -95,7 +96,7 @@ impl ser::SerializeSeq for SerializeAttributeSeq {
         T: ?Sized + ser::Serialize,
     {
         if self.key.is_none() {
-            self.key = Some(value.serialize(StringSerializer)?);
+            self.key = Some(value.serialize(IdentifierSerializer)?);
         } else if self.expr.is_none() {
             self.expr = Some(value.serialize(ExpressionSerializer)?);
         } else {
@@ -107,7 +108,7 @@ impl ser::SerializeSeq for SerializeAttributeSeq {
 
     fn end(self) -> Result<Self::Ok> {
         match (self.key, self.expr) {
-            (Some(key), Some(expr)) => Ok(Attribute::new(key, expr)),
+            (Some(key), Some(expr)) => Ok(Attribute { key, expr }),
             (_, _) => Err(ser::Error::custom("expected sequence with 2 elements")),
         }
     }
@@ -122,16 +123,16 @@ impl ser::SerializeTupleStruct for SerializeAttributeSeq {
 }
 
 pub struct SerializeAttributeTupleVariant {
-    key: String,
+    key: Identifier,
     vec: Vec<Expression>,
 }
 
 impl SerializeAttributeTupleVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
-        SerializeAttributeTupleVariant {
-            key: variant.to_owned(),
+    pub fn new(variant: &'static str, len: usize) -> Result<Self> {
+        Ok(SerializeAttributeTupleVariant {
+            key: Identifier::from_str(variant)?,
             vec: Vec::with_capacity(len),
-        }
+        })
     }
 }
 
@@ -153,7 +154,7 @@ impl ser::SerializeTupleVariant for SerializeAttributeTupleVariant {
 }
 
 pub struct SerializeAttributeMap {
-    key: Option<String>,
+    key: Option<Identifier>,
     expr: Option<Expression>,
 }
 
@@ -175,7 +176,7 @@ impl ser::SerializeMap for SerializeAttributeMap {
         T: ?Sized + ser::Serialize,
     {
         if self.key.is_none() {
-            self.key = Some(key.serialize(StringSerializer)?);
+            self.key = Some(key.serialize(IdentifierSerializer)?);
             Ok(())
         } else {
             Err(ser::Error::custom("expected map with 1 entry"))
@@ -196,7 +197,7 @@ impl ser::SerializeMap for SerializeAttributeMap {
 
     fn end(self) -> Result<Self::Ok> {
         match (self.key, self.expr) {
-            (Some(key), Some(expr)) => Ok(Attribute::new(key, expr)),
+            (Some(key), Some(expr)) => Ok(Attribute { key, expr }),
             (Some(_), None) => Err(ser::Error::custom("attribute value missing")),
             (_, _) => Err(ser::Error::custom("expected map with 1 entry")),
         }
@@ -204,7 +205,7 @@ impl ser::SerializeMap for SerializeAttributeMap {
 }
 
 pub struct SerializeAttributeStruct {
-    key: Option<String>,
+    key: Option<Identifier>,
     expr: Option<Expression>,
 }
 
@@ -226,7 +227,7 @@ impl ser::SerializeStruct for SerializeAttributeStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "key" => self.key = Some(value.serialize(StringSerializer)?),
+            "key" => self.key = Some(value.serialize(IdentifierSerializer)?),
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
             _ => {
                 return Err(ser::Error::custom(
@@ -240,7 +241,7 @@ impl ser::SerializeStruct for SerializeAttributeStruct {
 
     fn end(self) -> Result<Self::Ok> {
         match (self.key, self.expr) {
-            (Some(key), Some(expr)) => Ok(Attribute::new(key, expr)),
+            (Some(key), Some(expr)) => Ok(Attribute { key, expr }),
             (_, _) => Err(ser::Error::custom(
                 "expected struct with fields `key` and `expr`",
             )),
@@ -249,16 +250,16 @@ impl ser::SerializeStruct for SerializeAttributeStruct {
 }
 
 pub struct SerializeAttributeStructVariant {
-    key: String,
+    key: Identifier,
     map: Object<ObjectKey, Expression>,
 }
 
 impl SerializeAttributeStructVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
-        SerializeAttributeStructVariant {
-            key: variant.to_owned(),
+    pub fn new(variant: &'static str, len: usize) -> Result<Self> {
+        Ok(SerializeAttributeStructVariant {
+            key: Identifier::from_str(variant)?,
             map: Object::with_capacity(len),
-        }
+        })
     }
 }
 
