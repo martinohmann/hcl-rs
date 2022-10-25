@@ -203,7 +203,7 @@ fn deserialize_operation() {
             "unary",
             Operation::Unary(UnaryOp::new(
                 UnaryOperator::Not,
-                Identifier::new("variable"),
+                Identifier::unchecked("variable"),
             )),
         ))
         .add_attribute((
@@ -226,27 +226,27 @@ fn deserialize_for_expr() {
         .add_attribute((
             "list",
             ForExpr::new(
-                Identifier::new("item"),
-                Expression::Variable(Identifier::new("items")),
+                Identifier::unchecked("item"),
+                Expression::Variable(Identifier::unchecked("items")),
                 FuncCall::builder("func")
-                    .arg(Identifier::new("item"))
+                    .arg(Identifier::unchecked("item"))
                     .build(),
             )
-            .with_cond_expr(Identifier::new("item")),
+            .with_cond_expr(Identifier::unchecked("item")),
         ))
         .add_attribute((
             "object",
             ForExpr::new(
-                Identifier::new("value"),
-                Expression::Variable(Identifier::new("items")),
+                Identifier::unchecked("value"),
+                Expression::Variable(Identifier::unchecked("items")),
                 FuncCall::builder("tolower")
-                    .arg(Identifier::new("value"))
+                    .arg(Identifier::unchecked("value"))
                     .build(),
             )
-            .with_key_var(Identifier::new("key"))
+            .with_key_var(Identifier::unchecked("key"))
             .with_key_expr(
                 FuncCall::builder("toupper")
-                    .arg(Identifier::new("key"))
+                    .arg(Identifier::unchecked("key"))
                     .build(),
             )
             .with_grouping(true),
@@ -300,7 +300,7 @@ fn deserialize_terraform() {
                                         .add_attribute((
                                             "kms_master_key_id",
                                             Traversal::new(
-                                                Identifier::new("aws_kms_key"),
+                                                Identifier::unchecked("aws_kms_key"),
                                                 ["mykey", "arn"],
                                             ),
                                         ))
@@ -315,7 +315,10 @@ fn deserialize_terraform() {
                     "tags",
                     Expression::from_iter([
                         (
-                            ObjectKey::from(Traversal::new(Identifier::new("var"), ["dynamic"])),
+                            ObjectKey::from(Traversal::new(
+                                Identifier::unchecked("var"),
+                                ["dynamic"],
+                            )),
                             Expression::Null,
                         ),
                         (
@@ -393,7 +396,7 @@ fn issue_66() {
         .add_attribute((
             "a",
             Traversal::new(
-                Identifier::new("b"),
+                Identifier::unchecked("b"),
                 [Expression::String(String::from("c"))],
             ),
         ))
@@ -413,7 +416,7 @@ fn issue_81() {
         .add_attribute((
             "attr_splat",
             Traversal::new(
-                Identifier::new("module"),
+                Identifier::unchecked("module"),
                 [
                     TraversalOperator::GetAttr("instance".into()),
                     TraversalOperator::AttrSplat,
@@ -424,7 +427,7 @@ fn issue_81() {
         .add_attribute((
             "full_splat",
             Traversal::new(
-                Identifier::new("module"),
+                Identifier::unchecked("module"),
                 [
                     TraversalOperator::GetAttr("instance".into()),
                     TraversalOperator::FullSplat,
@@ -443,7 +446,7 @@ fn issue_83() {
         .add_attribute((
             "attr",
             Traversal::new(
-                Identifier::new("module"),
+                Identifier::unchecked("module"),
                 [
                     TraversalOperator::GetAttr("instance".into()),
                     TraversalOperator::LegacyIndex(0),

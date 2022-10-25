@@ -1,5 +1,5 @@
 use super::{expression::ExpressionSerializer, IdentifierSerializer, SeqSerializer};
-use crate::{Error, Expression, Result, Traversal, TraversalOperator};
+use crate::{Error, Expression, Identifier, Result, Traversal, TraversalOperator};
 use serde::ser::{self, Impossible, Serialize};
 
 pub struct TraversalSerializer;
@@ -112,7 +112,7 @@ impl ser::Serializer for TraversalOperatorSerializer {
         match (name, variant) {
             ("$hcl::traversal_operator", "AttrSplat") => Ok(TraversalOperator::AttrSplat),
             ("$hcl::traversal_operator", "FullSplat") => Ok(TraversalOperator::FullSplat),
-            (_, _) => Ok(TraversalOperator::GetAttr(variant.into())),
+            (_, _) => Identifier::new(variant).map(TraversalOperator::GetAttr),
         }
     }
 

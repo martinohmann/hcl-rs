@@ -124,7 +124,7 @@ impl ser::Serializer for HeredocSerializer {
         T: ?Sized + Serialize,
     {
         Ok(Heredoc {
-            delimiter: variant.into(),
+            delimiter: Identifier::new(variant)?,
             template: value.serialize(StringSerializer)?,
             strip: HeredocStripMode::None,
         })

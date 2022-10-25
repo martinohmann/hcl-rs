@@ -196,7 +196,7 @@ fn serialize_traversal() {
         Attribute::new(
             "attr",
             Traversal::new(
-                Identifier::new("var"),
+                Identifier::unchecked("var"),
                 [
                     TraversalOperator::GetAttr("foo".into()),
                     TraversalOperator::FullSplat,
@@ -217,7 +217,7 @@ fn serialize_conditional() {
     expect_str(
         Attribute::new(
             "cond",
-            Conditional::new(Identifier::new("cond_var"), "yes", "no"),
+            Conditional::new(Identifier::unchecked("cond_var"), "yes", "no"),
         ),
         "cond = cond_var ? \"yes\" : \"no\"\n",
     );
@@ -240,31 +240,31 @@ fn serialize_for_expr() {
         .add_attribute((
             "list",
             ForExpr::new(
-                Identifier::new("item"),
-                Expression::Variable(Identifier::new("items")),
+                Identifier::unchecked("item"),
+                Expression::Variable(Identifier::unchecked("items")),
                 FuncCall::builder("func")
-                    .arg(Identifier::new("item"))
+                    .arg(Identifier::unchecked("item"))
                     .build(),
             )
-            .with_cond_expr(Identifier::new("item")),
+            .with_cond_expr(Identifier::unchecked("item")),
         ))
         .add_attribute((
             "object",
             ForExpr::new(
-                Identifier::new("value"),
-                Expression::Variable(Identifier::new("items")),
+                Identifier::unchecked("value"),
+                Expression::Variable(Identifier::unchecked("items")),
                 FuncCall::builder("tolower")
-                    .arg(Identifier::new("value"))
+                    .arg(Identifier::unchecked("value"))
                     .build(),
             )
-            .with_key_var(Identifier::new("key"))
+            .with_key_var(Identifier::unchecked("key"))
             .with_key_expr(
                 FuncCall::builder("toupper")
-                    .arg(Identifier::new("key"))
+                    .arg(Identifier::unchecked("key"))
                     .build(),
             )
             .with_cond_expr(Operation::Binary(BinaryOp::new(
-                Identifier::new("value"),
+                Identifier::unchecked("value"),
                 BinaryOperator::NotEq,
                 Expression::Null,
             )))
@@ -312,15 +312,18 @@ fn serialize_heredoc() {
                 .add_attribute((
                     "heredoc",
                     TemplateExpr::Heredoc(Heredoc::new(
-                        Identifier::new("HEREDOC"),
+                        Identifier::unchecked("HEREDOC"),
                         "foo\n  bar\nbaz\n",
                     )),
                 ))
                 .add_attribute((
                     "heredoc_indent",
                     TemplateExpr::Heredoc(
-                        Heredoc::new(Identifier::new("HEREDOC"), "    foo\n      bar\n    baz\n")
-                            .with_strip_mode(HeredocStripMode::Indent),
+                        Heredoc::new(
+                            Identifier::unchecked("HEREDOC"),
+                            "    foo\n      bar\n    baz\n",
+                        )
+                        .with_strip_mode(HeredocStripMode::Indent),
                     ),
                 ))
                 .build(),
@@ -431,7 +434,11 @@ fn roundtrip() {
                 .add_label("mybucket")
                 .add_attribute((
                     "count",
-                    Conditional::new(Traversal::new(Identifier::new("var"), ["enabled"]), 1, 0),
+                    Conditional::new(
+                        Traversal::new(Identifier::unchecked("var"), ["enabled"]),
+                        1,
+                        0,
+                    ),
                 ))
                 .add_attribute(("bucket", "mybucket"))
                 .add_attribute(("force_destroy", true))
@@ -444,7 +451,7 @@ fn roundtrip() {
                                         .add_attribute((
                                             "kms_master_key_id",
                                             Traversal::new(
-                                                Identifier::new("aws_kms_key"),
+                                                Identifier::unchecked("aws_kms_key"),
                                                 ["mykey", "arn"],
                                             ),
                                         ))

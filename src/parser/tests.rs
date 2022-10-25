@@ -293,12 +293,12 @@ fn parse_object_with_variable_expr_key() {
             "providers",
             Expression::from_iter([(
                 ObjectKey::Expression(Expression::from(Traversal::new(
-                    Identifier::new("aws"),
-                    [Identifier::new("eu-central-1")],
+                    Identifier::unchecked("aws"),
+                    [Identifier::unchecked("eu-central-1")],
                 ))),
                 Expression::from(Traversal::new(
-                    Identifier::new("aws"),
-                    [Identifier::new("eu-central-1")],
+                    Identifier::unchecked("aws"),
+                    [Identifier::unchecked("eu-central-1")],
                 )),
             )]),
         ))
@@ -370,17 +370,17 @@ fn parse_traversal_with_expression() {
         .add_attribute((
             "route_table_id",
             Expression::from(Traversal::new(
-                Identifier::new("aws_route_table"),
+                Identifier::unchecked("aws_route_table"),
                 [
                     TraversalOperator::GetAttr("private".into()),
                     TraversalOperator::Index(Expression::from(Operation::Binary(BinaryOp::new(
                         Traversal::new(
-                            Identifier::new("count"),
+                            Identifier::unchecked("count"),
                             [TraversalOperator::GetAttr("index".into())],
                         ),
                         BinaryOperator::Mod,
                         Traversal::new(
-                            Identifier::new("var"),
+                            Identifier::unchecked("var"),
                             [TraversalOperator::GetAttr("availability_zone_count".into())],
                         ),
                     )))),
@@ -398,7 +398,7 @@ fn parse_null_in_variable_expr() {
     let input = "foo = null_foo";
 
     let expected = Body::builder()
-        .add_attribute(("foo", Identifier::new("null_foo")))
+        .add_attribute(("foo", Identifier::unchecked("null_foo")))
         .build();
 
     expect_body(input, expected);
@@ -451,7 +451,7 @@ fn parse_hcl() {
                                         .add_attribute(Attribute::new(
                                             "kms_master_key_id",
                                             Traversal::new(
-                                                Identifier::new("aws_kms_key"),
+                                                Identifier::unchecked("aws_kms_key"),
                                                 ["mykey", "arn"],
                                             ),
                                         ))
@@ -499,7 +499,7 @@ fn unescape_strings() {
                     "heredoc",
                     TemplateExpr::Heredoc(
                         Heredoc::new(
-                            Identifier::new("EOS"),
+                            Identifier::unchecked("EOS"),
                             "            heredoc template with \\\n            escaped newline and \\\\backslash is not unescaped yet\n"
                         )
                         .with_strip_mode(HeredocStripMode::Indent)
@@ -550,11 +550,11 @@ fn parse_template_expr() {
 
             let expected_template = Template::new()
                 .add_literal("bar ")
-                .add_interpolation(Expression::Variable(Identifier::new("baz")))
+                .add_interpolation(Expression::Variable(Identifier::unchecked("baz")))
                 .add_literal(" ")
                 .add_directive(
                     IfDirective::new(
-                        Expression::Variable(Identifier::new("cond")),
+                        Expression::Variable(Identifier::unchecked("cond")),
                         Template::new().add_literal("qux"),
                     )
                     .with_if_strip(StripMode::Start)
