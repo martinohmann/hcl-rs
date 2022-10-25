@@ -87,7 +87,7 @@ impl<'de> IntoDeserializer<'de, Error> for Attribute {
 }
 
 pub struct AttributeAccess {
-    key: Option<String>,
+    key: Option<Identifier>,
     expr: Option<Expression>,
 }
 

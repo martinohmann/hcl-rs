@@ -1,5 +1,5 @@
 use super::{attribute::*, block::*};
-use crate::{Error, Result, Structure};
+use crate::{Error, Identifier, Result, Structure};
 use serde::ser::{self, Serialize, SerializeMap};
 
 pub struct StructureSerializer;
@@ -56,7 +56,10 @@ impl ser::Serializer for StructureSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeStructureTupleVariant::new(variant, len))
+        Ok(SerializeStructureTupleVariant::new(
+            Identifier::new(variant)?,
+            len,
+        ))
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -74,7 +77,10 @@ impl ser::Serializer for StructureSerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeStructureStructVariant::new(variant, len))
+        Ok(SerializeStructureStructVariant::new(
+            Identifier::new(variant)?,
+            len,
+        ))
     }
 }
 
@@ -129,9 +135,9 @@ pub struct SerializeStructureTupleVariant {
 }
 
 impl SerializeStructureTupleVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
+    pub fn new(key: Identifier, len: usize) -> Self {
         SerializeStructureTupleVariant {
-            inner: SerializeAttributeTupleVariant::new(variant, len),
+            inner: SerializeAttributeTupleVariant::new(key, len),
         }
     }
 }
@@ -204,9 +210,9 @@ pub struct SerializeStructureStructVariant {
 }
 
 impl SerializeStructureStructVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
+    pub fn new(key: Identifier, len: usize) -> Self {
         SerializeStructureStructVariant {
-            inner: SerializeAttributeStructVariant::new(variant, len),
+            inner: SerializeAttributeStructVariant::new(key, len),
         }
     }
 }

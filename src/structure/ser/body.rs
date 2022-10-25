@@ -1,8 +1,8 @@
 use super::{
     attribute::SerializeAttributeStruct, block::SerializeBlockStruct,
-    expression::ExpressionSerializer, structure::*, StringSerializer,
+    expression::ExpressionSerializer, structure::*, IdentifierSerializer,
 };
-use crate::{Attribute, Body, Error, Result, Structure};
+use crate::{Attribute, Body, Error, Identifier, Result, Structure};
 use serde::ser::{self, Serialize, SerializeMap};
 
 pub struct BodySerializer;
@@ -55,7 +55,10 @@ impl ser::Serializer for BodySerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Ok(SerializeBodyTupleVariant::new(variant, len))
+        Ok(SerializeBodyTupleVariant::new(
+            Identifier::new(variant)?,
+            len,
+        ))
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -73,7 +76,10 @@ impl ser::Serializer for BodySerializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Ok(SerializeBodyStructVariant::new(variant, len))
+        Ok(SerializeBodyStructVariant::new(
+            Identifier::new(variant)?,
+            len,
+        ))
     }
 }
 
@@ -119,9 +125,9 @@ pub struct SerializeBodyTupleVariant {
 }
 
 impl SerializeBodyTupleVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
+    pub fn new(key: Identifier, len: usize) -> Self {
         SerializeBodyTupleVariant {
-            inner: SerializeStructureTupleVariant::new(variant, len),
+            inner: SerializeStructureTupleVariant::new(key, len),
         }
     }
 }
@@ -132,7 +138,7 @@ impl ser::SerializeTupleVariant for SerializeBodyTupleVariant {
 
 pub struct SerializeBodyMap {
     structures: Vec<Structure>,
-    next_key: Option<String>,
+    next_key: Option<Identifier>,
 }
 
 impl SerializeBodyMap {
@@ -152,7 +158,7 @@ impl ser::SerializeMap for SerializeBodyMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        self.next_key = Some(key.serialize(StringSerializer)?);
+        self.next_key = Some(key.serialize(IdentifierSerializer)?);
         Ok(())
     }
 
@@ -217,9 +223,9 @@ pub struct SerializeBodyStructVariant {
 }
 
 impl SerializeBodyStructVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
+    pub fn new(key: Identifier, len: usize) -> Self {
         SerializeBodyStructVariant {
-            inner: SerializeStructureStructVariant::new(variant, len),
+            inner: SerializeStructureStructVariant::new(key, len),
         }
     }
 }
