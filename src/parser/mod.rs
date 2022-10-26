@@ -184,7 +184,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::TemplateExpr => Expression::TemplateExpr(Box::new(parse_template_expr(inner(pair)))),
         Rule::Tuple => parse_expressions(pair).map(Expression::Array)?,
         Rule::Object => parse_object(pair).map(Expression::Object)?,
-        Rule::Variable => Expression::Variable(parse_ident(pair)),
+        Rule::Variable => Expression::Variable(Variable::from(parse_ident(pair))),
         Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
         Rule::Parenthesis => Expression::Parenthesis(Box::new(parse_expression(inner(pair))?)),
         Rule::ForExpr => Expression::from(parse_for_expr(inner(pair))?),

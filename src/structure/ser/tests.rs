@@ -79,7 +79,7 @@ fn identity() {
     );
     test_identity(
         ConditionalSerializer,
-        Conditional::new(Identifier::unchecked("some_cond_var"), "yes", "no"),
+        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
     );
     test_identity(
         OperationSerializer,
@@ -94,7 +94,7 @@ fn identity() {
         ForExpr::new(
             Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
-            Identifier::unchecked("other_value"),
+            Variable::unchecked("other_value"),
         )
         .with_key_var(Identifier::unchecked("index"))
         .with_cond_expr(Expression::Bool(true)),
@@ -107,10 +107,10 @@ fn identity() {
                 ObjectKey::from("k"),
                 Expression::String(String::from("v")),
             )])),
-            Identifier::unchecked("other_value"),
+            Variable::unchecked("other_value"),
         )
         .with_key_var(Identifier::unchecked("index"))
-        .with_key_expr(Identifier::unchecked("other_key"))
+        .with_key_expr(Variable::unchecked("other_key"))
         .with_cond_expr(Expression::Bool(true))
         .with_grouping(true),
     );
@@ -208,9 +208,9 @@ fn custom() {
 
     test_serialize(
         ExpressionSerializer,
-        Conditional::new(Identifier::unchecked("some_cond_var"), "yes", "no"),
+        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
         Expression::from(Conditional::new(
-            Identifier::unchecked("some_cond_var"),
+            Variable::unchecked("some_cond_var"),
             "yes",
             "no",
         )),
@@ -236,7 +236,7 @@ fn custom() {
         ForExpr::new(
             Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
-            Identifier::unchecked("other_value"),
+            Variable::unchecked("other_value"),
         )
         .with_key_var(Identifier::unchecked("index"))
         .with_cond_expr(Expression::Bool(true)),
@@ -244,7 +244,7 @@ fn custom() {
             ForExpr::new(
                 Identifier::unchecked("value"),
                 vec![Expression::String(String::from("foo"))],
-                Identifier::unchecked("other_value"),
+                Variable::unchecked("other_value"),
             )
             .with_key_var(Identifier::unchecked("index"))
             .with_cond_expr(Expression::Bool(true)),
@@ -256,19 +256,19 @@ fn custom() {
         ForExpr::new(
             Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
-            Identifier::unchecked("other_value"),
+            Variable::unchecked("other_value"),
         )
         .with_key_var(Identifier::unchecked("key"))
-        .with_key_expr(Expression::Variable(Identifier::unchecked("key")))
+        .with_key_expr(Variable::unchecked("key"))
         .with_cond_expr(Expression::Bool(true)),
         Expression::from(
             ForExpr::new(
                 Identifier::unchecked("value"),
                 vec![Expression::String(String::from("foo"))],
-                Identifier::unchecked("other_value"),
+                Variable::unchecked("other_value"),
             )
             .with_key_var(Identifier::unchecked("key"))
-            .with_key_expr(Expression::Variable(Identifier::unchecked("key")))
+            .with_key_expr(Variable::unchecked("key"))
             .with_cond_expr(Expression::Bool(true)),
         ),
     );
@@ -276,11 +276,11 @@ fn custom() {
     test_serialize(
         ConditionalSerializer,
         (
-            Expression::Variable(Identifier::unchecked("some_cond_var")),
+            Expression::from(Variable::unchecked("some_cond_var")),
             Expression::String("yes".into()),
             Expression::String("no".into()),
         ),
-        Conditional::new(Identifier::unchecked("some_cond_var"), "yes", "no"),
+        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
     );
 
     test_serialize(

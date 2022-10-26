@@ -21,14 +21,14 @@
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
 //! use hcl::template::Template;
-//! use hcl::{Expression, Identifier, TemplateExpr};
+//! use hcl::{TemplateExpr, Variable};
 //!
-//! let expr = TemplateExpr::QuotedString(String::from("Hello ${name}!"));
+//! let expr = TemplateExpr::from("Hello ${name}!");
 //! let template = Template::from_expr(&expr)?;
 //!
 //! let expected = Template::new()
 //!     .add_literal("Hello ")
-//!     .add_interpolation(Expression::Variable(Identifier::new("name")?))
+//!     .add_interpolation(Variable::new("name")?)
 //!     .add_literal("!");
 //!
 //! assert_eq!(expected, template);
@@ -43,7 +43,7 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl::{Expression, Identifier};
+//! use hcl::{Identifier, Variable};
 //! use hcl::template::{ForDirective, StripMode, Template};
 //! use std::str::FromStr;
 //!
@@ -61,12 +61,10 @@
 //!     .add_directive(
 //!         ForDirective::new(
 //!             Identifier::new("item")?,
-//!             Expression::Variable(Identifier::new("items")?),
+//!             Variable::new("items")?,
 //!             Template::new()
 //!                 .add_literal("- ")
-//!                 .add_interpolation(
-//!                     Expression::Variable(Identifier::new("item")?)
-//!                 )
+//!                 .add_interpolation(Variable::new("item")?)
 //!                 .add_literal("\n")
 //!         )
 //!         .with_for_strip(StripMode::End)
@@ -245,10 +243,13 @@ impl Interpolation {
     }
 }
 
-impl From<Expression> for Interpolation {
-    fn from(expr: Expression) -> Self {
+impl<T> From<T> for Interpolation
+where
+    T: Into<Expression>,
+{
+    fn from(expr: T) -> Self {
         Interpolation {
-            expr,
+            expr: expr.into(),
             strip: StripMode::default(),
         }
     }

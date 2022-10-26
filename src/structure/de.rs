@@ -1101,6 +1101,14 @@ impl<'de> IntoDeserializer<'de, Error> for Identifier {
     }
 }
 
+impl<'de> IntoDeserializer<'de, Error> for Variable {
+    type Deserializer = NewtypeStructDeserializer<String>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self.into_inner().into_deserializer()
+    }
+}
+
 pub struct NewtypeStructDeserializer<T, E = Error> {
     value: T,
     marker: PhantomData<E>,

@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     BinaryOp, BinaryOperator, Block, Body, Expression, ForExpr, FuncCall, Identifier, ObjectKey,
-    Operation, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
+    Operation, Traversal, TraversalOperator, UnaryOp, UnaryOperator, Variable,
 };
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
@@ -203,7 +203,7 @@ fn deserialize_operation() {
             "unary",
             Operation::Unary(UnaryOp::new(
                 UnaryOperator::Not,
-                Identifier::unchecked("variable"),
+                Variable::unchecked("variable"),
             )),
         ))
         .add_attribute((
@@ -227,26 +227,26 @@ fn deserialize_for_expr() {
             "list",
             ForExpr::new(
                 Identifier::unchecked("item"),
-                Expression::Variable(Identifier::unchecked("items")),
+                Variable::unchecked("items"),
                 FuncCall::builder("func")
-                    .arg(Identifier::unchecked("item"))
+                    .arg(Variable::unchecked("item"))
                     .build(),
             )
-            .with_cond_expr(Identifier::unchecked("item")),
+            .with_cond_expr(Variable::unchecked("item")),
         ))
         .add_attribute((
             "object",
             ForExpr::new(
                 Identifier::unchecked("value"),
-                Expression::Variable(Identifier::unchecked("items")),
+                Variable::unchecked("items"),
                 FuncCall::builder("tolower")
-                    .arg(Identifier::unchecked("value"))
+                    .arg(Variable::unchecked("value"))
                     .build(),
             )
             .with_key_var(Identifier::unchecked("key"))
             .with_key_expr(
                 FuncCall::builder("toupper")
-                    .arg(Identifier::unchecked("key"))
+                    .arg(Variable::unchecked("key"))
                     .build(),
             )
             .with_grouping(true),
@@ -300,7 +300,7 @@ fn deserialize_terraform() {
                                         .add_attribute((
                                             "kms_master_key_id",
                                             Traversal::new(
-                                                Identifier::unchecked("aws_kms_key"),
+                                                Variable::unchecked("aws_kms_key"),
                                                 ["mykey", "arn"],
                                             ),
                                         ))
@@ -316,7 +316,7 @@ fn deserialize_terraform() {
                     Expression::from_iter([
                         (
                             ObjectKey::from(Traversal::new(
-                                Identifier::unchecked("var"),
+                                Variable::unchecked("var"),
                                 ["dynamic"],
                             )),
                             Expression::Null,
@@ -395,10 +395,7 @@ fn issue_66() {
     let expected = Body::builder()
         .add_attribute((
             "a",
-            Traversal::new(
-                Identifier::unchecked("b"),
-                [Expression::String(String::from("c"))],
-            ),
+            Traversal::new(Variable::unchecked("b"), [Expression::from("c")]),
         ))
         .build();
 
@@ -416,7 +413,7 @@ fn issue_81() {
         .add_attribute((
             "attr_splat",
             Traversal::new(
-                Identifier::unchecked("module"),
+                Variable::unchecked("module"),
                 [
                     TraversalOperator::GetAttr("instance".into()),
                     TraversalOperator::AttrSplat,
@@ -427,7 +424,7 @@ fn issue_81() {
         .add_attribute((
             "full_splat",
             Traversal::new(
-                Identifier::unchecked("module"),
+                Variable::unchecked("module"),
                 [
                     TraversalOperator::GetAttr("instance".into()),
                     TraversalOperator::FullSplat,
@@ -446,7 +443,7 @@ fn issue_83() {
         .add_attribute((
             "attr",
             Traversal::new(
-                Identifier::unchecked("module"),
+                Variable::unchecked("module"),
                 [
                     TraversalOperator::GetAttr("instance".into()),
                     TraversalOperator::LegacyIndex(0),
