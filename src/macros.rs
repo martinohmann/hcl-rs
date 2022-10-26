@@ -355,14 +355,17 @@ macro_rules! block_internal {
 /// ## Examples
 ///
 /// ```
-/// use hcl::BlockLabel;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{BlockLabel, Identifier};
 ///
-/// assert_eq!(hcl::block_label!(some_identifier), BlockLabel::identifier("some_identifier"));
-/// assert_eq!(hcl::block_label!("some string"), BlockLabel::string("some string"));
+/// assert_eq!(hcl::block_label!(some_identifier), BlockLabel::from(Identifier::new("some_identifier")?));
+/// assert_eq!(hcl::block_label!("some string"), BlockLabel::from("some string"));
 ///
 /// let label = "some expression";
 ///
-/// assert_eq!(hcl::block_label!((label)), BlockLabel::string("some expression"));
+/// assert_eq!(hcl::block_label!((label)), BlockLabel::from("some expression"));
+/// #    Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! block_label {

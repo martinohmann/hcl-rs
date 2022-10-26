@@ -53,8 +53,11 @@ fn identity() {
             .add_attribute(("baz", "qux"))
             .build(),
     );
-    test_identity(BlockLabelSerializer, BlockLabel::string("foo"));
-    test_identity(BlockLabelSerializer, BlockLabel::identifier("foo"));
+    test_identity(BlockLabelSerializer, BlockLabel::from("foo"));
+    test_identity(
+        BlockLabelSerializer,
+        BlockLabel::from(Identifier::unchecked("foo")),
+    );
     test_identity(ExpressionSerializer, Expression::Null);
     test_identity(ExpressionSerializer, Expression::Number(1.into()));
     test_identity(ExpressionSerializer, Expression::String("bar".into()));
@@ -62,10 +65,7 @@ fn identity() {
         ExpressionSerializer,
         Expression::from_iter([("foo", "bar")]),
     );
-    test_identity(
-        TemplateExprSerializer,
-        TemplateExpr::QuotedString("${foo}".into()),
-    );
+    test_identity(TemplateExprSerializer, TemplateExpr::from("${foo}"));
     test_identity(
         TemplateExprSerializer,
         TemplateExpr::Heredoc(

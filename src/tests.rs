@@ -83,16 +83,16 @@ fn block_macro() {
     assert_eq!(
         block!(resource "aws_s3_bucket" "bucket" {}),
         Block::builder("resource")
-            .add_label(BlockLabel::string("aws_s3_bucket"))
-            .add_label(BlockLabel::string("bucket"))
+            .add_label("aws_s3_bucket")
+            .add_label("bucket")
             .build()
     );
 
     assert_eq!(
         block!(resource aws_s3_bucket bucket {}),
         Block::builder("resource")
-            .add_label(BlockLabel::identifier("aws_s3_bucket"))
-            .add_label(BlockLabel::identifier("bucket"))
+            .add_label(Identifier::unchecked("aws_s3_bucket"))
+            .add_label(Identifier::unchecked("bucket"))
             .build()
     );
 
@@ -102,8 +102,8 @@ fn block_macro() {
     assert_eq!(
         block!((ident) aws_s3_bucket (name) {}),
         Block::builder("resource")
-            .add_label(BlockLabel::identifier("aws_s3_bucket"))
-            .add_label(BlockLabel::string("bucket"))
+            .add_label(Identifier::unchecked("aws_s3_bucket"))
+            .add_label("bucket")
             .build()
     );
 }

@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
-    FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
+    Attribute, BinaryOp, BinaryOperator, Block, Body, Conditional, Expression, ForExpr, FuncCall,
+    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
     TemplateExpr, Traversal, TraversalOperator, Variable,
 };
 use pretty_assertions::assert_eq;
@@ -80,7 +80,7 @@ fn serialize_body() {
                 .add_attribute(("foo", "bar"))
                 .add_block(
                     Block::builder("with_labels")
-                        .add_label(BlockLabel::identifier("label1"))
+                        .add_label(Identifier::unchecked("label1"))
                         .add_label("lab\"el2")
                         .add_attribute(("baz", vec![1u64, 2u64, 3u64]))
                         .build(),

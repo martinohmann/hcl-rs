@@ -114,6 +114,7 @@ pub enum BlockLabel {
 
 impl BlockLabel {
     /// Creates a new bare `BlockLabel` identifier.
+    #[deprecated(since = "0.9.0", note = "use `BlockLabel::from(identifier)` instead")]
     pub fn identifier<I>(identifier: I) -> Self
     where
         I: Into<Identifier>,
@@ -122,6 +123,7 @@ impl BlockLabel {
     }
 
     /// Creates a new quoted string `BlockLabel`.
+    #[deprecated(since = "0.9.0", note = "use `BlockLabel::from(string)` instead")]
     pub fn string<S>(string: S) -> Self
     where
         S: Into<String>,
@@ -145,8 +147,14 @@ impl<T> From<T> for BlockLabel
 where
     T: Into<String>,
 {
-    fn from(v: T) -> BlockLabel {
-        BlockLabel::string(v)
+    fn from(s: T) -> BlockLabel {
+        BlockLabel::String(s.into())
+    }
+}
+
+impl From<Identifier> for BlockLabel {
+    fn from(ident: Identifier) -> Self {
+        BlockLabel::Identifier(ident)
     }
 }
 

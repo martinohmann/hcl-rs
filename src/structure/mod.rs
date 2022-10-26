@@ -42,7 +42,7 @@
 //! assert_eq!(block.identifier(), "resource");
 //! assert_eq!(
 //!     block.labels().first(),
-//!     Some(&BlockLabel::string("aws_s3_bucket")),
+//!     Some(&BlockLabel::from("aws_s3_bucket")),
 //! );
 //! ```
 
