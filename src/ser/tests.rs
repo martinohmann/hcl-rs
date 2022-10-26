@@ -87,7 +87,10 @@ fn serialize_body() {
                 )
                 .add_attribute(("an_object", {
                     Object::from([
-                        (ObjectKey::identifier("foo"), Expression::from("bar")),
+                        (
+                            ObjectKey::from(Identifier::unchecked("foo")),
+                            Expression::from("bar"),
+                        ),
                         (
                             ObjectKey::from("enabled"),
                             Expression::from(RawExpression::new("var.enabled")),

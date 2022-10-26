@@ -245,6 +245,7 @@ pub enum ObjectKey {
 
 impl ObjectKey {
     /// Creates an unquoted string identifier `ObjectKey`.
+    #[deprecated(since = "0.9.0", note = "use `ObjectKey::from(identifier)` instead")]
     pub fn identifier<I>(identifier: I) -> Self
     where
         I: Into<Identifier>,
@@ -259,6 +260,12 @@ where
 {
     fn from(value: T) -> Self {
         ObjectKey::Expression(value.into())
+    }
+}
+
+impl From<Identifier> for ObjectKey {
+    fn from(ident: Identifier) -> Self {
+        ObjectKey::Identifier(ident)
     }
 }
 

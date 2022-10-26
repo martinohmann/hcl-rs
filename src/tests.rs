@@ -42,7 +42,7 @@ fn expression_macro_objects() {
     );
 
     let expected = Expression::Object(Object::from([
-        (ObjectKey::identifier("foo"), "bar".into()),
+        (ObjectKey::from(Identifier::unchecked("foo")), "bar".into()),
         (ObjectKey::from("bar"), true.into()),
         (
             ObjectKey::Expression(RawExpression::from("qux").into()),
