@@ -139,7 +139,7 @@ impl<'de> IntoDeserializer<'de, Error> for Block {
 }
 
 pub struct BlockAccess {
-    identifier: Option<String>,
+    identifier: Option<Identifier>,
     labels: Option<Vec<BlockLabel>>,
     body: Option<Body>,
 }
