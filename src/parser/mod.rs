@@ -73,7 +73,7 @@ fn parse_attribute(pair: Pair<Rule>) -> Result<Attribute> {
     let mut pairs = pair.into_inner();
 
     Ok(Attribute {
-        key: parse_ident(pairs.next().unwrap()).into_inner(),
+        key: parse_ident(pairs.next().unwrap()),
         expr: parse_expression(pairs.next().unwrap())?,
     })
 }
