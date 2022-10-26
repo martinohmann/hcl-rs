@@ -232,12 +232,6 @@ impl<'a> From<Cow<'a, str>> for Identifier {
     }
 }
 
-impl From<Identifier> for String {
-    fn from(ident: Identifier) -> Self {
-        ident.0
-    }
-}
-
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self)
