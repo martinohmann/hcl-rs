@@ -283,7 +283,7 @@ fn parse_func_call(pair: Pair<Rule>) -> Result<FuncCall> {
     let mut pairs = pair.into_inner();
     let name = pairs.next().unwrap();
     let mut args = pairs.next().unwrap().into_inner();
-    let builder = FuncCall::builder(name.as_str());
+    let builder = FuncCall::builder(parse_ident(name));
 
     args.try_fold(builder, |builder, pair| match pair.as_rule() {
         Rule::ExpandFinal => Ok(builder.expand_final(true)),
@@ -354,7 +354,7 @@ fn parse_string(pair: Pair<Rule>) -> Result<String> {
 }
 
 fn parse_ident(pair: Pair<Rule>) -> Identifier {
-    Identifier::new(pair.as_str())
+    Identifier::unchecked(pair.as_str())
 }
 
 fn parse_heredoc(pair: Pair<Rule>) -> Heredoc {

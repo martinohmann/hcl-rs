@@ -367,7 +367,7 @@ macro_rules! block_internal {
 #[macro_export]
 macro_rules! block_label {
     ($ident:ident) => {
-        $crate::BlockLabel::Identifier(std::stringify!($ident).into())
+        $crate::BlockLabel::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
     };
 
     (($expr:expr)) => {
@@ -398,7 +398,7 @@ macro_rules! block_label {
 #[macro_export]
 macro_rules! object_key {
     ($ident:ident) => {
-        $crate::ObjectKey::Identifier(std::stringify!($ident).into())
+        $crate::ObjectKey::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
     };
 
     (#{$expr:expr}) => {

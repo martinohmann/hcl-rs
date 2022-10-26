@@ -28,7 +28,7 @@
 //!
 //! let expected = Template::new()
 //!     .add_literal("Hello ")
-//!     .add_interpolation(Expression::Variable(Identifier::new("name")))
+//!     .add_interpolation(Expression::Variable(Identifier::new("name")?))
 //!     .add_literal("!");
 //!
 //! assert_eq!(expected, template);
@@ -60,12 +60,12 @@
 //!     .add_literal("\nBill of materials:\n")
 //!     .add_directive(
 //!         ForDirective::new(
-//!             Identifier::new("item"),
-//!             Expression::Variable(Identifier::new("items")),
+//!             Identifier::new("item")?,
+//!             Expression::Variable(Identifier::new("items")?),
 //!             Template::new()
 //!                 .add_literal("- ")
 //!                 .add_interpolation(
-//!                     Expression::Variable(Identifier::new("item"))
+//!                     Expression::Variable(Identifier::new("item")?)
 //!                 )
 //!                 .add_literal("\n")
 //!         )

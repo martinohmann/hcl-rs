@@ -1,8 +1,8 @@
 use super::{
     body::BodySerializer, expression::ExpressionSerializer, structure::StructureSerializer,
-    SeqSerializer, StringSerializer,
+    IdentifierSerializer, SeqSerializer, StringSerializer,
 };
-use crate::{Attribute, Block, BlockLabel, Body, Error, Result, Structure};
+use crate::{Attribute, Block, BlockLabel, Body, Error, Identifier, Result, Structure};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
 
@@ -352,7 +352,7 @@ impl ser::Serializer for BlockLabelSerializer {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        Ok(BlockLabel::identifier(variant))
+        Identifier::new(variant).map(BlockLabel::Identifier)
     }
 
     fn serialize_newtype_variant<T>(
@@ -367,9 +367,9 @@ impl ser::Serializer for BlockLabelSerializer {
     {
         // Specialization for the `BlockLabel` type itself.
         match (name, variant) {
-            ("$hcl::block_label", "Identifier") => {
-                Ok(BlockLabel::identifier(value.serialize(StringSerializer)?))
-            }
+            ("$hcl::block_label", "Identifier") => Ok(BlockLabel::Identifier(
+                value.serialize(IdentifierSerializer)?,
+            )),
             (_, _) => value.serialize(self),
         }
     }

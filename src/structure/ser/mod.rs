@@ -87,11 +87,11 @@ impl ser::Serializer for IdentifierSerializer {
     serialize_self! { some newtype_struct }
 
     fn serialize_char(self, value: char) -> Result<Self::Ok> {
-        Ok(Identifier::from(value.to_string()))
+        self.serialize_str(&value.to_string())
     }
 
     fn serialize_str(self, value: &str) -> Result<Self::Ok> {
-        Ok(value.into())
+        Identifier::new(value)
     }
 
     fn serialize_unit_variant(
@@ -100,14 +100,7 @@ impl ser::Serializer for IdentifierSerializer {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        Ok(variant.into())
-    }
-
-    fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + Display,
-    {
-        Ok(Identifier::from(value.to_string()))
+        self.serialize_str(variant)
     }
 }
 
