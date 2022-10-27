@@ -6,6 +6,7 @@ pub mod de;
 pub mod error;
 #[macro_use]
 mod macros;
+pub mod eval;
 pub mod format;
 mod number;
 mod parser;

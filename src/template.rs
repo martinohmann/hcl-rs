@@ -12,7 +12,7 @@
 //!
 //! [hcl-syntax-spec]: https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#templates
 //!
-//! ## Example
+//! # Example
 //!
 //! Parse a `TemplateExpr` into a `Template`:
 //!
@@ -76,6 +76,11 @@
 //! #   Ok(())
 //! # }
 //! ```
+//!
+//! # Template evaluation
+//!
+//! The [`eval`][crate::eval] module provides evaluation capabilities for templates and
+//! expressions. See the [module-level documentation][crate::eval] for examples.
 
 use crate::{parser, Error, Expression, Identifier, Result, TemplateExpr};
 use std::str::FromStr;
@@ -188,6 +193,24 @@ pub enum Element {
     Directive(Directive),
 }
 
+impl Element {
+    pub(crate) fn strip_start(&self) -> bool {
+        match self {
+            Element::Literal(_) => false,
+            Element::Interpolation(interp) => interp.strip.strip_start(),
+            Element::Directive(dir) => dir.strip_start(),
+        }
+    }
+
+    pub(crate) fn strip_end(&self) -> bool {
+        match self {
+            Element::Literal(_) => false,
+            Element::Interpolation(interp) => interp.strip.strip_end(),
+            Element::Directive(dir) => dir.strip_end(),
+        }
+    }
+}
+
 impl From<&str> for Element {
     fn from(literal: &str) -> Self {
         Element::Literal(literal.to_owned())
@@ -262,6 +285,22 @@ pub enum Directive {
     If(IfDirective),
     /// Represents a template `for` directive.
     For(ForDirective),
+}
+
+impl Directive {
+    fn strip_start(&self) -> bool {
+        match self {
+            Directive::If(dir) => dir.if_strip.strip_start(),
+            Directive::For(dir) => dir.for_strip.strip_start(),
+        }
+    }
+
+    fn strip_end(&self) -> bool {
+        match self {
+            Directive::If(dir) => dir.endif_strip.strip_end(),
+            Directive::For(dir) => dir.endfor_strip.strip_end(),
+        }
+    }
 }
 
 impl From<IfDirective> for Directive {
@@ -422,6 +461,20 @@ pub enum StripMode {
     /// Strip any adjacent spaces from the immediately preceeding and following string literals,
     /// if there are any.
     Both,
+}
+
+impl StripMode {
+    pub(crate) fn from_adjacent(prev: StripMode, next: StripMode) -> Self {
+        StripMode::from((prev.strip_end(), next.strip_start()))
+    }
+
+    pub(crate) fn strip_start(&self) -> bool {
+        matches!(self, StripMode::Start | StripMode::Both)
+    }
+
+    pub(crate) fn strip_end(&self) -> bool {
+        matches!(self, StripMode::End | StripMode::Both)
+    }
 }
 
 impl Default for StripMode {

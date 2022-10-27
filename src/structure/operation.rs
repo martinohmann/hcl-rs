@@ -129,6 +129,101 @@ impl BinaryOp {
             rhs_expr: rhs_expr.into(),
         }
     }
+
+    // Normalize binary operation following operator precedence rules.
+    //
+    // The result can be evaluated from left to right without checking operator precendence.
+    pub(crate) fn normalize(self) -> BinaryOp {
+        use Operand::*;
+
+        // We only care whether the operand is another binary operation or not. Any other
+        // expression (including unary oparations) is treated the same way and does not require
+        // special precedence rules.
+        enum Operand {
+            BinOp(BinaryOp),
+            Expr(Expression),
+        }
+
+        impl From<Expression> for Operand {
+            fn from(expr: Expression) -> Self {
+                match expr {
+                    Expression::Operation(operation) => match *operation {
+                        Operation::Binary(binary) => Operand::BinOp(binary),
+                        unary => Operand::Expr(Expression::from(unary)),
+                    },
+                    expr => Operand::Expr(expr),
+                }
+            }
+        }
+
+        let lhs = Operand::from(self.lhs_expr);
+        let operator = self.operator;
+        let rhs = Operand::from(self.rhs_expr);
+
+        match (lhs, rhs) {
+            (BinOp(lhs), BinOp(rhs)) => normalize_both(lhs.normalize(), operator, rhs.normalize()),
+            (BinOp(lhs), Expr(rhs)) => normalize_lhs(lhs.normalize(), operator, rhs),
+            (Expr(lhs), BinOp(rhs)) => normalize_rhs(lhs, operator, rhs.normalize()),
+            (Expr(lhs), Expr(rhs)) => BinaryOp::new(lhs, operator, rhs),
+        }
+    }
+}
+
+fn normalize_both(lhs: BinaryOp, operator: BinaryOperator, rhs: BinaryOp) -> BinaryOp {
+    if lhs.operator.precedence() < operator.precedence() {
+        // BinaryOp(BinaryOp(lhs.lhs_expr + lhs.rhs_expr) * BinaryOp(rhs.lhs_expr - rhs.rhs_expr))
+        //
+        // => BinaryOp(lhs.lhs_expr + BinaryOp(BinaryOp(lhs.rhs_expr * rhs.lhs_expr) - rhs.rhs_expr))
+        BinaryOp::new(
+            lhs.lhs_expr,
+            lhs.operator,
+            Operation::Binary(normalize_rhs(lhs.rhs_expr, operator, rhs)),
+        )
+    } else if rhs.operator.precedence() < operator.precedence() {
+        // BinaryOp(BinaryOp(lhs.lhs_expr / lhs.rhs_expr) * BinaryOp(rhs.lhs_expr - rhs.rhs_expr))
+        //
+        // => BinaryOp(BinaryOp(BinaryOp(lhs.lhs_expr / lhs.rhs_expr) * rhs.lhs_expr) - rhs.rhs_expr)
+        BinaryOp::new(
+            Operation::Binary(normalize_lhs(lhs, operator, rhs.lhs_expr)),
+            rhs.operator,
+            rhs.rhs_expr,
+        )
+    } else {
+        // Nothing to normalize.
+        BinaryOp::new(Operation::Binary(lhs), operator, Operation::Binary(rhs))
+    }
+}
+
+fn normalize_lhs(lhs: BinaryOp, operator: BinaryOperator, rhs_expr: Expression) -> BinaryOp {
+    if lhs.operator.precedence() < operator.precedence() {
+        // BinaryOp(BinaryOp(lhs.lhs_expr + lhs.rhs_expr) / rhs_expr)
+        //
+        // => BinaryOp(lhs.lhs_expr + BinaryOp(lhs.rhs_expr / rhs_expr))
+        BinaryOp::new(
+            lhs.lhs_expr,
+            lhs.operator,
+            Operation::Binary(BinaryOp::new(lhs.rhs_expr, operator, rhs_expr)),
+        )
+    } else {
+        // Nothing to normalize.
+        BinaryOp::new(Operation::Binary(lhs), operator, rhs_expr)
+    }
+}
+
+fn normalize_rhs(lhs_expr: Expression, operator: BinaryOperator, rhs: BinaryOp) -> BinaryOp {
+    if rhs.operator.precedence() < operator.precedence() {
+        // BinaryOp(lhs_expr / BinaryOp(rhs.lhs_expr + rhs.rhs_expr))
+        //
+        // => BinaryOp(BinaryOp(lhs_expr / rhs.lhs_expr) + rhs.rhs_expr)
+        BinaryOp::new(
+            Operation::Binary(BinaryOp::new(lhs_expr, operator, rhs.lhs_expr)),
+            rhs.operator,
+            rhs.rhs_expr,
+        )
+    } else {
+        // Nothing to normalize.
+        BinaryOp::new(lhs_expr, operator, Operation::Binary(rhs))
+    }
 }
 
 /// An operator that can be applied to two expressions.
@@ -179,6 +274,21 @@ impl BinaryOperator {
             BinaryOperator::Mod => "%",
             BinaryOperator::And => "&&",
             BinaryOperator::Or => "||",
+        }
+    }
+
+    // Returns the operator precedence level. Higher numbers mean higher precedence.
+    pub(crate) fn precedence(&self) -> u8 {
+        match self {
+            BinaryOperator::Mul | BinaryOperator::Div | BinaryOperator::Mod => 6,
+            BinaryOperator::Plus | BinaryOperator::Minus => 5,
+            BinaryOperator::LessEq
+            | BinaryOperator::GreaterEq
+            | BinaryOperator::Less
+            | BinaryOperator::Greater => 4,
+            BinaryOperator::Eq | BinaryOperator::NotEq => 3,
+            BinaryOperator::And => 2,
+            BinaryOperator::Or => 1,
         }
     }
 }
