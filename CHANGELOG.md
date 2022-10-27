@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.9.0](https://github.com/martinohmann/hcl-rs/compare/v0.8.8...v0.9.0) (2022-10-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* The type of `Expression`'s `Variable` variant changed from `Identifier` to `Variable`. You can create a variable from an identifier via `Variable::from(identifier)` or by using `Variable::new` and `Variable::sanitized`.
+* The `From<Identifier>` implementation for `String` has been removed because it causes problems with trait bounds in `From` implementations for other types. Use `Identifier::into_inner` instead.
+* The `Block` struct's `identifier` field type was changed from `String` to `Identifier`. Furthermore, the trait bound for the block identifier on `Block::new` changed from `Into<String>` to `Into<Identifier>`.
+* The `Attribute` struct's `key` field type was changed from `String` to `Identifier`. Furthermore, the trait bound for the attribute identifier on `Attribute::new` changed from `Into<String>` to `Into<Identifier>`.
+* `Identifier::new` is fallible now and the return value changed from `Identifier` to `Result<Identifier, Error>`. An infallible alternative is provided with `Identifier::sanitized`. The inner `String` field of `Identifier` is now private to prevent direct modification.
+
+### Features
+
+* add `Variable` type ([#108](https://github.com/martinohmann/hcl-rs/issues/108)) ([ee5a5c8](https://github.com/martinohmann/hcl-rs/commit/ee5a5c805d09d6d31b5f28b7b456f8e510aee8a4))
+* expression and template evaluation ([#99](https://github.com/martinohmann/hcl-rs/issues/99)) ([ce0d229](https://github.com/martinohmann/hcl-rs/commit/ce0d2291433129b9fc9d9fbd6cad192efe00815d))
+* implement `AsRef&lt;str&gt;` and `Borrow<str>` for `Identifier` ([0a616e1](https://github.com/martinohmann/hcl-rs/commit/0a616e154dc4f4b928bd774c4faf4791d29294e8))
+
+
+### Bug Fixes
+
+* change `Attribute` key field type to `Identifier` ([#106](https://github.com/martinohmann/hcl-rs/issues/106)) ([84e1538](https://github.com/martinohmann/hcl-rs/commit/84e1538569c8989262c74747de1f59b65d3110fd))
+* change `Block` identifier field type to `Identifier` ([#107](https://github.com/martinohmann/hcl-rs/issues/107)) ([badce8a](https://github.com/martinohmann/hcl-rs/commit/badce8ace467d2913bf57d7025f06ff44c75e868))
+* change type of `Expression::Variable` variant ([#109](https://github.com/martinohmann/hcl-rs/issues/109)) ([5e1501a](https://github.com/martinohmann/hcl-rs/commit/5e1501ae7cf3092e996c216f92f3d7e61ef58432))
+* remove `From&lt;Identifier&gt;` for `String` ([32a94ff](https://github.com/martinohmann/hcl-rs/commit/32a94ff476071f3a2b942ee118effca19baf69ff))
+* sanitize identifiers upon creation ([#105](https://github.com/martinohmann/hcl-rs/issues/105)) ([7b085d7](https://github.com/martinohmann/hcl-rs/commit/7b085d78cdd71415df4dfd13fa4fad91b9c988c2))
+
+
+### Miscellaneous
+
+* mark `BlockLabel::{string,identifier}` functions as deprecated ([86dda75](https://github.com/martinohmann/hcl-rs/commit/86dda757224fde937d06ececff99a88d617af534))
+* mark `ObjectKey::identifier` function as deprecated ([d2f5f94](https://github.com/martinohmann/hcl-rs/commit/d2f5f94fd560ec5c7d9ada6e4bbeb817604fbafa))
+
 ## [0.8.8](https://github.com/martinohmann/hcl-rs/compare/v0.8.7...v0.8.8) (2022-10-22)
 
 
