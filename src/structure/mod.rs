@@ -60,6 +60,7 @@ mod template_expr;
 #[cfg(test)]
 mod tests;
 mod traversal;
+mod variable;
 
 pub use self::{
     attribute::Attribute,
@@ -72,6 +73,7 @@ pub use self::{
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
     traversal::{Traversal, TraversalOperator},
+    variable::Variable,
 };
 use crate::{Error, Map, Result, Value};
 use serde::{Deserialize, Serialize};
@@ -229,6 +231,12 @@ impl From<&str> for Identifier {
 impl<'a> From<Cow<'a, str>> for Identifier {
     fn from(s: Cow<'a, str>) -> Self {
         Identifier::sanitized(s)
+    }
+}
+
+impl From<Variable> for Identifier {
+    fn from(variable: Variable) -> Self {
+        variable.into_inner()
     }
 }
 
