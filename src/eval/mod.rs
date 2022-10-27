@@ -394,7 +394,7 @@ where
     super::from_body(evaluated)
 }
 
-/// Serialize the given value as an HCL string after evaulating all expressions using the given
+/// Serialize the given value as an HCL string after evaluating all expressions using the given
 /// context.
 ///
 /// See the [module level documentation][crate::eval#expression-evaluation-during-de-serialization]
