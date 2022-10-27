@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
-    Attribute, BinaryOp, BinaryOperator, Block, BlockLabel, Body, Conditional, Expression, ForExpr,
-    FuncCall, Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
-    TemplateExpr, Traversal, TraversalOperator,
+    Attribute, BinaryOp, BinaryOperator, Block, Body, Conditional, Expression, ForExpr, FuncCall,
+    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
+    TemplateExpr, Traversal, TraversalOperator, Variable,
 };
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -80,14 +80,17 @@ fn serialize_body() {
                 .add_attribute(("foo", "bar"))
                 .add_block(
                     Block::builder("with_labels")
-                        .add_label(BlockLabel::identifier("label1"))
+                        .add_label(Identifier::unchecked("label1"))
                         .add_label("lab\"el2")
                         .add_attribute(("baz", vec![1u64, 2u64, 3u64]))
                         .build(),
                 )
                 .add_attribute(("an_object", {
                     Object::from([
-                        (ObjectKey::identifier("foo"), Expression::from("bar")),
+                        (
+                            ObjectKey::from(Identifier::unchecked("foo")),
+                            Expression::from("bar"),
+                        ),
                         (
                             ObjectKey::from("enabled"),
                             Expression::from(RawExpression::new("var.enabled")),
@@ -196,7 +199,7 @@ fn serialize_traversal() {
         Attribute::new(
             "attr",
             Traversal::new(
-                Identifier::new("var"),
+                Variable::unchecked("var"),
                 [
                     TraversalOperator::GetAttr("foo".into()),
                     TraversalOperator::FullSplat,
@@ -217,7 +220,7 @@ fn serialize_conditional() {
     expect_str(
         Attribute::new(
             "cond",
-            Conditional::new(Identifier::new("cond_var"), "yes", "no"),
+            Conditional::new(Variable::unchecked("cond_var"), "yes", "no"),
         ),
         "cond = cond_var ? \"yes\" : \"no\"\n",
     );
@@ -240,31 +243,31 @@ fn serialize_for_expr() {
         .add_attribute((
             "list",
             ForExpr::new(
-                Identifier::new("item"),
-                Expression::Variable(Identifier::new("items")),
+                Identifier::unchecked("item"),
+                Variable::unchecked("items"),
                 FuncCall::builder("func")
-                    .arg(Identifier::new("item"))
+                    .arg(Variable::unchecked("item"))
                     .build(),
             )
-            .with_cond_expr(Identifier::new("item")),
+            .with_cond_expr(Variable::unchecked("item")),
         ))
         .add_attribute((
             "object",
             ForExpr::new(
-                Identifier::new("value"),
-                Expression::Variable(Identifier::new("items")),
+                Identifier::unchecked("value"),
+                Variable::unchecked("items"),
                 FuncCall::builder("tolower")
-                    .arg(Identifier::new("value"))
+                    .arg(Variable::unchecked("value"))
                     .build(),
             )
-            .with_key_var(Identifier::new("key"))
+            .with_key_var(Identifier::unchecked("key"))
             .with_key_expr(
                 FuncCall::builder("toupper")
-                    .arg(Identifier::new("key"))
+                    .arg(Variable::unchecked("key"))
                     .build(),
             )
             .with_cond_expr(Operation::Binary(BinaryOp::new(
-                Identifier::new("value"),
+                Variable::unchecked("value"),
                 BinaryOperator::NotEq,
                 Expression::Null,
             )))
@@ -312,15 +315,18 @@ fn serialize_heredoc() {
                 .add_attribute((
                     "heredoc",
                     TemplateExpr::Heredoc(Heredoc::new(
-                        Identifier::new("HEREDOC"),
+                        Identifier::unchecked("HEREDOC"),
                         "foo\n  bar\nbaz\n",
                     )),
                 ))
                 .add_attribute((
                     "heredoc_indent",
                     TemplateExpr::Heredoc(
-                        Heredoc::new(Identifier::new("HEREDOC"), "    foo\n      bar\n    baz\n")
-                            .with_strip_mode(HeredocStripMode::Indent),
+                        Heredoc::new(
+                            Identifier::unchecked("HEREDOC"),
+                            "    foo\n      bar\n    baz\n",
+                        )
+                        .with_strip_mode(HeredocStripMode::Indent),
                     ),
                 ))
                 .build(),
@@ -408,7 +414,7 @@ fn serialize_nested_expression() {
     expect_str(
         Attribute::new(
             "attr",
-            Expression::Parenthesis(Box::new(Expression::Variable("foo".into()))),
+            Expression::Parenthesis(Box::new(Expression::from(Variable::unchecked("foo")))),
         ),
         "attr = (foo)\n",
     );
@@ -431,7 +437,11 @@ fn roundtrip() {
                 .add_label("mybucket")
                 .add_attribute((
                     "count",
-                    Conditional::new(Traversal::new(Identifier::new("var"), ["enabled"]), 1, 0),
+                    Conditional::new(
+                        Traversal::new(Variable::unchecked("var"), ["enabled"]),
+                        1,
+                        0,
+                    ),
                 ))
                 .add_attribute(("bucket", "mybucket"))
                 .add_attribute(("force_destroy", true))
@@ -444,7 +454,7 @@ fn roundtrip() {
                                         .add_attribute((
                                             "kms_master_key_id",
                                             Traversal::new(
-                                                Identifier::new("aws_kms_key"),
+                                                Variable::unchecked("aws_kms_key"),
                                                 ["mykey", "arn"],
                                             ),
                                         ))
@@ -464,14 +474,12 @@ fn roundtrip() {
                         ),
                         (
                             ObjectKey::Identifier("team".into()),
-                            Expression::TemplateExpr(Box::new(TemplateExpr::QuotedString(
-                                "${var.team}".into(),
-                            ))),
+                            Expression::TemplateExpr(Box::new(TemplateExpr::from("${var.team}"))),
                         ),
                         (
                             ObjectKey::Identifier("environment".into()),
-                            Expression::Parenthesis(Box::new(Expression::Variable(
-                                "environment".into(),
+                            Expression::Parenthesis(Box::new(Expression::from(
+                                Variable::unchecked("environment"),
                             ))),
                         ),
                     ]),

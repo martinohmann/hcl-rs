@@ -76,16 +76,16 @@ fn eval_conditional() {
 fn eval_for_expr() {
     eval_to(
         ForExpr::new(
-            Identifier::new("item"),
+            Identifier::unchecked("item"),
             Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
             Operation::Binary(BinaryOp::new(
-                Expression::Variable(Identifier::new("item")),
+                Variable::unchecked("item"),
                 BinaryOperator::Mul,
                 2,
             )),
         )
         .with_cond_expr(Operation::Binary(BinaryOp::new(
-            Expression::Variable(Identifier::new("item")),
+            Variable::unchecked("item"),
             BinaryOperator::Less,
             5,
         ))),
@@ -94,14 +94,14 @@ fn eval_for_expr() {
 
     eval_to(
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
-            Expression::Variable(Identifier::new("key")),
+            Variable::unchecked("key"),
         )
-        .with_key_var(Identifier::new("key"))
-        .with_key_expr(Expression::Variable(Identifier::new("value")))
+        .with_key_var(Identifier::unchecked("key"))
+        .with_key_expr(Variable::unchecked("value"))
         .with_cond_expr(Operation::Binary(BinaryOp::new(
-            Expression::Variable(Identifier::new("key")),
+            Variable::unchecked("key"),
             BinaryOperator::NotEq,
             Expression::from("d"),
         ))),
@@ -110,46 +110,46 @@ fn eval_for_expr() {
 
     eval_to(
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             Expression::from_iter(["a", "b", "c", "d"]),
-            Expression::Variable(Identifier::new("value")),
+            Variable::unchecked("value"),
         )
-        .with_key_var(Identifier::new("index"))
+        .with_key_var(Identifier::unchecked("index"))
         .with_key_expr(TemplateExpr::QuotedString("${index}".into())),
         Value::from_iter([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]),
     );
 
     eval_to(
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
-            Expression::Variable(Identifier::new("key")),
+            Variable::unchecked("key"),
         )
-        .with_key_var(Identifier::new("key")),
+        .with_key_var(Identifier::unchecked("key")),
         Value::from_iter(["a", "b", "c", "d"]),
     );
 
     eval_to(
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             Expression::from_iter(["a", "b", "c", "d"]),
-            Expression::Variable(Identifier::new("value")),
+            Variable::unchecked("value"),
         )
-        .with_key_var(Identifier::new("index"))
-        .with_key_expr(TemplateExpr::QuotedString("${index}".into())),
+        .with_key_var(Identifier::unchecked("index"))
+        .with_key_expr(TemplateExpr::from("${index}")),
         Value::from_iter([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]),
     );
 
     eval_to(
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
-            Expression::Variable(Identifier::new("value")),
+            Variable::unchecked("value"),
         )
-        .with_key_var(Identifier::new("key"))
+        .with_key_var(Identifier::unchecked("key"))
         .with_key_expr(Expression::from("foo"))
         .with_cond_expr(Operation::Binary(BinaryOp::new(
-            Expression::Variable(Identifier::new("key")),
+            Variable::unchecked("key"),
             BinaryOperator::NotEq,
             Expression::from("d"),
         )))
@@ -178,7 +178,7 @@ fn eval_traversal() {
     eval_to(
         Traversal::new(
             expression!({"foo" = [1, 2, 3], "bar" = []}),
-            [GetAttr(Identifier::new("foo"))],
+            [GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([1, 2, 3]),
     );
@@ -188,7 +188,7 @@ fn eval_traversal() {
         Traversal::new(
             Traversal::new(
                 expression!({"foo" = [1, 2, 3], "bar" = []}),
-                [GetAttr(Identifier::new("foo"))],
+                [GetAttr(Identifier::unchecked("foo"))],
             ),
             [Index(Expression::from(2))],
         ),
@@ -199,7 +199,7 @@ fn eval_traversal() {
     eval_to(
         Traversal::new(
             expression!({"foo" = [1, 2, 3], "bar" = []}),
-            [FullSplat, GetAttr(Identifier::new("foo"))],
+            [FullSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([vec![1, 2, 3]]),
     );
@@ -213,7 +213,7 @@ fn eval_traversal() {
                     { "foo" = 1, "bar" = 2 }
                 ]
             },
-            [FullSplat, GetAttr(Identifier::new("foo"))],
+            [FullSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([2, 1]),
     );
@@ -222,7 +222,7 @@ fn eval_traversal() {
     eval_to(
         Traversal::new(
             Expression::Null,
-            [FullSplat, GetAttr(Identifier::new("foo"))],
+            [FullSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::Array(vec![]),
     );
@@ -231,7 +231,7 @@ fn eval_traversal() {
     eval_to(
         Traversal::new(
             expression!({"foo" = [1, 2, 3], "bar" = []}),
-            [AttrSplat, GetAttr(Identifier::new("foo"))],
+            [AttrSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([vec![1, 2, 3]]),
     );
@@ -245,7 +245,7 @@ fn eval_traversal() {
                     { "foo" = 1, "bar" = 2 }
                 ]
             },
-            [AttrSplat, GetAttr(Identifier::new("foo"))],
+            [AttrSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([2, 1]),
     );
@@ -254,7 +254,7 @@ fn eval_traversal() {
     eval_to(
         Traversal::new(
             Expression::Null,
-            [AttrSplat, GetAttr(Identifier::new("foo"))],
+            [AttrSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::Array(vec![]),
     );
@@ -270,8 +270,8 @@ fn eval_traversal() {
             },
             [
                 AttrSplat,
-                GetAttr(Identifier::new("foo")),
-                GetAttr(Identifier::new("bar")),
+                GetAttr(Identifier::unchecked("foo")),
+                GetAttr(Identifier::unchecked("bar")),
                 Index(expression!(1)),
             ],
         ),
@@ -289,8 +289,8 @@ fn eval_traversal() {
             },
             [
                 FullSplat,
-                GetAttr(Identifier::new("foo")),
-                GetAttr(Identifier::new("bar")),
+                GetAttr(Identifier::unchecked("foo")),
+                GetAttr(Identifier::unchecked("bar")),
                 Index(expression!(1)),
             ],
         ),

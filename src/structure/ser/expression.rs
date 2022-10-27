@@ -5,9 +5,11 @@ use super::{
     operation::{OperationSerializer, SerializeOperationStruct},
     template_expr::{SerializeTemplateExprStruct, TemplateExprSerializer},
     traversal::SerializeTraversalStruct,
-    StringSerializer,
+    IdentifierSerializer, StringSerializer,
 };
-use crate::{Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result};
+use crate::{
+    Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result, Variable,
+};
 use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
 
@@ -119,8 +121,8 @@ impl ser::Serializer for ExpressionSerializer {
                 value.serialize(StringSerializer)?,
             )))
         } else if name == "$hcl::identifier" {
-            Ok(Expression::Variable(Identifier::from(
-                value.serialize(StringSerializer)?,
+            Ok(Expression::Variable(Variable::from(
+                value.serialize(IdentifierSerializer)?,
             )))
         } else {
             value.serialize(self)
@@ -156,7 +158,10 @@ impl ser::Serializer for ExpressionSerializer {
             ("$hcl::expression", _) => value.serialize(self),
             (_, _) => {
                 let mut object = Object::with_capacity(1);
-                object.insert(ObjectKey::identifier(variant), value.serialize(self)?);
+                object.insert(
+                    ObjectKey::Identifier(Identifier::new(variant)?),
+                    value.serialize(self)?,
+                );
                 Ok(Expression::Object(object))
             }
         }
@@ -485,7 +490,7 @@ impl ser::Serializer for ObjectKeySerializer {
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        Ok(ObjectKey::identifier(variant))
+        Identifier::new(variant).map(ObjectKey::Identifier)
     }
 
     fn serialize_newtype_variant<T>(
@@ -500,9 +505,9 @@ impl ser::Serializer for ObjectKeySerializer {
     {
         // Specialization for the `ObjectKey` type itself.
         match (name, variant) {
-            ("$hcl::object_key", "Identifier") => {
-                Ok(ObjectKey::identifier(value.serialize(StringSerializer)?))
-            }
+            ("$hcl::object_key", "Identifier") => Ok(ObjectKey::Identifier(
+                value.serialize(IdentifierSerializer)?,
+            )),
             ("$hcl::object_key", "Expression") => Ok(ObjectKey::Expression(
                 value.serialize(ExpressionSerializer)?,
             )),

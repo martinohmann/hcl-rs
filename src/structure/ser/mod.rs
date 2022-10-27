@@ -15,7 +15,7 @@ mod tests;
 mod traversal;
 
 pub use self::expression::to_expression;
-use crate::{Error, Result};
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Impossible};
 use std::{fmt::Display, marker::PhantomData, str::FromStr};
 
@@ -62,6 +62,45 @@ impl ser::Serializer for StringSerializer {
         T: ?Sized + Display,
     {
         Ok(value.to_string())
+    }
+}
+
+pub struct IdentifierSerializer;
+
+impl ser::Serializer for IdentifierSerializer {
+    type Ok = Identifier;
+    type Error = Error;
+
+    type SerializeSeq = Impossible<Identifier, Error>;
+    type SerializeTuple = Impossible<Identifier, Error>;
+    type SerializeTupleStruct = Impossible<Identifier, Error>;
+    type SerializeTupleVariant = Impossible<Identifier, Error>;
+    type SerializeMap = Impossible<Identifier, Error>;
+    type SerializeStruct = Impossible<Identifier, Error>;
+    type SerializeStructVariant = Impossible<Identifier, Error>;
+
+    serialize_unsupported! {
+        i8 i16 i32 i64 u8 u16 u32 u64
+        bool f32 f64 bytes unit unit_struct newtype_variant none
+        seq tuple tuple_struct tuple_variant map struct struct_variant
+    }
+    serialize_self! { some newtype_struct }
+
+    fn serialize_char(self, value: char) -> Result<Self::Ok> {
+        self.serialize_str(&value.to_string())
+    }
+
+    fn serialize_str(self, value: &str) -> Result<Self::Ok> {
+        Identifier::new(value)
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<Self::Ok> {
+        self.serialize_str(variant)
     }
 }
 

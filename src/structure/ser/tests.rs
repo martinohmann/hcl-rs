@@ -53,8 +53,11 @@ fn identity() {
             .add_attribute(("baz", "qux"))
             .build(),
     );
-    test_identity(BlockLabelSerializer, BlockLabel::string("foo"));
-    test_identity(BlockLabelSerializer, BlockLabel::identifier("foo"));
+    test_identity(BlockLabelSerializer, BlockLabel::from("foo"));
+    test_identity(
+        BlockLabelSerializer,
+        BlockLabel::from(Identifier::unchecked("foo")),
+    );
     test_identity(ExpressionSerializer, Expression::Null);
     test_identity(ExpressionSerializer, Expression::Number(1.into()));
     test_identity(ExpressionSerializer, Expression::String("bar".into()));
@@ -62,24 +65,21 @@ fn identity() {
         ExpressionSerializer,
         Expression::from_iter([("foo", "bar")]),
     );
-    test_identity(
-        TemplateExprSerializer,
-        TemplateExpr::QuotedString("${foo}".into()),
-    );
+    test_identity(TemplateExprSerializer, TemplateExpr::from("${foo}"));
     test_identity(
         TemplateExprSerializer,
         TemplateExpr::Heredoc(
-            Heredoc::new(Identifier::new("EOS"), "  ${foo}")
+            Heredoc::new(Identifier::unchecked("EOS"), "  ${foo}")
                 .with_strip_mode(HeredocStripMode::Indent),
         ),
     );
     test_identity(
         TemplateExprSerializer,
-        TemplateExpr::Heredoc(Heredoc::new(Identifier::new("EOS"), "${foo}")),
+        TemplateExpr::Heredoc(Heredoc::new(Identifier::unchecked("EOS"), "${foo}")),
     );
     test_identity(
         ConditionalSerializer,
-        Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
+        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
     );
     test_identity(
         OperationSerializer,
@@ -92,25 +92,25 @@ fn identity() {
     test_identity(
         ForExprSerializer,
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
-            Identifier::new("other_value"),
+            Variable::unchecked("other_value"),
         )
-        .with_key_var(Identifier::new("index"))
+        .with_key_var(Identifier::unchecked("index"))
         .with_cond_expr(Expression::Bool(true)),
     );
     test_identity(
         ForExprSerializer,
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             Expression::Object(Object::from([(
                 ObjectKey::from("k"),
                 Expression::String(String::from("v")),
             )])),
-            Identifier::new("other_value"),
+            Variable::unchecked("other_value"),
         )
-        .with_key_var(Identifier::new("index"))
-        .with_key_expr(Identifier::new("other_key"))
+        .with_key_var(Identifier::unchecked("index"))
+        .with_key_expr(Variable::unchecked("other_key"))
         .with_cond_expr(Expression::Bool(true))
         .with_grouping(true),
     );
@@ -208,9 +208,9 @@ fn custom() {
 
     test_serialize(
         ExpressionSerializer,
-        Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
+        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
         Expression::from(Conditional::new(
-            Identifier::new("some_cond_var"),
+            Variable::unchecked("some_cond_var"),
             "yes",
             "no",
         )),
@@ -224,9 +224,9 @@ fn custom() {
 
     test_serialize(
         ExpressionSerializer,
-        TemplateExpr::Heredoc(Heredoc::new(Identifier::new("EOS"), "${foo}")),
+        TemplateExpr::Heredoc(Heredoc::new(Identifier::unchecked("EOS"), "${foo}")),
         Expression::from(TemplateExpr::Heredoc(Heredoc::new(
-            Identifier::new("EOS"),
+            Identifier::unchecked("EOS"),
             "${foo}",
         ))),
     );
@@ -234,19 +234,19 @@ fn custom() {
     test_serialize(
         ExpressionSerializer,
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
-            Identifier::new("other_value"),
+            Variable::unchecked("other_value"),
         )
-        .with_key_var(Identifier::new("index"))
+        .with_key_var(Identifier::unchecked("index"))
         .with_cond_expr(Expression::Bool(true)),
         Expression::from(
             ForExpr::new(
-                Identifier::new("value"),
+                Identifier::unchecked("value"),
                 vec![Expression::String(String::from("foo"))],
-                Identifier::new("other_value"),
+                Variable::unchecked("other_value"),
             )
-            .with_key_var(Identifier::new("index"))
+            .with_key_var(Identifier::unchecked("index"))
             .with_cond_expr(Expression::Bool(true)),
         ),
     );
@@ -254,21 +254,21 @@ fn custom() {
     test_serialize(
         ExpressionSerializer,
         ForExpr::new(
-            Identifier::new("value"),
+            Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
-            Identifier::new("other_value"),
+            Variable::unchecked("other_value"),
         )
-        .with_key_var(Identifier::new("key"))
-        .with_key_expr(Expression::Variable(Identifier::new("key")))
+        .with_key_var(Identifier::unchecked("key"))
+        .with_key_expr(Variable::unchecked("key"))
         .with_cond_expr(Expression::Bool(true)),
         Expression::from(
             ForExpr::new(
-                Identifier::new("value"),
+                Identifier::unchecked("value"),
                 vec![Expression::String(String::from("foo"))],
-                Identifier::new("other_value"),
+                Variable::unchecked("other_value"),
             )
-            .with_key_var(Identifier::new("key"))
-            .with_key_expr(Expression::Variable(Identifier::new("key")))
+            .with_key_var(Identifier::unchecked("key"))
+            .with_key_expr(Variable::unchecked("key"))
             .with_cond_expr(Expression::Bool(true)),
         ),
     );
@@ -276,11 +276,11 @@ fn custom() {
     test_serialize(
         ConditionalSerializer,
         (
-            Expression::Variable(Identifier::new("some_cond_var")),
+            Expression::from(Variable::unchecked("some_cond_var")),
             Expression::String("yes".into()),
             Expression::String("no".into()),
         ),
-        Conditional::new(Identifier::new("some_cond_var"), "yes", "no"),
+        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
     );
 
     test_serialize(

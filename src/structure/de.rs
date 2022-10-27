@@ -87,7 +87,7 @@ impl<'de> IntoDeserializer<'de, Error> for Attribute {
 }
 
 pub struct AttributeAccess {
-    key: Option<String>,
+    key: Option<Identifier>,
     expr: Option<Expression>,
 }
 
@@ -139,7 +139,7 @@ impl<'de> IntoDeserializer<'de, Error> for Block {
 }
 
 pub struct BlockAccess {
-    identifier: Option<String>,
+    identifier: Option<Identifier>,
     labels: Option<Vec<BlockLabel>>,
     body: Option<Body>,
 }
@@ -1098,6 +1098,14 @@ impl<'de> IntoDeserializer<'de, Error> for Identifier {
 
     fn into_deserializer(self) -> Self::Deserializer {
         NewtypeStructDeserializer::new(self.into_inner())
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Variable {
+    type Deserializer = NewtypeStructDeserializer<String>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self.into_inner().into_deserializer()
     }
 }
 

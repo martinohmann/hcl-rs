@@ -355,19 +355,22 @@ macro_rules! block_internal {
 /// ## Examples
 ///
 /// ```
-/// use hcl::BlockLabel;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{BlockLabel, Identifier};
 ///
-/// assert_eq!(hcl::block_label!(some_identifier), BlockLabel::identifier("some_identifier"));
-/// assert_eq!(hcl::block_label!("some string"), BlockLabel::string("some string"));
+/// assert_eq!(hcl::block_label!(some_identifier), BlockLabel::from(Identifier::new("some_identifier")?));
+/// assert_eq!(hcl::block_label!("some string"), BlockLabel::from("some string"));
 ///
 /// let label = "some expression";
 ///
-/// assert_eq!(hcl::block_label!((label)), BlockLabel::string("some expression"));
+/// assert_eq!(hcl::block_label!((label)), BlockLabel::from("some expression"));
+/// #    Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! block_label {
     ($ident:ident) => {
-        $crate::BlockLabel::Identifier(std::stringify!($ident).into())
+        $crate::BlockLabel::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
     };
 
     (($expr:expr)) => {
@@ -386,19 +389,22 @@ macro_rules! block_label {
 /// ## Examples
 ///
 /// ```
-/// use hcl::ObjectKey;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{Identifier, ObjectKey};
 ///
-/// assert_eq!(hcl::object_key!(some_identifier), ObjectKey::identifier("some_identifier"));
+/// assert_eq!(hcl::object_key!(some_identifier), ObjectKey::from(Identifier::new("some_identifier")?));
 /// assert_eq!(hcl::object_key!("some string"), ObjectKey::from("some string"));
 ///
 /// let key = "some expression";
 ///
 /// assert_eq!(hcl::object_key!((key)), ObjectKey::from("some expression"));
+/// #     Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! object_key {
     ($ident:ident) => {
-        $crate::ObjectKey::Identifier(std::stringify!($ident).into())
+        $crate::ObjectKey::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
     };
 
     (#{$expr:expr}) => {
@@ -421,7 +427,8 @@ macro_rules! object_key {
 /// ## Examples
 ///
 /// ```
-/// use hcl::{Expression, Object, ObjectKey};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{Expression, Identifier, Object, ObjectKey};
 ///
 /// let other = "hello";
 ///
@@ -432,12 +439,14 @@ macro_rules! object_key {
 /// });
 ///
 /// let expected = Expression::Object(Object::from([
-///     (ObjectKey::identifier("foo"), true.into()),
+///     (ObjectKey::from(Identifier::new("foo")?), true.into()),
 ///     (ObjectKey::from("baz qux"), vec![1u64, 2].into()),
 ///     (ObjectKey::from("hello"), "world".into()),
 /// ]));
 ///
 /// assert_eq!(expression, expected);
+/// #     Ok(())
+/// # }
 /// ```
 #[macro_export]
 macro_rules! expression {

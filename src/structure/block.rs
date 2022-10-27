@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename = "$hcl::block")]
 pub struct Block {
     /// The block identifier.
-    pub identifier: String,
+    pub identifier: Identifier,
     /// Zero or more block labels.
     pub labels: Vec<BlockLabel>,
     /// Represents the `Block`'s body.
@@ -28,7 +28,7 @@ impl Block {
     /// Creates a new `Block` from a block identifier, block labels and a block body.
     pub fn new<I, L, B>(identifier: I, labels: L, body: B) -> Block
     where
-        I: Into<String>,
+        I: Into<Identifier>,
         L: IntoIterator,
         L::Item: Into<BlockLabel>,
         B: IntoIterator,
@@ -45,7 +45,7 @@ impl Block {
     /// identifier.
     pub fn builder<I>(identifier: I) -> BlockBuilder
     where
-        I: Into<String>,
+        I: Into<Identifier>,
     {
         BlockBuilder::new(identifier)
     }
@@ -74,14 +74,14 @@ impl From<Block> for Value {
 
 impl<I, B> From<(I, B)> for Block
 where
-    I: Into<String>,
+    I: Into<Identifier>,
     B: Into<Body>,
 {
-    fn from(pair: (I, B)) -> Block {
+    fn from((ident, body): (I, B)) -> Block {
         Block {
-            identifier: pair.0.into(),
+            identifier: ident.into(),
             labels: Vec::new(),
-            body: pair.1.into(),
+            body: body.into(),
         }
     }
 }
@@ -114,6 +114,7 @@ pub enum BlockLabel {
 
 impl BlockLabel {
     /// Creates a new bare `BlockLabel` identifier.
+    #[deprecated(since = "0.9.0", note = "use `BlockLabel::from(identifier)` instead")]
     pub fn identifier<I>(identifier: I) -> Self
     where
         I: Into<Identifier>,
@@ -122,6 +123,7 @@ impl BlockLabel {
     }
 
     /// Creates a new quoted string `BlockLabel`.
+    #[deprecated(since = "0.9.0", note = "use `BlockLabel::from(string)` instead")]
     pub fn string<S>(string: S) -> Self
     where
         S: Into<String>,
@@ -145,8 +147,14 @@ impl<T> From<T> for BlockLabel
 where
     T: Into<String>,
 {
-    fn from(v: T) -> BlockLabel {
-        BlockLabel::string(v)
+    fn from(s: T) -> BlockLabel {
+        BlockLabel::String(s.into())
+    }
+}
+
+impl From<Identifier> for BlockLabel {
+    fn from(ident: Identifier) -> Self {
+        BlockLabel::Identifier(ident)
     }
 }
 
@@ -174,7 +182,7 @@ where
 /// ```
 #[derive(Debug)]
 pub struct BlockBuilder {
-    identifier: String,
+    identifier: Identifier,
     labels: Vec<BlockLabel>,
     body: BodyBuilder,
 }
@@ -184,7 +192,7 @@ impl BlockBuilder {
     /// identifier.
     pub fn new<I>(identifier: I) -> BlockBuilder
     where
-        I: Into<String>,
+        I: Into<Identifier>,
     {
         BlockBuilder {
             identifier: identifier.into(),

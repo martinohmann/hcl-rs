@@ -1,4 +1,4 @@
-use super::{FromStrSerializer, StringSerializer};
+use super::{FromStrSerializer, IdentifierSerializer, StringSerializer};
 use crate::{Error, Heredoc, HeredocStripMode, Identifier, Result, TemplateExpr};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
@@ -124,7 +124,7 @@ impl ser::Serializer for HeredocSerializer {
         T: ?Sized + Serialize,
     {
         Ok(Heredoc {
-            delimiter: Identifier::new(variant),
+            delimiter: Identifier::new(variant)?,
             template: value.serialize(StringSerializer)?,
             strip: HeredocStripMode::None,
         })
@@ -168,7 +168,7 @@ impl ser::SerializeSeq for SerializeHeredocSeq {
         T: ?Sized + ser::Serialize,
     {
         if self.delimiter.is_none() {
-            self.delimiter = Some(Identifier::from(value.serialize(StringSerializer)?));
+            self.delimiter = Some(value.serialize(IdentifierSerializer)?);
         } else if self.template.is_none() {
             self.template = Some(value.serialize(StringSerializer)?);
         } else if self.strip.is_none() {
@@ -223,7 +223,7 @@ impl ser::SerializeMap for SerializeHeredocMap {
         T: ?Sized + ser::Serialize,
     {
         if self.delimiter.is_none() {
-            self.delimiter = Some(Identifier::from(key.serialize(StringSerializer)?));
+            self.delimiter = Some(key.serialize(IdentifierSerializer)?);
             Ok(())
         } else {
             Err(ser::Error::custom("expected map with 1 entry"))
@@ -279,9 +279,7 @@ impl ser::SerializeStruct for SerializeHeredocStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "delimiter" => {
-                self.delimiter = Some(Identifier::from(value.serialize(StringSerializer)?))
-            }
+            "delimiter" => self.delimiter = Some(value.serialize(IdentifierSerializer)?),
             "template" => self.template = Some(value.serialize(StringSerializer)?),
             "strip" => self.strip = Some(value.serialize(FromStrSerializer::new())?),
             _ => {

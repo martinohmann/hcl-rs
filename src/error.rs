@@ -33,6 +33,8 @@ pub enum Error {
     /// Represents errors due to invalid unicode code points that may occur when unescaping
     /// user-provided strings.
     InvalidUnicodeCodePoint(String),
+    /// Represents errors that resulted from identifiers that are not valid in HCL.
+    InvalidIdentifier(String),
     /// Represents errors during expression evaluation.
     Eval(eval::Error),
 }
@@ -73,6 +75,7 @@ impl Display for Error {
             Error::InvalidUnicodeCodePoint(u) => {
                 write!(f, "invalid unicode code point '\\u{}'", u)
             }
+            Error::InvalidIdentifier(ident) => write!(f, "invalid identifier `{}`", ident),
             Error::Eval(err) => write!(f, "eval error: {}", err),
         }
     }

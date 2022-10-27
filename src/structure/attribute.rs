@@ -1,6 +1,6 @@
 //! Types to represent and build HCL attributes.
 
-use super::{Expression, Value};
+use super::{Expression, Identifier, Value};
 use serde::{Deserialize, Serialize};
 use std::iter;
 
@@ -18,7 +18,7 @@ use std::iter;
 #[serde(rename = "$hcl::attribute")]
 pub struct Attribute {
     /// The HCL attribute's key.
-    pub key: String,
+    pub key: Identifier,
     /// The value expression of the HCL attribute.
     pub expr: Expression,
 }
@@ -28,7 +28,7 @@ impl Attribute {
     /// attribute value that is convertible into an `Expression`.
     pub fn new<K, V>(key: K, expr: V) -> Attribute
     where
-        K: Into<String>,
+        K: Into<Identifier>,
         V: Into<Expression>,
     {
         Attribute {
@@ -50,16 +50,16 @@ impl Attribute {
 
 impl From<Attribute> for Value {
     fn from(attr: Attribute) -> Value {
-        Value::from_iter(iter::once((attr.key, attr.expr)))
+        Value::from_iter(iter::once((attr.key.into_inner(), attr.expr)))
     }
 }
 
 impl<K, V> From<(K, V)> for Attribute
 where
-    K: Into<String>,
+    K: Into<Identifier>,
     V: Into<Expression>,
 {
-    fn from(pair: (K, V)) -> Attribute {
-        Attribute::new(pair.0.into(), pair.1.into())
+    fn from((key, expr): (K, V)) -> Attribute {
+        Attribute::new(key, expr)
     }
 }

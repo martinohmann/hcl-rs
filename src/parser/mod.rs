@@ -98,7 +98,7 @@ fn parse_block(pair: Pair<Rule>) -> Result<Block> {
 
 fn parse_block_label(pair: Pair<Rule>) -> Result<BlockLabel> {
     match pair.as_rule() {
-        Rule::Identifier => Ok(BlockLabel::identifier(parse_ident(pair))),
+        Rule::Identifier => Ok(BlockLabel::Identifier(parse_ident(pair))),
         Rule::StringLit => parse_string(inner(pair)).map(BlockLabel::String),
         rule => unexpected_rule(rule),
     }
@@ -184,7 +184,7 @@ fn parse_expr_term(pair: Pair<Rule>) -> Result<Expression> {
         Rule::TemplateExpr => Expression::TemplateExpr(Box::new(parse_template_expr(inner(pair)))),
         Rule::Tuple => parse_expressions(pair).map(Expression::Array)?,
         Rule::Object => parse_object(pair).map(Expression::Object)?,
-        Rule::Variable => Expression::Variable(parse_ident(pair).into()),
+        Rule::Variable => Expression::Variable(Variable::from(parse_ident(pair))),
         Rule::FunctionCall => Expression::FuncCall(Box::new(parse_func_call(pair)?)),
         Rule::Parenthesis => Expression::Parenthesis(Box::new(parse_expression(inner(pair))?)),
         Rule::ForExpr => Expression::from(parse_for_expr(inner(pair))?),
@@ -263,13 +263,13 @@ fn parse_for_object_expr(pair: Pair<Rule>) -> Result<ForExpr> {
 fn parse_for_intro(pair: Pair<Rule>) -> Result<(Option<Identifier>, Identifier, Expression)> {
     let mut pairs = pair.into_inner();
     let value = pairs.next().unwrap();
-    let mut value_var = Some(Identifier::new(value.as_str()));
+    let mut value_var = Some(parse_ident(value));
     let mut expr = pairs.next().unwrap();
 
     // If there are two identifiers, the first one is the key and the second one the value.
     let key_var = match expr.as_rule() {
         Rule::Identifier => {
-            let key = value_var.replace(Identifier::new(expr.as_str()));
+            let key = value_var.replace(parse_ident(expr));
             expr = pairs.next().unwrap();
             key
         }
@@ -283,7 +283,7 @@ fn parse_func_call(pair: Pair<Rule>) -> Result<FuncCall> {
     let mut pairs = pair.into_inner();
     let name = pairs.next().unwrap();
     let mut args = pairs.next().unwrap().into_inner();
-    let builder = FuncCall::builder(name.as_str());
+    let builder = FuncCall::builder(parse_ident(name));
 
     args.try_fold(builder, |builder, pair| match pair.as_rule() {
         Rule::ExpandFinal => Ok(builder.expand_final(true)),
@@ -296,7 +296,7 @@ fn parse_traversal_operator(pair: Pair<Rule>) -> Result<TraversalOperator> {
     let operator = match pair.as_rule() {
         Rule::AttrSplat => TraversalOperator::AttrSplat,
         Rule::FullSplat => TraversalOperator::FullSplat,
-        Rule::GetAttr => TraversalOperator::GetAttr(parse_ident(inner(pair)).into()),
+        Rule::GetAttr => TraversalOperator::GetAttr(parse_ident(inner(pair))),
         Rule::Index => {
             let pair = inner(pair);
 
@@ -332,7 +332,7 @@ fn parse_object(pair: Pair<Rule>) -> Result<Object<ObjectKey, Expression>> {
 
 fn parse_object_key(pair: Pair<Rule>) -> Result<ObjectKey> {
     match pair.as_rule() {
-        Rule::Identifier => Ok(ObjectKey::identifier(parse_ident(pair))),
+        Rule::Identifier => Ok(ObjectKey::Identifier(parse_ident(pair))),
         _ => parse_expression(pair).map(ObjectKey::Expression),
     }
 }
@@ -353,8 +353,8 @@ fn parse_string(pair: Pair<Rule>) -> Result<String> {
     unescape(pair.as_str()).map(|c| c.to_string())
 }
 
-fn parse_ident(pair: Pair<Rule>) -> String {
-    pair.as_str().to_owned()
+fn parse_ident(pair: Pair<Rule>) -> Identifier {
+    Identifier::unchecked(pair.as_str())
 }
 
 fn parse_heredoc(pair: Pair<Rule>) -> Heredoc {
@@ -371,7 +371,7 @@ fn parse_heredoc(pair: Pair<Rule>) -> Heredoc {
 
     Heredoc {
         strip,
-        delimiter: Identifier::new(delimiter.as_str()),
+        delimiter: parse_ident(delimiter),
         template: template.as_str().to_owned(),
     }
 }

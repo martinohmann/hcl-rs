@@ -1,4 +1,6 @@
-use super::{expression::ExpressionSerializer, BoolSerializer, SeqSerializer, StringSerializer};
+use super::{
+    expression::ExpressionSerializer, BoolSerializer, IdentifierSerializer, SeqSerializer,
+};
 use crate::{Error, Expression, FuncCall, Identifier, Result};
 use serde::ser::{self, Impossible};
 
@@ -53,7 +55,7 @@ impl ser::SerializeStruct for SerializeFuncCallStruct {
         T: ?Sized + ser::Serialize,
     {
         match key {
-            "name" => self.name = Some(Identifier::from(value.serialize(StringSerializer)?)),
+            "name" => self.name = Some(value.serialize(IdentifierSerializer)?),
             "args" => self.args = Some(value.serialize(SeqSerializer::new(ExpressionSerializer))?),
             "expand_final" => self.expand_final = Some(value.serialize(BoolSerializer)?),
             _ => {

@@ -1,4 +1,4 @@
-use super::{expression::ExpressionSerializer, SeqSerializer, StringSerializer};
+use super::{expression::ExpressionSerializer, IdentifierSerializer, SeqSerializer};
 use crate::{Error, Expression, Identifier, Result, Traversal, TraversalOperator};
 use serde::ser::{self, Impossible, Serialize};
 
@@ -112,7 +112,7 @@ impl ser::Serializer for TraversalOperatorSerializer {
         match (name, variant) {
             ("$hcl::traversal_operator", "AttrSplat") => Ok(TraversalOperator::AttrSplat),
             ("$hcl::traversal_operator", "FullSplat") => Ok(TraversalOperator::FullSplat),
-            (_, _) => Ok(TraversalOperator::GetAttr(variant.into())),
+            (_, _) => Identifier::new(variant).map(TraversalOperator::GetAttr),
         }
     }
 
@@ -140,9 +140,9 @@ impl ser::Serializer for TraversalOperatorSerializer {
         T: ?Sized + Serialize,
     {
         if name == "$hcl::identifier" {
-            Ok(TraversalOperator::GetAttr(Identifier::from(
-                value.serialize(StringSerializer)?,
-            )))
+            Ok(TraversalOperator::GetAttr(
+                value.serialize(IdentifierSerializer)?,
+            ))
         } else {
             value.serialize(self)
         }
