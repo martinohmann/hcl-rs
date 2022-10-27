@@ -293,11 +293,11 @@ fn parse_object_with_variable_expr_key() {
             "providers",
             Expression::from_iter([(
                 ObjectKey::Expression(Expression::from(Traversal::new(
-                    Identifier::unchecked("aws"),
+                    Variable::unchecked("aws"),
                     [Identifier::unchecked("eu-central-1")],
                 ))),
                 Expression::from(Traversal::new(
-                    Identifier::unchecked("aws"),
+                    Variable::unchecked("aws"),
                     [Identifier::unchecked("eu-central-1")],
                 )),
             )]),
@@ -370,17 +370,17 @@ fn parse_traversal_with_expression() {
         .add_attribute((
             "route_table_id",
             Expression::from(Traversal::new(
-                Identifier::unchecked("aws_route_table"),
+                Variable::unchecked("aws_route_table"),
                 [
                     TraversalOperator::GetAttr("private".into()),
                     TraversalOperator::Index(Expression::from(Operation::Binary(BinaryOp::new(
                         Traversal::new(
-                            Identifier::unchecked("count"),
+                            Variable::unchecked("count"),
                             [TraversalOperator::GetAttr("index".into())],
                         ),
                         BinaryOperator::Mod,
                         Traversal::new(
-                            Identifier::unchecked("var"),
+                            Variable::unchecked("var"),
                             [TraversalOperator::GetAttr("availability_zone_count".into())],
                         ),
                     )))),
@@ -398,7 +398,7 @@ fn parse_null_in_variable_expr() {
     let input = "foo = null_foo";
 
     let expected = Body::builder()
-        .add_attribute(("foo", Identifier::unchecked("null_foo")))
+        .add_attribute(("foo", Variable::unchecked("null_foo")))
         .build();
 
     expect_body(input, expected);
@@ -451,7 +451,7 @@ fn parse_hcl() {
                                         .add_attribute(Attribute::new(
                                             "kms_master_key_id",
                                             Traversal::new(
-                                                Identifier::unchecked("aws_kms_key"),
+                                                Variable::unchecked("aws_kms_key"),
                                                 ["mykey", "arn"],
                                             ),
                                         ))
@@ -550,11 +550,11 @@ fn parse_template_expr() {
 
             let expected_template = Template::new()
                 .add_literal("bar ")
-                .add_interpolation(Expression::Variable(Identifier::unchecked("baz")))
+                .add_interpolation(Variable::unchecked("baz"))
                 .add_literal(" ")
                 .add_directive(
                     IfDirective::new(
-                        Expression::Variable(Identifier::unchecked("cond")),
+                        Variable::unchecked("cond"),
                         Template::new().add_literal("qux"),
                     )
                     .with_if_strip(StripMode::Start)

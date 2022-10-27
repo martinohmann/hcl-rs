@@ -7,7 +7,9 @@ use super::{
     traversal::SerializeTraversalStruct,
     IdentifierSerializer, StringSerializer,
 };
-use crate::{Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result};
+use crate::{
+    Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result, Variable,
+};
 use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
 
@@ -119,7 +121,9 @@ impl ser::Serializer for ExpressionSerializer {
                 value.serialize(StringSerializer)?,
             )))
         } else if name == "$hcl::identifier" {
-            Ok(Expression::Variable(value.serialize(IdentifierSerializer)?))
+            Ok(Expression::Variable(Variable::from(
+                value.serialize(IdentifierSerializer)?,
+            )))
         } else {
             value.serialize(self)
         }
