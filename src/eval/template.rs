@@ -13,14 +13,11 @@ pub(super) fn evaluate_template(
         let strip = if index == 0 && len == 1 {
             strip
         } else if index == 0 {
-            StripMode::from((strip.strip_start(), elems[index + 1].strip_prev_end()))
+            StripMode::from((strip.strip_start(), elems[index + 1].strip_start()))
         } else if index == len - 1 {
-            StripMode::from((elems[index - 1].strip_next_start(), strip.strip_end()))
+            StripMode::from((elems[index - 1].strip_end(), strip.strip_end()))
         } else {
-            StripMode::from((
-                elems[index - 1].strip_next_start(),
-                elems[index + 1].strip_prev_end(),
-            ))
+            StripMode::from((elems[index - 1].strip_end(), elems[index + 1].strip_start()))
         };
 
         evaluate_element(result, elem, ctx, strip)?;
