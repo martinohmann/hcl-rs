@@ -19,9 +19,7 @@
 //! Here's a short example which evaluates a template expression that contains a variable:
 //!
 //! ```
-//! # use std::error::Error;
-//! #
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::{Context, Evaluate};
 //! use hcl::TemplateExpr;
 //!
@@ -40,9 +38,7 @@
 //! [`TemplateExpr`][crate::structure::TemplateExpr]:
 //!
 //! ```
-//! # use std::error::Error;
-//! #
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::{Context, Evaluate};
 //! use hcl::template::Template;
 //! use std::str::FromStr;
@@ -76,9 +72,7 @@
 //! example][crate::eval#expression-evaluation-during-de-serialization] below:
 //!
 //! ```
-//! # use std::error::Error;
-//! #
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::Context;
 //! use hcl::Body;
 //!
@@ -115,9 +109,7 @@
 //! uppercase:
 //!
 //! ```
-//! # use std::error::Error;
-//! #
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::{Context, Evaluate, FuncArgs, FuncDef, ParamType};
 //! use hcl::{TemplateExpr, Value};
 //!
@@ -162,9 +154,7 @@
 //! Here's a deserialization example using `from_str`:
 //!
 //! ```
-//! # use std::error::Error;
-//! #
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::Context;
 //! use hcl::Body;
 //!
@@ -187,13 +177,11 @@
 //! And here's how expression evaluation during serialization via `to_string` works:
 //!
 //! ```
-//! # use std::error::Error;
-//! #
-//! # fn main() -> Result<(), Box<dyn Error>> {
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::Context;
 //! use hcl::{Body, TemplateExpr};
 //!
-//! let expr = TemplateExpr::QuotedString("Hello, ${name}!".into());
+//! let expr = TemplateExpr::from("Hello, ${name}!");
 //!
 //! let body = Body::builder()
 //!     .add_attribute(("hello_world", expr))
@@ -241,6 +229,8 @@ pub trait Evaluate: private::Sealed {
 
     /// Recursively evaluates all HCL templates and expressions in the implementing type using the
     /// variables and functions declared in the `Context`.
+    ///
+    /// See the [module-level documentation][crate::eval] for usage examples.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
 }
 

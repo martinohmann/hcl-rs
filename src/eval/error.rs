@@ -34,17 +34,17 @@ impl Error {
         Error::new(ErrorKind::Unexpected(value.into(), expected))
     }
 
-    /// Returns a reference to the `ErrorKind` for further error matching.
+    /// Return a reference to the `ErrorKind` for further error matching.
     pub fn kind(&self) -> &ErrorKind {
         &self.inner.kind
     }
 
-    /// Returns a reference to the `Expression` that caused the error, if there is one.
+    /// Return a reference to the `Expression` that caused the error, if there is one.
     pub fn expr(&self) -> Option<&Expression> {
         self.inner.expr.as_ref()
     }
 
-    /// Consumes the `Error` and returns the `ErrorKind`.
+    /// Consume the `Error` and return the `ErrorKind`.
     pub fn into_kind(self) -> ErrorKind {
         self.inner.kind
     }
@@ -70,8 +70,9 @@ impl From<crate::Error> for Error {
 
 impl std::error::Error for Error {}
 
-// The inner type that holds the actual error data. This is a separate type because it gets boxed
-// to keep the size of the `Error` struct small.
+// The inner type that holds the actual error data.
+//
+// This is a separate type because it gets boxed to keep the size of the `Error` struct small.
 #[derive(Debug, Clone)]
 struct ErrorInner {
     kind: ErrorKind,
