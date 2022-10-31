@@ -1,7 +1,7 @@
 use super::{
     body::BodySerializer, expression::ExpressionSerializer, structure::StructureSerializer,
-    IdentifierSerializer, SeqSerializer,
 };
+use crate::ser::{IdentifierSerializer, SeqSerializer};
 use crate::{Attribute, Block, BlockLabel, Body, Error, Identifier, Result, Structure};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;

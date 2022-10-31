@@ -1,4 +1,5 @@
-use super::{expression::ExpressionSerializer, IdentifierSerializer, SeqSerializer};
+use super::expression::ExpressionSerializer;
+use crate::ser::{IdentifierSerializer, SeqSerializer};
 use crate::{Error, Expression, Identifier, Result, Traversal, TraversalOperator};
 use serde::ser::{self, Impossible, Serialize};
 

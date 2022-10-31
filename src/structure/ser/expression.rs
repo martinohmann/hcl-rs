@@ -5,8 +5,8 @@ use super::{
     operation::{OperationSerializer, SerializeOperationStruct},
     template_expr::{SerializeTemplateExprStruct, TemplateExprSerializer},
     traversal::SerializeTraversalStruct,
-    IdentifierSerializer, StringSerializer,
 };
+use crate::ser::{IdentifierSerializer, StringSerializer};
 use crate::{
     Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result, Variable,
 };

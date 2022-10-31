@@ -1,4 +1,5 @@
-use super::{expression::ExpressionSerializer, FromStrSerializer};
+use super::expression::ExpressionSerializer;
+use crate::ser::FromStrSerializer;
 use crate::{
     BinaryOp, BinaryOperator, Error, Expression, Operation, Result, UnaryOp, UnaryOperator,
 };

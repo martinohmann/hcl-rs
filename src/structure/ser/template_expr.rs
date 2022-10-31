@@ -1,4 +1,4 @@
-use super::{FromStrSerializer, IdentifierSerializer, StringSerializer};
+use crate::ser::{FromStrSerializer, IdentifierSerializer, StringSerializer};
 use crate::{Error, Heredoc, HeredocStripMode, Identifier, Result, TemplateExpr};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;

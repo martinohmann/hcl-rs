@@ -1,6 +1,5 @@
-use super::{
-    expression::ExpressionSerializer, BoolSerializer, IdentifierSerializer, OptionSerializer,
-};
+use super::expression::ExpressionSerializer;
+use crate::ser::{BoolSerializer, IdentifierSerializer, OptionSerializer};
 use crate::{Error, Expression, ForExpr, Identifier, Result};
 use serde::ser::{self, Impossible};
 

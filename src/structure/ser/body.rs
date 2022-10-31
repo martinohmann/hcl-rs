@@ -1,7 +1,8 @@
 use super::{
     attribute::SerializeAttributeStruct, block::SerializeBlockStruct,
-    expression::ExpressionSerializer, structure::*, IdentifierSerializer,
+    expression::ExpressionSerializer, structure::*,
 };
+use crate::ser::IdentifierSerializer;
 use crate::{Attribute, Body, Error, Identifier, Result, Structure};
 use serde::ser::{self, Serialize, SerializeMap};
 

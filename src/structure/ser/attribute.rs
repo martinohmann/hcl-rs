@@ -1,4 +1,5 @@
-use super::{expression::ExpressionSerializer, IdentifierSerializer};
+use super::expression::ExpressionSerializer;
+use crate::ser::IdentifierSerializer;
 use crate::{Attribute, Error, Expression, Identifier, Object, ObjectKey, Result};
 use serde::ser::{self, Serialize};
 
