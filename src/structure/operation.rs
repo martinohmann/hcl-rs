@@ -1,4 +1,5 @@
-use super::{de::FromStrVisitor, Expression};
+use super::Expression;
+use crate::de::FromStrVisitor;
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt;

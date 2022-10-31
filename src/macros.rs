@@ -960,3 +960,21 @@ macro_rules! impl_forward_to_inner_internal {
     };
     () => {};
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_deserialize_enum {
+    () => {
+        fn deserialize_enum<V>(
+            self,
+            _name: &'static str,
+            _variants: &'static [&'static str],
+            visitor: V,
+        ) -> $crate::Result<V::Value, Self::Error>
+        where
+            V: serde::de::Visitor<'de>,
+        {
+            visitor.visit_enum($crate::de::EnumAccess::new(self))
+        }
+    };
+}

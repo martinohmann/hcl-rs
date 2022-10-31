@@ -9,8 +9,10 @@
 mod tests;
 
 use crate::{parser, Body, Error, Result, Value};
-use serde::de::{self, IntoDeserializer};
+use serde::de::{self, Deserializer as _, IntoDeserializer};
 use serde::forward_to_deserialize_any;
+use std::fmt;
+use std::marker::PhantomData;
 
 /// A structure that deserializes HCL into Rust values.
 pub struct Deserializer {
@@ -256,5 +258,204 @@ impl<'de> de::Deserializer<'de> for Deserializer {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
         bytes byte_buf option unit unit_struct seq tuple
         tuple_struct map struct identifier ignored_any
+    }
+}
+
+// A trait that allows enum types to report the name of their variant.
+pub(crate) trait VariantName {
+    fn variant_name(&self) -> &'static str;
+}
+
+// Not public API.
+#[doc(hidden)]
+pub struct NewtypeStructDeserializer<T, E = Error> {
+    value: T,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> NewtypeStructDeserializer<T, E> {
+    pub(crate) fn new(value: T) -> Self {
+        NewtypeStructDeserializer {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::Deserializer<'de> for NewtypeStructDeserializer<T, E>
+where
+    T: IntoDeserializer<'de, E>,
+    E: de::Error,
+{
+    type Error = E;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        visitor.visit_newtype_struct(self.value.into_deserializer())
+    }
+}
+
+pub(crate) struct OptionDeserializer<T, E = Error> {
+    value: Option<T>,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> OptionDeserializer<T, E> {
+    pub(crate) fn new(value: Option<T>) -> Self {
+        OptionDeserializer {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::Deserializer<'de> for OptionDeserializer<T, E>
+where
+    T: IntoDeserializer<'de, E>,
+    E: de::Error,
+{
+    type Error = E;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        match self.value {
+            Some(value) => visitor.visit_some(value.into_deserializer()),
+            None => visitor.visit_none(),
+        }
+    }
+}
+
+pub(crate) struct EnumAccess<T, E = Error> {
+    value: T,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> EnumAccess<T, E> {
+    pub(crate) fn new(value: T) -> Self {
+        EnumAccess {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::EnumAccess<'de> for EnumAccess<T, E>
+where
+    T: IntoDeserializer<'de, E> + VariantName,
+    E: de::Error,
+{
+    type Error = E;
+    type Variant = VariantAccess<T, E>;
+
+    fn variant_seed<S>(self, seed: S) -> Result<(S::Value, Self::Variant), Self::Error>
+    where
+        S: de::DeserializeSeed<'de>,
+    {
+        let variant_name = self.value.variant_name();
+
+        seed.deserialize(variant_name.into_deserializer())
+            .map(|variant| (variant, VariantAccess::new(self.value)))
+    }
+}
+
+// Not public API.
+#[doc(hidden)]
+pub struct VariantAccess<T, E = Error> {
+    value: T,
+    marker: PhantomData<E>,
+}
+
+impl<T, E> VariantAccess<T, E> {
+    fn new(value: T) -> Self {
+        VariantAccess {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T, E> de::VariantAccess<'de> for VariantAccess<T, E>
+where
+    T: IntoDeserializer<'de, E>,
+    E: de::Error,
+{
+    type Error = E;
+
+    fn unit_variant(self) -> Result<(), Self::Error> {
+        de::Deserialize::deserialize(self.value.into_deserializer())
+    }
+
+    fn newtype_variant_seed<S>(self, seed: S) -> Result<S::Value, Self::Error>
+    where
+        S: de::DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.value.into_deserializer())
+    }
+
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.value.into_deserializer().deserialize_seq(visitor)
+    }
+
+    fn struct_variant<V>(
+        self,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value, Self::Error>
+    where
+        V: de::Visitor<'de>,
+    {
+        self.value.into_deserializer().deserialize_map(visitor)
+    }
+}
+
+pub(crate) struct FromStrVisitor<T> {
+    expecting: &'static str,
+    marker: PhantomData<T>,
+}
+
+impl<T> FromStrVisitor<T> {
+    pub(crate) fn new(expecting: &'static str) -> FromStrVisitor<T> {
+        FromStrVisitor {
+            expecting,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, T> de::Visitor<'de> for FromStrVisitor<T>
+where
+    T: std::str::FromStr,
+    T::Err: de::Error,
+{
+    type Value = T;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str(self.expecting)
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        T::from_str(value).map_err(de::Error::custom)
     }
 }
