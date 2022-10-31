@@ -8,6 +8,7 @@ pub mod error;
 mod macros;
 pub mod eval;
 pub mod format;
+mod ident;
 mod number;
 mod parser;
 pub mod ser;
@@ -22,6 +23,7 @@ pub mod value;
 pub use de::{from_body, from_reader, from_slice, from_str};
 #[doc(inline)]
 pub use error::{Error, Result};
+pub use ident::Identifier;
 pub use number::Number;
 pub use parser::parse;
 #[doc(inline)]

@@ -210,7 +210,7 @@ pub use self::func::*;
 use crate::parser;
 use crate::structure::*;
 use crate::template::*;
-use crate::{Map, Result, Value};
+use crate::{Identifier, Map, Result, Value};
 use serde::{de, ser};
 
 mod private {

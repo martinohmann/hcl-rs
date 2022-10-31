@@ -1,7 +1,6 @@
-use super::Identifier;
 use crate::de::FromStrVisitor;
 use crate::util::{dedent, try_unescape};
-use crate::{Error, Result};
+use crate::{Error, Identifier, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt;

@@ -1,7 +1,7 @@
 //! Types to represent HCL attribute value expressions.
 
 use super::*;
-use crate::{format, Number};
+use crate::{format, Identifier, Number};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
