@@ -1,15 +1,25 @@
-use super::{
+//! Serializer impls for HCL expression types.
+
+mod conditional;
+mod for_expr;
+mod func_call;
+mod operation;
+mod template_expr;
+#[cfg(test)]
+mod tests;
+mod traversal;
+
+use self::{
     conditional::{ConditionalSerializer, SerializeConditionalStruct},
     for_expr::{ForExprSerializer, SerializeForExprStruct},
-    func_call::SerializeFuncCallStruct,
+    func_call::{FuncCallSerializer, SerializeFuncCallStruct},
     operation::{OperationSerializer, SerializeOperationStruct},
     template_expr::{SerializeTemplateExprStruct, TemplateExprSerializer},
-    traversal::SerializeTraversalStruct,
+    traversal::{SerializeTraversalStruct, TraversalSerializer},
 };
+use crate::expr::{Expression, Object, ObjectKey, RawExpression, Variable};
 use crate::ser::{IdentifierSerializer, StringSerializer};
-use crate::{
-    Error, Expression, Identifier, Number, Object, ObjectKey, RawExpression, Result, Variable,
-};
+use crate::{Error, Identifier, Number, Result};
 use serde::ser::{self, Impossible, SerializeMap};
 use std::fmt::Display;
 
@@ -149,12 +159,21 @@ impl ser::Serializer for ExpressionSerializer {
             ("$hcl::expression", "ForExpr") => {
                 Ok(Expression::from(value.serialize(ForExprSerializer)?))
             }
+            ("$hcl::expression", "FuncCall") => {
+                Ok(Expression::from(value.serialize(FuncCallSerializer)?))
+            }
             ("$hcl::expression", "Parenthesis") => {
                 Ok(Expression::Parenthesis(Box::new(value.serialize(self)?)))
             }
             ("$hcl::expression", "TemplateExpr") | ("$hcl::template_expr", _) => {
                 Ok(Expression::from(value.serialize(TemplateExprSerializer)?))
             }
+            ("$hcl::expression", "Traversal") => {
+                Ok(Expression::from(value.serialize(TraversalSerializer)?))
+            }
+            ("$hcl::expression", "Variable") => Ok(Expression::from(Variable::from(
+                value.serialize(IdentifierSerializer)?,
+            ))),
             ("$hcl::expression", _) => value.serialize(self),
             (_, _) => {
                 let mut object = Object::with_capacity(1);
@@ -514,18 +533,4 @@ impl ser::Serializer for ObjectKeySerializer {
             (_, _) => value.serialize(self),
         }
     }
-}
-
-/// Convert a `T` into `hcl::Expression` which is an enum that can represent any valid HCL
-/// attribute value expression.
-///
-/// # Errors
-///
-/// This conversion can fail if `T`'s implementation of `Serialize` decides to
-/// fail, or if `T` contains a map with non-string keys.
-pub fn to_expression<T>(value: T) -> Result<Expression>
-where
-    T: ser::Serialize,
-{
-    value.serialize(ExpressionSerializer)
 }

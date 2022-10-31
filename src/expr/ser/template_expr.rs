@@ -1,5 +1,6 @@
+use crate::expr::{Heredoc, HeredocStripMode, TemplateExpr};
 use crate::ser::{FromStrSerializer, IdentifierSerializer, StringSerializer};
-use crate::{Error, Heredoc, HeredocStripMode, Identifier, Result, TemplateExpr};
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt::Display;
 

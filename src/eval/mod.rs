@@ -206,10 +206,18 @@ mod template;
 mod tests;
 
 pub use self::error::{Error, ErrorKind, EvalResult};
-pub use self::func::*;
+pub use self::func::{
+    Func, FuncArgs, FuncDef, FuncDefBuilder, ParamType, PositionalArgs, VariadicArgs,
+};
+use crate::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Object, ObjectKey,
+    Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
+};
 use crate::parser;
-use crate::structure::*;
-use crate::template::*;
+use crate::structure::{Attribute, Block, Body, Structure};
+use crate::template::{
+    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
+};
 use crate::{Identifier, Map, Result, Value};
 use serde::{de, ser};
 

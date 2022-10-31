@@ -1,4 +1,5 @@
 use super::*;
+use crate::expr::BinaryOperator;
 use crate::template::{IfDirective, StripMode, Template};
 use pest::*;
 use pretty_assertions::assert_eq;

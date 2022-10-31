@@ -176,7 +176,7 @@ macro_rules! body_internal {
 
     // Invoke structure muncher.
     ($($tt:tt)*) => {
-        $crate::Body($crate::body_internal!(@structures [] $($tt)*))
+        $crate::structure::Body($crate::body_internal!(@structures [] $($tt)*))
     };
 }
 
@@ -226,12 +226,12 @@ macro_rules! structure_internal {
 
     // An attribute structure.
     ($key:tt = $($expr:tt)+) => {
-        $crate::Structure::Attribute($crate::attribute!($key = $($expr)+))
+        $crate::structure::Structure::Attribute($crate::attribute!($key = $($expr)+))
     };
 
     // A block structure.
     ($($block:tt)+) => {
-        $crate::Structure::Block($crate::block!($($block)+))
+        $crate::structure::Structure::Block($crate::block!($($block)+))
     };
 }
 
@@ -370,11 +370,13 @@ macro_rules! block_internal {
 #[macro_export]
 macro_rules! block_label {
     ($ident:ident) => {
-        $crate::BlockLabel::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
+        $crate::structure::BlockLabel::Identifier($crate::Identifier::unchecked(std::stringify!(
+            $ident
+        )))
     };
 
     (($expr:expr)) => {
-        $crate::BlockLabel::String(($expr).into())
+        $crate::structure::BlockLabel::String(($expr).into())
     };
 
     ($literal:literal) => {
@@ -404,15 +406,15 @@ macro_rules! block_label {
 #[macro_export]
 macro_rules! object_key {
     ($ident:ident) => {
-        $crate::ObjectKey::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
+        $crate::expr::ObjectKey::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
     };
 
     (#{$expr:expr}) => {
-        $crate::ObjectKey::Expression($crate::expression!(#{$expr}))
+        $crate::expr::ObjectKey::Expression($crate::expression!(#{$expr}))
     };
 
     (($expr:expr)) => {
-        $crate::ObjectKey::Expression($crate::expression!($expr))
+        $crate::expr::ObjectKey::Expression($crate::expression!($expr))
     };
 
     ($literal:literal) => {
@@ -649,36 +651,36 @@ macro_rules! expression_internal {
     //////////////////////////////////////////////////////////////////////////
 
     (null) => {
-        $crate::Expression::Null
+        $crate::expr::Expression::Null
     };
 
     (true) => {
-        $crate::Expression::Bool(true)
+        $crate::expr::Expression::Bool(true)
     };
 
     (false) => {
-        $crate::Expression::Bool(false)
+        $crate::expr::Expression::Bool(false)
     };
 
     (#{$expr:expr}) => {
-        $crate::Expression::Raw(($expr).into())
+        $crate::expr::Expression::Raw(($expr).into())
     };
 
     ([]) => {
-        $crate::Expression::Array(std::vec![])
+        $crate::expr::Expression::Array(std::vec![])
     };
 
     ([ $($tt:tt)+ ]) => {
-        $crate::Expression::Array($crate::expression_internal!(@array [] $($tt)+))
+        $crate::expr::Expression::Array($crate::expression_internal!(@array [] $($tt)+))
     };
 
     ({}) => {
-        $crate::Expression::Object($crate::Object::new())
+        $crate::expr::Expression::Object($crate::expr::Object::new())
     };
 
     ({ $($tt:tt)+ }) => {
-        $crate::Expression::Object({
-            let mut object = $crate::Object::new();
+        $crate::expr::Expression::Object({
+            let mut object = $crate::expr::Object::new();
             $crate::expression_internal!(@object object () ($($tt)+) ($($tt)+));
             object
         })

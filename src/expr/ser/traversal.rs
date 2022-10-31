@@ -1,6 +1,7 @@
-use super::expression::ExpressionSerializer;
+use super::ExpressionSerializer;
+use crate::expr::{Expression, Traversal, TraversalOperator};
 use crate::ser::{IdentifierSerializer, SeqSerializer};
-use crate::{Error, Expression, Identifier, Result, Traversal, TraversalOperator};
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Impossible, Serialize};
 
 pub struct TraversalSerializer;

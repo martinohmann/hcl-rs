@@ -1,5 +1,6 @@
-use super::expression::ExpressionSerializer;
-use crate::{Conditional, Error, Expression, Result};
+use super::ExpressionSerializer;
+use crate::expr::{Conditional, Expression};
+use crate::{Error, Result};
 use serde::ser::{self, Impossible};
 
 pub struct ConditionalSerializer;

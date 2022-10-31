@@ -1,4 +1,4 @@
-//! Types to represent HCL structures.
+//! Types to represent the HCL structural sub-language.
 //!
 //! The main types in this module are:
 //!
@@ -7,7 +7,6 @@
 //! - [`BlockBuilder`]: provides functionality for building `Block`s
 //! - [`Body`]: represent the body of an HCL configuration or block
 //! - [`BodyBuilder`]: provides functionality for building `Body`s
-//! - [`Expression`]: represent the value of an HCL attribute
 //!
 //! ## Examples
 //!
@@ -49,31 +48,15 @@
 mod attribute;
 mod block;
 mod body;
-mod conditional;
 pub(crate) mod de;
-mod expression;
-mod for_expr;
-mod func_call;
-mod operation;
 pub(crate) mod ser;
-mod template_expr;
 #[cfg(test)]
 mod tests;
-mod traversal;
-mod variable;
 
 pub use self::{
     attribute::Attribute,
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
-    conditional::Conditional,
-    expression::{Expression, Object, ObjectKey, RawExpression},
-    for_expr::ForExpr,
-    func_call::{FuncCall, FuncCallBuilder},
-    operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
-    template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
-    traversal::{Traversal, TraversalOperator},
-    variable::Variable,
 };
 use crate::{Map, Value};
 use serde::{Deserialize, Serialize};
@@ -274,6 +257,44 @@ impl Node {
 mod deprecated {
     #[deprecated(since = "0.9.1", note = "use `hcl::Identifier` instead")]
     pub type Identifier = crate::ident::Identifier;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Conditional` instead")]
+    pub type Conditional = crate::expr::Conditional;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Expression` instead")]
+    pub type Expression = crate::expr::Expression;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Object` instead")]
+    pub type Object<K, V> = crate::expr::Object<K, V>;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::ObjectKey` instead")]
+    pub type ObjectKey = crate::expr::ObjectKey;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::RawExpression` instead")]
+    pub type RawExpression = crate::expr::RawExpression;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::ForExpr` instead")]
+    pub type ForExpr = crate::expr::ForExpr;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::FuncCall` instead")]
+    pub type FuncCall = crate::expr::FuncCall;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::FuncCallBuilder` instead")]
+    pub type FuncCallBuilder = crate::expr::FuncCallBuilder;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::BinaryOp` instead")]
+    pub type BinaryOp = crate::expr::BinaryOp;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::BinaryOperator` instead")]
+    pub type BinaryOperator = crate::expr::BinaryOperator;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Operation` instead")]
+    pub type Operation = crate::expr::Operation;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::UnaryOp` instead")]
+    pub type UnaryOp = crate::expr::UnaryOp;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::UnaryOperator` instead")]
+    pub type UnaryOperator = crate::expr::UnaryOperator;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Heredoc` instead")]
+    pub type Heredoc = crate::expr::Heredoc;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::HeredocStripMode` instead")]
+    pub type HeredocStripMode = crate::expr::HeredocStripMode;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::TemplateExpr` instead")]
+    pub type TemplateExpr = crate::expr::TemplateExpr;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Traversal` instead")]
+    pub type Traversal = crate::expr::Traversal;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::TraversalOperator` instead")]
+    pub type TraversalOperator = crate::expr::TraversalOperator;
+    #[deprecated(since = "0.9.1", note = "use `hcl::expr::Variable` instead")]
+    pub type Variable = crate::expr::Variable;
 }
 
 #[doc(hidden)]

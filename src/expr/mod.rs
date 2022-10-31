@@ -1,7 +1,30 @@
-//! Types to represent HCL attribute value expressions.
+//! Types to represent the HCL expression sub-language.
+//!
+//! The module contains the [`Expression`] enum which can represent any valid HCL expression in
+//! HCL attribute values and templates.
 
-use super::*;
-use crate::{format, Identifier, Number};
+mod conditional;
+pub(crate) mod de;
+mod for_expr;
+mod func_call;
+mod operation;
+pub(crate) mod ser;
+mod template_expr;
+#[cfg(test)]
+mod tests;
+mod traversal;
+mod variable;
+
+pub use self::{
+    conditional::Conditional,
+    for_expr::ForExpr,
+    func_call::{FuncCall, FuncCallBuilder},
+    operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
+    template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
+    traversal::{Traversal, TraversalOperator},
+    variable::Variable,
+};
+use crate::{format, Identifier, Number, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
@@ -9,8 +32,8 @@ use std::fmt::{self, Display, Write};
 /// The object type used in the expression sub-language.
 pub type Object<K, V> = vecmap::VecMap<K, V>;
 
-/// A type representing the expression sub-language is used within attribute definitions to specify
-/// values.
+/// A type representing the expression sub-language. It is used in HCL attributes to specify
+/// values and in HCL templates.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename = "$hcl::expression")]
 #[non_exhaustive]

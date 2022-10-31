@@ -8,7 +8,7 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{parser, Body, Error, Result, Value};
+use crate::{parser, Body, Error, Identifier, Result, Value};
 use serde::de::{self, Deserializer as _, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use std::fmt;
@@ -457,5 +457,13 @@ where
         E: de::Error,
     {
         T::from_str(value).map_err(de::Error::custom)
+    }
+}
+
+impl<'de> IntoDeserializer<'de, Error> for Identifier {
+    type Deserializer = NewtypeStructDeserializer<String>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        NewtypeStructDeserializer::new(self.into_inner())
     }
 }

@@ -1,5 +1,7 @@
 use super::*;
-use crate::template::*;
+use crate::template::{
+    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
+};
 
 pub fn parse(input: &str) -> Result<Template> {
     let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();

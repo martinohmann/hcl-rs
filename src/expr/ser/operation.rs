@@ -1,8 +1,7 @@
-use super::expression::ExpressionSerializer;
+use super::ExpressionSerializer;
+use crate::expr::{BinaryOp, BinaryOperator, Expression, Operation, UnaryOp, UnaryOperator};
 use crate::ser::FromStrSerializer;
-use crate::{
-    BinaryOp, BinaryOperator, Error, Expression, Operation, Result, UnaryOp, UnaryOperator,
-};
+use crate::{Error, Result};
 use serde::ser::{self, Impossible, Serialize};
 
 pub struct OperationSerializer;

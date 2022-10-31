@@ -193,11 +193,13 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{
-    format::{Format, Formatter},
-    structure::ser::body::*,
-    Error, Identifier, Result,
+use crate::expr::{ser::ExpressionSerializer, Expression};
+use crate::format::{Format, Formatter};
+use crate::structure::ser::{
+    BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
+    SerializeBodyStructVariant, SerializeBodyTupleVariant,
 };
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Impossible, Serialize};
 use std::fmt;
 use std::io;
@@ -481,6 +483,20 @@ where
 {
     let mut serializer = Serializer::new(writer);
     value.serialize(&mut serializer)
+}
+
+/// Convert a `T` into `hcl::Expression` which is an enum that can represent any valid HCL
+/// attribute value expression.
+///
+/// # Errors
+///
+/// This conversion can fail if `T`'s implementation of `Serialize` decides to
+/// fail, or if `T` contains a map with non-string keys.
+pub fn to_expression<T>(value: T) -> Result<Expression>
+where
+    T: ser::Serialize,
+{
+    value.serialize(ExpressionSerializer)
 }
 
 pub(crate) struct StringSerializer;

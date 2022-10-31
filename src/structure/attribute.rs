@@ -1,6 +1,6 @@
 //! Types to represent and build HCL attributes.
 
-use super::Expression;
+use crate::expr::Expression;
 use crate::{Identifier, Value};
 use serde::{Deserialize, Serialize};
 use std::iter;
