@@ -3,7 +3,7 @@ mod template;
 mod tests;
 
 pub use self::template::parse as parse_template;
-use crate::{structure::*, util::unescape, Number, Result};
+use crate::{structure::*, util::unescape, Identifier, Number, Result};
 use pest::{
     iterators::{Pair, Pairs},
     Parser as ParserTrait,

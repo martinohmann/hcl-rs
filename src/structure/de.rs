@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::de::{NewtypeStructDeserializer, OptionDeserializer, VariantName};
-use crate::{Error, Result};
+use crate::{Error, Identifier, Result};
 use serde::de::value::{MapAccessDeserializer, StrDeserializer};
 use serde::de::{self, IntoDeserializer};
 use serde::{forward_to_deserialize_any, Deserializer};

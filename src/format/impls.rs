@@ -1,5 +1,5 @@
 use super::{private, Format, Formatter};
-use crate::{structure::*, Number, Result, Value};
+use crate::{structure::*, Identifier, Number, Result, Value};
 use std::io::{self, Write};
 
 impl<T> private::Sealed for &T where T: Format {}

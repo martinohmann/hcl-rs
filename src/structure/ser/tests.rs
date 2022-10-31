@@ -9,6 +9,7 @@ use super::{
     template_expr::TemplateExprSerializer,
 };
 use crate::structure::*;
+use crate::Identifier;
 use serde::{ser, Serialize};
 use std::fmt::Debug;
 
