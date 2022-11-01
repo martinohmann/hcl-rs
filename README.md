@@ -101,7 +101,8 @@ assert_eq!(body, expected);
 A simple example to serialize some terraform configuration:
 
 ```rust
-use hcl::{Block, Body, RawExpression};
+use hcl::expr::RawExpression;
+use hcl::{Block, Body};
 
 let body = Body::builder()
     .add_block(
@@ -140,7 +141,7 @@ short example:
 
 ```rust
 use hcl::eval::{Context, Evaluate};
-use hcl::TemplateExpr;
+use hcl::expr::TemplateExpr;
 
 let expr = TemplateExpr::from("Hello ${name}!");
 

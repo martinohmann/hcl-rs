@@ -23,22 +23,37 @@ pub mod value;
 
 #[doc(inline)]
 pub use de::{from_body, from_reader, from_slice, from_str};
+
 #[doc(inline)]
 pub use error::{Error, Result};
+
 #[doc(inline)]
+pub use expr::{Expression, Object, ObjectKey};
+
+// Deprecated, these re-exports will be removed in a future release.
+#[doc(hidden)]
 pub use expr::{
-    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, FuncCallBuilder, Heredoc,
-    HeredocStripMode, Object, ObjectKey, Operation, RawExpression, TemplateExpr, Traversal,
-    TraversalOperator, UnaryOp, UnaryOperator, Variable,
+    BinaryOp, BinaryOperator, Conditional, ForExpr, FuncCall, FuncCallBuilder, Heredoc,
+    HeredocStripMode, Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator,
+    UnaryOp, UnaryOperator, Variable,
 };
+
 pub use ident::Identifier;
 pub use number::Number;
 pub use parser::parse;
+
 #[doc(inline)]
 pub use ser::{to_expression, to_string, to_vec, to_writer};
+
 #[doc(inline)]
-pub use structure::{Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Structure};
+pub use structure::{Attribute, Block, BlockLabel, Body, Structure};
+
+// Deprecated, these re-exports will be removed in a future release.
+#[doc(hidden)]
+pub use structure::{BlockBuilder, BodyBuilder};
+
 #[doc(inline)]
 pub use template::Template;
+
 #[doc(inline)]
 pub use value::{Map, Value};

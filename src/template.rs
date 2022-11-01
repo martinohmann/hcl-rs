@@ -1,8 +1,8 @@
 //! Types to represent the HCL template sub-language.
 //!
 //! When parsing an HCL document, template expressions are emitted as
-//! [`TemplateExpr`][`crate::structure::TemplateExpr`] (as the `TemplateExpr` variant of the
-//! [`Expression`][`crate::structure::Expression`] enum) which contains the raw unparsed template
+//! [`TemplateExpr`][crate::expr::TemplateExpr] (as the `TemplateExpr` variant of the
+//! [`Expression`][crate::expr::Expression] enum) which contains the raw unparsed template
 //! expressions.
 //!
 //! These template expressions can be further parsed into a [`Template`] which is composed of
@@ -43,7 +43,8 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl::{Identifier, Variable};
+//! use hcl::Identifier;
+//! use hcl::expr::Variable;
 //! use hcl::template::{ForDirective, StripMode, Template};
 //! use std::str::FromStr;
 //!

@@ -21,7 +21,7 @@
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use hcl::eval::{Context, Evaluate};
-//! use hcl::TemplateExpr;
+//! use hcl::expr::TemplateExpr;
 //!
 //! let expr = TemplateExpr::from("Hello ${name}!");
 //!
@@ -73,8 +73,8 @@
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use hcl::eval::Context;
 //! use hcl::Body;
+//! use hcl::eval::Context;
 //!
 //! let input = r#"
 //! operation   = 1 + 1
@@ -110,8 +110,9 @@
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use hcl::Value;
 //! use hcl::eval::{Context, Evaluate, FuncArgs, FuncDef, ParamType};
-//! use hcl::{TemplateExpr, Value};
+//! use hcl::expr::TemplateExpr;
 //!
 //! // A template expression which needs to be evaluated. It needs access
 //! // to the `uppercase` function and `name` variable.
@@ -155,8 +156,8 @@
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use hcl::eval::Context;
 //! use hcl::Body;
+//! use hcl::eval::Context;
 //!
 //! let input = r#"hello_world = "Hello, ${name}!""#;
 //!
@@ -178,8 +179,9 @@
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use hcl::Body;
 //! use hcl::eval::Context;
-//! use hcl::{Body, TemplateExpr};
+//! use hcl::expr::TemplateExpr;
 //!
 //! let expr = TemplateExpr::from("Hello, ${name}!");
 //!

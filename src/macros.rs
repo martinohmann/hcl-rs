@@ -1,9 +1,7 @@
 /// Construct an `hcl::Body` from HCL blocks and attributes.
 ///
 /// The macro supports a subset of the HCL syntax. If you need more flexibility, use the
-/// [`BlockBuilder`][BlockBuilder] instead.
-///
-/// [BlockBuilder]: ./struct.BlockBuilder.html
+/// [`BlockBuilder`][crate::structure::BlockBuilder] instead.
 ///
 /// ## Supported Syntax
 ///
@@ -28,19 +26,10 @@
 /// The `body!` macro is composed out of different other macros that can be used on their own to
 /// construct HCL data structures:
 ///
-/// - [`attribute!`][`crate::attribute!`]: constructs an [`Attribute`][Attribute]
-/// - [`block!`][`crate::block!`]: constructs a [`Block`][Block]
-/// - [`block_label!`][`crate::block_label!`]: constructs a [`BlockLabel`][BlockLabel]
-/// - [`expression!`][`crate::expression!`]: constructs an [`Expression`][Expression]
-/// - [`object_key!`][`crate::object_key!`]: constructs an [`ObjectKey`][ObjectKey]
-/// - [`structure!`][`crate::structure!`]: constructs a [`Structure`][Structure]
-///
-/// [Attribute]: ./struct.Attribute.html
-/// [Block]: ./struct.Block.html
-/// [BlockLabel]: ./enum.BlockLabel.html
-/// [Expression]: ./enum.Expression.html
-/// [ObjectKey]: ./enum.ObjectKey.html
-/// [Structure]: ./enum.Structure.html
+/// - [`attribute!`][`crate::attribute!`]: constructs an [`Attribute`][crate::structure::Attribute]
+/// - [`block!`][`crate::block!`]: constructs a [`Block`][crate::structure::Block]
+/// - [`expression!`][`crate::expression!`]: constructs an [`Expression`][crate::expr::Expression]
+/// - [`structure!`][`crate::structure!`]: constructs a [`Structure`][crate::structure::Structure]
 ///
 /// ## Examples
 ///
@@ -348,26 +337,8 @@ macro_rules! block_internal {
     };
 }
 
-/// Construct an `hcl::BlockLabel`.
-///
-/// For supported syntax see the [`body!`] macro documentation.
-///
-/// ## Examples
-///
-/// ```
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// use hcl::{BlockLabel, Identifier};
-///
-/// assert_eq!(hcl::block_label!(some_identifier), BlockLabel::from(Identifier::new("some_identifier")?));
-/// assert_eq!(hcl::block_label!("some string"), BlockLabel::from("some string"));
-///
-/// let label = "some expression";
-///
-/// assert_eq!(hcl::block_label!((label)), BlockLabel::from("some expression"));
-/// #    Ok(())
-/// # }
-/// ```
 #[macro_export]
+#[doc(hidden)]
 macro_rules! block_label {
     ($ident:ident) => {
         $crate::structure::BlockLabel::Identifier($crate::Identifier::unchecked(std::stringify!(
@@ -384,26 +355,8 @@ macro_rules! block_label {
     };
 }
 
-/// Construct an `hcl::ObjectKey`.
-///
-/// For supported syntax see the [`body!`] macro documentation.
-///
-/// ## Examples
-///
-/// ```
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// use hcl::{Identifier, ObjectKey};
-///
-/// assert_eq!(hcl::object_key!(some_identifier), ObjectKey::from(Identifier::new("some_identifier")?));
-/// assert_eq!(hcl::object_key!("some string"), ObjectKey::from("some string"));
-///
-/// let key = "some expression";
-///
-/// assert_eq!(hcl::object_key!((key)), ObjectKey::from("some expression"));
-/// #     Ok(())
-/// # }
-/// ```
 #[macro_export]
+#[doc(hidden)]
 macro_rules! object_key {
     ($ident:ident) => {
         $crate::expr::ObjectKey::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
