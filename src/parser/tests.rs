@@ -1,5 +1,9 @@
 use super::*;
-use crate::expr::BinaryOperator;
+use crate::expr::{
+    BinaryOp, BinaryOperator, Expression, Heredoc, HeredocStripMode, ObjectKey, Operation,
+    TemplateExpr, Traversal, TraversalOperator, Variable,
+};
+use crate::structure::{Attribute, Block, Body};
 use crate::template::{IfDirective, StripMode, Template};
 use pest::*;
 use pretty_assertions::assert_eq;

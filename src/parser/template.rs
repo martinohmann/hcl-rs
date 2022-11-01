@@ -3,55 +3,48 @@ use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
 };
 
-pub fn parse(input: &str) -> Result<Template> {
-    let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();
-    parse_template(inner(pair))
+pub fn template(pair: Pair<Rule>) -> Result<Template> {
+    pair.into_inner().map(element).collect()
 }
 
-fn parse_template(pair: Pair<Rule>) -> Result<Template> {
-    pair.into_inner().map(parse_element).collect()
-}
-
-fn parse_element(pair: Pair<Rule>) -> Result<Element> {
+fn element(pair: Pair<Rule>) -> Result<Element> {
     match pair.as_rule() {
-        Rule::TemplateLiteral => Ok(Element::Literal(pair.as_str().to_owned())),
-        Rule::TemplateInterpolation => parse_interpolation(pair).map(Element::Interpolation),
-        Rule::TemplateDirective => parse_directive(pair).map(Element::Directive),
+        Rule::TemplateLiteral => Ok(Element::Literal(string(pair))),
+        Rule::TemplateInterpolation => interpolation(pair).map(Element::Interpolation),
+        Rule::TemplateDirective => directive(inner(pair)).map(Element::Directive),
         rule => unexpected_rule(rule),
     }
 }
 
-fn parse_interpolation(pair: Pair<Rule>) -> Result<Interpolation> {
+fn interpolation(pair: Pair<Rule>) -> Result<Interpolation> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let expr = pairs.next().unwrap();
     let end = pairs.next().unwrap();
 
     Ok(Interpolation {
-        expr: parse_expression(expr)?,
-        strip: parse_strip_mode(start, end),
+        expr: expression(expr)?,
+        strip: strip_mode(start, end),
     })
 }
 
-fn parse_directive(pair: Pair<Rule>) -> Result<Directive> {
-    let pair = inner(pair);
-
+fn directive(pair: Pair<Rule>) -> Result<Directive> {
     match pair.as_rule() {
-        Rule::TemplateIf => parse_if_directive(pair).map(Directive::If),
-        Rule::TemplateFor => parse_for_directive(pair).map(Directive::For),
+        Rule::TemplateIf => if_directive(pair).map(Directive::If),
+        Rule::TemplateFor => for_directive(pair).map(Directive::For),
         rule => unexpected_rule(rule),
     }
 }
 
-fn parse_if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
+fn if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
     let mut pairs = pair.into_inner();
-    let if_expr = parse_if_expr(pairs.next().unwrap())?;
+    let if_expr = if_expr(pairs.next().unwrap())?;
     let mut expr = pairs.next().unwrap();
 
     // Else branch is optional.
     let (false_template, else_strip) = match expr.as_rule() {
         Rule::TemplateElseExpr => {
-            let else_expr = parse_else_expr(expr)?;
+            let else_expr = else_expr(expr)?;
             expr = pairs.next().unwrap();
             (Some(else_expr.false_template), else_expr.else_strip)
         }
@@ -65,7 +58,7 @@ fn parse_if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
         false_template,
         if_strip: if_expr.if_strip,
         else_strip,
-        endif_strip: parse_end_expr_strip_mode(expr),
+        endif_strip: end_expr_strip_mode(expr),
     })
 }
 
@@ -75,17 +68,16 @@ struct IfExpr {
     if_strip: StripMode,
 }
 
-fn parse_if_expr(pair: Pair<Rule>) -> Result<IfExpr> {
+fn if_expr(pair: Pair<Rule>) -> Result<IfExpr> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let expr = pairs.next().unwrap();
     let end = pairs.next().unwrap();
-    let template = pairs.next().unwrap();
 
     Ok(IfExpr {
-        cond_expr: parse_expression(expr)?,
-        if_strip: parse_strip_mode(start, end),
-        true_template: parse_template(template)?,
+        cond_expr: expression(expr)?,
+        if_strip: strip_mode(start, end),
+        true_template: template(pairs.next().unwrap())?,
     })
 }
 
@@ -94,21 +86,20 @@ struct ElseExpr {
     else_strip: StripMode,
 }
 
-fn parse_else_expr(pair: Pair<Rule>) -> Result<ElseExpr> {
+fn else_expr(pair: Pair<Rule>) -> Result<ElseExpr> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let end = pairs.next().unwrap();
-    let template = pairs.next().unwrap();
 
     Ok(ElseExpr {
-        else_strip: parse_strip_mode(start, end),
-        false_template: parse_template(template)?,
+        else_strip: strip_mode(start, end),
+        false_template: template(pairs.next().unwrap())?,
     })
 }
 
-fn parse_for_directive(pair: Pair<Rule>) -> Result<ForDirective> {
+fn for_directive(pair: Pair<Rule>) -> Result<ForDirective> {
     let mut pairs = pair.into_inner();
-    let for_expr = parse_for_expr(pairs.next().unwrap())?;
+    let for_expr = for_expr(pairs.next().unwrap())?;
     let endfor_expr = pairs.next().unwrap();
 
     Ok(ForDirective {
@@ -117,7 +108,7 @@ fn parse_for_directive(pair: Pair<Rule>) -> Result<ForDirective> {
         collection_expr: for_expr.collection_expr,
         template: for_expr.template,
         for_strip: for_expr.for_strip,
-        endfor_strip: parse_end_expr_strip_mode(endfor_expr),
+        endfor_strip: end_expr_strip_mode(endfor_expr),
     })
 }
 
@@ -129,16 +120,16 @@ struct ForExpr {
     for_strip: StripMode,
 }
 
-fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
+fn for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
-    let mut value_var = Some(parse_ident(pairs.next().unwrap()));
+    let mut value_var = Some(ident(pairs.next().unwrap()));
     let mut expr = pairs.next().unwrap();
 
     // If there are two identifiers, the first one is the key and the second one the value.
     let key_var = match expr.as_rule() {
         Rule::Identifier => {
-            let key_var = value_var.replace(parse_ident(expr));
+            let key_var = value_var.replace(ident(expr));
             expr = pairs.next().unwrap();
             key_var
         }
@@ -146,26 +137,24 @@ fn parse_for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     };
 
     let end = pairs.next().unwrap();
-    let template = pairs.next().unwrap();
 
     Ok(ForExpr {
         key_var,
         value_var: value_var.take().unwrap(),
-        collection_expr: parse_expression(expr)?,
-        template: parse_template(template)?,
-        for_strip: parse_strip_mode(start, end),
+        collection_expr: expression(expr)?,
+        template: template(pairs.next().unwrap())?,
+        for_strip: strip_mode(start, end),
     })
 }
 
-fn parse_end_expr_strip_mode(pair: Pair<Rule>) -> StripMode {
+fn end_expr_strip_mode(pair: Pair<Rule>) -> StripMode {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let end = pairs.next().unwrap();
-
-    parse_strip_mode(start, end)
+    strip_mode(start, end)
 }
 
-fn parse_strip_mode(start: Pair<Rule>, end: Pair<Rule>) -> StripMode {
+fn strip_mode(start: Pair<Rule>, end: Pair<Rule>) -> StripMode {
     let strip_start = match start.as_rule() {
         Rule::TemplateIExprStartStrip | Rule::TemplateDExprStartStrip => true,
         Rule::TemplateIExprStartNormal | Rule::TemplateDExprStartNormal => false,
