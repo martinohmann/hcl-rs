@@ -1,4 +1,4 @@
-//! This module implements the HCL template sub-language.
+//! Types to represent the HCL template sub-language.
 //!
 //! When parsing an HCL document, template expressions are emitted as
 //! [`TemplateExpr`][`crate::structure::TemplateExpr`] (as the `TemplateExpr` variant of the
@@ -82,7 +82,8 @@
 //! The [`eval`][crate::eval] module provides evaluation capabilities for templates and
 //! expressions. See the [module-level documentation][crate::eval] for examples.
 
-use crate::{parser, Error, Expression, Identifier, Result, TemplateExpr};
+use crate::expr::{Expression, TemplateExpr};
+use crate::{parser, Error, Identifier, Result};
 use std::str::FromStr;
 
 /// A template behaves like an expression that always returns a string value. The different

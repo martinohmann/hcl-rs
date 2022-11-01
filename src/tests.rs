@@ -1,4 +1,6 @@
-use super::*;
+use crate::expr::{Expression, Object, ObjectKey, RawExpression};
+use crate::structure::{Attribute, Block, Body, Structure};
+use crate::{Identifier, Number};
 use pretty_assertions::assert_eq;
 
 #[test]

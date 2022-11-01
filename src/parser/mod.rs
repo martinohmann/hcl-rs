@@ -3,11 +3,16 @@ mod template;
 mod tests;
 
 pub use self::template::parse as parse_template;
-use crate::{structure::*, util::unescape, Identifier, Number, Result};
-use pest::{
-    iterators::{Pair, Pairs},
-    Parser as ParserTrait,
+use crate::expr::{
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncCallBuilder, Heredoc,
+    HeredocStripMode, Object, ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator,
+    UnaryOp, UnaryOperator, Variable,
 };
+use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
+use crate::util::unescape;
+use crate::{Identifier, Number, Result};
+use pest::iterators::{Pair, Pairs};
+use pest::Parser as ParserTrait;
 use pest_derive::Parser;
 use std::str::FromStr;
 

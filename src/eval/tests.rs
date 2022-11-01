@@ -1,4 +1,5 @@
 use super::*;
+use crate::expr::Variable;
 use std::fmt;
 use std::str::FromStr;
 

@@ -1,6 +1,7 @@
-use super::expression::ExpressionSerializer;
+use super::ExpressionSerializer;
+use crate::expr::{Expression, FuncCall};
 use crate::ser::{BoolSerializer, IdentifierSerializer, SeqSerializer};
-use crate::{Error, Expression, FuncCall, Identifier, Result};
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Impossible};
 
 pub struct FuncCallSerializer;

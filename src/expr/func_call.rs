@@ -1,4 +1,5 @@
-use crate::{Expression, Identifier};
+use super::Expression;
+use crate::Identifier;
 use serde::{Deserialize, Serialize};
 
 /// Represents a function call expression with zero or more arguments.

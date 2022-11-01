@@ -1,9 +1,11 @@
 use super::*;
-use crate::{
-    Attribute, BinaryOp, BinaryOperator, Block, Body, Conditional, Expression, ForExpr, FuncCall,
-    Heredoc, HeredocStripMode, Identifier, Object, ObjectKey, Operation, RawExpression,
-    TemplateExpr, Traversal, TraversalOperator, Variable,
+use crate::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
+    HeredocStripMode, Object, ObjectKey, Operation, RawExpression, TemplateExpr, Traversal,
+    TraversalOperator, Variable,
 };
+use crate::structure::{Attribute, Block, Body};
+use crate::Identifier;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 

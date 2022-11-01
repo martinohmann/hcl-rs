@@ -1,6 +1,7 @@
-use super::expression::ExpressionSerializer;
+use super::ExpressionSerializer;
+use crate::expr::{Expression, ForExpr};
 use crate::ser::{BoolSerializer, IdentifierSerializer, OptionSerializer};
-use crate::{Error, Expression, ForExpr, Identifier, Result};
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Impossible};
 
 pub struct ForExprSerializer;

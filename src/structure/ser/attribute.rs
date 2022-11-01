@@ -1,6 +1,8 @@
-use super::expression::ExpressionSerializer;
+use crate::expr::ser::ExpressionSerializer;
+use crate::expr::{Expression, Object, ObjectKey};
 use crate::ser::IdentifierSerializer;
-use crate::{Attribute, Error, Expression, Identifier, Object, ObjectKey, Result};
+use crate::structure::Attribute;
+use crate::{Error, Identifier, Result};
 use serde::ser::{self, Serialize};
 
 pub struct AttributeSerializer;

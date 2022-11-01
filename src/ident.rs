@@ -1,4 +1,5 @@
-use crate::{Error, Result, Variable};
+use crate::expr::Variable;
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;

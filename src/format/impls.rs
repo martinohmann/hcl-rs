@@ -1,5 +1,10 @@
 use super::{private, Format, Formatter};
-use crate::{structure::*, Identifier, Number, Result, Value};
+use crate::expr::{
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, Heredoc, HeredocStripMode, ObjectKey,
+    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+};
+use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
+use crate::{Identifier, Number, Result, Value};
 use std::io::{self, Write};
 
 impl<T> private::Sealed for &T where T: Format {}

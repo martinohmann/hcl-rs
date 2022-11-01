@@ -1,5 +1,6 @@
 use super::*;
-use crate::{Attribute, Expression, FuncCall};
+use crate::expr::{Expression, FuncCall};
+use crate::structure::Attribute;
 
 #[track_caller]
 fn expect_format<T: Format>(value: T, expected: &str) {

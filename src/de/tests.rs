@@ -1,8 +1,10 @@
 use super::*;
-use crate::{
-    BinaryOp, BinaryOperator, Block, Body, Expression, ForExpr, FuncCall, Identifier, ObjectKey,
-    Operation, Traversal, TraversalOperator, UnaryOp, UnaryOperator, Variable,
+use crate::expr::{
+    BinaryOp, BinaryOperator, Expression, ForExpr, FuncCall, ObjectKey, Operation, Traversal,
+    TraversalOperator, UnaryOp, UnaryOperator, Variable,
 };
+use crate::structure::{Block, Body};
+use crate::Identifier;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::{json, Value};

@@ -1,4 +1,5 @@
-use crate::{Expression, Identifier};
+use super::Expression;
+use crate::Identifier;
 use serde::{Deserialize, Serialize};
 
 /// Traverse an expression to access attributes, object keys or element indices.
