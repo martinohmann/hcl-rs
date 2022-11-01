@@ -58,7 +58,7 @@ impl Format for Attribute {
         W: io::Write,
     {
         fmt.begin_attribute()?;
-        fmt.write_ident(&self.key)?;
+        self.key.format(fmt)?;
         fmt.begin_attribute_value()?;
         self.expr.format(fmt)?;
         fmt.end_attribute()?;
@@ -74,7 +74,7 @@ impl Format for Block {
         W: io::Write,
     {
         fmt.begin_block()?;
-        fmt.write_ident(&self.identifier)?;
+        self.identifier.format(fmt)?;
 
         for label in &self.labels {
             fmt.write_all(b" ")?;
@@ -240,7 +240,7 @@ impl Format for Identifier {
     where
         W: io::Write,
     {
-        fmt.write_ident(self)?;
+        fmt.write_string_fragment(self)?;
         Ok(())
     }
 }

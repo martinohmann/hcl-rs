@@ -203,7 +203,8 @@ impl Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = format::to_string_unchecked(self);
-        f.write_str(&s)
+        // Formatting a `Value` as string cannot fail.
+        let formatted = format::to_string(self).expect("a Value failed to format unexpectedly");
+        f.write_str(&formatted)
     }
 }
