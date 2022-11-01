@@ -250,8 +250,10 @@ impl From<Variable> for Expression {
 
 impl Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = format::to_string_unchecked(self);
-        f.write_str(&s)
+        // Formatting an `Expression` as string cannot fail.
+        let formatted =
+            format::to_string(self).expect("an Expression failed to format unexpectedly");
+        f.write_str(&formatted)
     }
 }
 
