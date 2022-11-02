@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.9.1](https://github.com/martinohmann/hcl-rs/compare/v0.9.0...v0.9.1) (2022-11-02)
+
+
+### Features
+
+* re-export `Template` type at the crate root ([3fac02b](https://github.com/martinohmann/hcl-rs/commit/3fac02bdf96e72ddf461d4e498fd01798d0da930))
+
+
+### Bug Fixes
+
+* unclutter crate root exports ([#117](https://github.com/martinohmann/hcl-rs/issues/117)) ([d8a72bf](https://github.com/martinohmann/hcl-rs/commit/d8a72bf08cd54111ba76406d3c4bee477d0831b0))
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.9 to 3.0.11 ([#113](https://github.com/martinohmann/hcl-rs/issues/113)) ([4706b46](https://github.com/martinohmann/hcl-rs/commit/4706b46b21d7b49e5d07b27ce4505831bf4bfc4f))
+* **deps:** update textwrap requirement from 0.15.0 to 0.16.0 ([#114](https://github.com/martinohmann/hcl-rs/issues/114)) ([9b4f5a4](https://github.com/martinohmann/hcl-rs/commit/9b4f5a41b11f18e1783f239786a3d91de5439780))
+* **format:** remove ident validation ([#116](https://github.com/martinohmann/hcl-rs/issues/116)) ([d21083e](https://github.com/martinohmann/hcl-rs/commit/d21083e74c45e013dce5e77d994194ec0e25f8b2))
+* move `Identifier` type to crate root ([#110](https://github.com/martinohmann/hcl-rs/issues/110)) ([c8e6af0](https://github.com/martinohmann/hcl-rs/commit/c8e6af08a6b9db7f05bad3b69b13ab0d9b98c9dc))
+* move expression types into `expr` module ([#115](https://github.com/martinohmann/hcl-rs/issues/115)) ([6acba6c](https://github.com/martinohmann/hcl-rs/commit/6acba6c63b26ddf02055d4eb98da60dffda11765)), closes [#100](https://github.com/martinohmann/hcl-rs/issues/100)
+* update description in `Cargo.toml` ([8fc4d9b](https://github.com/martinohmann/hcl-rs/commit/8fc4d9b17f15a04aecdd2d5e9ee4ee5881ed5c12))
+
 ## [0.9.0](https://github.com/martinohmann/hcl-rs/compare/v0.8.8...v0.9.0) (2022-10-27)
 
 
