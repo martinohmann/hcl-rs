@@ -39,4 +39,6 @@ pub use ser::{to_expression, to_string, to_vec, to_writer};
 #[doc(inline)]
 pub use structure::{Attribute, Block, BlockBuilder, BlockLabel, Body, BodyBuilder, Structure};
 #[doc(inline)]
+pub use template::Template;
+#[doc(inline)]
 pub use value::{Map, Value};

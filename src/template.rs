@@ -20,8 +20,8 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl::template::Template;
-//! use hcl::{TemplateExpr, Variable};
+//! use hcl::Template;
+//! use hcl::expr::{TemplateExpr, Variable};
 //!
 //! let expr = TemplateExpr::from("Hello ${name}!");
 //! let template = Template::from_expr(&expr)?;
@@ -86,6 +86,8 @@ use crate::expr::{Expression, TemplateExpr};
 use crate::{parser, Error, Identifier, Result};
 use std::str::FromStr;
 
+/// The main type to represent the HCL template sub-languange.
+///
 /// A template behaves like an expression that always returns a string value. The different
 /// elements of the template are evaluated and combined into a single string to return.
 ///

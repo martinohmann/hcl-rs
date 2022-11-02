@@ -39,8 +39,8 @@
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use hcl::Template;
 //! use hcl::eval::{Context, Evaluate};
-//! use hcl::template::Template;
 //! use std::str::FromStr;
 //!
 //! let input = r#"
