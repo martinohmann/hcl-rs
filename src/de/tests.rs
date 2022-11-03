@@ -4,10 +4,9 @@ use crate::expr::{
     TraversalOperator, UnaryOp, UnaryOperator, Variable,
 };
 use crate::structure::{Block, Body};
-use crate::Identifier;
+use crate::{value, Identifier, Value};
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
-use serde_json::{json, Value};
 use std::fmt::Debug;
 
 #[track_caller]
@@ -20,14 +19,14 @@ where
 
 #[test]
 fn deserialize_string_attribute() {
-    expect_value(r#"foo = "bar""#, json!({"foo": "bar"}))
+    expect_value(r#"foo = "bar""#, value!({ foo = "bar" }))
 }
 
 #[test]
 fn deserialize_object() {
     expect_value(
         r#"foo = { bar = 42, "baz" = true }"#,
-        json!({"foo": {"bar": 42, "baz": true}}),
+        value!({ foo = { bar = 42, baz = true } }),
     )
 }
 
@@ -35,20 +34,12 @@ fn deserialize_object() {
 fn deserialze_block() {
     expect_value(
         r#"resource "aws_s3_bucket" "mybucket" { name = "mybucket" }"#,
-        json!({
-            "resource": {
-                "aws_s3_bucket": {
-                    "mybucket": {
-                        "name": "mybucket"
-                    }
-                }
-            }
-        }),
+        value!({ resource = { aws_s3_bucket = { mybucket = { name = "mybucket" } } } }),
     );
 
     expect_value(
         r#"block { name = "asdf" }"#,
-        json!({"block": {"name": "asdf"}}),
+        value!({ block = { name = "asdf" } }),
     );
 }
 
@@ -73,22 +64,22 @@ fn deserialize_duplicate_block() {
           bar = "baz"
         }
     "#;
-    let expected = json!({
-        "block": {
-            "foo": [
-                {"bar": "baz"},
-                {"bar": 1}
+    let expected = value!({
+        block = {
+            foo = [
+                { "bar" = "baz" },
+                { "bar" = 1 }
             ]
         },
-        "other": {
-            "one": {
-                "two": {
-                    "foo": "bar"
+        other = {
+            one = {
+                two = {
+                    foo = "bar"
                 }
             },
-            "two": {
-                "three": {
-                    "bar": "baz"
+            two = {
+                three = {
+                    bar = "baz"
                 }
             }
         }
@@ -99,12 +90,7 @@ fn deserialize_duplicate_block() {
         foo { bar = "baz" }
         foo { bar = 1 }
     "#;
-    let expected = json!({
-        "foo": [
-            {"bar": "baz"},
-            {"bar": 1}
-        ]
-    });
+    let expected = value!({ foo = [{ bar = "baz" }, { bar = 1 }] });
     expect_value(input, expected);
 }
 
@@ -114,7 +100,7 @@ fn deserialize_duplicate_attribute() {
         foo = ["bar"]
         foo = ["baz"]
     "#;
-    expect_value(input, json!({"foo": ["baz"]}));
+    expect_value(input, value!({ foo = ["baz"] }));
 }
 
 #[test]
@@ -123,19 +109,19 @@ fn deserialize_duplicate_attribute_and_block() {
         foo = ["bar"]
         foo { bar = "baz" }
     "#;
-    expect_value(input, json!({"foo": {"bar": "baz"}}));
+    expect_value(input, value!({ foo = { bar = "baz" } }));
 
     let input = r#"
         foo { bar = "baz" }
         foo = ["bar"]
     "#;
-    expect_value(input, json!({"foo": ["bar"]}));
+    expect_value(input, value!({ foo = ["bar"] }));
 }
 
 #[test]
 fn deserialize_tuple() {
     let input = r#"foo = [true, 2, "three", var.enabled]"#;
-    let expected = json!({"foo": [true, 2, "three", "${var.enabled}"]});
+    let expected = value!({ foo = [true, 2, "three", "${var.enabled}"] });
     expect_value(input, expected);
 }
 

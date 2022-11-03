@@ -3,7 +3,7 @@
 /// The macro supports a subset of the HCL syntax. If you need more flexibility, use the
 /// [`BlockBuilder`][crate::structure::BlockBuilder] instead.
 ///
-/// ## Supported Syntax
+/// # Supported Syntax
 ///
 /// - Attribute keys and block identifiers can be raw identifiers (`identifier`) or parenthesized
 ///   expressions (`(expr)`).
@@ -17,11 +17,11 @@
 /// Please note that HCL actually uses `${}` for interpolating expression, but since rust macros do
 /// not support matching on `$` it was chosen to use `#{}` instead to support raw expressions.
 ///
-/// ## Unsupported syntax:
+/// # Unsupported syntax
 ///
 /// Heredocs are not supported by the `hcl::body` macro.
 ///
-/// ## Related macros
+/// # Related macros
 ///
 /// The `body!` macro is composed out of different other macros that can be used on their own to
 /// construct HCL data structures:
@@ -31,7 +31,10 @@
 /// - [`expression!`][`crate::expression!`]: constructs an [`Expression`][crate::expr::Expression]
 /// - [`structure!`][`crate::structure!`]: constructs a [`Structure`][crate::structure::Structure]
 ///
-/// ## Examples
+/// Additionally the [`value!`][`crate::value!`] macro is provided for constructing a
+/// [`Value`][crate::value::Value].
+///
+/// # Example
 ///
 /// ```
 /// use hcl::{Block, Body};
@@ -173,7 +176,7 @@ macro_rules! body_internal {
 ///
 /// For supported syntax see the [`body!`] macro documentation.
 ///
-/// ## Examples
+/// # Example
 ///
 /// ```
 /// use hcl::{Attribute, Block, Structure};
@@ -228,7 +231,7 @@ macro_rules! structure_internal {
 ///
 /// For supported syntax see the [`body!`] macro documentation.
 ///
-/// ## Examples
+/// # Example
 ///
 /// ```
 /// use hcl::Attribute;
@@ -269,7 +272,7 @@ macro_rules! attribute_internal {
 ///
 /// For supported syntax see the [`body!`] macro documentation.
 ///
-/// ## Examples
+/// # Example
 ///
 /// ```
 /// use hcl::Block;
@@ -379,7 +382,7 @@ macro_rules! object_key {
 ///
 /// For supported syntax see the [`body!`] macro documentation.
 ///
-/// ## Examples
+/// # Example
 ///
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -643,6 +646,273 @@ macro_rules! expression_internal {
     // Must be below every other rule.
     ($other:expr) => {
         $crate::expr::to_expression(&$other).unwrap()
+    };
+}
+
+/// Construct an `hcl::Value` from an HCL attribute value value literal.
+///
+/// Supports the same input syntax as the [`expression!`] macro, with the exception of raw value
+/// expressions.
+///
+/// For supported syntax see the [`body!`] macro documentation.
+///
+/// # Example
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{Value, Identifier, Map};
+///
+/// let other = "hello";
+///
+/// let value = hcl::value!({
+///     foo       = true
+///     "baz qux" = [1, 2]
+///     (other)   = "world"
+/// });
+///
+/// let expected = Value::Object({
+///     let mut object = Map::new();
+///     object.insert("foo".into(), true.into());
+///     object.insert("baz qux".into(), vec![1u64, 2].into());
+///     object.insert("hello".into(), "world".into());
+///     object
+/// });
+///
+/// assert_eq!(value, expected);
+/// #     Ok(())
+/// # }
+/// ```
+#[macro_export]
+macro_rules! value {
+    // Hide distracting implementation details from the generated rustdoc.
+    ($($expr:tt)+) => {
+        $crate::value_internal!($($expr)+)
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! value_internal {
+    //////////////////////////////////////////////////////////////////////////
+    // TT muncher for parsing the inside of an array [...].
+    //
+    // Produces a vec![...] of the elements.
+    //
+    // Must be invoked as: value_internal!(@array [] $($tt)*)
+    //////////////////////////////////////////////////////////////////////////
+
+    // Done with trailing comma.
+    (@array [$($elems:expr,)*]) => {
+        std::vec![$($elems,)*]
+    };
+
+    // Done without trailing comma.
+    (@array [$($elems:expr),*]) => {
+        std::vec![$($elems),*]
+    };
+
+    // Next element is `null`.
+    (@array [$($elems:expr,)*] null $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!(null)] $($rest)*)
+    };
+
+    // Next element is `true`.
+    (@array [$($elems:expr,)*] true $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!(true)] $($rest)*)
+    };
+
+    // Next element is `false`.
+    (@array [$($elems:expr,)*] false $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!(false)] $($rest)*)
+    };
+
+    // Next element is an array.
+    (@array [$($elems:expr,)*] [$($array:tt)*] $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!([$($array)*])] $($rest)*)
+    };
+
+    // Next element is a map.
+    (@array [$($elems:expr,)*] {$($map:tt)*} $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!({$($map)*})] $($rest)*)
+    };
+
+    // Next element is an value followed by comma.
+    (@array [$($elems:expr,)*] $next:expr, $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!($next),] $($rest)*)
+    };
+
+    // Last element is an value with no trailing comma.
+    (@array [$($elems:expr,)*] $last:expr) => {
+        $crate::value_internal!(@array [$($elems,)* $crate::value_internal!($last)])
+    };
+
+    // Comma after the most recent element.
+    (@array [$($elems:expr),*] , $($rest:tt)*) => {
+        $crate::value_internal!(@array [$($elems,)*] $($rest)*)
+    };
+
+    // Unexpected token after most recent element.
+    (@array [$($elems:expr),*] $unexpected:tt $($rest:tt)*) => {
+        $crate::hcl_unexpected!($unexpected)
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    // TT muncher for parsing the inside of an object {...}. Each entry is
+    // inserted into the given map variable.
+    //
+    // Must be invoked as: value_internal!(@object $map () ($($tt)*) ($($tt)*))
+    //
+    // We require two copies of the input tokens so that we can match on one
+    // copy and trigger errors on the other copy.
+    //////////////////////////////////////////////////////////////////////////
+
+    // Done.
+    (@object $object:ident () () ()) => {};
+
+    // Insert the current entry followed by trailing comma.
+    (@object $object:ident [$key:expr] ($value:expr) , $($rest:tt)*) => {
+        let _ = $object.insert(($key).into(), $value);
+        $crate::value_internal!(@object $object () ($($rest)*) ($($rest)*));
+    };
+
+    // Insert the current entry not followed by trailing comma.
+    (@object $object:ident [$key:expr] ($value:expr) $($rest:tt)*) => {
+        let _ = $object.insert(($key).into(), $value);
+        $crate::value_internal!(@object $object () ($($rest)*) ($($rest)*));
+    };
+
+    // Insert the last entry without trailing comma.
+    (@object $object:ident [$key:expr] ($value:expr)) => {
+        let _ = $object.insert(($key).into(), $value);
+    };
+
+    // Next value is `null`.
+    (@object $object:ident ($key:expr) (= null $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!(null)) $($rest)*);
+    };
+
+    // Next value is `true`.
+    (@object $object:ident ($key:expr) (= true $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!(true)) $($rest)*);
+    };
+
+    // Next value is `false`.
+    (@object $object:ident ($key:expr) (= false $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!(false)) $($rest)*);
+    };
+
+    // Next value is an array.
+    (@object $object:ident ($key:expr) (= [$($array:tt)*] $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!([$($array)*])) $($rest)*);
+    };
+
+    // Next value is a map.
+    (@object $object:ident ($key:expr) (= {$($map:tt)*} $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!({$($map)*})) $($rest)*);
+    };
+
+    // Next value is an value followed by comma.
+    (@object $object:ident ($key:expr) (= $value:expr , $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!($value)) , $($rest)*);
+    };
+
+    // Next value is an value not followed by comma.
+    (@object $object:ident ($key:expr) (= $value:tt $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!($value)) $($rest)*);
+    };
+
+    // Last value is an value with no trailing comma.
+    (@object $object:ident ($key:expr) (= $value:expr) $copy:tt) => {
+        $crate::value_internal!(@object $object [$key] ($crate::value_internal!($value)));
+    };
+
+    // Missing value for last entry. Trigger a reasonable error message.
+    (@object $object:ident ($key:expr) (=) $copy:tt) => {
+        // "unexpected end of macro invocation"
+        $crate::value_internal!();
+    };
+
+    // Missing equals and value for last entry. Trigger a reasonable error
+    // message.
+    (@object $object:ident ($key:expr) () $copy:tt) => {
+        // "unexpected end of macro invocation"
+        $crate::value_internal!();
+    };
+
+    // Misplaced equals. Trigger a reasonable error message.
+    (@object $object:ident () (= $($rest:tt)*) ($equals:tt $($copy:tt)*)) => {
+        // Takes no arguments so "no rules expected the token `:`".
+        $crate::hcl_unexpected!($equals);
+    };
+
+    // Found a comma inside a key. Trigger a reasonable error message.
+    (@object $object:ident ($key:expr) (, $($rest:tt)*) ($comma:tt $($copy:tt)*)) => {
+        // Takes no arguments so "no rules expected the token `,`".
+        $crate::hcl_unexpected!($comma);
+    };
+
+    // Refuse to absorb equals token into key value.
+    (@object $object:ident ($key:expr) (= $($unexpected:tt)+) $copy:tt) => {
+        $crate::hcl_expect_expr_comma!($($unexpected)+);
+    };
+
+    // Munch an identifier key.
+    (@object $object:ident () ($key:ident $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object ((std::stringify!($key))) ($($rest)*) ($($rest)*));
+    };
+
+    // Munch a literal key.
+    (@object $object:ident () ($key:literal $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object (($key)) ($($rest)*) ($($rest)*));
+    };
+
+    // Munch a parenthesized value key.
+    (@object $object:ident () (($key:expr) $($rest:tt)*) $copy:tt) => {
+        $crate::value_internal!(@object $object (($key)) ($($rest)*) ($($rest)*));
+    };
+
+    //////////////////////////////////////////////////////////////////////////
+    // The main implementation.
+    //
+    // Must be invoked as: value_internal!($($expr)+)
+    //////////////////////////////////////////////////////////////////////////
+
+    (null) => {
+        $crate::value::Value::Null
+    };
+
+    (true) => {
+        $crate::value::Value::Bool(true)
+    };
+
+    (false) => {
+        $crate::value::Value::Bool(false)
+    };
+
+    ([]) => {
+        $crate::value::Value::Array(std::vec![])
+    };
+
+    ([ $($tt:tt)+ ]) => {
+        $crate::value::Value::Array($crate::value_internal!(@array [] $($tt)+))
+    };
+
+    ({}) => {
+        $crate::value::Value::Object($crate::value::Map::new())
+    };
+
+    ({ $($tt:tt)+ }) => {
+        $crate::value::Value::Object({
+            let mut object = $crate::value::Map::new();
+            $crate::value_internal!(@object object () ($($tt)+) ($($tt)+));
+            object
+        })
+    };
+
+    // Any Serialize type: numbers, strings, struct literals, variables etc.
+    // Must be below every other rule.
+    ($other:expr) => {
+        $crate::value::to_value(&$other).unwrap()
     };
 }
 
