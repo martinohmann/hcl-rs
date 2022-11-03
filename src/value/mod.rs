@@ -4,7 +4,9 @@ pub(crate) mod de;
 mod from;
 mod ser;
 
-use crate::{format, Number};
+use self::ser::ValueSerializer;
+use crate::{format, Number, Result};
+use serde::ser::Serialize;
 use std::fmt;
 
 /// The map type used for HCL objects.
@@ -207,4 +209,49 @@ impl fmt::Display for Value {
         let formatted = format::to_string(self).expect("a Value failed to format unexpectedly");
         f.write_str(&formatted)
     }
+}
+
+/// Convert a `T` into `hcl::Value` which is an enum that can represent any valid HCL value.
+///
+/// # Example
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{Map, Value};
+/// use serde::Serialize;
+///
+/// #[derive(Debug, Serialize)]
+/// struct Custom {
+///     foo: String,
+///     bar: u64,
+/// }
+///
+/// let custom = Custom {
+///     foo: "baz".into(),
+///     bar: 42,
+/// };
+///
+/// let expected = Value::Object({
+///     let mut object = Map::new();
+///     object.insert("foo".into(), "baz".into());
+///     object.insert("bar".into(), 42u64.into());
+///     object
+/// });
+///
+/// let value = hcl::to_value(&custom)?;
+///
+/// assert_eq!(value, expected);
+/// #     Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// This conversion can fail if `T`'s implementation of `Serialize` decides to fail, or if `T`
+/// contains a map with non-string keys.
+pub fn to_value<T>(value: T) -> Result<Value>
+where
+    T: Serialize,
+{
+    value.serialize(ValueSerializer)
 }
