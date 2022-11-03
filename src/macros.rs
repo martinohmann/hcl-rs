@@ -642,7 +642,7 @@ macro_rules! expression_internal {
     // Any Serialize type: numbers, strings, struct literals, variables etc.
     // Must be below every other rule.
     ($other:expr) => {
-        $crate::to_expression(&$other).unwrap()
+        $crate::expr::to_expression(&$other).unwrap()
     };
 }
 

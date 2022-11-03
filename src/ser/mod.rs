@@ -193,7 +193,6 @@
 #[cfg(test)]
 mod tests;
 
-use crate::expr::{ser::ExpressionSerializer, Expression};
 use crate::format::{Format, Formatter};
 use crate::structure::ser::{
     BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
@@ -204,6 +203,10 @@ use serde::ser::{self, Impossible, Serialize};
 use std::fmt;
 use std::io;
 use std::marker::PhantomData;
+
+// Deprecated, this re-export will be removed in a future release.
+#[doc(hidden)]
+pub use crate::expr::to_expression;
 
 /// A structure for serializing Rust values into HCL.
 pub struct Serializer<'a, W> {
@@ -483,20 +486,6 @@ where
 {
     let mut serializer = Serializer::new(writer);
     value.serialize(&mut serializer)
-}
-
-/// Convert a `T` into `hcl::Expression` which is an enum that can represent any valid HCL
-/// attribute value expression.
-///
-/// # Errors
-///
-/// This conversion can fail if `T`'s implementation of `Serialize` decides to
-/// fail, or if `T` contains a map with non-string keys.
-pub fn to_expression<T>(value: T) -> Result<Expression>
-where
-    T: ser::Serialize,
-{
-    value.serialize(ExpressionSerializer)
 }
 
 pub(crate) struct StringSerializer;

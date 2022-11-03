@@ -28,7 +28,7 @@ pub use de::{from_body, from_reader, from_slice, from_str};
 pub use error::{Error, Result};
 
 #[doc(inline)]
-pub use expr::{Expression, Object, ObjectKey};
+pub use expr::{to_expression, Expression, Object, ObjectKey};
 
 // Deprecated, these re-exports will be removed in a future release.
 #[doc(hidden)]
@@ -43,7 +43,7 @@ pub use number::Number;
 pub use parser::parse;
 
 #[doc(inline)]
-pub use ser::{to_expression, to_string, to_vec, to_writer};
+pub use ser::{to_string, to_vec, to_writer};
 
 #[doc(inline)]
 pub use structure::{Attribute, Block, BlockLabel, Body, Structure};

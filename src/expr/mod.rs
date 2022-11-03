@@ -15,6 +15,7 @@ mod tests;
 mod traversal;
 mod variable;
 
+use self::ser::ExpressionSerializer;
 pub use self::{
     conditional::Conditional,
     for_expr::ForExpr,
@@ -24,7 +25,7 @@ pub use self::{
     traversal::{Traversal, TraversalOperator},
     variable::Variable,
 };
-use crate::{format, Identifier, Number, Value};
+use crate::{format, Identifier, Number, Result, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
@@ -382,4 +383,18 @@ impl Display for RawExpression {
         f.write_str(&self.0)?;
         f.write_char('}')
     }
+}
+
+/// Convert a `T` into `hcl::Expression` which is an enum that can represent any valid HCL
+/// attribute value expression.
+///
+/// # Errors
+///
+/// This conversion can fail if `T`'s implementation of `Serialize` decides to
+/// fail, or if `T` contains a map with non-string keys.
+pub fn to_expression<T>(value: T) -> Result<Expression>
+where
+    T: Serialize,
+{
+    value.serialize(ExpressionSerializer)
 }
