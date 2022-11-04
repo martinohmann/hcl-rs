@@ -101,26 +101,32 @@ assert_eq!(body, expected);
 A simple example to serialize some terraform configuration:
 
 ```rust
-use hcl::expr::RawExpression;
-use hcl::{Block, Body};
+use hcl::expr::Traversal;
+use hcl::{Block, Body, Variable};
 
 let body = Body::builder()
     .add_block(
         Block::builder("resource")
             .add_label("aws_sns_topic_subscription")
-            .add_label("topic")
-            .add_attribute(("topic_arn", RawExpression::new("aws_sns_topic.queue.arn")))
+            .add_label("my-subscription")
+            .add_attribute((
+                "topic_arn",
+                Traversal::new(Variable::new("aws_sns_topic").unwrap(), ["my-topic", "arn"]),
+            ))
             .add_attribute(("protocol", "sqs"))
-            .add_attribute(("endpoint", RawExpression::new("aws_sqs_queue.queue.arn")))
+            .add_attribute((
+                "endpoint",
+                Traversal::new(Variable::new("aws_sqs_queue").unwrap(), ["my-queue", "arn"]),
+            ))
             .build(),
     )
     .build();
 
 let expected = r#"
-resource "aws_sns_topic_subscription" "topic" {
-  topic_arn = aws_sns_topic.queue.arn
+resource "aws_sns_topic_subscription" "my-subscription" {
+  topic_arn = aws_sns_topic.my-topic.arn
   protocol = "sqs"
-  endpoint = aws_sqs_queue.queue.arn
+  endpoint = aws_sqs_queue.my-queue.arn
 }
 "#.trim_start();
 
