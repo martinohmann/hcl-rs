@@ -48,9 +48,8 @@ impl Deserializer {
 ///
 /// ```
 /// use serde_json::{json, Value};
-/// # use std::error::Error;
-/// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let input = r#"
 ///     some_attr = {
 ///       foo = [1, 2]
@@ -99,10 +98,9 @@ where
 /// # Example
 ///
 /// ```
-/// use serde_json::{json, Value};
-/// # use std::error::Error;
-/// #
-/// # fn main() -> Result<(), Box<dyn Error>> {
+/// use hcl::Value;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let input = r#"
 ///     some_attr = {
 ///       foo = [1, 2]
@@ -114,14 +112,14 @@ where
 ///     }
 /// "#;
 ///
-/// let expected = json!({
-///     "some_attr": {
-///         "foo": [1, 2],
-///         "bar": true
-///     },
-///     "some_block": {
-///         "some_block_label": {
-///             "attr": "value"
+/// let expected = hcl::value!({
+///     some_attr = {
+///         foo = [1, 2]
+///         bar = true
+///     }
+///     some_block = {
+///         some_block_label = {
+///             attr = "value"
 ///         }
 ///     }
 /// });

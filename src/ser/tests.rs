@@ -5,9 +5,8 @@ use crate::expr::{
     TraversalOperator, Variable,
 };
 use crate::structure::{Attribute, Block, Body};
-use crate::Identifier;
+use crate::{value, Identifier};
 use pretty_assertions::assert_eq;
-use serde_json::json;
 
 #[track_caller]
 fn expect_str<T: Serialize>(value: T, expected: &str) {
@@ -134,12 +133,12 @@ qux {
 
 #[test]
 fn serialize_object() {
-    let value = json!({
-        "foo": [1, 2, 3],
-        "bar": "baz",
-        "qux": {
-            "foo": "bar",
-            "baz": "qux"
+    let value = value!({
+        foo = [1, 2, 3]
+        bar = "baz"
+        qux = {
+            "foo" = "bar"
+            "baz" = "qux"
         }
     });
 
@@ -160,17 +159,17 @@ qux = {
 
 #[test]
 fn serialize_array() {
-    let value = json!([
+    let value = value!([
         {
-            "foo": [1, 2, 3],
+            foo = [1, 2, 3]
         },
         {
-            "bar": "baz",
+            bar = "baz"
         },
         {
-            "qux": {
-                "foo": "bar",
-                "baz": "qux"
+            qux = {
+                "foo" = "bar"
+                "baz" = "qux"
             }
         }
     ]);
@@ -356,7 +355,7 @@ HEREDOC
 fn serialize_errors() {
     assert!(to_string(&true).is_err());
     assert!(to_string("foo").is_err());
-    assert!(to_string(&json!({"\"": "invalid attribute name"})).is_err())
+    assert!(to_string(&value!({ "\"" = "invalid attribute name" })).is_err())
 }
 
 #[test]

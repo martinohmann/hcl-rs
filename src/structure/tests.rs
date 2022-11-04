@@ -1,8 +1,7 @@
 use super::{Block, Body};
 use crate::expr::{Heredoc, HeredocStripMode, RawExpression, TemplateExpr};
-use crate::{Identifier, Value};
+use crate::{value, Identifier, Value};
 use pretty_assertions::assert_eq;
-use serde_json::json;
 
 #[test]
 fn body_into_value() {
@@ -41,26 +40,24 @@ fn body_into_value() {
         ))
         .build();
 
-    let value = json!({
-        "foo": "baz",
-        "bar": {
-            "baz": [
+    let expected = value!({
+        foo = "baz"
+        bar = {
+            baz = [
                 {
-                    "foo": "bar"
+                    foo = "bar"
                 },
                 {
-                    "bar": "baz",
-                    "baz": "${var.foo}"
+                    bar = "baz"
+                    baz = "${var.foo}"
                 }
-            ],
-            "qux": {
-                "foo": 1
-            },
-        },
-        "heredoc": "foo bar ${baz}\\backslash"
+            ]
+            qux = {
+                foo = 1
+            }
+        }
+        heredoc = "foo bar ${baz}\\backslash"
     });
-
-    let expected: Value = serde_json::from_value(value).unwrap();
 
     assert_eq!(Value::from(body), expected);
 }
