@@ -22,7 +22,7 @@ pub use self::{
     func_call::{FuncCall, FuncCallBuilder},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
-    traversal::{Traversal, TraversalOperator},
+    traversal::{Traversal, TraversalBuilder, TraversalOperator},
     variable::Variable,
 };
 use crate::{format, Identifier, Number, Result, Value};

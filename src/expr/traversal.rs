@@ -26,6 +26,83 @@ impl Traversal {
             operators: operators.into_iter().map(Into::into).collect(),
         }
     }
+
+    /// Create a new `TraversalBuilder` for the given expression.
+    pub fn builder<T>(expr: T) -> TraversalBuilder
+    where
+        T: Into<Expression>,
+    {
+        TraversalBuilder {
+            expr: expr.into(),
+            operators: Vec::new(),
+        }
+    }
+}
+
+/// A builder for expression traversals.
+///
+/// It is constructed via the [`builder`][Traversal::builder] method of the [`Traversal`] type.
+///
+/// # Example
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::expr::{Traversal, Variable};
+///
+/// let traversal = Traversal::builder(Variable::new("var")?)
+///     .attr("some_array")
+///     .index(0)
+///     .build();
+///
+/// // Serializes as `var.some_array[0]`.
+/// #     Ok(())
+/// # }
+/// ```
+#[derive(Debug)]
+pub struct TraversalBuilder {
+    expr: Expression,
+    operators: Vec<TraversalOperator>,
+}
+
+impl TraversalBuilder {
+    /// Add an [attribute access operator][TraversalOperator::GetAttr] to the traversal chain.
+    pub fn attr<T>(mut self, ident: T) -> Self
+    where
+        T: Into<Identifier>,
+    {
+        self.operators
+            .push(TraversalOperator::GetAttr(ident.into()));
+        self
+    }
+
+    /// Add an [attribute splat operator][TraversalOperator::AttrSplat] to the traversal chain.
+    pub fn attr_splat<T>(mut self) -> Self {
+        self.operators.push(TraversalOperator::AttrSplat);
+        self
+    }
+
+    /// Add a [full splat operator][TraversalOperator::FullSplat] to the traversal chain.
+    pub fn full_splat<T>(mut self) -> Self {
+        self.operators.push(TraversalOperator::FullSplat);
+        self
+    }
+
+    /// Add an [index operator][TraversalOperator::Index] to the traversal chain.
+    pub fn index<T>(mut self, expr: T) -> Self
+    where
+        T: Into<Expression>,
+    {
+        self.operators.push(TraversalOperator::Index(expr.into()));
+        self
+    }
+
+    /// Consume `self` and return a `Traversal`.
+    pub fn build(self) -> Traversal {
+        Traversal {
+            expr: self.expr,
+            operators: self.operators,
+        }
+    }
 }
 
 /// The expression traversal operators that are supported by HCL.

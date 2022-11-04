@@ -98,7 +98,7 @@ assert_eq!(body, expected);
 
 ## Serialization examples
 
-A simple example to serialize some terraform configuration:
+An example to serialize some terraform configuration:
 
 ```rust
 use hcl::expr::Traversal;
@@ -111,12 +111,18 @@ let body = Body::builder()
             .add_label("my-subscription")
             .add_attribute((
                 "topic_arn",
-                Traversal::new(Variable::new("aws_sns_topic").unwrap(), ["my-topic", "arn"]),
+                Traversal::builder(Variable::new("aws_sns_topic").unwrap())
+                    .attr("my-topic")
+                    .attr("arn")
+                    .build(),
             ))
             .add_attribute(("protocol", "sqs"))
             .add_attribute((
                 "endpoint",
-                Traversal::new(Variable::new("aws_sqs_queue").unwrap(), ["my-queue", "arn"]),
+                Traversal::builder(Variable::new("aws_sqs_queue").unwrap())
+                    .attr("my-queue")
+                    .attr("arn")
+                    .build(),
             ))
             .build(),
     )
