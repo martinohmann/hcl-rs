@@ -14,10 +14,24 @@ fn issue_87() {
             .arg(Expression::from_iter([("bar", FuncCall::new("baz"))]))
             .build(),
     );
-    expect_format(expr, "foo({\"bar\" = baz()})");
+    expect_format(expr, "foo({ \"bar\" = baz() })");
 }
 
 #[test]
 fn issue_91() {
     expect_format(Attribute::new("_foo", "bar"), "_foo = \"bar\"\n");
+}
+
+#[test]
+fn compact_func_args() {
+    expect_format(
+        FuncCall::builder("func")
+            .arg(vec![1, 2, 3])
+            .arg(expression!({
+                foo = "bar"
+                baz = "qux"
+            }))
+            .build(),
+        "func([1, 2, 3], { foo = \"bar\", baz = \"qux\" })",
+    );
 }

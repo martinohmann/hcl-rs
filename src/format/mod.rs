@@ -295,14 +295,16 @@ where
             self.first_element = false;
             if !self.in_compact_mode() {
                 self.write_all(b"\n")?;
+                self.write_indent(self.current_indent)?;
             }
         } else if self.in_compact_mode() {
             self.write_all(b", ")?;
         } else {
             self.write_all(b",\n")?;
+            self.write_indent(self.current_indent)?;
         }
 
-        self.write_indent(self.current_indent)
+        Ok(())
     }
 
     /// Signals the end of an array value to the formatter.
@@ -331,12 +333,23 @@ where
             self.current_indent += 1;
         }
         self.has_value = false;
+        self.first_element = true;
         self.write_all(b"{")
     }
 
     /// Signals the start of an object key to the formatter.
     fn begin_object_key(&mut self) -> io::Result<()> {
-        if !self.in_compact_mode() {
+        if self.first_element {
+            self.first_element = false;
+            if self.in_compact_mode() {
+                self.write_all(b" ")?;
+            } else {
+                self.write_all(b"\n")?;
+                self.write_indent(self.current_indent)?;
+            }
+        } else if self.in_compact_mode() {
+            self.write_all(b", ")?;
+        } else {
             self.write_all(b"\n")?;
             self.write_indent(self.current_indent)?;
         }
@@ -356,7 +369,11 @@ where
 
     /// Signals the end of an object to the formatter.
     fn end_object(&mut self) -> io::Result<()> {
-        if !self.in_compact_mode() {
+        if self.in_compact_mode() {
+            if self.has_value {
+                self.write_all(b" ")?;
+            }
+        } else {
             self.current_indent -= 1;
 
             if self.has_value {
