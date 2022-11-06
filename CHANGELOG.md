@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.2](https://github.com/martinohmann/hcl-rs/compare/v0.9.1...v0.9.2) (2022-11-06)
+
+
+### Features
+
+* **expr:** add `TraversalBuilder` ([#121](https://github.com/martinohmann/hcl-rs/issues/121)) ([5e6daaa](https://github.com/martinohmann/hcl-rs/commit/5e6daaaea9689b2a950a9d0ec2b3cdbf79fc569f))
+* **expr:** export `to_expression` function ([108a747](https://github.com/martinohmann/hcl-rs/commit/108a74706ddb479cdca8b6f49162326cf7db277d))
+* **format:** add support for compact collection formatting ([#122](https://github.com/martinohmann/hcl-rs/issues/122)) ([5a12ff5](https://github.com/martinohmann/hcl-rs/commit/5a12ff50d08142c7a63c2498dcfc81c1277a621b))
+* **macros:** add `value!` macro ([#120](https://github.com/martinohmann/hcl-rs/issues/120)) ([463ca92](https://github.com/martinohmann/hcl-rs/commit/463ca92b58473a61f5a5d31f24ba200a144a1ac0))
+* **value:** add `ValueSerializer` and `to_value` ([#119](https://github.com/martinohmann/hcl-rs/issues/119)) ([fc57b6d](https://github.com/martinohmann/hcl-rs/commit/fc57b6d7dc0d919177dd1df2106ccebd06d97d9b))
+
+
+### Bug Fixes
+
+* **format:** separate object items with commas in compact mode ([36a7b09](https://github.com/martinohmann/hcl-rs/commit/36a7b09343d002a256ee766ea19150391a4a64c5))
+
 ## [0.9.1](https://github.com/martinohmann/hcl-rs/compare/v0.9.0...v0.9.1) (2022-11-02)
 
 
