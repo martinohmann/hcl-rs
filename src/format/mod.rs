@@ -6,7 +6,7 @@
 //! For serialization of other Rust data structures implementing [`serde::Serialize`] refer to the
 //! documentation of the [`ser`](crate::ser) module.
 //!
-//! ## Examples
+//! # Examples
 //!
 //! Format an HCL block as string:
 //!
@@ -54,7 +54,7 @@ mod private {
 pub trait Format: private::Sealed {
     /// Formats a HCL structure using a formatter and writes the result to the provided writer.
     ///
-    /// ## Errors
+    /// # Errors
     ///
     /// Formatting the data structure or writing to the writer may fail with an `Error`.
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
@@ -75,6 +75,8 @@ enum FormatState {
 struct FormatConfig<'a> {
     indent: &'a [u8],
     dense: bool,
+    compact_arrays: bool,
+    compact_objects: bool,
 }
 
 impl<'a> Default for FormatConfig<'a> {
@@ -82,13 +84,15 @@ impl<'a> Default for FormatConfig<'a> {
         FormatConfig {
             indent: b"  ",
             dense: false,
+            compact_arrays: false,
+            compact_objects: false,
         }
     }
 }
 
 /// A pretty printing HCL formatter.
 ///
-/// ## Examples
+/// # Examples
 ///
 /// Format an HCL block as string:
 ///
@@ -159,6 +163,8 @@ pub struct FormatterBuilder<'a, W> {
 
 impl<'a, W> FormatterBuilder<'a, W> {
     /// Set the indent for indenting nested HCL structures.
+    ///
+    /// The default indentation is two spaces.
     pub fn indent(mut self, indent: &'a [u8]) -> Self {
         self.config.indent = indent;
         self
@@ -166,8 +172,80 @@ impl<'a, W> FormatterBuilder<'a, W> {
 
     /// If set, blocks are not visually separated by empty lines from attributes and adjacent
     /// blocks.
+    ///
+    /// Default formatting:
+    ///
+    /// ```hcl
+    /// attr1 = "value1"
+    /// attr2 = "value2"
+    ///
+    /// block1 {}
+    ///
+    /// block2 {}
+    /// ```
+    ///
+    /// Dense formatting:
+    ///
+    /// ```hcl
+    /// attr1 = "value1"
+    /// attr2 = "value2"
+    /// block1 {}
+    /// block2 {}
+    /// ```
     pub fn dense(mut self, yes: bool) -> Self {
         self.config.dense = yes;
+        self
+    }
+
+    /// If set, arrays and objects are formatted in a more compact way.
+    ///
+    /// See the method documation of [`compact_arrays`][FormatterBuilder::compact_arrays] and
+    /// [`compact_objects`][FormatterBuilder::compact_objects].
+    pub fn compact(self, yes: bool) -> Self {
+        self.compact_arrays(yes).compact_objects(yes)
+    }
+
+    /// Controls the array formatting.
+    ///
+    /// By default, array elements are separated by newlines:
+    ///
+    /// ```hcl
+    /// array = [
+    ///   1,
+    ///   2,
+    ///   3,
+    /// ]
+    /// ```
+    ///
+    /// When compact array formatting is enabled no newlines are inserted between elements:
+    ///
+    /// ```hcl
+    /// array = [1, 2, 3]
+    /// ```
+    pub fn compact_arrays(mut self, yes: bool) -> Self {
+        self.config.compact_arrays = yes;
+        self
+    }
+
+    /// Controls the object formatting.
+    ///
+    /// By default, object items are separated by newlines:
+    ///
+    /// ```hcl
+    /// object = {
+    ///   one = "foo"
+    ///   two = "bar"
+    ///   three = "baz"
+    /// }
+    /// ```
+    ///
+    /// When compact object formatting is enabled no newlines are inserted between items:
+    ///
+    /// ```hcl
+    /// object = { one = "foo", two = "bar", three = "baz" }
+    /// ```
+    pub fn compact_objects(mut self, yes: bool) -> Self {
+        self.config.compact_objects = yes;
         self
     }
 
@@ -281,7 +359,7 @@ where
 
     /// Signals the start of an array to the formatter.
     fn begin_array(&mut self) -> io::Result<()> {
-        if !self.in_compact_mode() {
+        if !self.compact_arrays() {
             self.current_indent += 1;
         }
         self.has_value = false;
@@ -293,11 +371,11 @@ where
     fn begin_array_value(&mut self) -> io::Result<()> {
         if self.first_element {
             self.first_element = false;
-            if !self.in_compact_mode() {
+            if !self.compact_arrays() {
                 self.write_all(b"\n")?;
                 self.write_indent(self.current_indent)?;
             }
-        } else if self.in_compact_mode() {
+        } else if self.compact_arrays() {
             self.write_all(b", ")?;
         } else {
             self.write_all(b",\n")?;
@@ -315,7 +393,7 @@ where
 
     /// Signals the end of an array to the formatter.
     fn end_array(&mut self) -> io::Result<()> {
-        if !self.in_compact_mode() {
+        if !self.compact_arrays() {
             self.current_indent -= 1;
 
             if self.has_value {
@@ -329,7 +407,7 @@ where
 
     /// Signals the start of an object to the formatter.
     fn begin_object(&mut self) -> io::Result<()> {
-        if !self.in_compact_mode() {
+        if !self.compact_objects() {
             self.current_indent += 1;
         }
         self.has_value = false;
@@ -341,13 +419,13 @@ where
     fn begin_object_key(&mut self) -> io::Result<()> {
         if self.first_element {
             self.first_element = false;
-            if self.in_compact_mode() {
+            if self.compact_objects() {
                 self.write_all(b" ")?;
             } else {
                 self.write_all(b"\n")?;
                 self.write_indent(self.current_indent)?;
             }
-        } else if self.in_compact_mode() {
+        } else if self.compact_objects() {
             self.write_all(b", ")?;
         } else {
             self.write_all(b"\n")?;
@@ -369,7 +447,7 @@ where
 
     /// Signals the end of an object to the formatter.
     fn end_object(&mut self) -> io::Result<()> {
-        if self.in_compact_mode() {
+        if self.compact_objects() {
             if self.has_value {
                 self.write_all(b" ")?;
             }
@@ -484,6 +562,14 @@ where
         let result = f(self);
         self.compact_mode_level -= 1;
         result
+    }
+
+    fn compact_arrays(&self) -> bool {
+        self.config.compact_arrays || self.in_compact_mode()
+    }
+
+    fn compact_objects(&self) -> bool {
+        self.config.compact_objects || self.in_compact_mode()
     }
 
     fn in_compact_mode(&self) -> bool {
