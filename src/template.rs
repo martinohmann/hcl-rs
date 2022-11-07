@@ -84,7 +84,8 @@
 //! expressions. See the [module-level documentation][crate::eval] for examples.
 
 use crate::expr::{Expression, TemplateExpr};
-use crate::{parser, Error, Identifier, Result};
+use crate::{format, parser, Error, Identifier, Result};
+use std::fmt::{self, Display};
 use std::str::FromStr;
 
 /// The main type to represent the HCL template sub-languange.
@@ -182,6 +183,14 @@ where
         Template {
             elements: iter.into_iter().map(Into::into).collect(),
         }
+    }
+}
+
+impl Display for Template {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Formatting a `Template` as string cannot fail.
+        let formatted = format::to_string(self).expect("a Template failed to format unexpectedly");
+        f.write_str(&formatted)
     }
 }
 

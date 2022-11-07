@@ -4,6 +4,9 @@ use crate::expr::{
     Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
+use crate::template::{
+    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
+};
 use crate::{Identifier, Number, Result, Value};
 use std::io;
 
@@ -407,6 +410,108 @@ impl Format for ForExpr {
     }
 }
 
+impl private::Sealed for Template {}
+
+impl Format for Template {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        for element in self.elements() {
+            element.format(fmt)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl private::Sealed for Element {}
+
+impl Format for Element {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        match self {
+            Element::Literal(lit) => fmt.write_string_fragment(lit),
+            Element::Interpolation(interp) => interp.format(fmt),
+            Element::Directive(dir) => dir.format(fmt),
+        }
+    }
+}
+
+impl private::Sealed for Interpolation {}
+
+impl Format for Interpolation {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        format_interpolation(fmt, self.strip, |fmt| self.expr.format(fmt))
+    }
+}
+
+impl private::Sealed for Directive {}
+
+impl Format for Directive {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        match self {
+            Directive::If(if_dir) => if_dir.format(fmt),
+            Directive::For(for_dir) => for_dir.format(fmt),
+        }
+    }
+}
+
+impl private::Sealed for IfDirective {}
+
+impl Format for IfDirective {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        format_directive(fmt, self.if_strip, |fmt| {
+            fmt.write_bytes(b"if ")?;
+            self.cond_expr.format(fmt)
+        })?;
+        self.true_template.format(fmt)?;
+
+        if let Some(false_template) = &self.false_template {
+            format_directive(fmt, self.else_strip, |fmt| fmt.write_bytes(b"else"))?;
+            false_template.format(fmt)?;
+        }
+
+        format_directive(fmt, self.endif_strip, |fmt| fmt.write_bytes(b"endif"))
+    }
+}
+
+impl private::Sealed for ForDirective {}
+
+impl Format for ForDirective {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        format_directive(fmt, self.for_strip, |fmt| {
+            fmt.write_bytes(b"for ")?;
+
+            if let Some(key_var) = &self.key_var {
+                key_var.format(fmt)?;
+                fmt.write_bytes(b", ")?;
+            }
+
+            self.value_var.format(fmt)?;
+            fmt.write_bytes(b" in ")?;
+            self.collection_expr.format(fmt)
+        })?;
+
+        self.template.format(fmt)?;
+        format_directive(fmt, self.endfor_strip, |fmt| fmt.write_bytes(b"endfor"))
+    }
+}
+
 impl private::Sealed for String {}
 
 impl Format for String {
@@ -454,4 +559,46 @@ where
     }
 
     fmt.end_object()
+}
+
+fn format_strip<W, F>(fmt: &mut Formatter<W>, strip: StripMode, f: F) -> Result<()>
+where
+    W: io::Write,
+    F: FnOnce(&mut Formatter<W>) -> Result<()>,
+{
+    if strip.strip_start() {
+        fmt.write_bytes(b"~")?;
+    }
+
+    f(fmt)?;
+
+    if strip.strip_end() {
+        fmt.write_bytes(b"~")?;
+    }
+
+    Ok(())
+}
+
+fn format_interpolation<W, F>(fmt: &mut Formatter<W>, strip: StripMode, f: F) -> Result<()>
+where
+    W: io::Write,
+    F: FnOnce(&mut Formatter<W>) -> Result<()>,
+{
+    fmt.write_bytes(b"${")?;
+    format_strip(fmt, strip, f)?;
+    fmt.write_bytes(b"}")
+}
+
+fn format_directive<W, F>(fmt: &mut Formatter<W>, strip: StripMode, f: F) -> Result<()>
+where
+    W: io::Write,
+    F: FnOnce(&mut Formatter<W>) -> Result<()>,
+{
+    fmt.write_bytes(b"%{")?;
+    format_strip(fmt, strip, |fmt| {
+        fmt.write_bytes(b" ")?;
+        f(fmt)?;
+        fmt.write_bytes(b" ")
+    })?;
+    fmt.write_bytes(b"}")
 }
