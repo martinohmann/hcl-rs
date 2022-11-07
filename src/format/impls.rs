@@ -5,7 +5,7 @@ use crate::expr::{
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::{Identifier, Number, Result, Value};
-use std::io::{self, Write};
+use std::io;
 
 impl<T> private::Sealed for &T where T: Format {}
 
@@ -61,8 +61,7 @@ impl Format for Attribute {
         self.key.format(fmt)?;
         fmt.begin_attribute_value()?;
         self.expr.format(fmt)?;
-        fmt.end_attribute()?;
-        Ok(())
+        fmt.end_attribute()
     }
 }
 
@@ -77,14 +76,13 @@ impl Format for Block {
         self.identifier.format(fmt)?;
 
         for label in &self.labels {
-            fmt.write_all(b" ")?;
+            fmt.write_bytes(b" ")?;
             label.format(fmt)?;
         }
 
         fmt.begin_block_body()?;
         self.body.format(fmt)?;
-        fmt.end_block()?;
-        Ok(())
+        fmt.end_block()
     }
 }
 
@@ -122,10 +120,9 @@ impl Format for Expression {
             Expression::Traversal(traversal) => traversal.format(fmt),
             Expression::FuncCall(func_call) => func_call.format(fmt),
             Expression::Parenthesis(expr) => {
-                fmt.write_all(b"(")?;
+                fmt.write_bytes(b"(")?;
                 expr.format(fmt)?;
-                fmt.write_all(b")")?;
-                Ok(())
+                fmt.write_bytes(b")")
             }
             Expression::Conditional(cond) => cond.format(fmt),
             Expression::Operation(op) => op.format(fmt),
@@ -159,8 +156,7 @@ impl Format for Number {
     where
         W: io::Write,
     {
-        fmt.write_string_fragment(&self.to_string())?;
-        Ok(())
+        fmt.write_string_fragment(&self.to_string())
     }
 }
 
@@ -185,8 +181,7 @@ impl Format for RawExpression {
     where
         W: io::Write,
     {
-        fmt.write_all(self.as_str().as_bytes())?;
-        Ok(())
+        fmt.write_bytes(self.as_str().as_bytes())
     }
 }
 
@@ -213,23 +208,17 @@ impl Format for Heredoc {
     {
         fmt.write_string_fragment(self.strip.as_str())?;
         fmt.write_string_fragment(&self.delimiter)?;
-        fmt.write_all(b"\n")?;
+        fmt.write_bytes(b"\n")?;
         fmt.write_string_fragment(&self.template)?;
 
         if !self.template.ends_with('\n') {
-            fmt.write_all(b"\n")?;
+            fmt.write_bytes(b"\n")?;
         }
 
         match self.strip {
-            HeredocStripMode::None => {
-                fmt.write_string_fragment(&self.delimiter)?;
-            }
-            HeredocStripMode::Indent => {
-                fmt.write_indented(fmt.current_indent, &self.delimiter)?;
-            }
+            HeredocStripMode::None => fmt.write_string_fragment(&self.delimiter),
+            HeredocStripMode::Indent => fmt.write_indented(fmt.current_indent, &self.delimiter),
         }
-
-        Ok(())
     }
 }
 
@@ -240,8 +229,7 @@ impl Format for Identifier {
     where
         W: io::Write,
     {
-        fmt.write_string_fragment(self)?;
-        Ok(())
+        fmt.write_string_fragment(self)
     }
 }
 
@@ -268,24 +256,22 @@ impl Format for TraversalOperator {
         W: io::Write,
     {
         match self {
-            TraversalOperator::AttrSplat => fmt.write_all(b".*")?,
-            TraversalOperator::FullSplat => fmt.write_all(b"[*]")?,
+            TraversalOperator::AttrSplat => fmt.write_bytes(b".*"),
+            TraversalOperator::FullSplat => fmt.write_bytes(b"[*]"),
             TraversalOperator::GetAttr(ident) => {
-                fmt.write_all(b".")?;
-                ident.format(fmt)?;
+                fmt.write_bytes(b".")?;
+                ident.format(fmt)
             }
             TraversalOperator::LegacyIndex(index) => {
-                fmt.write_all(b".")?;
-                fmt.write_int(*index)?;
+                fmt.write_bytes(b".")?;
+                fmt.write_int(*index)
             }
             TraversalOperator::Index(expr) => {
-                fmt.write_all(b"[")?;
+                fmt.write_bytes(b"[")?;
                 expr.format(fmt)?;
-                fmt.write_all(b"]")?;
+                fmt.write_bytes(b"]")
             }
         }
-
-        Ok(())
     }
 }
 
@@ -297,12 +283,12 @@ impl Format for FuncCall {
         W: io::Write,
     {
         self.name.format(fmt)?;
-        fmt.write_all(b"(")?;
+        fmt.write_bytes(b"(")?;
 
         fmt.with_compact_mode(|fmt| {
             for (i, arg) in self.args.iter().enumerate() {
                 if i > 0 {
-                    fmt.write_all(b", ")?;
+                    fmt.write_bytes(b", ")?;
                 }
 
                 arg.format(fmt)?;
@@ -312,12 +298,10 @@ impl Format for FuncCall {
         })?;
 
         if self.expand_final {
-            fmt.write_all(b"...)")?;
+            fmt.write_bytes(b"...)")
         } else {
-            fmt.write_all(b")")?;
+            fmt.write_bytes(b")")
         }
-
-        Ok(())
     }
 }
 
@@ -329,11 +313,10 @@ impl Format for Conditional {
         W: io::Write,
     {
         self.cond_expr.format(fmt)?;
-        fmt.write_all(b" ? ")?;
+        fmt.write_bytes(b" ? ")?;
         self.true_expr.format(fmt)?;
-        fmt.write_all(b" : ")?;
-        self.false_expr.format(fmt)?;
-        Ok(())
+        fmt.write_bytes(b" : ")?;
+        self.false_expr.format(fmt)
     }
 }
 
@@ -371,9 +354,9 @@ impl Format for BinaryOp {
         W: io::Write,
     {
         self.lhs_expr.format(fmt)?;
-        fmt.write_all(b" ")?;
+        fmt.write_bytes(b" ")?;
         fmt.write_string_fragment(self.operator.as_str())?;
-        fmt.write_all(b" ")?;
+        fmt.write_bytes(b" ")?;
         self.rhs_expr.format(fmt)
     }
 }
@@ -388,40 +371,39 @@ impl Format for ForExpr {
         let object_result = self.key_expr.is_some();
 
         if object_result {
-            fmt.write_all(b"{")?;
+            fmt.write_bytes(b"{")?;
         } else {
-            fmt.write_all(b"[")?;
+            fmt.write_bytes(b"[")?;
         }
 
-        fmt.write_all(b"for ")?;
+        fmt.write_bytes(b"for ")?;
         if let Some(key) = &self.key_var {
             key.format(fmt)?;
-            fmt.write_all(b", ")?;
+            fmt.write_bytes(b", ")?;
         }
         self.value_var.format(fmt)?;
-        fmt.write_all(b" in ")?;
+        fmt.write_bytes(b" in ")?;
         self.collection_expr.format(fmt)?;
-        fmt.write_all(b" : ")?;
+        fmt.write_bytes(b" : ")?;
 
         if let Some(key_expr) = &self.key_expr {
             key_expr.format(fmt)?;
-            fmt.write_all(b" => ")?;
+            fmt.write_bytes(b" => ")?;
         }
         self.value_expr.format(fmt)?;
         if object_result && self.grouping {
-            fmt.write_all(b"...")?;
+            fmt.write_bytes(b"...")?;
         }
         if let Some(cond) = &self.cond_expr {
-            fmt.write_all(b" if ")?;
+            fmt.write_bytes(b" if ")?;
             cond.format(fmt)?;
         }
 
         if object_result {
-            fmt.write_all(b"}")?;
+            fmt.write_bytes(b"}")
         } else {
-            fmt.write_all(b"]")?;
+            fmt.write_bytes(b"]")
         }
-        Ok(())
     }
 }
 
@@ -432,8 +414,7 @@ impl Format for String {
     where
         W: io::Write,
     {
-        fmt.write_quoted_string(self)?;
-        Ok(())
+        fmt.write_quoted_string(self)
     }
 }
 
@@ -450,8 +431,7 @@ where
         fmt.end_array_value()?;
     }
 
-    fmt.end_array()?;
-    Ok(())
+    fmt.end_array()
 }
 
 fn format_object<W, K, V>(
@@ -473,6 +453,5 @@ where
         fmt.end_object_value()?;
     }
 
-    fmt.end_object()?;
-    Ok(())
+    fmt.end_object()
 }

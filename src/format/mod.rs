@@ -41,7 +41,7 @@ mod tests;
 
 use self::escape::{CharEscape, ESCAPE};
 use crate::Result;
-use std::io::{self, Write};
+use std::io;
 use std::marker::PhantomData;
 
 mod private {
@@ -291,45 +291,45 @@ where
     W: io::Write,
 {
     /// Writes `null` to the writer.
-    fn write_null(&mut self) -> io::Result<()> {
-        self.write_all(b"null")
+    fn write_null(&mut self) -> Result<()> {
+        self.write_bytes(b"null")
     }
 
     /// Writes a boolean value to the writer.
-    fn write_bool(&mut self, value: bool) -> io::Result<()> {
+    fn write_bool(&mut self, value: bool) -> Result<()> {
         let s = if value {
             b"true" as &[u8]
         } else {
             b"false" as &[u8]
         };
-        self.write_all(s)
+        self.write_bytes(s)
     }
 
     /// Writes an integer value to the writer.
-    fn write_int<T>(&mut self, value: T) -> io::Result<()>
+    fn write_int<T>(&mut self, value: T) -> Result<()>
     where
         T: itoa::Integer,
     {
         let mut buffer = itoa::Buffer::new();
         let s = buffer.format(value);
-        self.write_all(s.as_bytes())
+        self.write_bytes(s.as_bytes())
     }
 
     /// Writes a quoted string to the writer. The quoted string will be escaped.
-    fn write_quoted_string(&mut self, s: &str) -> io::Result<()> {
-        self.write_all(b"\"")?;
+    fn write_quoted_string(&mut self, s: &str) -> Result<()> {
+        self.write_bytes(b"\"")?;
         self.write_escaped_string(s)?;
-        self.write_all(b"\"")
+        self.write_bytes(b"\"")
     }
 
     /// Writes a string fragment to the writer. No escaping occurs.
-    fn write_string_fragment(&mut self, s: &str) -> io::Result<()> {
-        self.write_all(s.as_bytes())
+    fn write_string_fragment(&mut self, s: &str) -> Result<()> {
+        self.write_bytes(s.as_bytes())
     }
 
     /// Writes a string to the writer and escapes control characters and quotes that might be
     /// contained in it.
-    fn write_escaped_string(&mut self, value: &str) -> io::Result<()> {
+    fn write_escaped_string(&mut self, value: &str) -> Result<()> {
         let bytes = value.as_bytes();
 
         let mut start = 0;
@@ -358,27 +358,27 @@ where
     }
 
     /// Signals the start of an array to the formatter.
-    fn begin_array(&mut self) -> io::Result<()> {
+    fn begin_array(&mut self) -> Result<()> {
         if !self.compact_arrays() {
             self.current_indent += 1;
         }
         self.has_value = false;
         self.first_element = true;
-        self.write_all(b"[")
+        self.write_bytes(b"[")
     }
 
     /// Signals the start of an array value to the formatter.
-    fn begin_array_value(&mut self) -> io::Result<()> {
+    fn begin_array_value(&mut self) -> Result<()> {
         if self.first_element {
             self.first_element = false;
             if !self.compact_arrays() {
-                self.write_all(b"\n")?;
+                self.write_bytes(b"\n")?;
                 self.write_indent(self.current_indent)?;
             }
         } else if self.compact_arrays() {
-            self.write_all(b", ")?;
+            self.write_bytes(b", ")?;
         } else {
-            self.write_all(b",\n")?;
+            self.write_bytes(b",\n")?;
             self.write_indent(self.current_indent)?;
         }
 
@@ -386,49 +386,49 @@ where
     }
 
     /// Signals the end of an array value to the formatter.
-    fn end_array_value(&mut self) -> io::Result<()> {
+    fn end_array_value(&mut self) -> Result<()> {
         self.has_value = true;
         Ok(())
     }
 
     /// Signals the end of an array to the formatter.
-    fn end_array(&mut self) -> io::Result<()> {
+    fn end_array(&mut self) -> Result<()> {
         if !self.compact_arrays() {
             self.current_indent -= 1;
 
             if self.has_value {
-                self.write_all(b"\n")?;
+                self.write_bytes(b"\n")?;
                 self.write_indent(self.current_indent)?;
             }
         }
 
-        self.write_all(b"]")
+        self.write_bytes(b"]")
     }
 
     /// Signals the start of an object to the formatter.
-    fn begin_object(&mut self) -> io::Result<()> {
+    fn begin_object(&mut self) -> Result<()> {
         if !self.compact_objects() {
             self.current_indent += 1;
         }
         self.has_value = false;
         self.first_element = true;
-        self.write_all(b"{")
+        self.write_bytes(b"{")
     }
 
     /// Signals the start of an object key to the formatter.
-    fn begin_object_key(&mut self) -> io::Result<()> {
+    fn begin_object_key(&mut self) -> Result<()> {
         if self.first_element {
             self.first_element = false;
             if self.compact_objects() {
-                self.write_all(b" ")?;
+                self.write_bytes(b" ")?;
             } else {
-                self.write_all(b"\n")?;
+                self.write_bytes(b"\n")?;
                 self.write_indent(self.current_indent)?;
             }
         } else if self.compact_objects() {
-            self.write_all(b", ")?;
+            self.write_bytes(b", ")?;
         } else {
-            self.write_all(b"\n")?;
+            self.write_bytes(b"\n")?;
             self.write_indent(self.current_indent)?;
         }
 
@@ -436,74 +436,74 @@ where
     }
 
     /// Signals the start of an object value to the formatter.
-    fn begin_object_value(&mut self) -> io::Result<()> {
-        self.write_all(b" = ")
+    fn begin_object_value(&mut self) -> Result<()> {
+        self.write_bytes(b" = ")
     }
 
     /// Signals the end of an object value to the formatter.
-    fn end_object_value(&mut self) -> io::Result<()> {
+    fn end_object_value(&mut self) -> Result<()> {
         self.end_array_value()
     }
 
     /// Signals the end of an object to the formatter.
-    fn end_object(&mut self) -> io::Result<()> {
+    fn end_object(&mut self) -> Result<()> {
         if self.compact_objects() {
             if self.has_value {
-                self.write_all(b" ")?;
+                self.write_bytes(b" ")?;
             }
         } else {
             self.current_indent -= 1;
 
             if self.has_value {
-                self.write_all(b"\n")?;
+                self.write_bytes(b"\n")?;
                 self.write_indent(self.current_indent)?;
             }
         }
 
-        self.write_all(b"}")
+        self.write_bytes(b"}")
     }
 
     /// Signals the start of an attribute to the formatter.
-    fn begin_attribute(&mut self) -> io::Result<()> {
+    fn begin_attribute(&mut self) -> Result<()> {
         self.maybe_write_newline(FormatState::AttributeStart)?;
         self.write_indent(self.current_indent)
     }
 
     /// Signals the start of an attribute value to the formatter.
-    fn begin_attribute_value(&mut self) -> io::Result<()> {
-        self.write_all(b" = ")
+    fn begin_attribute_value(&mut self) -> Result<()> {
+        self.write_bytes(b" = ")
     }
 
     /// Signals the end of an attribute to the formatter.
-    fn end_attribute(&mut self) -> io::Result<()> {
+    fn end_attribute(&mut self) -> Result<()> {
         self.state = FormatState::AttributeEnd;
-        self.write_all(b"\n")
+        self.write_bytes(b"\n")
     }
 
     /// Signals the start of a block to the formatter.
-    fn begin_block(&mut self) -> io::Result<()> {
+    fn begin_block(&mut self) -> Result<()> {
         self.maybe_write_newline(FormatState::BlockStart)?;
         self.write_indent(self.current_indent)
     }
 
     /// Signals the start of a block body to the formatter.
-    fn begin_block_body(&mut self) -> io::Result<()> {
+    fn begin_block_body(&mut self) -> Result<()> {
         self.current_indent += 1;
         self.state = FormatState::BlockBodyStart;
-        self.write_all(b" {")
+        self.write_bytes(b" {")
     }
 
     /// Signals the end of a block to the formatter.
-    fn end_block(&mut self) -> io::Result<()> {
+    fn end_block(&mut self) -> Result<()> {
         self.state = FormatState::BlockEnd;
         self.current_indent -= 1;
         self.write_indent(self.current_indent)?;
-        self.write_all(b"}\n")
+        self.write_bytes(b"}\n")
     }
 
     // Conditionally writes a newline character depending on the formatter configuration and the
     // current and next state. Updates the state to `next_state`.
-    fn maybe_write_newline(&mut self, next_state: FormatState) -> io::Result<()> {
+    fn maybe_write_newline(&mut self, next_state: FormatState) -> Result<()> {
         let newline = match &self.state {
             FormatState::AttributeEnd if !self.config.dense => {
                 matches!(next_state, FormatState::BlockStart)
@@ -518,25 +518,25 @@ where
         };
 
         if newline {
-            self.write_all(b"\n")?;
+            self.write_bytes(b"\n")?;
         }
 
         self.state = next_state;
         Ok(())
     }
 
-    fn write_indent(&mut self, n: usize) -> io::Result<()> {
+    fn write_indent(&mut self, n: usize) -> Result<()> {
         for _ in 0..n {
-            self.write_all(self.config.indent)?;
+            self.write_bytes(self.config.indent)?;
         }
 
         Ok(())
     }
 
-    fn write_indented(&mut self, n: usize, s: &str) -> io::Result<()> {
+    fn write_indented(&mut self, n: usize, s: &str) -> Result<()> {
         for (i, line) in s.lines().enumerate() {
             if i > 0 {
-                self.write_all(b"\n")?;
+                self.write_bytes(b"\n")?;
             }
 
             self.write_indent(n)?;
@@ -544,9 +544,14 @@ where
         }
 
         if s.ends_with('\n') {
-            self.write_all(b"\n")?;
+            self.write_bytes(b"\n")?;
         }
 
+        Ok(())
+    }
+
+    fn write_bytes(&mut self, buf: &[u8]) -> Result<()> {
+        self.writer.write_all(buf)?;
         Ok(())
     }
 
@@ -574,19 +579,6 @@ where
 
     fn in_compact_mode(&self) -> bool {
         self.compact_mode_level > 0
-    }
-}
-
-impl<'a, W> io::Write for Formatter<'a, W>
-where
-    W: io::Write,
-{
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.writer.write(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
     }
 }
 
