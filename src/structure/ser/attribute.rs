@@ -195,10 +195,10 @@ impl ser::SerializeMap for SerializeAttributeMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.key.is_none() {
-            panic!("serialize_value called before serialize_key");
-        }
-
+        assert!(
+            self.key.is_some(),
+            "serialize_value called before serialize_key"
+        );
         self.expr = Some(value.serialize(ExpressionSerializer)?);
         Ok(())
     }

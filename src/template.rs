@@ -481,11 +481,11 @@ impl StripMode {
         StripMode::from((prev.strip_end(), next.strip_start()))
     }
 
-    pub(crate) fn strip_start(&self) -> bool {
+    pub(crate) fn strip_start(self) -> bool {
         matches!(self, StripMode::Start | StripMode::Both)
     }
 
-    pub(crate) fn strip_end(&self) -> bool {
+    pub(crate) fn strip_end(self) -> bool {
         matches!(self, StripMode::End | StripMode::Both)
     }
 }

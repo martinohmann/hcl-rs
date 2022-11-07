@@ -722,9 +722,9 @@ where
         seq tuple tuple_struct tuple_variant map struct struct_variant
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: serde::Serialize,
+        T: ?Sized + ser::Serialize,
     {
         Ok(Some(value.serialize(self.inner)?))
     }

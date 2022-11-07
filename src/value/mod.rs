@@ -66,13 +66,13 @@ impl Value {
     /// If the `Value` is a Number, represent it as f64 if possible. Returns
     /// None otherwise.
     pub fn as_f64(&self) -> Option<f64> {
-        self.as_number().and_then(|n| n.as_f64())
+        self.as_number().and_then(Number::as_f64)
     }
 
     /// If the `Value` is a Number, represent it as i64 if possible. Returns
     /// None otherwise.
     pub fn as_i64(&self) -> Option<i64> {
-        self.as_number().and_then(|n| n.as_i64())
+        self.as_number().and_then(Number::as_i64)
     }
 
     /// If the `Value` is a Null, returns (). Returns None otherwise.
@@ -122,7 +122,7 @@ impl Value {
     /// If the `Value` is a Number, represent it as u64 if possible. Returns
     /// None otherwise.
     pub fn as_u64(&self) -> Option<u64> {
-        self.as_number().and_then(|n| n.as_u64())
+        self.as_number().and_then(Number::as_u64)
     }
 
     /// Returns true if the `Value` is an Array. Returns false otherwise.
@@ -147,7 +147,7 @@ impl Value {
     /// For any Value on which `is_f64` returns true, `as_f64` is guaranteed to
     /// return the floating point value.
     pub fn is_f64(&self) -> bool {
-        self.as_number().map(Number::is_f64).unwrap_or(false)
+        self.as_number().map_or(false, Number::is_f64)
     }
 
     /// Returns true if the `Value` is an integer between `i64::MIN` and
@@ -156,7 +156,7 @@ impl Value {
     /// For any Value on which `is_i64` returns true, `as_i64` is guaranteed to
     /// return the integer value.
     pub fn is_i64(&self) -> bool {
-        self.as_number().map(Number::is_i64).unwrap_or(false)
+        self.as_number().map_or(false, Number::is_i64)
     }
 
     /// Returns true if the `Value` is a Number. Returns false otherwise.
@@ -194,7 +194,7 @@ impl Value {
     /// For any Value on which `is_u64` returns true, `as_u64` is guaranteed to
     /// return the integer value.
     pub fn is_u64(&self) -> bool {
-        self.as_number().map(Number::is_u64).unwrap_or(false)
+        self.as_number().map_or(false, Number::is_u64)
     }
 
     /// Takes the value out of the `Value`, leaving a `Null` in its place.

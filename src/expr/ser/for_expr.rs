@@ -64,13 +64,13 @@ impl ser::SerializeStruct for SerializeForExprStruct {
     {
         match key {
             "key_var" => {
-                self.key_var = Some(value.serialize(OptionSerializer::new(IdentifierSerializer))?)
+                self.key_var = Some(value.serialize(OptionSerializer::new(IdentifierSerializer))?);
             }
             "value_var" => {
-                self.value_var = Some(value.serialize(IdentifierSerializer)?)
+                self.value_var = Some(value.serialize(IdentifierSerializer)?);
             }
             "collection_expr" => {
-                self.collection_expr = Some(value.serialize(ExpressionSerializer)?)
+                self.collection_expr = Some(value.serialize(ExpressionSerializer)?);
             }
             "key_expr" => self.key_expr = Some(value.serialize(OptionSerializer::new(ExpressionSerializer))?),
             "value_expr" => self.value_expr = Some(value.serialize(ExpressionSerializer)?),

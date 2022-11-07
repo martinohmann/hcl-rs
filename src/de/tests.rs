@@ -346,7 +346,7 @@ fn issue_44() {
         pub scripts: Option<Vec<Script>>,
     }
 
-    #[derive(Deserialize, Debug, PartialEq)]
+    #[derive(Deserialize, Debug, PartialEq, Eq)]
     pub struct Script {
         pub name: String,
         pub command: String,

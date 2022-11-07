@@ -51,7 +51,7 @@ impl Attribute {
 
 impl From<Attribute> for Value {
     fn from(attr: Attribute) -> Value {
-        Value::from_iter(iter::once((attr.key.into_inner(), attr.expr)))
+        iter::once((attr.key.into_inner(), attr.expr)).collect()
     }
 }
 

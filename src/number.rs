@@ -25,7 +25,7 @@ impl N {
     fn as_i64(&self) -> Option<i64> {
         match *self {
             N::PosInt(n) => {
-                if n <= i64::max_value() as u64 {
+                if i64::try_from(n).is_ok() {
                     Some(n as i64)
                 } else {
                     None
@@ -157,7 +157,7 @@ impl Number {
     /// integer value.
     pub fn is_i64(&self) -> bool {
         match self.n {
-            N::PosInt(v) => v <= i64::max_value() as u64,
+            N::PosInt(v) => i64::try_from(v).is_ok(),
             N::NegInt(_) => true,
             N::Float(_) => false,
         }

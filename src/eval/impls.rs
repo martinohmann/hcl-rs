@@ -290,7 +290,7 @@ impl Evaluate for ForExpr {
                 // Result will be an object.
                 let mut result = Map::with_capacity(collection.len());
 
-                for ctx in collection.into_iter() {
+                for ctx in collection {
                     let ctx = &ctx?;
                     let key = expr::evaluate_object_key(key_expr, ctx)?;
                     let value = self.value_expr.evaluate(ctx)?;
