@@ -1,6 +1,8 @@
 use super::*;
-use crate::expr::{Expression, FuncCall};
+use crate::expr::{Expression, FuncCall, Variable};
 use crate::structure::Attribute;
+use crate::template::{ForDirective, StripMode, Template};
+use crate::Identifier;
 
 #[track_caller]
 fn expect_format<T: Format>(value: T, expected: &str) {
@@ -76,4 +78,26 @@ fn compact_objects() {
         attr,
         "object = { foo = { bar = \"baz\" }, qux = \"bam\" }\n",
     );
+}
+
+#[test]
+fn template() {
+    let template = Template::new().add_directive(
+        ForDirective::new(
+            Identifier::unchecked("item"),
+            Variable::unchecked("items"),
+            Template::new()
+                .add_literal("\nHello ")
+                .add_interpolation(Variable::unchecked("item"))
+                .add_literal("\n"),
+        )
+        .with_for_strip(StripMode::End)
+        .with_endfor_strip(StripMode::End),
+    );
+
+    let expected = r#"%{ for item in items ~}
+Hello ${item}
+%{ endfor ~}"#;
+
+    expect_format(template, expected);
 }
