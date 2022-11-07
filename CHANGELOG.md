@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.3](https://github.com/martinohmann/hcl-rs/compare/v0.9.2...v0.9.3) (2022-11-07)
+
+
+### Features
+
+* **template:** implement `Format` for template types ([#123](https://github.com/martinohmann/hcl-rs/issues/123)) ([40bd497](https://github.com/martinohmann/hcl-rs/commit/40bd497783551c2c65849ae67b1ed31c8dc51529))
+
+
+### Miscellaneous
+
+* **ci:** add `clippy` job to `ci` workflow ([#124](https://github.com/martinohmann/hcl-rs/issues/124)) ([54e1ae2](https://github.com/martinohmann/hcl-rs/commit/54e1ae29cfda90795c483f9d699010f91b105550))
+
 ## [0.9.2](https://github.com/martinohmann/hcl-rs/compare/v0.9.1...v0.9.2) (2022-11-06)
 
 
