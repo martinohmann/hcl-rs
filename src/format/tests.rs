@@ -1,6 +1,8 @@
 use super::*;
-use crate::expr::{Expression, FuncCall};
+use crate::expr::{BinaryOp, BinaryOperator, Expression, FuncCall, Operation, Variable};
 use crate::structure::Attribute;
+use crate::template::{ForDirective, IfDirective, StripMode, Template};
+use crate::Identifier;
 
 #[track_caller]
 fn expect_format<T: Format>(value: T, expected: &str) {
@@ -76,4 +78,44 @@ fn compact_objects() {
         attr,
         "object = { foo = { bar = \"baz\" }, qux = \"bam\" }\n",
     );
+}
+
+#[test]
+fn template() {
+    let template = Template::new().add_directive(
+        ForDirective::new(
+            Identifier::unchecked("item"),
+            Variable::unchecked("items"),
+            Template::new()
+                .add_literal("\nHello ")
+                .add_directive(
+                    IfDirective::new(
+                        Operation::from(BinaryOp::new(
+                            Variable::unchecked("item"),
+                            BinaryOperator::Eq,
+                            "world",
+                        )),
+                        Template::new().add_literal(" World! "),
+                    )
+                    .with_false_template(
+                        Template::new()
+                            .add_literal(" ")
+                            .add_interpolation(Variable::unchecked("item"))
+                            .add_literal("."),
+                    )
+                    .with_if_strip(StripMode::Start)
+                    .with_else_strip(StripMode::Both)
+                    .with_endif_strip(StripMode::End),
+                )
+                .add_literal("\n"),
+        )
+        .with_for_strip(StripMode::End)
+        .with_endfor_strip(StripMode::End),
+    );
+
+    let expected = r#"%{ for item in items ~}
+Hello %{~ if item == "world" } World! %{~ else ~} ${item}.%{ endif ~}
+%{ endfor ~}"#;
+
+    expect_format(template, expected);
 }
