@@ -152,7 +152,6 @@ details and examples for expression and template evaluation, but here's a very
 short example:
 
 ```rust
-use hcl::Value;
 use hcl::eval::{Context, Evaluate};
 use hcl::expr::TemplateExpr;
 
@@ -161,7 +160,7 @@ let expr = TemplateExpr::from("Hello ${name}!");
 let mut ctx = Context::new();
 ctx.declare_var("name", "World");
 
-assert_eq!(expr.evaluate(&ctx).unwrap(), Value::from("Hello World!"));
+assert_eq!(expr.evaluate(&ctx).unwrap(), "Hello World!");
 ```
 
 ## Macros

@@ -20,7 +20,6 @@
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use hcl::Value;
 //! use hcl::eval::{Context, Evaluate};
 //! use hcl::expr::TemplateExpr;
 //!
@@ -29,7 +28,7 @@
 //! let mut ctx = Context::new();
 //! ctx.declare_var("name", "World");
 //!
-//! assert_eq!(expr.evaluate(&ctx)?, Value::from("Hello World!"));
+//! assert_eq!(expr.evaluate(&ctx)?, "Hello World!");
 //! #   Ok(())
 //! # }
 //! ```
@@ -138,7 +137,7 @@
 //! ctx.declare_func("uppercase", uppercase_func);
 //!
 //! // Evaluate the expression.
-//! assert_eq!(expr.evaluate(&ctx)?, Value::from("Hello WORLD!"));
+//! assert_eq!(expr.evaluate(&ctx)?, "Hello WORLD!");
 //! #   Ok(())
 //! # }
 //! ```
