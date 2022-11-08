@@ -1,5 +1,6 @@
 use super::*;
 use crate::expr::Variable;
+use crate::Number;
 use std::fmt;
 use std::str::FromStr;
 
@@ -156,6 +157,16 @@ fn eval_for_expr() {
         )))
         .with_grouping(true),
         Value::from_iter([("foo", vec![1, 2, 3])]),
+    );
+
+    eval_error(
+        ForExpr::new(
+            Identifier::unchecked("v"),
+            Expression::from_iter(["a"]),
+            Expression::Bool(true),
+        )
+        .with_key_expr(Expression::Null),
+        ErrorKind::Unexpected(Value::Null, "a string, boolean or number"),
     );
 }
 
@@ -390,6 +401,46 @@ fn expr_error_context() {
         err.to_string(),
         r#"eval error: undefined variable `cond` in expression `cond ? "yes" : "no"`"#,
     )
+}
+
+#[test]
+fn interpolation_unwrapping() {
+    // unwrapping
+    eval_to(TemplateExpr::from("${null}"), Value::Null);
+    eval_to(TemplateExpr::from("${\"foo\"}"), Value::from("foo"));
+    eval_to(TemplateExpr::from("${true}"), Value::Bool(true));
+    eval_to(TemplateExpr::from("${\"${true}\"}"), Value::Bool(true));
+    eval_to(
+        TemplateExpr::from("${42}"),
+        Value::Number(Number::from(42u64)),
+    );
+    eval_to(
+        TemplateExpr::from("${1.5}"),
+        Value::Number(Number::from_f64(1.5).unwrap()),
+    );
+    eval_to(
+        TemplateExpr::from("${[1, 2, 3]}"),
+        Value::from_iter([1, 2, 3]),
+    );
+    eval_to(
+        TemplateExpr::from("${{ a = 1, b = 2 }}"),
+        Value::from_iter([("a", 1), ("b", 2)]),
+    );
+
+    let mut ctx = Context::new();
+    ctx.declare_var("var", true);
+    eval_to_ctx(&ctx, TemplateExpr::from("${\"${var}\"}"), Value::Bool(true));
+
+    // no unwrapping
+    eval_to(
+        TemplateExpr::from("hello ${true}"),
+        Value::from("hello true"),
+    );
+    eval_to(TemplateExpr::from("${\"\"}${true}"), Value::from("true"));
+    eval_to(
+        TemplateExpr::from("%{ for v in [true] }${v}%{ endfor }"),
+        Value::from("true"),
+    );
 }
 
 #[test]

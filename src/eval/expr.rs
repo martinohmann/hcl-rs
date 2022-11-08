@@ -8,10 +8,15 @@ pub(super) fn evaluate_bool(expr: &Expression, ctx: &Context) -> EvalResult<bool
     }
 }
 
-pub(super) fn evaluate_string(expr: &Expression, ctx: &Context) -> EvalResult<String> {
+// It's not formally defined, but the go HCL implementation allows object key expressions to
+// evaluate to either a string, boolean value or number and will then convert all of these to
+// string. Any other value shall produce an error.
+pub(super) fn evaluate_object_key(expr: &Expression, ctx: &Context) -> EvalResult<String> {
     match expr.evaluate(ctx)? {
         Value::String(value) => Ok(value),
-        other => Err(ctx.error(Error::unexpected(other, "a string"))),
+        Value::Bool(value) => Ok(value.to_string()),
+        Value::Number(value) => Ok(value.to_string()),
+        other => Err(ctx.error(Error::unexpected(other, "a string, boolean or number"))),
     }
 }
 
