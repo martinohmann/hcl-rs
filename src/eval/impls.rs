@@ -64,7 +64,7 @@ impl Evaluate for Expression {
         match self {
             Expression::Array(array) => array.evaluate(ctx).map(Value::Array),
             Expression::Object(object) => object.evaluate(ctx).map(Value::Object),
-            Expression::TemplateExpr(expr) => expr.evaluate(ctx).map(Value::String),
+            Expression::TemplateExpr(expr) => expr.evaluate(ctx),
             Expression::Variable(ident) => ctx.lookup_var(ident).cloned(),
             Expression::Traversal(traversal) => traversal.evaluate(ctx),
             Expression::FuncCall(func_call) => func_call.evaluate(ctx),
@@ -120,7 +120,7 @@ impl Evaluate for ObjectKey {
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         match self {
-            ObjectKey::Expression(expr) => expr::evaluate_string(expr, ctx),
+            ObjectKey::Expression(expr) => expr::evaluate_object_key(expr, ctx),
             ident => Ok(ident.to_string()),
         }
     }
@@ -129,11 +129,23 @@ impl Evaluate for ObjectKey {
 impl private::Sealed for TemplateExpr {}
 
 impl Evaluate for TemplateExpr {
-    type Output = String;
+    type Output = Value;
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let template = Template::from_expr(self)?;
-        template.evaluate(ctx)
+        let elements = template.elements();
+
+        // If the template consists only of a single interpolation, with no surrounding literals,
+        // directives or other interpolations, perform interpolation unwrapping as described in the
+        // spec:
+        //
+        // https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#template-interpolation-unwrapping
+        match elements.get(0) {
+            Some(Element::Interpolation(interp)) if elements.len() == 1 => {
+                interp.expr.evaluate(ctx)
+            }
+            _ => template.evaluate(ctx).map(Value::String),
+        }
     }
 }
 
@@ -280,7 +292,7 @@ impl Evaluate for ForExpr {
 
                 for ctx in collection.into_iter() {
                     let ctx = &ctx?;
-                    let key = expr::evaluate_string(key_expr, ctx)?;
+                    let key = expr::evaluate_object_key(key_expr, ctx)?;
                     let value = self.value_expr.evaluate(ctx)?;
 
                     if self.grouping {
