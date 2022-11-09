@@ -1,6 +1,24 @@
 #![doc = include_str!("../README.md")]
-#![allow(clippy::should_implement_trait)]
 #![warn(missing_docs)]
+#![warn(clippy::pedantic)]
+#![allow(
+    clippy::cast_lossless,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
+    clippy::cast_sign_loss,
+    clippy::enum_glob_use,
+    clippy::match_wildcard_for_single_variants,
+    clippy::missing_panics_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate,
+    clippy::needless_pass_by_value,
+    clippy::option_option,
+    clippy::return_self_not_must_use,
+    clippy::should_implement_trait,
+    clippy::unnecessary_wraps,
+    clippy::wildcard_imports
+)]
 
 #[macro_use]
 mod macros;

@@ -56,7 +56,7 @@ impl ser::SerializeStruct for SerializeTraversalStruct {
             "expr" => self.expr = Some(value.serialize(ExpressionSerializer)?),
             "operators" => {
                 self.operators =
-                    Some(value.serialize(SeqSerializer::new(TraversalOperatorSerializer))?)
+                    Some(value.serialize(SeqSerializer::new(TraversalOperatorSerializer))?);
             }
             _ => {
                 return Err(ser::Error::custom(

@@ -57,6 +57,10 @@ struct HclParser;
 /// #   Ok(())
 /// # }
 /// ```
+///
+/// # Errors
+///
+/// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> Result<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
     body(pair)

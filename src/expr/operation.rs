@@ -135,7 +135,7 @@ impl BinaryOp {
     //
     // The result can be evaluated from left to right without checking operator precendence.
     pub(crate) fn normalize(self) -> BinaryOp {
-        use Operand::*;
+        use Operand::{BinOp, Expr};
 
         // We only care whether the operand is another binary operation or not. Any other
         // expression (including unary oparations) is treated the same way and does not require
@@ -279,7 +279,7 @@ impl BinaryOperator {
     }
 
     // Returns the operator precedence level. Higher numbers mean higher precedence.
-    pub(crate) fn precedence(&self) -> u8 {
+    pub(crate) fn precedence(self) -> u8 {
         match self {
             BinaryOperator::Mul | BinaryOperator::Div | BinaryOperator::Mod => 6,
             BinaryOperator::Plus | BinaryOperator::Minus => 5,

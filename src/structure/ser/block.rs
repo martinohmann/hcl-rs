@@ -217,10 +217,10 @@ impl ser::SerializeMap for SerializeBlockMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.identifier.is_none() {
-            panic!("serialize_value called before serialize_key");
-        }
-
+        assert!(
+            self.identifier.is_some(),
+            "serialize_value called before serialize_key"
+        );
         self.body = Some(value.serialize(BodySerializer)?);
         Ok(())
     }
@@ -264,7 +264,7 @@ impl ser::SerializeStruct for SerializeBlockStruct {
         match key {
             "identifier" => self.identifier = Some(value.serialize(IdentifierSerializer)?),
             "labels" => {
-                self.labels = Some(value.serialize(SeqSerializer::new(BlockLabelSerializer))?)
+                self.labels = Some(value.serialize(SeqSerializer::new(BlockLabelSerializer))?);
             }
             "body" => self.body = Some(value.serialize(BodySerializer)?),
             _ => {

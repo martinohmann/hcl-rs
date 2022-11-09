@@ -195,7 +195,7 @@ impl IntoNodeMap for Block {
             None => Node::BlockInner(vec![self.body]),
         };
 
-        Map::from_iter(std::iter::once((self.identifier.into_inner(), node)))
+        std::iter::once((self.identifier.into_inner(), node)).collect()
     }
 }
 

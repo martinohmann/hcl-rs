@@ -235,10 +235,10 @@ impl ser::SerializeMap for SerializeHeredocMap {
     where
         T: ?Sized + ser::Serialize,
     {
-        if self.template.is_none() {
-            panic!("serialize_value called before serialize_key");
-        }
-
+        assert!(
+            self.template.is_some(),
+            "serialize_value called before serialize_key"
+        );
         self.template = Some(value.serialize(StringSerializer)?);
         Ok(())
     }

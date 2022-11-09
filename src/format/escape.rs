@@ -1,4 +1,4 @@
-//! Lookup table based character escape implementation copied from [serde_json][source].
+//! Lookup table based character escape implementation copied from [`serde_json`][source].
 //!
 //! Copyright remains with the original authors:
 //!

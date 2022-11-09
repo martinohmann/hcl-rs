@@ -96,8 +96,7 @@ impl From<Utf8Error> for Error {
 impl From<pest::error::Error<Rule>> for Error {
     fn from(err: pest::error::Error<Rule>) -> Self {
         let (line, col) = match err.line_col {
-            LineColLocation::Pos((l, c)) => (l, c),
-            LineColLocation::Span((l, c), (_, _)) => (l, c),
+            LineColLocation::Pos((l, c)) | LineColLocation::Span((l, c), (_, _)) => (l, c),
         };
 
         Error::Message {

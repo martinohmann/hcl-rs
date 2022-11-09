@@ -54,7 +54,7 @@ fn benchmark(c: &mut Criterion) {
         }"#;
 
     c.bench_function("hcl::parse(&deeply_nested)", |b| {
-        b.iter(|| hcl::parse(&deeply_nested))
+        b.iter(|| hcl::parse(deeply_nested))
     });
 }
 

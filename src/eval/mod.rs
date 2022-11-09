@@ -242,6 +242,16 @@ pub trait Evaluate: private::Sealed {
     /// variables and functions declared in the `Context`.
     ///
     /// See the [module-level documentation][crate::eval] for usage examples.
+    ///
+    /// # Errors
+    ///
+    /// This function fails with an error if:
+    ///
+    /// - an expression evaluates to a value that is not allowed in a given context, e.g. a string
+    ///   occures where a boolean value is expected.
+    /// - an operation is performed on values that it's not applicable to.
+    /// - an undefined variable or function is encountered.
+    /// - a defined function is called with unexpected arguments.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
 }
 
@@ -387,7 +397,7 @@ impl<'a> Context<'a> {
     }
 
     fn parent_expr(&self) -> Option<&Expression> {
-        self.parent.and_then(|parent| parent.expr())
+        self.parent.and_then(Context::expr)
     }
 }
 
@@ -396,6 +406,15 @@ impl<'a> Context<'a> {
 ///
 /// See the [module level documentation][crate::eval#expression-evaluation-during-de-serialization]
 /// for a usage example.
+///
+/// # Errors
+///
+/// This function fails with an error if:
+///
+/// - the string `s` cannot be parsed as HCL.
+/// - any condition described in the error section of the [`evaluate` method
+///   documentation][Evaluate::evaluate] meets.
+/// - the evaluated value cannot be deserialized as a `T`.
 pub fn from_str<T>(s: &str, ctx: &Context) -> Result<T>
 where
     T: de::DeserializeOwned,
@@ -410,6 +429,11 @@ where
 ///
 /// See the [module level documentation][crate::eval#expression-evaluation-during-de-serialization]
 /// for a usage example.
+///
+/// # Errors
+///
+/// This function fails with an error if any condition described in the error section of the
+/// [`evaluate` method documentation][Evaluate::evaluate] meets.
 pub fn to_string<T>(value: &T, ctx: &Context) -> Result<String>
 where
     T: ?Sized + Evaluate,
