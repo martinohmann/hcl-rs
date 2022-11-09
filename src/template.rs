@@ -83,8 +83,10 @@
 //! The [`eval`][crate::eval] module provides evaluation capabilities for templates and
 //! expressions. See the [module-level documentation][crate::eval] for examples.
 
+use crate::de::FromStrVisitor;
 use crate::expr::{Expression, TemplateExpr};
 use crate::{format, parser, Error, Identifier, Result};
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
@@ -504,5 +506,23 @@ impl From<(bool, bool)> for StripMode {
             (false, true) => StripMode::End,
             (false, false) => StripMode::None,
         }
+    }
+}
+
+impl Serialize for Template {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Template {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a template"))
     }
 }
