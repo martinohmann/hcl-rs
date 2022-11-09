@@ -58,23 +58,31 @@ ObjectItemIdent = _{ Identifier ~ ("=" | ":") ~ Expression }
 ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 
 // Template expressions
-TemplateExpr = { QuotedStringTemplate | HeredocTemplate }
+TemplateExpr = { QuotedStringTemplate | Heredoc }
 
 // Heredoc templates
-HeredocTemplate = ${
+Heredoc = ${
     HeredocIntro ~ PUSH(Identifier) ~ NEWLINE ~
-    HeredocContent ~
+    HeredocTemplate ~ NEWLINE ~
     SpaceOrTab* ~ POP
 }
-HeredocIntro        = _{ HeredocIntroIndent | HeredocIntroNormal }
-HeredocIntroIndent  =  { "<<-" }
-HeredocIntroNormal  =  { "<<" }
-HeredocContent      = @{ HeredocContentInner ~ NEWLINE }
-HeredocContentInner = { (!(NEWLINE ~ SpaceOrTab* ~ PEEK) ~ ANY)* }
+HeredocIntro       = _{ HeredocIntroIndent | HeredocIntroNormal }
+HeredocIntroIndent =  { "<<-" }
+HeredocIntroNormal =  { "<<" }
+
+HeredocTemplate = ${
+    (HeredocLiteral | TemplateInterpolation | TemplateDirective)*
+}
+HeredocLiteral    = @{ HeredocStringPart+ }
+HeredocStringPart =  {
+    "$${"
+    | "%%{"
+    | !("${" | "%{" | (NEWLINE ~ SpaceOrTab* ~ PEEK)) ~ ANY
+}
 
 // Quoted string templates
 QuotedStringTemplate      = ${ "\"" ~ QuotedStringTemplateInner ~ "\"" }
-QuotedStringTemplateInner =  {
+QuotedStringTemplateInner = ${
     (QuotedStringTemplateLiteral | TemplateInterpolation | TemplateDirective)*
 }
 QuotedStringTemplateLiteral = @{ StringPart+ }
@@ -82,7 +90,7 @@ QuotedStringTemplateLiteral = @{ StringPart+ }
 // String literals
 StringLit  = ${ "\"" ~ String ~ "\"" }
 String     = @{ StringPart* }
-StringPart = {
+StringPart =  {
     "$${"
     | "%%{"
     | !("\"" | "\\" | "${" | "%{") ~ ANY

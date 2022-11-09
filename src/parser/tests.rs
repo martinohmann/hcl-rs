@@ -181,10 +181,42 @@ fn parse_template() {
         tokens: [
             ExprTerm(0, 54, [
                 TemplateExpr(0, 54, [
-                    HeredocTemplate(0, 54, [
+                    Heredoc(0, 54, [
                         HeredocIntroNormal(0, 2),
                         Identifier(2, 9),
-                        HeredocContent(10, 47)
+                        HeredocTemplate(10, 46, [
+                            TemplateInterpolation(10, 16, [
+                                TemplateIExprStartNormal(10, 12),
+                                Expression(12, 15, [
+                                    ExprTerm(12, 15, [
+                                        Variable(12, 15)
+                                    ])
+                                ]),
+                                TemplateExprEndNormal(15, 16)
+                            ]),
+                            HeredocLiteral(16, 17),
+                            TemplateDirective(17, 38, [
+                                TemplateIf(17, 38, [
+                                    TemplateIfExpr(17, 30, [
+                                        TemplateDExprStartNormal(17, 19),
+                                        Expression(22, 26, [
+                                            ExprTerm(22, 26, [
+                                                Variable(22, 26)
+                                            ])
+                                        ]),
+                                        TemplateExprEndNormal(26, 27),
+                                        Template(27, 30, [
+                                            TemplateLiteral(27, 30)
+                                        ]),
+                                    ]),
+                                    TemplateEndIfExpr(30, 38, [
+                                        TemplateDExprStartNormal(30, 32),
+                                        TemplateExprEndNormal(37, 38),
+                                    ])
+                                ])
+                            ]),
+                            HeredocLiteral(38, 46)
+                        ])
                     ])
                 ])
             ])
