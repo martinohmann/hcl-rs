@@ -218,7 +218,7 @@ fn traversal_operator(pair: Pair<Rule>) -> Result<TraversalOperator> {
 fn template_expr(pair: Pair<Rule>) -> TemplateExpr {
     match pair.as_rule() {
         Rule::QuotedStringTemplate => TemplateExpr::QuotedString(string(inner(pair))),
-        Rule::HeredocTemplate => TemplateExpr::Heredoc(heredoc(pair)),
+        Rule::Heredoc => TemplateExpr::Heredoc(heredoc(pair)),
         rule => unexpected_rule(rule),
     }
 }
@@ -246,10 +246,16 @@ fn heredoc(pair: Pair<Rule>) -> Heredoc {
         rule => unexpected_rule(rule),
     };
 
+    let delimiter = ident(pairs.next().unwrap());
+    let mut template = string(pairs.next().unwrap());
+
+    // Append the trailing newline here. This is easier than doing this in the grammar.
+    template.push('\n');
+
     Heredoc {
         strip,
-        delimiter: ident(pairs.next().unwrap()),
-        template: string(pairs.next().unwrap()),
+        delimiter,
+        template,
     }
 }
 
