@@ -1,0 +1,2 @@
+// An empty document
+result = {}

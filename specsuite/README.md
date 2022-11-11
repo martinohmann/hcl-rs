@@ -1,39 +1,65 @@
 # Specsuite Documentation
 
-The test file `<test-name>.hcl` is any valid HCL file.  The expected test results are stored in `<test-name>.hcl.json`
+The test file `<test-name>.hcl` is any valid HCL file. The expected test
+results are stored in `<test-name>.t`. Additionally, the optional file
+`<test-name>.hcldec` may contain variable definitions that are used to evaluate
+HCL expressions.
 
-## JSON Format
+**Note**: The specsuite is modelled after the [original
+specsuite](https://github.com/hashicorp/hcl/tree/main/specsuite) but not all
+test cases are implemented yet.
 
-Structure for `<test-name>.hcl.json`
+## `.hcldec` file structure
 
-```json
-{
-  "ignore": true,
-  "message": "Auto-generated test. Verify for accuracy.",
-  "body": {
-    "heredoc": {
-      "data": "Indent was stripped.\n  And it was the correct amount.\n"
-    }
-  }
+| Field       | Type   | Description |
+|-------------|--------|-------------|
+| `ignore`    | bool   | If `false` the test result must match the parsed HCL, or parser's error message.  If `true`, it must not match<sup>1</sup>. |
+| `message`   | String | Test comment, output on test failure. |
+| `variables` | Object | Variable values used to evaluate HCL expressions and templates. |
+
+### Example
+
+```hcl
+ignore = false
+
+variables {
+  foo = "bar"
 }
 ```
 
-### JSON Fields
+## `.t` file structure
 
-| Field     | Type   | Description |
-|-----------|--------|-------------|
-| `ignore`  | bool   | If false the body field must match the parsed HCL, or Parser's error message.  If false, it must not match<sup>1</sup>. |
-| `message` | String | Test comment, output on test failure. |
-| `body`    | Object | JSON encoded output of `hcl::from_str` or the error message produced. The parsed HCL is checked against this for success. |
+| Field         | Type   | Description |
+|---------------|--------|-------------|
+| `result`      | Object | If the test expects the input HCL to parse and evaluate correctly, this contains the expected result. |
+| `diagnostics` | Object | If an error is expected, the `error` attribute in this block contains the expected error message. |
 
-To bootstrap tests, if `<test-name>.hcl.json` does not exist or fails to parse the test will be ignored and it will dump the parsed HCL file as JSON.  Which can be verified and turned into the JSON file.
+To bootstrap tests, if `<test-name>.t` does not exist the test will be ignored
+and it will dump the parsed HCL result, which can be verified and turned into a
+suitable `.t` file.
 
-<sup>1</sup> See truth table but if the test passes but ignore is set to true, it's treated as a failure and will tell you to fix your test.
+<sup>1</sup> See truth table, but if the test passes and `ignore` is set to
+`true`, it's treated as a failure and will tell you to fix your test.
+
+### Example
+
+```hcl
+result = {
+  foo = "bar"
+}
+```
+
+```hcl
+diagnostics {
+  error = "Some parser error"
+}
+```
 
 ## Test Truth Table
-|       Check        |  ignore  | Status |
-|--------------------|----------|--------|
-| `HCL == JSON.body` | `false`  |  pass  |
-| `HCL != JSON.body` |  `true`  |  pass  |
-| `HCL == JSON.body` |  `true`  |  fail  |
-| `HCL != JSON.body` | `false`  |  fail  |
+
+| Check                   | ignore   | Status |
+|-------------------------|----------|--------|
+| `result == expectation` | `false`  |  pass  |
+| `result != expectation` | `true`   |  pass  |
+| `result == expectation` | `true`   |  fail  |
+| `result != expectation` | `false`  |  fail  |

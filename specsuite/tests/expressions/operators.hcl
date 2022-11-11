@@ -40,11 +40,7 @@ inequality ">=" {
 
 arithmetic {
   add      = 2 + 3.5
-  // @FIXME(mohmann): This currently has a precision problem which needs to be
-  // fixed. When parsed and serialized again it looks like this:
-  //
-  // 3.141592653589793 + 1
-  // add_big  = 3.14159265358979323846264338327950288419716939937510582097494459 + 1
+  add_big  = 3.14159265358979323846264338327950288419716939937510582097494459 + 1
   sub      = 3.5 - 2
   sub_neg  = 2 - 3.5
   mul      = 2 * 4.5

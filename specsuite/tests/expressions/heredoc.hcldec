@@ -1,0 +1,5 @@
+variables {
+  bar       = "Bar"
+  space_bar = "  Bar"
+  words     = ["Foo", "Bar", "Baz"]
+}
