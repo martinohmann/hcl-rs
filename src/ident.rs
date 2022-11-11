@@ -1,4 +1,5 @@
 use crate::expr::Variable;
+use crate::util::{is_id_continue, is_id_start, is_ident};
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
@@ -37,14 +38,7 @@ impl Identifier {
     {
         let ident = ident.into();
 
-        if ident.is_empty() {
-            return Err(Error::InvalidIdentifier(ident));
-        }
-
-        let mut chars = ident.chars();
-        let first = chars.next().unwrap();
-
-        if !is_id_start(first) || !chars.all(is_id_continue) {
+        if !is_ident(&ident) {
             return Err(Error::InvalidIdentifier(ident));
         }
 
@@ -128,16 +122,6 @@ impl Identifier {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-}
-
-#[inline]
-fn is_id_start(ch: char) -> bool {
-    ch == '_' || unicode_ident::is_xid_start(ch)
-}
-
-#[inline]
-fn is_id_continue(ch: char) -> bool {
-    ch == '-' || unicode_ident::is_xid_continue(ch)
 }
 
 impl From<String> for Identifier {

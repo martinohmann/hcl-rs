@@ -7,7 +7,7 @@ use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
 };
-use crate::util::is_templated;
+use crate::util::{is_ident, is_templated};
 use crate::{Identifier, Number, Result, Value};
 use std::io;
 
@@ -148,7 +148,7 @@ impl Format for Value {
             Value::Number(num) => num.format(fmt),
             Value::String(string) => string.format(fmt),
             Value::Array(array) => format_array(fmt, array.iter()),
-            Value::Object(object) => format_object(fmt, object.iter()),
+            Value::Object(object) => format_object(fmt, object.iter().map(|(k, v)| (StrKey(k), v))),
         }
     }
 }
@@ -173,7 +173,25 @@ impl Format for ObjectKey {
     {
         match self {
             ObjectKey::Identifier(ident) => ident.format(fmt),
+            ObjectKey::Expression(Expression::String(s)) => StrKey(s).format(fmt),
             ObjectKey::Expression(expr) => expr.format(fmt),
+        }
+    }
+}
+
+struct StrKey<'a>(&'a str);
+
+impl<'a> private::Sealed for StrKey<'a> {}
+
+impl<'a> Format for StrKey<'a> {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        if fmt.config.prefer_ident_keys && is_ident(self.0) {
+            fmt.write_string_fragment(self.0)
+        } else {
+            fmt.write_quoted_string(self.0, !is_templated(self.0))
         }
     }
 }
