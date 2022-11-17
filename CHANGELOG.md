@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.10.0](https://github.com/martinohmann/hcl-rs/compare/v0.9.3...v0.10.0) (2022-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eval:** the `Evaluate` implementation of `TemplateExpr` returns a `Value` instead of a `String` now to support interpolation unwrapping.
+
+### Features
+
+* **format:** add `prefer_ident_keys` to `FormatterBuilder` ([#134](https://github.com/martinohmann/hcl-rs/issues/134)) ([de48f5c](https://github.com/martinohmann/hcl-rs/commit/de48f5cf2c962526deb4d98081e3e7c1d51b315c)), closes [#132](https://github.com/martinohmann/hcl-rs/issues/132)
+* **template:** implement `Serialize`/`Deserialize` for `Template` ([49e3bdd](https://github.com/martinohmann/hcl-rs/commit/49e3bdde85738c2ee0e8950acbf83a0e6ed7d7cf))
+
+
+### Bug Fixes
+
+* **eval:** correctly handle interpolation unwrapping ([85bed59](https://github.com/martinohmann/hcl-rs/commit/85bed59d3a5b37542bd0daaa577e1c07cc12ac7a))
+* **format:** prevent double-escaping of template strings ([#133](https://github.com/martinohmann/hcl-rs/issues/133)) ([9d0d6b4](https://github.com/martinohmann/hcl-rs/commit/9d0d6b49e32716205d88f5688430cc591255281a)), closes [#131](https://github.com/martinohmann/hcl-rs/issues/131)
+* **parser:** improve grammar for heredoc ([#130](https://github.com/martinohmann/hcl-rs/issues/130)) ([d366a32](https://github.com/martinohmann/hcl-rs/commit/d366a3228a186adfee7165374135c35a572538e0))
+
+
+### Miscellaneous
+
+* **lint:** make clippy more pedantic ([#129](https://github.com/martinohmann/hcl-rs/issues/129)) ([5a20055](https://github.com/martinohmann/hcl-rs/commit/5a200550c3b1c8da6794ef271a5baa1935d0c1fb))
+
 ## [0.9.3](https://github.com/martinohmann/hcl-rs/compare/v0.9.2...v0.9.3) (2022-11-07)
 
 
