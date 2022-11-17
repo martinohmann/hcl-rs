@@ -315,10 +315,15 @@ where
         self.write_bytes(s.as_bytes())
     }
 
-    /// Writes a quoted string to the writer. The quoted string will be escaped.
-    fn write_quoted_string(&mut self, s: &str) -> Result<()> {
+    /// Writes a quoted string to the writer. The quoted string will be escaped if `escape` is
+    /// true.
+    fn write_quoted_string(&mut self, s: &str, escape: bool) -> Result<()> {
         self.write_bytes(b"\"")?;
-        self.write_escaped_string(s)?;
+        if escape {
+            self.write_escaped_string(s)?;
+        } else {
+            self.write_string_fragment(s)?;
+        }
         self.write_bytes(b"\"")
     }
 

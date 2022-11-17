@@ -253,9 +253,9 @@ fn heredoc(pair: Pair<Rule>) -> Heredoc {
     template.push('\n');
 
     Heredoc {
-        strip,
         delimiter,
         template,
+        strip,
     }
 }
 

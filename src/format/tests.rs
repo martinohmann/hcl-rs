@@ -1,5 +1,7 @@
 use super::*;
-use crate::expr::{BinaryOp, BinaryOperator, Expression, FuncCall, Operation, Variable};
+use crate::expr::{
+    BinaryOp, BinaryOperator, Expression, FuncCall, Operation, TemplateExpr, Variable,
+};
 use crate::structure::Attribute;
 use crate::template::{ForDirective, IfDirective, StripMode, Template};
 use crate::Identifier;
@@ -118,4 +120,14 @@ Hello %{~ if item == "world" } World! %{~ else ~} ${item}.%{ endif ~}
 %{ endfor ~}"#;
 
     expect_format(template, expected);
+}
+
+#[test]
+fn issue_131() {
+    expect_format(
+        Attribute::new("a", TemplateExpr::from("${\"b\"}")),
+        "a = \"${\"b\"}\"\n",
+    );
+
+    expect_format(value!({ a = "${\"b\"}" }), "{\n  \"a\" = \"${\"b\"}\"\n}");
 }

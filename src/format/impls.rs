@@ -7,6 +7,7 @@ use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
 };
+use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
 use std::io;
 
@@ -519,7 +520,7 @@ impl Format for String {
     where
         W: io::Write,
     {
-        fmt.write_quoted_string(self)
+        fmt.write_quoted_string(self, !is_templated(self))
     }
 }
 
