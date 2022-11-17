@@ -77,6 +77,7 @@ struct FormatConfig<'a> {
     dense: bool,
     compact_arrays: bool,
     compact_objects: bool,
+    prefer_ident_keys: bool,
 }
 
 impl<'a> Default for FormatConfig<'a> {
@@ -86,6 +87,7 @@ impl<'a> Default for FormatConfig<'a> {
             dense: false,
             compact_arrays: false,
             compact_objects: false,
+            prefer_ident_keys: false,
         }
     }
 }
@@ -246,6 +248,34 @@ impl<'a, W> FormatterBuilder<'a, W> {
     /// ```
     pub fn compact_objects(mut self, yes: bool) -> Self {
         self.config.compact_objects = yes;
+        self
+    }
+
+    /// Controls the object key quoting.
+    ///
+    /// By default, object keys are formatted as quoted strings (unless they are of variant
+    /// [`ObjectKey::Identifier`][ident-variant]).
+    ///
+    /// ```hcl
+    /// object = {
+    ///   "foo" = 1
+    ///   "bar baz" = 2
+    /// }
+    /// ```
+    ///
+    /// When identifier keys are preferred, object keys that are also valid HCL identifiers are
+    /// not quoted:
+    ///
+    /// ```hcl
+    /// object = {
+    ///   foo = 1
+    ///   "bar baz" = 2
+    /// }
+    /// ```
+    ///
+    /// [ident-variant]: crate::expr::ObjectKey::Identifier
+    pub fn prefer_ident_keys(mut self, yes: bool) -> Self {
+        self.config.prefer_ident_keys = yes;
         self
     }
 

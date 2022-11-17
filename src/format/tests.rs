@@ -131,3 +131,27 @@ fn issue_131() {
 
     expect_format(value!({ a = "${\"b\"}" }), "{\n  \"a\" = \"${\"b\"}\"\n}");
 }
+
+#[test]
+fn prefer_ident_keys() {
+    let attr = Attribute::new(
+        "object",
+        expression!({
+            "foo" = 1
+            bar = 2
+            "baz qux" = 3
+        }),
+    );
+
+    expect_formatb(
+        |b| b.prefer_ident_keys(false),
+        &attr,
+        "object = {\n  \"foo\" = 1\n  bar = 2\n  \"baz qux\" = 3\n}\n",
+    );
+
+    expect_formatb(
+        |b| b.prefer_ident_keys(true),
+        &attr,
+        "object = {\n  foo = 1\n  bar = 2\n  \"baz qux\" = 3\n}\n",
+    );
+}

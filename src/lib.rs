@@ -16,6 +16,7 @@
     clippy::option_option,
     clippy::return_self_not_must_use,
     clippy::should_implement_trait,
+    clippy::struct_excessive_bools,
     clippy::unnecessary_wraps,
     clippy::wildcard_imports
 )]
