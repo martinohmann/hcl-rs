@@ -624,7 +624,7 @@ where
 ///
 /// # Errors
 ///
-/// Formatting fails if the value contains strings that cannot be used as valid HCL identifiers.
+/// Formatting a value as byte vector cannot fail.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: ?Sized + Format,
@@ -641,7 +641,7 @@ where
 ///
 /// # Errors
 ///
-/// Formatting fails if the value contains strings that cannot be used as valid HCL identifiers.
+/// Formatting a value as string cannot fail.
 pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Format,
@@ -661,8 +661,7 @@ where
 ///
 /// # Errors
 ///
-/// Formatting fails if any operation on the writer fails or if the value contains strings that
-/// cannot be used as valid HCL identifiers.
+/// Formatting fails if any operation on the writer fails.
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: io::Write,
@@ -670,4 +669,31 @@ where
 {
     let mut formatter = Formatter::new(writer);
     value.format(&mut formatter)
+}
+
+/// Format the given value as an interpolated HCL string.
+///
+/// It is the callers responsiblity to ensure that the value is not an HCL structure (i.e. `Body`,
+/// `Structure`, `Block` or `Attribute`). Otherwise this will produce invalid HCL.
+///
+/// # Errors
+///
+/// Formatting a value as string cannot fail.
+pub(crate) fn to_interpolated_string<T>(value: &T) -> Result<String>
+where
+    T: ?Sized + Format,
+{
+    let mut buf = Vec::with_capacity(128);
+    buf.push(b'$');
+    buf.push(b'{');
+
+    let mut formatter = Formatter::builder().compact(true).build(&mut buf);
+    value.format(&mut formatter)?;
+
+    let mut string = unsafe {
+        // We do not emit invalid UTF-8.
+        String::from_utf8_unchecked(buf)
+    };
+    string.push('}');
+    Ok(string)
 }

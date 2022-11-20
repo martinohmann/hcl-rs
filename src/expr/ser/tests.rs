@@ -1,101 +1,38 @@
-use super::{
-    ConditionalSerializer, ExpressionSerializer, ForExprSerializer, OperationSerializer,
-    TemplateExprSerializer,
-};
 use crate::expr::*;
 use crate::Identifier;
 use serde::ser;
-use std::fmt::Debug;
 
 #[track_caller]
-fn test_identity<S, T>(ser: S, value: T)
+fn assert_expr<G>(given: G, expected: Expression)
 where
-    S: ser::Serializer<Ok = T>,
-    T: ser::Serialize + PartialEq + Debug,
-{
-    assert_eq!(value, value.serialize(ser).unwrap());
-}
-
-#[track_caller]
-fn test_serialize<S, G, E>(ser: S, given: G, expected: E)
-where
-    S: ser::Serializer<Ok = E>,
     G: ser::Serialize,
-    E: PartialEq + Debug,
 {
-    assert_eq!(expected, given.serialize(ser).unwrap());
+    assert_eq!(Expression::from_serializable(&given).unwrap(), expected);
 }
 
 #[test]
-fn identity() {
-    test_identity(ExpressionSerializer, Expression::Null);
-    test_identity(ExpressionSerializer, Expression::Number(1.into()));
-    test_identity(ExpressionSerializer, Expression::String("bar".into()));
-    test_identity(
-        ExpressionSerializer,
+fn roundtrip() {
+    assert_expr(Expression::Null, Expression::Null);
+    assert_expr(Expression::Number(1.into()), Expression::Number(1.into()));
+    assert_expr(
+        Expression::String("bar".into()),
+        Expression::String("bar".into()),
+    );
+    assert_expr(
+        Expression::from_iter([("foo", "bar")]),
         Expression::from_iter([("foo", "bar")]),
     );
-    test_identity(TemplateExprSerializer, TemplateExpr::from("${foo}"));
-    test_identity(
-        TemplateExprSerializer,
-        TemplateExpr::Heredoc(
-            Heredoc::new(Identifier::unchecked("EOS"), "  ${foo}")
-                .with_strip_mode(HeredocStripMode::Indent),
-        ),
-    );
-    test_identity(
-        TemplateExprSerializer,
-        TemplateExpr::Heredoc(Heredoc::new(Identifier::unchecked("EOS"), "${foo}")),
-    );
-    test_identity(
-        ConditionalSerializer,
-        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
-    );
-    test_identity(
-        OperationSerializer,
-        Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1)),
-    );
-    test_identity(
-        OperationSerializer,
-        Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
-    );
-    test_identity(
-        ForExprSerializer,
-        ForExpr::new(
-            Identifier::unchecked("value"),
-            vec![Expression::String(String::from("foo"))],
-            Variable::unchecked("other_value"),
-        )
-        .with_key_var(Identifier::unchecked("index"))
-        .with_cond_expr(Expression::Bool(true)),
-    );
-    test_identity(
-        ForExprSerializer,
-        ForExpr::new(
-            Identifier::unchecked("value"),
-            Expression::Object(Object::from([(
-                ObjectKey::from("k"),
-                Expression::String(String::from("v")),
-            )])),
-            Variable::unchecked("other_value"),
-        )
-        .with_key_var(Identifier::unchecked("index"))
-        .with_key_expr(Variable::unchecked("other_key"))
-        .with_cond_expr(Expression::Bool(true))
-        .with_grouping(true),
-    );
+    assert_expr(
+        Expression::from(Variable::unchecked("var")),
+        Expression::from(Variable::unchecked("var")),
+    )
 }
 
 #[test]
-fn custom() {
-    test_serialize(
-        ExpressionSerializer,
-        Some(1u8),
-        Expression::Number(1u8.into()),
-    );
+fn builtin() {
+    assert_expr(Some(1u8), Expression::Number(1u8.into()));
 
-    test_serialize(
-        ExpressionSerializer,
+    assert_expr(
         Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
         Expression::from(Conditional::new(
             Variable::unchecked("some_cond_var"),
@@ -104,14 +41,12 @@ fn custom() {
         )),
     );
 
-    test_serialize(
-        ExpressionSerializer,
+    assert_expr(
         Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1)),
         Expression::from(Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1))),
     );
 
-    test_serialize(
-        ExpressionSerializer,
+    assert_expr(
         TemplateExpr::Heredoc(Heredoc::new(Identifier::unchecked("EOS"), "${foo}")),
         Expression::from(TemplateExpr::Heredoc(Heredoc::new(
             Identifier::unchecked("EOS"),
@@ -119,8 +54,7 @@ fn custom() {
         ))),
     );
 
-    test_serialize(
-        ExpressionSerializer,
+    assert_expr(
         ForExpr::new(
             Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
@@ -139,8 +73,7 @@ fn custom() {
         ),
     );
 
-    test_serialize(
-        ExpressionSerializer,
+    assert_expr(
         ForExpr::new(
             Identifier::unchecked("value"),
             vec![Expression::String(String::from("foo"))],
@@ -161,29 +94,52 @@ fn custom() {
         ),
     );
 
-    test_serialize(
-        ConditionalSerializer,
-        (
-            Expression::from(Variable::unchecked("some_cond_var")),
-            Expression::String("yes".into()),
-            Expression::String("no".into()),
+    assert_expr(
+        Traversal::builder(Variable::unchecked("some_var"))
+            .index(0)
+            .build(),
+        Expression::from(
+            Traversal::builder(Variable::unchecked("some_var"))
+                .index(0)
+                .build(),
         ),
-        Conditional::new(Variable::unchecked("some_cond_var"), "yes", "no"),
     );
 
-    test_serialize(
-        OperationSerializer,
-        ("-", Expression::Number(1.into())),
+    assert_expr(
+        FuncCall::builder("func").arg(0).build(),
+        Expression::from(FuncCall::builder("func").arg(0).build()),
+    );
+
+    assert_expr(
         Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1)),
+        Expression::from(Operation::Unary(UnaryOp::new(UnaryOperator::Neg, 1))),
     );
 
-    test_serialize(
-        OperationSerializer,
-        (
-            Expression::Number(1.into()),
-            "+",
-            Expression::Number(1.into()),
-        ),
+    assert_expr(
         Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1)),
+        Expression::from(Operation::Binary(BinaryOp::new(1, BinaryOperator::Plus, 1))),
     );
+
+    assert_expr(
+        TemplateExpr::from("Hello ${world}!"),
+        Expression::from(TemplateExpr::from("Hello ${world}!")),
+    );
+
+    assert_expr(
+        Variable::unchecked("var"),
+        Expression::from(Variable::unchecked("var")),
+    );
+
+    assert_expr(
+        RawExpression::new("raw"),
+        Expression::from(RawExpression::new("raw")),
+    );
+}
+
+#[test]
+fn custom() {
+    assert_expr((), Expression::Null);
+    assert_expr(1, Expression::Number(1.into()));
+    assert_expr("bar", Expression::String("bar".into()));
+    assert_expr(["foo", "bar"], Expression::from_iter(["foo", "bar"]));
 }

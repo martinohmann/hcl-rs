@@ -1,11 +1,10 @@
 use super::Expression;
 use crate::Identifier;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// A for expression is a construct for constructing a collection by projecting the items from
 /// another collection.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::for_expr")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct ForExpr {
     /// Optional name of the variable that will be temporarily assigned the key of each element
     /// during iteration. If the source collection is an array, it gets assigned the zero-based

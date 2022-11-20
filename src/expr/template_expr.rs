@@ -1,7 +1,6 @@
-use crate::de::FromStrVisitor;
 use crate::util::{dedent, try_unescape};
 use crate::{Error, Identifier, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
@@ -11,8 +10,7 @@ use std::str::FromStr;
 /// This type wraps the raw template string representation. Refer to the documentation of the
 /// [`template`][`crate::template`] module if you need to parse and further evaluate the raw
 /// template.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::template_expr")]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub enum TemplateExpr {
     /// A quoted template expression is delimited by quote characters (`"`) and defines a template
     /// as a single-line expression with escape characters. The raw template string may contain
@@ -61,8 +59,7 @@ impl fmt::Display for TemplateExpr {
 
 /// A heredoc template expression is introduced by a `<<` sequence and defines a template via a
 /// multi-line sequence terminated by a user-chosen delimiter.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::heredoc")]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Heredoc {
     /// The delimiter identifier that denotes the heredoc start and end.
     pub delimiter: Identifier,
@@ -138,23 +135,5 @@ impl FromStr for HeredocStripMode {
             "<<-" => Ok(HeredocStripMode::Indent),
             _ => Err(Error::new(format!("invalid heredoc strip mode: `{}`", s))),
         }
-    }
-}
-
-impl Serialize for HeredocStripMode {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for HeredocStripMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a heredoc strip mode"))
     }
 }

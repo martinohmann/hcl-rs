@@ -1,30 +1,93 @@
 //! Serializer impls for HCL expression types.
 
-mod conditional;
-mod for_expr;
-mod func_call;
-mod operation;
-mod template_expr;
 #[cfg(test)]
 mod tests;
-mod traversal;
 
-use self::{
-    conditional::{ConditionalSerializer, SerializeConditionalStruct},
-    for_expr::{ForExprSerializer, SerializeForExprStruct},
-    func_call::{FuncCallSerializer, SerializeFuncCallStruct},
-    operation::{OperationSerializer, SerializeOperationStruct},
-    template_expr::{SerializeTemplateExprStruct, TemplateExprSerializer},
-    traversal::{SerializeTraversalStruct, TraversalSerializer},
-};
-use crate::expr::{Expression, Object, ObjectKey, RawExpression, Variable};
-use crate::ser::{IdentifierSerializer, StringSerializer};
-use crate::{Error, Identifier, Number, Result};
+use super::*;
+use crate::ser::{in_internal_serialization, InternalHandles, SerializeInternalHandleStruct};
+use crate::{format, Error, Identifier, Number, Result};
 use serde::ser::{self, Impossible, SerializeMap};
-use std::fmt::Display;
+use std::fmt;
 
-#[derive(Clone)]
-pub struct ExpressionSerializer;
+const EXPR_HANDLE_MARKER: &str = "\x00$hcl::ExprHandle";
+
+thread_local! {
+    static EXPR_HANDLES: InternalHandles<Expression> = InternalHandles::new(EXPR_HANDLE_MARKER);
+}
+
+macro_rules! impl_serialize_for_expr {
+    ($($ty:ty)*) => {
+        $(
+            impl ser::Serialize for $ty {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: ser::Serializer,
+                {
+                    if in_internal_serialization() {
+                        EXPR_HANDLES.with(|eh| eh.serialize(self.clone(), serializer))
+                    } else {
+                        let s = format::to_interpolated_string(self).map_err(ser::Error::custom)?;
+                        serializer.serialize_str(&s)
+                    }
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! impl_serialize_for_operator {
+    ($($ty:ty)*) => {
+        $(
+            impl ser::Serialize for $ty {
+                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: ser::Serializer,
+                {
+                    serializer.serialize_str(self.as_str())
+                }
+            }
+        )*
+    };
+}
+
+impl_serialize_for_expr! {
+    Conditional ForExpr FuncCall Operation UnaryOp BinaryOp
+    TemplateExpr Heredoc RawExpression Traversal Variable
+}
+impl_serialize_for_operator! {
+    UnaryOperator BinaryOperator HeredocStripMode
+}
+
+impl ser::Serialize for Expression {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        if in_internal_serialization() {
+            return EXPR_HANDLES.with(|eh| eh.serialize(self.clone(), serializer));
+        }
+
+        match self {
+            Expression::Null => serializer.serialize_unit(),
+            Expression::Bool(b) => serializer.serialize_bool(*b),
+            Expression::Number(num) => num.serialize(serializer),
+            Expression::String(s) => serializer.serialize_str(s),
+            Expression::Array(array) => array.serialize(serializer),
+            Expression::Object(object) => object.serialize(serializer),
+            Expression::Parenthesis(expr) => expr.serialize(serializer),
+            Expression::TemplateExpr(expr) => expr.serialize(serializer),
+            Expression::FuncCall(func_call) => func_call.serialize(serializer),
+            Expression::Variable(var) => var.serialize(serializer),
+            Expression::Traversal(traversal) => traversal.serialize(serializer),
+            Expression::Conditional(cond) => cond.serialize(serializer),
+            Expression::Operation(op) => op.serialize(serializer),
+            Expression::ForExpr(expr) => expr.serialize(serializer),
+            Expression::Raw(raw) => raw.serialize(serializer),
+        }
+    }
+}
+
+pub(crate) struct ExpressionSerializer;
 
 impl ser::Serializer for ExpressionSerializer {
     type Ok = Expression;
@@ -38,7 +101,7 @@ impl ser::Serializer for ExpressionSerializer {
     type SerializeStruct = SerializeExpressionStruct;
     type SerializeStructVariant = SerializeExpressionStructVariant;
 
-    serialize_self! { some }
+    serialize_self! { some newtype_struct }
     forward_to_serialize_seq! { tuple tuple_struct }
 
     fn serialize_bool(self, value: bool) -> Result<Self::Ok> {
@@ -111,37 +174,16 @@ impl ser::Serializer for ExpressionSerializer {
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        if name == "$hcl::expression" && variant == "Null" {
-            Ok(Expression::Null)
-        } else {
-            self.serialize_str(variant)
-        }
-    }
-
-    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        if name == "$hcl::raw_expression" {
-            Ok(Expression::Raw(RawExpression::from(
-                value.serialize(StringSerializer)?,
-            )))
-        } else if name == "$hcl::identifier" {
-            Ok(Expression::Variable(Variable::from(
-                value.serialize(IdentifierSerializer)?,
-            )))
-        } else {
-            value.serialize(self)
-        }
+        self.serialize_str(variant)
     }
 
     fn serialize_newtype_variant<T>(
         self,
-        name: &'static str,
+        _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         value: &T,
@@ -149,41 +191,12 @@ impl ser::Serializer for ExpressionSerializer {
     where
         T: ?Sized + ser::Serialize,
     {
-        match (name, variant) {
-            ("$hcl::expression", "Conditional") => {
-                Ok(Expression::from(value.serialize(ConditionalSerializer)?))
-            }
-            ("$hcl::expression", "Operation") | ("$hcl::operation", _) => {
-                Ok(Expression::from(value.serialize(OperationSerializer)?))
-            }
-            ("$hcl::expression", "ForExpr") => {
-                Ok(Expression::from(value.serialize(ForExprSerializer)?))
-            }
-            ("$hcl::expression", "FuncCall") => {
-                Ok(Expression::from(value.serialize(FuncCallSerializer)?))
-            }
-            ("$hcl::expression", "Parenthesis") => {
-                Ok(Expression::Parenthesis(Box::new(value.serialize(self)?)))
-            }
-            ("$hcl::expression", "TemplateExpr") | ("$hcl::template_expr", _) => {
-                Ok(Expression::from(value.serialize(TemplateExprSerializer)?))
-            }
-            ("$hcl::expression", "Traversal") => {
-                Ok(Expression::from(value.serialize(TraversalSerializer)?))
-            }
-            ("$hcl::expression", "Variable") => Ok(Expression::from(Variable::from(
-                value.serialize(IdentifierSerializer)?,
-            ))),
-            ("$hcl::expression", _) => value.serialize(self),
-            (_, _) => {
-                let mut object = Object::with_capacity(1);
-                object.insert(
-                    ObjectKey::Identifier(Identifier::new(variant)?),
-                    value.serialize(self)?,
-                );
-                Ok(Expression::Object(object))
-            }
-        }
+        let mut object = Object::with_capacity(1);
+        object.insert(
+            ObjectKey::Identifier(Identifier::new(variant)?),
+            value.serialize(self)?,
+        );
+        Ok(Expression::Object(object))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -224,18 +237,18 @@ impl ser::Serializer for ExpressionSerializer {
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
     where
-        T: ?Sized + Display,
+        T: ?Sized + fmt::Display,
     {
         Ok(Expression::String(value.to_string()))
     }
 }
 
-pub struct SerializeExpressionSeq {
+pub(crate) struct SerializeExpressionSeq {
     vec: Vec<Expression>,
 }
 
 impl SerializeExpressionSeq {
-    pub fn new(len: Option<usize>) -> Self {
+    fn new(len: Option<usize>) -> Self {
         SerializeExpressionSeq {
             vec: Vec::with_capacity(len.unwrap_or(0)),
         }
@@ -267,13 +280,13 @@ impl ser::SerializeTupleStruct for SerializeExpressionSeq {
     impl_forward_to_serialize_seq!(serialize_field, Expression);
 }
 
-pub struct SerializeExpressionTupleVariant {
+pub(crate) struct SerializeExpressionTupleVariant {
     name: ObjectKey,
     vec: Vec<Expression>,
 }
 
 impl SerializeExpressionTupleVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
+    pub(crate) fn new(variant: &'static str, len: usize) -> Self {
         SerializeExpressionTupleVariant {
             name: ObjectKey::from(variant),
             vec: Vec::with_capacity(len),
@@ -300,13 +313,13 @@ impl ser::SerializeTupleVariant for SerializeExpressionTupleVariant {
     }
 }
 
-pub struct SerializeExpressionMap {
+pub(crate) struct SerializeExpressionMap {
     map: Object<ObjectKey, Expression>,
     next_key: Option<ObjectKey>,
 }
 
 impl SerializeExpressionMap {
-    pub fn new(len: Option<usize>) -> Self {
+    pub(crate) fn new(len: Option<usize>) -> Self {
         SerializeExpressionMap {
             map: Object::with_capacity(len.unwrap_or(0)),
             next_key: None,
@@ -342,36 +355,17 @@ impl ser::SerializeMap for SerializeExpressionMap {
     }
 }
 
-pub enum SerializeExpressionStruct {
-    Conditional(SerializeConditionalStruct),
-    Traversal(SerializeTraversalStruct),
-    ForExpr(SerializeForExprStruct),
-    FuncCall(SerializeFuncCallStruct),
-    Operation(SerializeOperationStruct),
-    TemplateExpr(SerializeTemplateExprStruct),
-    Other(SerializeExpressionMap),
+pub(crate) enum SerializeExpressionStruct {
+    InternalHandle(SerializeInternalHandleStruct),
+    Map(SerializeExpressionMap),
 }
 
 impl SerializeExpressionStruct {
-    fn new(name: &'static str, len: usize) -> Self {
-        match name {
-            "$hcl::conditional" => {
-                SerializeExpressionStruct::Conditional(SerializeConditionalStruct::new())
-            }
-            "$hcl::traversal" => {
-                SerializeExpressionStruct::Traversal(SerializeTraversalStruct::new())
-            }
-            "$hcl::for_expr" => SerializeExpressionStruct::ForExpr(SerializeForExprStruct::new()),
-            "$hcl::func_call" => {
-                SerializeExpressionStruct::FuncCall(SerializeFuncCallStruct::new())
-            }
-            "$hcl::unary_op" | "$hcl::binary_op" => {
-                SerializeExpressionStruct::Operation(SerializeOperationStruct::new(name))
-            }
-            "$hcl::heredoc" => {
-                SerializeExpressionStruct::TemplateExpr(SerializeTemplateExprStruct::new())
-            }
-            _ => SerializeExpressionStruct::Other(SerializeExpressionMap::new(Some(len))),
+    pub(crate) fn new(name: &'static str, len: usize) -> Self {
+        if name == EXPR_HANDLE_MARKER {
+            SerializeExpressionStruct::InternalHandle(SerializeInternalHandleStruct::new())
+        } else {
+            SerializeExpressionStruct::Map(SerializeExpressionMap::new(Some(len)))
         }
     }
 }
@@ -385,36 +379,28 @@ impl ser::SerializeStruct for SerializeExpressionStruct {
         T: ?Sized + ser::Serialize,
     {
         match self {
-            SerializeExpressionStruct::Conditional(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::Traversal(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::ForExpr(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::FuncCall(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::Operation(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::TemplateExpr(ser) => ser.serialize_field(key, value),
-            SerializeExpressionStruct::Other(ser) => ser.serialize_entry(key, value),
+            SerializeExpressionStruct::InternalHandle(ser) => ser.serialize_field(key, value),
+            SerializeExpressionStruct::Map(ser) => ser.serialize_entry(key, value),
         }
     }
 
     fn end(self) -> Result<Self::Ok> {
         match self {
-            SerializeExpressionStruct::Conditional(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::Traversal(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::ForExpr(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::FuncCall(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::Operation(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::TemplateExpr(ser) => ser.end().map(Into::into),
-            SerializeExpressionStruct::Other(ser) => ser.end(),
+            SerializeExpressionStruct::InternalHandle(ser) => ser
+                .end()
+                .map(|handle| EXPR_HANDLES.with(|eh| eh.remove(handle))),
+            SerializeExpressionStruct::Map(ser) => ser.end(),
         }
     }
 }
 
-pub struct SerializeExpressionStructVariant {
+pub(crate) struct SerializeExpressionStructVariant {
     name: ObjectKey,
     map: Object<ObjectKey, Expression>,
 }
 
 impl SerializeExpressionStructVariant {
-    pub fn new(variant: &'static str, len: usize) -> Self {
+    pub(crate) fn new(variant: &'static str, len: usize) -> Self {
         SerializeExpressionStructVariant {
             name: ObjectKey::from(variant),
             map: Object::with_capacity(len),
@@ -442,7 +428,7 @@ impl ser::SerializeStructVariant for SerializeExpressionStructVariant {
     }
 }
 
-pub struct ObjectKeySerializer;
+pub(crate) struct ObjectKeySerializer;
 
 impl ser::Serializer for ObjectKeySerializer {
     type Ok = ObjectKey;
@@ -461,7 +447,7 @@ impl ser::Serializer for ObjectKeySerializer {
         seq tuple tuple_struct tuple_variant map struct struct_variant
     }
 
-    serialize_self! { some newtype_struct }
+    serialize_self! { some newtype_struct newtype_variant }
 
     fn serialize_i8(self, value: i8) -> Result<Self::Ok> {
         Ok(ObjectKey::from(value))
@@ -510,27 +496,5 @@ impl ser::Serializer for ObjectKeySerializer {
         variant: &'static str,
     ) -> Result<Self::Ok> {
         Identifier::new(variant).map(ObjectKey::Identifier)
-    }
-
-    fn serialize_newtype_variant<T>(
-        self,
-        name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-        value: &T,
-    ) -> Result<Self::Ok>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        // Specialization for the `ObjectKey` type itself.
-        match (name, variant) {
-            ("$hcl::object_key", "Identifier") => Ok(ObjectKey::Identifier(
-                value.serialize(IdentifierSerializer)?,
-            )),
-            ("$hcl::object_key", "Expression") => Ok(ObjectKey::Expression(
-                value.serialize(ExpressionSerializer)?,
-            )),
-            (_, _) => value.serialize(self),
-        }
     }
 }

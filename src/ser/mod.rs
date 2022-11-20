@@ -194,19 +194,37 @@
 mod tests;
 
 use crate::format::{Format, Formatter};
-use crate::structure::ser::{
-    BodySerializer, SerializeBodyMap, SerializeBodySeq, SerializeBodyStruct,
-    SerializeBodyStructVariant, SerializeBodyTupleVariant,
-};
+use crate::structure::Body;
 use crate::{Error, Identifier, Result};
-use serde::ser::{self, Impossible, Serialize};
+use serde::ser::{self, Impossible, Serialize, SerializeStruct};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::io;
-use std::marker::PhantomData;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 // Deprecated, this re-export will be removed in a future release.
 #[doc(hidden)]
 pub use crate::expr::to_expression;
+
+thread_local! {
+    static INTERNAL_SERIALIZATION: AtomicBool = AtomicBool::new(false);
+}
+
+pub(crate) fn in_internal_serialization() -> bool {
+    INTERNAL_SERIALIZATION.with(|flag| flag.load(Ordering::Relaxed))
+}
+
+pub(crate) fn with_internal_serialization<R, F: FnOnce() -> R>(f: F) -> R {
+    INTERNAL_SERIALIZATION.with(|flag| {
+        let old = flag.load(Ordering::Relaxed);
+        flag.store(true, Ordering::Relaxed);
+        let _on_drop = OnDrop::new(|| {
+            flag.store(old, Ordering::Relaxed);
+        });
+        f()
+    })
+}
 
 /// A structure for serializing Rust values into HCL.
 pub struct Serializer<'a, W> {
@@ -233,201 +251,18 @@ where
         self.formatter.into_inner()
     }
 
-    fn format<V>(&mut self, value: V) -> Result<()>
-    where
-        V: Format,
-    {
-        value.format(&mut self.formatter)
-    }
-}
-
-impl<'a, W> ser::Serializer for &'a mut Serializer<'a, W>
-where
-    W: io::Write,
-{
-    type Ok = ();
-    type Error = Error;
-
-    type SerializeSeq = SerializeSeq<'a, W>;
-    type SerializeTuple = SerializeSeq<'a, W>;
-    type SerializeTupleStruct = SerializeSeq<'a, W>;
-    type SerializeTupleVariant = SerializeTupleVariant<'a, W>;
-    type SerializeMap = SerializeMap<'a, W>;
-    type SerializeStruct = SerializeStruct<'a, W>;
-    type SerializeStructVariant = SerializeStructVariant<'a, W>;
-
-    serialize_unsupported! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        char str bytes none unit unit_struct unit_variant
-    }
-    serialize_self! { some newtype_struct }
-    forward_to_serialize_seq! { tuple tuple_struct }
-
-    fn serialize_newtype_variant<T>(
-        self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        value: &T,
-    ) -> Result<()>
+    /// Serialize the given value as HCL via the serializer's `Formatter` to the underlying writer.
+    ///
+    /// # Errors
+    ///
+    /// Serialization fails if the type cannot be represented as HCL.
+    pub fn serialize<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        BodySerializer
-            .serialize_newtype_variant(name, variant_index, variant, value)
-            .and_then(|body| self.format(body))
+        let body = Body::from_serializable(value)?;
+        body.format(&mut self.formatter)
     }
-
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        BodySerializer
-            .serialize_seq(len)
-            .map(|inner| SerializeSeq { ser: self, inner })
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeTupleVariant> {
-        BodySerializer
-            .serialize_tuple_variant(name, variant_index, variant, len)
-            .map(|inner| SerializeTupleVariant { ser: self, inner })
-    }
-
-    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        BodySerializer
-            .serialize_map(len)
-            .map(|inner| SerializeMap { ser: self, inner })
-    }
-
-    fn serialize_struct(self, name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
-        BodySerializer
-            .serialize_struct(name, len)
-            .map(|inner| SerializeStruct { ser: self, inner })
-    }
-
-    fn serialize_struct_variant(
-        self,
-        name: &'static str,
-        variant_index: u32,
-        variant: &'static str,
-        len: usize,
-    ) -> Result<Self::SerializeStructVariant> {
-        BodySerializer
-            .serialize_struct_variant(name, variant_index, variant, len)
-            .map(|inner| SerializeStructVariant { ser: self, inner })
-    }
-}
-
-macro_rules! impl_forward_to_inner {
-    ($($tt:tt)+) => {
-        type Ok = ();
-        type Error = $crate::Error;
-
-        impl_forward_to_inner_internal!($($tt)+);
-
-        fn end(self) -> $crate::Result<Self::Ok, Self::Error> {
-            self.inner.end().and_then(|body| self.ser.format(body))
-        }
-    };
-}
-
-macro_rules! impl_forward_to_inner_internal {
-    ($method:ident($($arg:ident: $ty:ty),*) $(,$rest:tt)*) => {
-        fn $method<T>(&mut self, $($arg: $ty,)* value: &T) -> $crate::Result<(), Self::Error>
-        where
-            T: ?Sized + serde::ser::Serialize,
-        {
-            self.inner.$method($($arg,)* value)
-        }
-
-        impl_forward_to_inner_internal!($($rest),*);
-    };
-    ($method:ident $(,$rest:tt)*) => {
-        impl_forward_to_inner_internal!($method() $(,$rest)*);
-    };
-    () => {};
-}
-
-#[doc(hidden)]
-pub struct SerializeSeq<'a, W> {
-    inner: SerializeBodySeq,
-    ser: &'a mut Serializer<'a, W>,
-}
-
-impl<'a, W> ser::SerializeSeq for SerializeSeq<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_element);
-}
-
-impl<'a, W> ser::SerializeTuple for SerializeSeq<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_element);
-}
-
-impl<'a, W> ser::SerializeTupleStruct for SerializeSeq<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_field);
-}
-
-#[doc(hidden)]
-pub struct SerializeTupleVariant<'a, W> {
-    inner: SerializeBodyTupleVariant,
-    ser: &'a mut Serializer<'a, W>,
-}
-
-impl<'a, W> ser::SerializeTupleVariant for SerializeTupleVariant<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_field);
-}
-
-#[doc(hidden)]
-pub struct SerializeMap<'a, W> {
-    inner: SerializeBodyMap,
-    ser: &'a mut Serializer<'a, W>,
-}
-
-impl<'a, W> ser::SerializeMap for SerializeMap<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_key, serialize_value);
-}
-
-#[doc(hidden)]
-pub struct SerializeStructVariant<'a, W> {
-    inner: SerializeBodyStructVariant,
-    ser: &'a mut Serializer<'a, W>,
-}
-
-impl<'a, W> ser::SerializeStructVariant for SerializeStructVariant<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_field(key: &'static str));
-}
-
-#[doc(hidden)]
-pub struct SerializeStruct<'a, W> {
-    inner: SerializeBodyStruct,
-    ser: &'a mut Serializer<'a, W>,
-}
-
-impl<'a, W> ser::SerializeStruct for SerializeStruct<'a, W>
-where
-    W: io::Write,
-{
-    impl_forward_to_inner!(serialize_field(key: &'static str));
 }
 
 /// Serialize the given value as an HCL byte vector.
@@ -485,7 +320,7 @@ where
     T: ?Sized + Serialize,
 {
     let mut serializer = Serializer::new(writer);
-    value.serialize(&mut serializer)
+    serializer.serialize(value)
 }
 
 pub(crate) struct StringSerializer;
@@ -573,213 +408,105 @@ impl ser::Serializer for IdentifierSerializer {
     }
 }
 
-pub(crate) struct BoolSerializer;
+struct U64Serializer;
 
-impl ser::Serializer for BoolSerializer {
-    type Ok = bool;
+impl ser::Serializer for U64Serializer {
+    type Ok = u64;
     type Error = Error;
 
-    type SerializeSeq = Impossible<bool, Error>;
-    type SerializeTuple = Impossible<bool, Error>;
-    type SerializeTupleStruct = Impossible<bool, Error>;
-    type SerializeTupleVariant = Impossible<bool, Error>;
-    type SerializeMap = Impossible<bool, Error>;
-    type SerializeStruct = Impossible<bool, Error>;
-    type SerializeStructVariant = Impossible<bool, Error>;
+    type SerializeSeq = Impossible<u64, Error>;
+    type SerializeTuple = Impossible<u64, Error>;
+    type SerializeTupleStruct = Impossible<u64, Error>;
+    type SerializeTupleVariant = Impossible<u64, Error>;
+    type SerializeMap = Impossible<u64, Error>;
+    type SerializeStruct = Impossible<u64, Error>;
+    type SerializeStructVariant = Impossible<u64, Error>;
 
     serialize_unsupported! {
-        i8 i16 i32 i64 u8 u16 u32 u64
-        f32 f64 char str bytes unit unit_struct unit_variant newtype_variant none
-        seq tuple tuple_struct tuple_variant map struct struct_variant
+        i8 i16 i32 i64 u8 u16 u32 f32 f64 char str bool bytes
+        unit unit_variant unit_struct newtype_struct newtype_variant
+        some none seq tuple tuple_struct tuple_variant map struct struct_variant
     }
-    serialize_self! { some newtype_struct }
 
-    fn serialize_bool(self, value: bool) -> Result<Self::Ok> {
+    fn serialize_u64(self, value: u64) -> Result<Self::Ok> {
         Ok(value)
     }
 }
 
-pub(crate) struct SeqSerializer<S> {
-    inner: S,
+pub(crate) struct SerializeInternalHandleStruct {
+    handle: Option<u64>,
 }
 
-impl<S> SeqSerializer<S> {
-    pub(crate) fn new(inner: S) -> Self {
-        SeqSerializer { inner }
+impl SerializeInternalHandleStruct {
+    pub(crate) fn new() -> Self {
+        SerializeInternalHandleStruct { handle: None }
     }
 }
 
-impl<S> ser::Serializer for SeqSerializer<S>
-where
-    S: ser::Serializer + Clone,
-{
-    type Ok = Vec<S::Ok>;
-    type Error = S::Error;
+impl ser::SerializeStruct for SerializeInternalHandleStruct {
+    type Ok = usize;
+    type Error = Error;
 
-    type SerializeSeq = SerializeInnerSeq<S>;
-    type SerializeTuple = SerializeInnerSeq<S>;
-    type SerializeTupleStruct = SerializeInnerSeq<S>;
-    type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = Impossible<Self::Ok, Self::Error>;
-    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
-    type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
-
-    serialize_unsupported! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
-        char str bytes none unit newtype_variant unit_struct unit_variant
-        tuple_variant map struct struct_variant
-    }
-    serialize_self! { some newtype_struct }
-    forward_to_serialize_seq! { tuple tuple_struct }
-
-    fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
-        Ok(SerializeInnerSeq::new(self.inner, len))
-    }
-}
-
-pub(crate) struct SerializeInnerSeq<S>
-where
-    S: ser::Serializer,
-{
-    inner: S,
-    vec: Vec<S::Ok>,
-}
-
-impl<S> SerializeInnerSeq<S>
-where
-    S: ser::Serializer,
-{
-    fn new(inner: S, len: Option<usize>) -> Self {
-        SerializeInnerSeq {
-            inner,
-            vec: Vec::with_capacity(len.unwrap_or(0)),
-        }
-    }
-}
-
-impl<S> ser::SerializeSeq for SerializeInnerSeq<S>
-where
-    S: ser::Serializer + Clone,
-{
-    type Ok = Vec<S::Ok>;
-    type Error = S::Error;
-
-    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + ser::Serialize,
     {
-        self.vec.push(value.serialize(self.inner.clone())?);
+        assert_eq!(key, "handle", "bad handle struct");
+        self.handle = Some(value.serialize(U64Serializer)?);
         Ok(())
     }
 
-    fn end(self) -> Result<Self::Ok, Self::Error> {
-        Ok(self.vec)
+    fn end(self) -> Result<Self::Ok> {
+        let handle = self.handle.expect("bad handle reference in roundtrip");
+        Ok(handle as usize)
     }
 }
 
-impl<S> ser::SerializeTuple for SerializeInnerSeq<S>
-where
-    S: ser::Serializer + Clone,
-{
-    impl_forward_to_serialize_seq!(serialize_element, Vec<S::Ok>, S::Error);
+pub(crate) struct InternalHandles<T> {
+    marker: &'static str,
+    last_handle: AtomicUsize,
+    handles: RefCell<BTreeMap<usize, T>>,
 }
 
-impl<S> serde::ser::SerializeTupleStruct for SerializeInnerSeq<S>
-where
-    S: ser::Serializer + Clone,
-{
-    impl_forward_to_serialize_seq!(serialize_field, Vec<S::Ok>, S::Error);
-}
-
-pub(crate) struct OptionSerializer<S> {
-    inner: S,
-}
-
-impl<S> OptionSerializer<S> {
-    pub(crate) fn new(inner: S) -> Self {
-        OptionSerializer { inner }
-    }
-}
-
-impl<S> ser::Serializer for OptionSerializer<S>
-where
-    S: ser::Serializer,
-{
-    type Ok = Option<S::Ok>;
-    type Error = S::Error;
-
-    type SerializeSeq = Impossible<Self::Ok, Self::Error>;
-    type SerializeTuple = Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = Impossible<Self::Ok, Self::Error>;
-    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
-    type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
-
-    serialize_unsupported! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str
-        bytes unit newtype_struct newtype_variant unit_struct unit_variant
-        seq tuple tuple_struct tuple_variant map struct struct_variant
-    }
-
-    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
-    where
-        T: ?Sized + ser::Serialize,
-    {
-        Ok(Some(value.serialize(self.inner)?))
-    }
-
-    fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
-        Ok(None)
-    }
-}
-
-pub(crate) struct FromStrSerializer<O> {
-    marker: PhantomData<O>,
-}
-
-impl<O> FromStrSerializer<O> {
-    pub(crate) fn new() -> Self {
-        FromStrSerializer {
-            marker: PhantomData,
+impl<T> InternalHandles<T> {
+    pub(crate) fn new(marker: &'static str) -> InternalHandles<T> {
+        InternalHandles {
+            marker,
+            last_handle: AtomicUsize::new(0),
+            handles: RefCell::new(BTreeMap::new()),
         }
     }
+
+    pub(crate) fn remove(&self, handle: usize) -> T {
+        self.handles
+            .borrow_mut()
+            .remove(&handle)
+            .expect("handle not in registry")
+    }
+
+    pub(crate) fn serialize<V, S>(&self, value: V, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+        V: Into<T>,
+    {
+        let handle = self.last_handle.fetch_add(1, Ordering::Relaxed);
+        self.handles.borrow_mut().insert(handle, value.into());
+        let mut s = serializer.serialize_struct(self.marker, 1)?;
+        s.serialize_field("handle", &handle)?;
+        s.end()
+    }
 }
 
-impl<O> ser::Serializer for FromStrSerializer<O>
-where
-    O: std::str::FromStr,
-    O::Err: ser::Error,
-{
-    type Ok = O;
-    type Error = O::Err;
+struct OnDrop<F: FnOnce()>(Option<F>);
 
-    type SerializeSeq = Impossible<Self::Ok, Self::Error>;
-    type SerializeTuple = Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleStruct = Impossible<Self::Ok, Self::Error>;
-    type SerializeTupleVariant = Impossible<Self::Ok, Self::Error>;
-    type SerializeMap = Impossible<Self::Ok, Self::Error>;
-    type SerializeStruct = Impossible<Self::Ok, Self::Error>;
-    type SerializeStructVariant = Impossible<Self::Ok, Self::Error>;
-
-    serialize_unsupported! {
-        i8 i16 i32 i64 u8 u16 u32 u64
-        bool f32 f64 char bytes unit unit_struct none
-        seq tuple tuple_struct tuple_variant map struct struct_variant
-        newtype_variant
+impl<F: FnOnce()> OnDrop<F> {
+    fn new(f: F) -> Self {
+        Self(Some(f))
     }
-    serialize_self! { some newtype_struct }
+}
 
-    fn serialize_str(self, value: &str) -> Result<Self::Ok, Self::Error> {
-        O::from_str(value)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Self::Ok, Self::Error> {
-        self.serialize_str(variant)
+impl<F: FnOnce()> Drop for OnDrop<F> {
+    fn drop(&mut self) {
+        self.0.take().unwrap()();
     }
 }

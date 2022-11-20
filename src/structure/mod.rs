@@ -49,7 +49,7 @@ mod attribute;
 mod block;
 mod body;
 pub(crate) mod de;
-pub(crate) mod ser;
+mod ser;
 #[cfg(test)]
 mod tests;
 
@@ -59,13 +59,12 @@ pub use self::{
     body::{Body, BodyBuilder},
 };
 use crate::{Map, Value};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// Represents an HCL structure.
 ///
 /// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::structure")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum Structure {
     /// Represents an HCL attribute.
     Attribute(Attribute),
