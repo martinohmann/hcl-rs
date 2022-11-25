@@ -8,7 +8,7 @@ use std::ops;
 
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(rename = "$hcl::identifier")]
+#[serde(transparent)]
 pub struct Identifier(String);
 
 impl Identifier {

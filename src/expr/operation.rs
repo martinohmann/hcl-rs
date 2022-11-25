@@ -1,13 +1,11 @@
 use super::Expression;
-use crate::de::FromStrVisitor;
 use crate::{Error, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::fmt;
 use std::str::FromStr;
 
 /// Operations apply a particular operator to either one or two expression terms.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::operation")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub enum Operation {
     /// Represents an operation that applies an operator to a single expression.
     Unary(UnaryOp),
@@ -28,8 +26,7 @@ impl From<BinaryOp> for Operation {
 }
 
 /// An operation that applies an operator to one expression.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::unary_op")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct UnaryOp {
     /// The unary operator to use on the expression.
     pub operator: UnaryOperator,
@@ -87,27 +84,8 @@ impl FromStr for UnaryOperator {
     }
 }
 
-impl Serialize for UnaryOperator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for UnaryOperator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a unary operator"))
-    }
-}
-
 /// An operation that applies an operator to two expressions.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::binary_op")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct BinaryOp {
     /// The expression on the left-hand-side of the operation.
     pub lhs_expr: Expression,
@@ -320,23 +298,5 @@ impl FromStr for BinaryOperator {
             "||" => Ok(BinaryOperator::Or),
             _ => Err(Error::new(format!("invalid binary operator: `{}`", s))),
         }
-    }
-}
-
-impl Serialize for BinaryOperator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for BinaryOperator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a binary operator"))
     }
 }

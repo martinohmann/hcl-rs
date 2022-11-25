@@ -1,7 +1,7 @@
 use super::{private, Format, Formatter};
 use crate::expr::{
     BinaryOp, Conditional, Expression, ForExpr, FuncCall, Heredoc, HeredocStripMode, ObjectKey,
-    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator, UnaryOp, Variable,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
@@ -120,7 +120,7 @@ impl Format for Expression {
             Expression::Object(object) => format_object(fmt, object.iter()),
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
-            Expression::Variable(ident) => ident.format(fmt),
+            Expression::Variable(var) => var.format(fmt),
             Expression::Traversal(traversal) => traversal.format(fmt),
             Expression::FuncCall(func_call) => func_call.format(fmt),
             Expression::Parenthesis(expr) => {
@@ -247,6 +247,17 @@ impl Format for Heredoc {
 impl private::Sealed for Identifier {}
 
 impl Format for Identifier {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_string_fragment(self)
+    }
+}
+
+impl private::Sealed for Variable {}
+
+impl Format for Variable {
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
         W: io::Write,

@@ -9,6 +9,7 @@
 mod tests;
 
 use crate::{parser, Body, Error, Identifier, Result, Value};
+use serde::de::value::StringDeserializer;
 use serde::de::{self, Deserializer as _, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 use std::fmt;
@@ -229,7 +230,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        if name == "$hcl::body" {
+        if name == "$hcl::Body" {
             // Specialized handling of `hcl::Body`.
             self.body.into_deserializer().deserialize_any(visitor)
         } else {
@@ -459,9 +460,9 @@ where
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Identifier {
-    type Deserializer = NewtypeStructDeserializer<String>;
+    type Deserializer = StringDeserializer<Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        NewtypeStructDeserializer::new(self.into_inner())
+        self.into_inner().into_deserializer()
     }
 }

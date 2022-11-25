@@ -155,3 +155,15 @@ fn prefer_ident_keys() {
         "object = {\n  foo = 1\n  bar = 2\n  \"baz qux\" = 3\n}\n",
     );
 }
+
+#[test]
+fn to_interpolated_string() {
+    let binop = BinaryOp::new(1, BinaryOperator::Plus, 1);
+    assert_eq!(super::to_interpolated_string(&binop).unwrap(), "${1 + 1}");
+
+    let expr = Expression::from(FuncCall::builder("add").arg(1).arg(1).build());
+    assert_eq!(
+        super::to_interpolated_string(&expr).unwrap(),
+        "${add(1, 1)}"
+    );
+}

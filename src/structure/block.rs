@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 ///   body
 /// }
 /// ```
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::block")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Block {
     /// The block identifier.
     pub identifier: Identifier,
@@ -105,7 +104,6 @@ where
 /// }
 /// ```
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::block_label")]
 pub enum BlockLabel {
     /// A bare HCL block label.
     Identifier(Identifier),

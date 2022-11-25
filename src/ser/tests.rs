@@ -405,7 +405,7 @@ qux {
         .dense(true)
         .build(&mut buf);
     let mut ser = Serializer::with_formatter(formatter);
-    body.serialize(&mut ser).unwrap();
+    ser.serialize(&body).unwrap();
 
     assert_eq!(String::from_utf8(buf).unwrap(), custom_expected);
 }

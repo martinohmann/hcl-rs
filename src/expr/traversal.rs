@@ -3,8 +3,7 @@ use crate::Identifier;
 use serde::{Deserialize, Serialize};
 
 /// Traverse an expression to access attributes, object keys or element indices.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::traversal")]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Traversal {
     /// The expression that the access operator is applied to.
     pub expr: Expression,
@@ -107,7 +106,6 @@ impl TraversalBuilder {
 
 /// The expression traversal operators that are supported by HCL.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::traversal_operator")]
 pub enum TraversalOperator {
     /// The attribute-only splat operator supports only attribute lookups into the elements from a
     /// list, but supports an arbitrary number of them.

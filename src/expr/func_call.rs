@@ -1,10 +1,9 @@
 use super::Expression;
 use crate::Identifier;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// Represents a function call expression with zero or more arguments.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::func_call")]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
     /// The name of the function.
     pub name: Identifier,

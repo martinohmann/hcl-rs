@@ -25,7 +25,9 @@ pub use self::{
     traversal::{Traversal, TraversalBuilder, TraversalOperator},
     variable::Variable,
 };
-use crate::{format, Identifier, Number, Result, Value};
+use crate::format;
+use crate::ser::with_internal_serialization;
+use crate::{Identifier, Number, Result, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display, Write};
@@ -35,8 +37,7 @@ pub type Object<K, V> = vecmap::VecMap<K, V>;
 
 /// A type representing the expression sub-language. It is used in HCL attributes to specify
 /// values and in HCL templates.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::expression")]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Expression {
     /// Represents a null value.
@@ -72,6 +73,16 @@ pub enum Expression {
     /// Represents a raw HCL expression. This variant will never be emitted by the parser. See
     /// [`RawExpression`] for more details.
     Raw(RawExpression),
+}
+
+impl Expression {
+    #[doc(hidden)]
+    pub fn from_serializable<T>(value: &T) -> Result<Expression>
+    where
+        T: ?Sized + Serialize,
+    {
+        with_internal_serialization(|| value.serialize(ExpressionSerializer))
+    }
 }
 
 impl From<Expression> for Value {
@@ -231,6 +242,18 @@ impl From<Operation> for Expression {
     }
 }
 
+impl From<UnaryOp> for Expression {
+    fn from(op: UnaryOp) -> Self {
+        Expression::from(Operation::Unary(op))
+    }
+}
+
+impl From<BinaryOp> for Expression {
+    fn from(op: BinaryOp) -> Self {
+        Expression::from(Operation::Binary(op))
+    }
+}
+
 impl From<ForExpr> for Expression {
     fn from(expr: ForExpr) -> Self {
         Expression::ForExpr(Box::new(expr))
@@ -240,6 +263,12 @@ impl From<ForExpr> for Expression {
 impl From<TemplateExpr> for Expression {
     fn from(expr: TemplateExpr) -> Self {
         Expression::TemplateExpr(Box::new(expr))
+    }
+}
+
+impl From<Heredoc> for Expression {
+    fn from(heredoc: Heredoc) -> Self {
+        Expression::from(TemplateExpr::Heredoc(heredoc))
     }
 }
 
@@ -260,7 +289,6 @@ impl Display for Expression {
 
 /// Represents an object key.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(rename = "$hcl::object_key")]
 #[non_exhaustive]
 pub enum ObjectKey {
     /// Represents an unquoted identifier used as object key.
@@ -327,8 +355,8 @@ impl Display for ObjectKey {
 ///
 /// *Please note*: raw expressions are not validated during serialization, so it is your
 /// responsiblity to ensure that they are valid HCL.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(rename = "$hcl::raw_expression")]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(transparent)]
 pub struct RawExpression(String);
 
 impl RawExpression {
@@ -396,5 +424,5 @@ pub fn to_expression<T>(value: T) -> Result<Expression>
 where
     T: Serialize,
 {
-    value.serialize(ExpressionSerializer)
+    Expression::from_serializable(&value)
 }

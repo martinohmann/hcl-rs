@@ -1,5 +1,5 @@
 use crate::{Identifier, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::ops::Deref;
 
 /// A type representing a variable in an HCL expression.
@@ -9,7 +9,8 @@ use std::ops::Deref;
 ///
 /// This is a separate type to differentiate between bare identifiers and variable identifiers
 /// which have different semantics in different scopes.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(transparent)]
 pub struct Variable(Identifier);
 
 impl Variable {
@@ -74,23 +75,5 @@ impl Deref for Variable {
 impl From<Identifier> for Variable {
     fn from(ident: Identifier) -> Self {
         Variable(ident)
-    }
-}
-
-impl Serialize for Variable {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Variable {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Identifier::deserialize(deserializer).map(Variable)
     }
 }

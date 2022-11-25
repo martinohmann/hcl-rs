@@ -1,6 +1,9 @@
 //! Types to represent and build HCL body structures.
 
+use super::ser::BodySerializer;
 use super::{Attribute, Block, IntoNodeMap, Map, Structure, Value};
+use crate::ser::with_internal_serialization;
+use crate::Result;
 use serde::{Deserialize, Serialize};
 use std::vec::IntoIter;
 
@@ -8,10 +11,18 @@ use std::vec::IntoIter;
 ///
 /// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
 #[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Default, Clone)]
-#[serde(rename = "$hcl::body")]
+#[serde(rename = "$hcl::Body")]
 pub struct Body(pub Vec<Structure>);
 
 impl Body {
+    #[doc(hidden)]
+    pub fn from_serializable<T>(value: &T) -> Result<Body>
+    where
+        T: ?Sized + Serialize,
+    {
+        with_internal_serialization(|| value.serialize(BodySerializer))
+    }
+
     /// Consumes `self` and returns the wrapped `Vec<Structure>`.
     pub fn into_inner(self) -> Vec<Structure> {
         self.0

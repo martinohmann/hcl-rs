@@ -1,10 +1,9 @@
 use super::Expression;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 /// The conditional operator allows selecting from one of two expressions based on the outcome of a
 /// boolean expression.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::conditional")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Conditional {
     /// A condition expression that evaluates to a boolean value.
     pub cond_expr: Expression,

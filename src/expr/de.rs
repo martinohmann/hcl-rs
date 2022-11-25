@@ -1,11 +1,32 @@
 //! Deserialize impls for HCL structure types.
 
 use super::*;
-use crate::de::{NewtypeStructDeserializer, OptionDeserializer, VariantName};
+use crate::de::{FromStrVisitor, OptionDeserializer, VariantName};
 use crate::{Error, Identifier, Result};
-use serde::de::value::{MapAccessDeserializer, StrDeserializer};
+use serde::de::value::{MapAccessDeserializer, StrDeserializer, StringDeserializer};
 use serde::de::{self, IntoDeserializer};
 use serde::{forward_to_deserialize_any, Deserializer};
+
+macro_rules! impl_deserialize_for_operator {
+    ($($ty:ty => $expr:expr),*) => {
+        $(
+            impl<'de> de::Deserialize<'de> for $ty {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: de::Deserializer<'de>,
+                {
+                    deserializer.deserialize_any(FromStrVisitor::<Self>::new($expr))
+                }
+            }
+        )*
+    };
+}
+
+impl_deserialize_for_operator! {
+    UnaryOperator => "a unary operator",
+    BinaryOperator => "a binary operator",
+    HeredocStripMode => "a heredoc strip mode"
+}
 
 impl<'de> IntoDeserializer<'de, Error> for Expression {
     type Deserializer = Self;
@@ -763,10 +784,10 @@ impl<'de> de::VariantAccess<'de> for ObjectKey {
 }
 
 impl<'de> IntoDeserializer<'de, Error> for RawExpression {
-    type Deserializer = NewtypeStructDeserializer<String>;
+    type Deserializer = StringDeserializer<Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
-        NewtypeStructDeserializer::new(self.into_inner())
+        self.into_inner().into_deserializer()
     }
 }
 
@@ -875,7 +896,7 @@ impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
 }
 
 impl<'de> IntoDeserializer<'de, Error> for Variable {
-    type Deserializer = NewtypeStructDeserializer<String>;
+    type Deserializer = StringDeserializer<Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
         self.into_inner().into_deserializer()

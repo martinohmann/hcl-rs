@@ -2,7 +2,7 @@
 
 use crate::expr::Expression;
 use crate::{Identifier, Value};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::iter;
 
 /// Represents an HCL attribute which consists of an attribute key and a value expression.
@@ -15,8 +15,7 @@ use std::iter;
 ///
 /// Use [`Attribute::new`] to construct an [`Attribute`] from a value that is convertible to this
 /// crate's [`Expression`] type.
-#[derive(Deserialize, Serialize, Debug, PartialEq, Eq, Clone)]
-#[serde(rename = "$hcl::attribute")]
+#[derive(Deserialize, Debug, PartialEq, Eq, Clone)]
 pub struct Attribute {
     /// The HCL attribute's key.
     pub key: Identifier,
