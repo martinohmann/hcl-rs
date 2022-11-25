@@ -9,15 +9,13 @@ use crate::expr::ser::{
     SerializeExpressionStructVariant, SerializeExpressionTupleVariant,
 };
 use crate::ser::{
+    blocks::{BLOCK_MARKER, LABELED_BLOCK_MARKER},
     in_internal_serialization, IdentifierSerializer, InternalHandles,
     SerializeInternalHandleStruct, StringSerializer,
 };
 use crate::{Error, Expression, Identifier, Result};
 use serde::ser::{self, Serialize, SerializeMap, SerializeStruct};
 use std::fmt;
-
-const BLOCK_MARKER: &str = "$hcl::Block";
-const LABELED_BLOCK_MARKER: &str = "$hcl::LabeledBlock";
 
 const STRUCTURE_HANDLE_MARKER: &str = "\x00$hcl::StructureHandle";
 
@@ -540,25 +538,9 @@ impl ser::Serializer for StructureSerializer {
     where
         T: ?Sized + ser::Serialize,
     {
-        if name == BLOCK_MARKER {
-            BlockSerializer::new(self.ident).serialize_newtype_variant(
-                name,
-                variant_index,
-                variant,
-                value,
-            )
-        } else if name == LABELED_BLOCK_MARKER {
-            LabeledBlockSerializer::new(self.ident).serialize_newtype_variant(
-                name,
-                variant_index,
-                variant,
-                value,
-            )
-        } else {
-            ExpressionSerializer
-                .serialize_newtype_variant(name, variant_index, variant, value)
-                .map(|expr| self.into_attr(expr))
-        }
+        ExpressionSerializer
+            .serialize_newtype_variant(name, variant_index, variant, value)
+            .map(|expr| self.into_attr(expr))
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
@@ -573,12 +555,14 @@ impl ser::Serializer for StructureSerializer {
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        SerializeStructureTupleVariant::new(self.ident, name, variant, len)
+        Ok(SerializeStructureTupleVariant::new(
+            self.ident, variant, len,
+        ))
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
@@ -591,12 +575,14 @@ impl ser::Serializer for StructureSerializer {
 
     fn serialize_struct_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        SerializeStructureStructVariant::new(self.ident, name, variant, len)
+        Ok(SerializeStructureStructVariant::new(
+            self.ident, variant, len,
+        ))
     }
 
     fn collect_str<T>(self, value: &T) -> Result<Self::Ok>
@@ -648,32 +634,16 @@ impl ser::SerializeTupleStruct for SerializeStructureSeq {
     impl_forward_to_serialize_seq!(serialize_field, Structures);
 }
 
-pub(crate) enum SerializeStructureTupleVariant {
-    Attribute(Identifier, SerializeExpressionTupleVariant),
-    Block(SerializeBlockTupleVariant),
-    LabeledBlock(SerializeLabeledBlockTupleVariant),
+pub(crate) struct SerializeStructureTupleVariant {
+    ident: Identifier,
+    inner: SerializeExpressionTupleVariant,
 }
 
 impl SerializeStructureTupleVariant {
-    fn new(
-        ident: Identifier,
-        name: &'static str,
-        variant: &'static str,
-        len: usize,
-    ) -> Result<Self> {
-        if name == BLOCK_MARKER {
-            Ok(SerializeStructureTupleVariant::Block(
-                SerializeBlockTupleVariant::new(ident, Identifier::new(variant)?, len),
-            ))
-        } else if name == LABELED_BLOCK_MARKER {
-            Ok(SerializeStructureTupleVariant::LabeledBlock(
-                SerializeLabeledBlockTupleVariant::new(ident, variant, len),
-            ))
-        } else {
-            Ok(SerializeStructureTupleVariant::Attribute(
-                ident,
-                SerializeExpressionTupleVariant::new(variant, len),
-            ))
+    fn new(ident: Identifier, variant: &'static str, len: usize) -> Self {
+        SerializeStructureTupleVariant {
+            ident,
+            inner: SerializeExpressionTupleVariant::new(variant, len),
         }
     }
 }
@@ -686,21 +656,13 @@ impl ser::SerializeTupleVariant for SerializeStructureTupleVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        match self {
-            SerializeStructureTupleVariant::Attribute(_, ser) => ser.serialize_field(value),
-            SerializeStructureTupleVariant::Block(ser) => ser.serialize_field(value),
-            SerializeStructureTupleVariant::LabeledBlock(ser) => ser.serialize_field(value),
-        }
+        self.inner.serialize_field(value)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match self {
-            SerializeStructureTupleVariant::Attribute(ident, ser) => {
-                ser.end().map(|expr| Attribute::new(ident, expr).into())
-            }
-            SerializeStructureTupleVariant::Block(ser) => ser.end(),
-            SerializeStructureTupleVariant::LabeledBlock(ser) => ser.end(),
-        }
+        self.inner
+            .end()
+            .map(|expr| Attribute::new(self.ident, expr).into())
     }
 }
 
@@ -743,20 +705,16 @@ impl ser::SerializeMap for SerializeStructureMap {
     }
 }
 
-pub(crate) enum SerializeStructureStruct {
-    Attribute(Identifier, SerializeExpressionStruct),
-    Block(SerializeBlockStruct),
-    LabeledBlock(SerializeLabeledBlockStruct),
+pub(crate) struct SerializeStructureStruct {
+    ident: Identifier,
+    inner: SerializeExpressionStruct,
 }
 
 impl SerializeStructureStruct {
     fn new(ident: Identifier, name: &'static str, len: usize) -> Self {
-        if name == BLOCK_MARKER {
-            SerializeStructureStruct::Block(SerializeBlockStruct::new(ident, len))
-        } else if name == LABELED_BLOCK_MARKER {
-            SerializeStructureStruct::LabeledBlock(SerializeLabeledBlockStruct::new(ident, len))
-        } else {
-            SerializeStructureStruct::Attribute(ident, SerializeExpressionStruct::new(name, len))
+        SerializeStructureStruct {
+            ident,
+            inner: SerializeExpressionStruct::new(name, len),
         }
     }
 }
@@ -769,50 +727,26 @@ impl ser::SerializeStruct for SerializeStructureStruct {
     where
         T: ?Sized + ser::Serialize,
     {
-        match self {
-            SerializeStructureStruct::Attribute(_, ser) => ser.serialize_field(key, value),
-            SerializeStructureStruct::Block(ser) => ser.serialize_field(key, value),
-            SerializeStructureStruct::LabeledBlock(ser) => ser.serialize_field(key, value),
-        }
+        self.inner.serialize_field(key, value)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match self {
-            SerializeStructureStruct::Attribute(ident, ser) => {
-                ser.end().map(|expr| Attribute::new(ident, expr).into())
-            }
-            SerializeStructureStruct::Block(ser) => ser.end(),
-            SerializeStructureStruct::LabeledBlock(ser) => ser.end(),
-        }
+        self.inner
+            .end()
+            .map(|expr| Attribute::new(self.ident, expr).into())
     }
 }
 
-pub(crate) enum SerializeStructureStructVariant {
-    Attribute(Identifier, SerializeExpressionStructVariant),
-    Block(SerializeBlockStructVariant),
-    LabeledBlock(SerializeLabeledBlockStructVariant),
+pub(crate) struct SerializeStructureStructVariant {
+    ident: Identifier,
+    inner: SerializeExpressionStructVariant,
 }
 
 impl SerializeStructureStructVariant {
-    fn new(
-        ident: Identifier,
-        name: &'static str,
-        variant: &'static str,
-        len: usize,
-    ) -> Result<Self> {
-        if name == BLOCK_MARKER {
-            Ok(SerializeStructureStructVariant::Block(
-                SerializeBlockStructVariant::new(ident, Identifier::new(variant)?, len),
-            ))
-        } else if name == LABELED_BLOCK_MARKER {
-            Ok(SerializeStructureStructVariant::LabeledBlock(
-                SerializeLabeledBlockStructVariant::new(ident, variant, len),
-            ))
-        } else {
-            Ok(SerializeStructureStructVariant::Attribute(
-                ident,
-                SerializeExpressionStructVariant::new(variant, len),
-            ))
+    fn new(ident: Identifier, variant: &'static str, len: usize) -> Self {
+        SerializeStructureStructVariant {
+            ident,
+            inner: SerializeExpressionStructVariant::new(variant, len),
         }
     }
 }
@@ -825,21 +759,13 @@ impl ser::SerializeStructVariant for SerializeStructureStructVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        match self {
-            SerializeStructureStructVariant::Attribute(_, ser) => ser.serialize_field(key, value),
-            SerializeStructureStructVariant::Block(ser) => ser.serialize_field(key, value),
-            SerializeStructureStructVariant::LabeledBlock(ser) => ser.serialize_field(key, value),
-        }
+        self.inner.serialize_field(key, value)
     }
 
     fn end(self) -> Result<Self::Ok> {
-        match self {
-            SerializeStructureStructVariant::Attribute(ident, ser) => {
-                ser.end().map(|expr| Attribute::new(ident, expr).into())
-            }
-            SerializeStructureStructVariant::Block(ser) => ser.end(),
-            SerializeStructureStructVariant::LabeledBlock(ser) => ser.end(),
-        }
+        self.inner
+            .end()
+            .map(|expr| Attribute::new(self.ident, expr).into())
     }
 }
 
@@ -869,8 +795,19 @@ impl ser::Serializer for BlockSerializer {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64
         char str bytes none unit unit_struct unit_variant
     }
-    serialize_self! { some newtype_struct }
+    serialize_self! { some }
     forward_to_serialize_seq! { tuple tuple_struct }
+
+    fn serialize_newtype_struct<T>(self, name: &'static str, value: &T) -> Result<Self::Ok>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        if name == LABELED_BLOCK_MARKER {
+            LabeledBlockSerializer::new(self.ident).serialize_newtype_struct(name, value)
+        } else {
+            value.serialize(self)
+        }
+    }
 
     fn serialize_newtype_variant<T>(
         self,
@@ -954,7 +891,7 @@ impl ser::SerializeSeq for SerializeBlockSeq {
         T: ?Sized + ser::Serialize,
     {
         self.structures
-            .extend(value.serialize(StructureSerializer::new(self.ident.clone()))?);
+            .extend(value.serialize(BlockSerializer::new(self.ident.clone()))?);
         Ok(())
     }
 
@@ -996,7 +933,7 @@ impl ser::SerializeTupleVariant for SerializeBlockTupleVariant {
         T: ?Sized + ser::Serialize,
     {
         self.structures
-            .extend(value.serialize(StructureSerializer::new(self.variant.clone()))?);
+            .extend(value.serialize(BlockSerializer::new(self.variant.clone()))?);
         Ok(())
     }
 
@@ -1150,9 +1087,9 @@ impl ser::Serializer for LabeledBlockSerializer {
     type Ok = Structures;
     type Error = Error;
 
-    type SerializeSeq = SerializeBlockSeq;
-    type SerializeTuple = SerializeBlockSeq;
-    type SerializeTupleStruct = SerializeBlockSeq;
+    type SerializeSeq = SerializeLabeledBlockSeq;
+    type SerializeTuple = SerializeLabeledBlockSeq;
+    type SerializeTupleStruct = SerializeLabeledBlockSeq;
     type SerializeTupleVariant = SerializeLabeledBlockTupleVariant;
     type SerializeMap = SerializeLabeledBlockMap;
     type SerializeStruct = SerializeLabeledBlockStruct;
@@ -1177,7 +1114,7 @@ impl ser::Serializer for LabeledBlockSerializer {
     {
         let mut structures = Vec::with_capacity(1);
 
-        serialize_blocks(self.ident, value, &mut structures, |labels| {
+        serialize_labeled_blocks(self.ident, value, &mut structures, |labels| {
             labels.insert(0, variant.into());
         })?;
 
@@ -1185,7 +1122,7 @@ impl ser::Serializer for LabeledBlockSerializer {
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        Ok(SerializeBlockSeq::new(self.ident, len))
+        Ok(SerializeLabeledBlockSeq::new(self.ident, len))
     }
 
     fn serialize_tuple_variant(
@@ -1221,6 +1158,46 @@ impl ser::Serializer for LabeledBlockSerializer {
     }
 }
 
+pub(crate) struct SerializeLabeledBlockSeq {
+    ident: Identifier,
+    structures: Vec<Structure>,
+}
+
+impl SerializeLabeledBlockSeq {
+    fn new(ident: Identifier, len: Option<usize>) -> Self {
+        SerializeLabeledBlockSeq {
+            ident,
+            structures: Vec::with_capacity(len.unwrap_or(0)),
+        }
+    }
+}
+
+impl ser::SerializeSeq for SerializeLabeledBlockSeq {
+    type Ok = Structures;
+    type Error = Error;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
+    where
+        T: ?Sized + ser::Serialize,
+    {
+        self.structures
+            .extend(value.serialize(LabeledBlockSerializer::new(self.ident.clone()))?);
+        Ok(())
+    }
+
+    fn end(self) -> Result<Self::Ok> {
+        Ok(self.structures.into())
+    }
+}
+
+impl ser::SerializeTuple for SerializeLabeledBlockSeq {
+    impl_forward_to_serialize_seq!(serialize_element, Structures);
+}
+
+impl ser::SerializeTupleStruct for SerializeLabeledBlockSeq {
+    impl_forward_to_serialize_seq!(serialize_field, Structures);
+}
+
 pub(crate) struct SerializeLabeledBlockTupleVariant {
     ident: Identifier,
     variant: &'static str,
@@ -1245,7 +1222,7 @@ impl ser::SerializeTupleVariant for SerializeLabeledBlockTupleVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        serialize_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
+        serialize_labeled_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
             labels.insert(0, self.variant.into());
         })
     }
@@ -1290,7 +1267,7 @@ impl ser::SerializeMap for SerializeLabeledBlockMap {
         let key = self.next_key.take();
         let key = key.expect("serialize_value called before serialize_key");
 
-        serialize_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
+        serialize_labeled_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
             labels.insert(0, BlockLabel::from(&key));
         })
     }
@@ -1322,7 +1299,7 @@ impl ser::SerializeStruct for SerializeLabeledBlockStruct {
     where
         T: ?Sized + ser::Serialize,
     {
-        serialize_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
+        serialize_labeled_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
             labels.insert(0, key.into());
         })
     }
@@ -1356,7 +1333,7 @@ impl ser::SerializeStructVariant for SerializeLabeledBlockStructVariant {
     where
         T: ?Sized + ser::Serialize,
     {
-        serialize_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
+        serialize_labeled_blocks(self.ident.clone(), value, &mut self.structures, |labels| {
             labels.insert(0, self.variant.into());
             labels.insert(1, key.into());
         })
@@ -1367,24 +1344,19 @@ impl ser::SerializeStructVariant for SerializeLabeledBlockStructVariant {
     }
 }
 
-fn serialize_blocks<T, F>(
+fn serialize_labeled_blocks<T, F>(
     ident: Identifier,
     value: &T,
     structures: &mut Vec<Structure>,
-    mut f: F,
+    f: F,
 ) -> Result<()>
 where
     T: ?Sized + Serialize,
-    F: FnMut(&mut Vec<BlockLabel>),
+    F: Fn(&mut Vec<BlockLabel>),
 {
-    for structure in value.serialize(StructureSerializer::new(ident))? {
+    for structure in value.serialize(BlockSerializer::new(ident))? {
         match structure {
-            Structure::Attribute(attr) => {
-                return Err(ser::Error::custom(format!(
-                    "block expected, found attribute: {:?}",
-                    attr
-                )))
-            }
+            Structure::Attribute(_) => unreachable!(),
             Structure::Block(mut block) => {
                 f(&mut block.labels);
                 structures.push(block.into());

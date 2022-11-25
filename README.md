@@ -142,7 +142,7 @@ assert_eq!(serialized, expected);
 ```
 
 Also have a look at the other examples provided in the [documentation of the
-`ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html).
+`ser` module](https://docs.rs/hcl-rs/latest/hcl/ser/index.html) to learn how you can construct HCL blocks when serializing custom types.
 
 ## Expression evaluation
 

@@ -3,6 +3,12 @@
 //! This module provides the [`Serializer`] type and the convienince functions [`to_string`],
 //! [`to_vec`] and [`to_writer`] for serializing data to HCL.
 //!
+//! Furthermore, the [`Block`] and [`LabeledBlock`] wrapper types, and the
+//! [`block`][crate::ser::block], [`labeled_block`][crate::ser::labeled_block] and
+//! [`doubly_labeled_block`][crate::ser::doubly_labeled_block] functions can be used to construct
+//! HCL block structures from custom types. See the type and function level documentation for
+//! usage examples.
+//!
 //! If you want to serialize the data structures provided by this crate (e.g.
 //! [`Body`](crate::Body)) consider using the functionality in the [`format`](crate::format) module
 //! instead because it is more efficient.
@@ -189,10 +195,79 @@
 //! #   Ok(())
 //! # }
 //! ```
+//! ## Serializing HCL blocks using a custom type
+//!
+//! An example to serialize a terraform configuration block using a custom type and the
+//! [`LabeledBlock`] and [`Block`] marker types from this module:
+//!
+//! ```
+//! use hcl::expr::{Expression, Traversal, Variable};
+//! use indexmap::{indexmap, IndexMap};
+//! use serde::Serialize;
+//!
+//! #[derive(Serialize)]
+//! struct Config {
+//!     #[serde(
+//!         rename = "resource",
+//!         serialize_with = "hcl::ser::labeled_block"
+//!     )]
+//!     resources: Resources,
+//! }
+//!
+//! #[derive(Serialize)]
+//! struct Resources {
+//!     #[serde(
+//!         rename = "aws_sns_topic_subscription",
+//!         serialize_with = "hcl::ser::labeled_block"
+//!     )]
+//!     aws_sns_topic_subscriptions: IndexMap<String, AwsSnsTopicSubscription>,
+//! }
+//!
+//! #[derive(Serialize)]
+//! struct AwsSnsTopicSubscription {
+//!     topic_arn: Traversal,
+//!     protocol: Expression,
+//!     endpoint: Traversal,
+//! }
+//!
+//! let subscription = AwsSnsTopicSubscription {
+//!     topic_arn: Traversal::builder(Variable::new("aws_sns_topic").unwrap())
+//!         .attr("my-topic")
+//!         .attr("arn")
+//!         .build(),
+//!     protocol: "sqs".into(),
+//!     endpoint: Traversal::builder(Variable::new("aws_sqs_queue").unwrap())
+//!         .attr("my-queue")
+//!         .attr("arn")
+//!         .build()
+//! };
+//!
+//! let config = Config {
+//!     resources: Resources {
+//!         aws_sns_topic_subscriptions: indexmap! {
+//!             "my-subscription".into() => subscription,
+//!         },
+//!     },
+//! };
+//!
+//! let expected = r#"
+//! resource "aws_sns_topic_subscription" "my-subscription" {
+//!   topic_arn = aws_sns_topic.my-topic.arn
+//!   protocol = "sqs"
+//!   endpoint = aws_sqs_queue.my-queue.arn
+//! }
+//! "#.trim_start();
+//!
+//! let serialized = hcl::to_string(&config).unwrap();
+//!
+//! assert_eq!(serialized, expected);
+//! ```
 
+pub(crate) mod blocks;
 #[cfg(test)]
 mod tests;
 
+pub use self::blocks::{block, doubly_labeled_block, labeled_block, Block, LabeledBlock};
 use crate::format::{Format, Formatter};
 use crate::structure::Body;
 use crate::{Error, Identifier, Result};
