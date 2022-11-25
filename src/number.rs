@@ -1,5 +1,6 @@
 use crate::Error;
-use serde::{de, forward_to_deserialize_any, ser};
+use serde::de::{self, Unexpected};
+use serde::{forward_to_deserialize_any, ser};
 use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -171,6 +172,15 @@ impl Number {
         match self.n {
             N::PosInt(_) => true,
             N::NegInt(_) | N::Float(_) => false,
+        }
+    }
+
+    #[cold]
+    pub(crate) fn unexpected(&self) -> Unexpected {
+        match self.n {
+            N::PosInt(v) => Unexpected::Unsigned(v),
+            N::NegInt(v) => Unexpected::Signed(v),
+            N::Float(v) => Unexpected::Float(v),
         }
     }
 }

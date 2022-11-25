@@ -1,7 +1,7 @@
 //! Types to represent and build HCL blocks.
 
-use super::{Attribute, Body, BodyBuilder, IntoJsonSpec, Structure};
-use crate::{Identifier, Value};
+use super::{Attribute, Body, BodyBuilder, Structure};
+use crate::Identifier;
 use serde::{Deserialize, Serialize};
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a
@@ -63,12 +63,6 @@ impl Block {
     /// Returns a reference to the block's body.
     pub fn body(&self) -> &Body {
         &self.body
-    }
-}
-
-impl From<Block> for Value {
-    fn from(block: Block) -> Value {
-        Value::from_iter(block.into_json_spec())
     }
 }
 

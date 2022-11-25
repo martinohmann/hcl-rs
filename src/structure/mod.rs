@@ -49,17 +49,18 @@ mod attribute;
 mod block;
 mod body;
 pub(crate) mod de;
+mod json_spec;
 mod ser;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use self::json_spec::IntoJsonSpec;
 pub use self::{
     attribute::Attribute,
     block::{Block, BlockBuilder, BlockLabel},
     body::{Body, BodyBuilder},
 };
-use crate::{expr, ident, Map, Value};
-use indexmap::map::Entry;
+use crate::Value;
 use serde::Deserialize;
 
 /// Represents an HCL structure.
@@ -138,113 +139,6 @@ impl From<Attribute> for Structure {
 impl From<Block> for Structure {
     fn from(block: Block) -> Structure {
         Structure::Block(block)
-    }
-}
-
-// A trait to convert an HCL structure into its [JSON representation][json-spec].
-//
-// This is used internally by the `Body` and `Block` types to convert into a `Value`.
-//
-// The detour over a map of nodes is necessary as HCL blocks with the same identifier and labels
-// need to be merged so that the resulting `Value` conforms to the [HCL JSON
-// specification][json-spec].
-//
-// [json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-trait IntoJsonSpec {
-    fn into_json_spec(self) -> Map<String, JsonNode>;
-}
-
-impl IntoJsonSpec for Body {
-    fn into_json_spec(self) -> Map<String, JsonNode> {
-        self.into_iter().fold(Map::new(), |mut map, structure| {
-            match structure {
-                Structure::Attribute(attr) => {
-                    map.insert(attr.key.into_inner(), JsonNode::Expr(attr.expr));
-                }
-                Structure::Block(block) => {
-                    block
-                        .into_json_spec()
-                        .into_iter()
-                        .for_each(|(key, node)| node.deep_merge_into(&mut map, key));
-                }
-            };
-
-            map
-        })
-    }
-}
-
-impl IntoJsonSpec for Block {
-    fn into_json_spec(self) -> Map<String, JsonNode> {
-        let mut labels = self.labels.into_iter();
-
-        let node = match labels.next() {
-            Some(label) => {
-                let block = Block {
-                    identifier: ident::Identifier::unchecked(label.into_inner()),
-                    labels: labels.collect(),
-                    body: self.body,
-                };
-
-                JsonNode::Map(block.into_json_spec())
-            }
-            None => JsonNode::Body(vec![self.body]),
-        };
-
-        std::iter::once((self.identifier.into_inner(), node)).collect()
-    }
-}
-
-enum JsonNode {
-    Map(Map<String, JsonNode>),
-    Body(Vec<Body>),
-    Expr(expr::Expression),
-}
-
-impl From<JsonNode> for Value {
-    fn from(node: JsonNode) -> Value {
-        match node {
-            JsonNode::Map(map) => Value::from_iter(map),
-            JsonNode::Body(mut vec) => {
-                // Flatten as per the [HCL JSON spec][json-spec].
-                //
-                // > After any labelling levels, the next nested value is either a JSON
-                // > object representing a single block body, or a JSON array of JSON
-                // > objects that each represent a single block body.
-                //
-                // [json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md#blocks
-                if vec.len() == 1 {
-                    vec.remove(0).into()
-                } else {
-                    vec.into()
-                }
-            }
-            JsonNode::Expr(expr) => expr.into(),
-        }
-    }
-}
-
-impl JsonNode {
-    fn deep_merge_into(self, map: &mut Map<String, JsonNode>, key: String) {
-        match map.entry(key) {
-            Entry::Occupied(o) => o.into_mut().deep_merge(self),
-            Entry::Vacant(v) => {
-                v.insert(self);
-            }
-        }
-    }
-
-    fn deep_merge(&mut self, other: JsonNode) {
-        match (self, other) {
-            (JsonNode::Map(lhs), JsonNode::Map(rhs)) => {
-                rhs.into_iter()
-                    .for_each(|(key, node)| node.deep_merge_into(lhs, key));
-            }
-            (JsonNode::Body(lhs), JsonNode::Body(mut rhs)) => {
-                lhs.append(&mut rhs);
-            }
-            (lhs, rhs) => *lhs = rhs,
-        }
     }
 }
 

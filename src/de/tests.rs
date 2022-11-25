@@ -1,7 +1,8 @@
 use super::*;
 use crate::expr::{
-    BinaryOp, BinaryOperator, Expression, ForExpr, FuncCall, ObjectKey, Operation, Traversal,
-    TraversalOperator, UnaryOp, UnaryOperator, Variable,
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
+    HeredocStripMode, ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+    UnaryOperator, Variable,
 };
 use crate::structure::{Block, Body};
 use crate::{value, Identifier, Value};
@@ -442,4 +443,57 @@ fn issue_83() {
         .build();
 
     expect_value("attr = module.instance.0.id", expected);
+}
+
+#[test]
+fn issue_137() {
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct Config {
+        expr: Expression,
+        bin_op: BinaryOp,
+        op: Operation,
+        cond: Conditional,
+        cond_string: String,
+        nested: Nested,
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct Nested {
+        template_expr: TemplateExpr,
+        heredoc: Heredoc,
+    }
+
+    let input = r#"
+        expr = 1 + 1
+        bin_op = 1 + 1
+        op = 1 + 1
+        cond = var ? true : false
+        cond_string = var ? true : false
+
+        nested {
+          template_expr = "${some_var}"
+          heredoc = <<-EOS
+            ${some_var}
+          EOS
+        }
+    "#;
+
+    let bin_op = BinaryOp::new(1, BinaryOperator::Plus, 1);
+
+    let expected = Config {
+        expr: Expression::from(bin_op.clone()),
+        bin_op: bin_op.clone(),
+        op: Operation::Binary(bin_op),
+        cond: Conditional::new(Variable::unchecked("var"), true, false),
+        cond_string: String::from("${var ? true : false}"),
+        nested: Nested {
+            template_expr: TemplateExpr::from("${some_var}"),
+            heredoc: Heredoc::new(Identifier::unchecked("EOS"), "            ${some_var}\n")
+                .with_strip_mode(HeredocStripMode::Indent),
+        },
+    };
+
+    let result: Config = crate::from_str(input).unwrap();
+
+    assert_eq!(result, expected);
 }
