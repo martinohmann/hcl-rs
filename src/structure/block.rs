@@ -1,6 +1,6 @@
 //! Types to represent and build HCL blocks.
 
-use super::{Attribute, Body, BodyBuilder, IntoNodeMap, Structure};
+use super::{Attribute, Body, BodyBuilder, IntoJsonSpec, Structure};
 use crate::{Identifier, Value};
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +68,7 @@ impl Block {
 
 impl From<Block> for Value {
     fn from(block: Block) -> Value {
-        Value::from_iter(block.into_node_map())
+        Value::from_iter(block.into_json_spec())
     }
 }
 
