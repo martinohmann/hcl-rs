@@ -1203,3 +1203,37 @@ macro_rules! impl_deserialize_enum {
         }
     };
 }
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_variant_name {
+    ($($ty:ident => { $($variant:ident),+ }),*) => {
+        $(
+            impl $crate::de::VariantName for $ty {
+                fn variant_name(&self) -> &'static str {
+                    match self {
+                        $(
+                            $ty::$variant { .. } => std::stringify!($variant),
+                        )*
+                    }
+                }
+            }
+        )*
+    };
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! impl_into_map_access_deserializer {
+    ($($ty:ty => $access:ident),*) => {
+        $(
+            impl<'de> serde::de::IntoDeserializer<'de, Error> for $ty {
+                type Deserializer = serde::de::value::MapAccessDeserializer<$access>;
+
+                fn into_deserializer(self) -> Self::Deserializer {
+                    serde::de::value::MapAccessDeserializer::new($access::new(self))
+                }
+            }
+        )*
+    };
+}

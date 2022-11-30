@@ -1,10 +1,9 @@
 //! Deserialize impls for HCL structure types.
 
 use super::{Attribute, Block, BlockLabel, Body, Structure};
-use crate::de::{NewtypeStructDeserializer, VariantName};
+use crate::de::NewtypeStructDeserializer;
 use crate::expr::Expression;
 use crate::{Error, Identifier, Result};
-use serde::de::value::MapAccessDeserializer;
 use serde::de::{self, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 
@@ -27,40 +26,22 @@ impl<'de> IntoDeserializer<'de, Error> for Structure {
 impl<'de> de::Deserializer<'de> for Structure {
     type Error = Error;
 
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct identifier ignored_any
-    }
-    impl_deserialize_enum!();
-
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         match self {
-            Structure::Attribute(attribute) => {
-                attribute.into_deserializer().deserialize_any(visitor)
-            }
-            Structure::Block(block) => block.into_deserializer().deserialize_any(visitor),
+            Structure::Attribute(attribute) => visitor.visit_map(AttributeAccess::new(attribute)),
+            Structure::Block(block) => visitor.visit_map(BlockAccess::new(block)),
         }
     }
-}
 
-impl VariantName for Structure {
-    fn variant_name(&self) -> &'static str {
-        match self {
-            Structure::Attribute(_) => "Attribute",
-            Structure::Block(_) => "Block",
-        }
-    }
-}
+    impl_deserialize_enum!();
 
-impl<'de> IntoDeserializer<'de, Error> for Attribute {
-    type Deserializer = MapAccessDeserializer<AttributeAccess>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        MapAccessDeserializer::new(AttributeAccess::new(self))
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
     }
 }
 
@@ -105,14 +86,6 @@ impl<'de> de::MapAccess<'de> for AttributeAccess {
         } else {
             Err(de::Error::custom("invalid HCL attribute"))
         }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, Error> for Block {
-    type Deserializer = MapAccessDeserializer<BlockAccess>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        MapAccessDeserializer::new(BlockAccess::new(self))
     }
 }
 
@@ -177,29 +150,31 @@ impl<'de> IntoDeserializer<'de, Error> for BlockLabel {
 impl<'de> de::Deserializer<'de> for BlockLabel {
     type Error = Error;
 
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
-        string bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct identifier ignored_any
-    }
-    impl_deserialize_enum!();
-
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
     where
         V: de::Visitor<'de>,
     {
         match self {
             BlockLabel::String(string) => visitor.visit_string(string),
-            BlockLabel::Identifier(ident) => ident.into_deserializer().deserialize_any(visitor),
+            BlockLabel::Identifier(ident) => visitor.visit_string(ident.into_inner()),
         }
+    }
+
+    impl_deserialize_enum!();
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        string bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct identifier ignored_any
     }
 }
 
-impl VariantName for BlockLabel {
-    fn variant_name(&self) -> &'static str {
-        match self {
-            BlockLabel::String(_) => "String",
-            BlockLabel::Identifier(_) => "Identifier",
-        }
-    }
+impl_variant_name! {
+    BlockLabel => { String, Identifier },
+    Structure => { Attribute, Block }
+}
+
+impl_into_map_access_deserializer! {
+    Attribute => AttributeAccess,
+    Block => BlockAccess
 }

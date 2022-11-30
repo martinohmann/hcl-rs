@@ -1,7 +1,7 @@
 //! Types to represent and build HCL body structures.
 
 use super::ser::BodySerializer;
-use super::{Attribute, Block, IntoJsonSpec, Structure, Value};
+use super::{Attribute, Block, Structure};
 use crate::ser::with_internal_serialization;
 use crate::Result;
 use serde::{Deserialize, Serialize};
@@ -185,12 +185,6 @@ impl<'a> Iterator for BlockIterMut<'a> {
         }
 
         None
-    }
-}
-
-impl From<Body> for Value {
-    fn from(body: Body) -> Value {
-        Value::from_iter(body.into_json_spec())
     }
 }
 

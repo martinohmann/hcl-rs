@@ -8,7 +8,8 @@
 #[cfg(test)]
 mod tests;
 
-use crate::{parser, Body, Error, Identifier, Result, Value};
+use crate::structure::IntoJsonSpec;
+use crate::{parser, Body, Error, Identifier, Result};
 use serde::de::value::StringDeserializer;
 use serde::de::{self, Deserializer as _, IntoDeserializer};
 use serde::forward_to_deserialize_any;
@@ -217,9 +218,7 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        Value::from(self.body)
-            .into_deserializer()
-            .deserialize_any(visitor)
+        self.body.into_json_spec().deserialize_any(visitor)
     }
 
     fn deserialize_newtype_struct<V>(
@@ -235,7 +234,9 @@ impl<'de> de::Deserializer<'de> for Deserializer {
             self.body.into_deserializer().deserialize_any(visitor)
         } else {
             // Generic deserialization according to the HCL JSON spec.
-            self.deserialize_any(visitor)
+            self.body
+                .into_json_spec()
+                .deserialize_newtype_struct(name, visitor)
         }
     }
 
@@ -248,8 +249,8 @@ impl<'de> de::Deserializer<'de> for Deserializer {
     where
         V: de::Visitor<'de>,
     {
-        Value::from(self.body)
-            .into_deserializer()
+        self.body
+            .into_json_spec()
             .deserialize_enum(name, variants, visitor)
     }
 

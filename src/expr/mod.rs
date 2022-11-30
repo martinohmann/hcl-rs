@@ -37,7 +37,7 @@ pub type Object<K, V> = vecmap::VecMap<K, V>;
 
 /// A type representing the expression sub-language. It is used in HCL attributes to specify
 /// values and in HCL templates.
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Expression {
     /// Represents a null value.
