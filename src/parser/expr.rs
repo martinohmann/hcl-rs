@@ -277,7 +277,7 @@ impl<'a> Iterator for ObjectIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         match (self.inner.next(), self.inner.next()) {
             (Some(k), Some(v)) => Some((k, v)),
-            (Some(k), None) => panic!("missing value for key: {}", k),
+            (Some(k), None) => panic!("missing value for key: {k}"),
             (_, _) => None,
         }
     }

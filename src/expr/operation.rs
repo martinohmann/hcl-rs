@@ -79,7 +79,7 @@ impl FromStr for UnaryOperator {
         match s {
             "-" => Ok(UnaryOperator::Neg),
             "!" => Ok(UnaryOperator::Not),
-            _ => Err(Error::new(format!("invalid unary operator: `{}`", s))),
+            _ => Err(Error::new(format!("invalid unary operator: `{s}`"))),
         }
     }
 }
@@ -296,7 +296,7 @@ impl FromStr for BinaryOperator {
             "%" => Ok(BinaryOperator::Mod),
             "&&" => Ok(BinaryOperator::And),
             "||" => Ok(BinaryOperator::Or),
-            _ => Err(Error::new(format!("invalid binary operator: `{}`", s))),
+            _ => Err(Error::new(format!("invalid binary operator: `{s}`"))),
         }
     }
 }

@@ -90,7 +90,7 @@ impl fmt::Display for ErrorInner {
         write!(f, "{}", self.kind)?;
 
         if let Some(expr) = &self.expr {
-            write!(f, " in expression `{}`", expr)?;
+            write!(f, " in expression `{expr}`")?;
         }
 
         Ok(())
@@ -147,17 +147,17 @@ impl fmt::Display for ErrorKind {
         match self {
             ErrorKind::Message(msg) => f.write_str(msg),
             ErrorKind::UndefinedVar(ident) => {
-                write!(f, "undefined variable `{}`", ident)
+                write!(f, "undefined variable `{ident}`")
             }
             ErrorKind::UndefinedFunc(ident) => {
-                write!(f, "undefined function `{}`", ident)
+                write!(f, "undefined function `{ident}`")
             }
             ErrorKind::Unexpected(value, expected) => {
-                write!(f, "unexpected value `{}`, expected {}", value, expected)
+                write!(f, "unexpected value `{value}`, expected {expected}")
             }
-            ErrorKind::Index(index) => write!(f, "index out of bounds: {}", index),
-            ErrorKind::NoSuchKey(key) => write!(f, "no such key: `{}`", key),
-            ErrorKind::KeyExists(key) => write!(f, "key `{}` already exists", key),
+            ErrorKind::Index(index) => write!(f, "index out of bounds: {index}"),
+            ErrorKind::NoSuchKey(key) => write!(f, "no such key: `{key}`"),
+            ErrorKind::KeyExists(key) => write!(f, "key `{key}` already exists"),
             ErrorKind::UnaryOp(operator, value) => write!(
                 f,
                 "unary operator `{}` is not applicable to `{}`",
@@ -169,7 +169,7 @@ impl fmt::Display for ErrorKind {
                 operator, lhs, rhs
             ),
             ErrorKind::FuncCall(name, msg) => {
-                write!(f, "error calling function `{}`: {}", name, msg)
+                write!(f, "error calling function `{name}`: {msg}")
             }
         }
     }

@@ -97,5 +97,5 @@ fn inner(pair: Pair<Rule>) -> Pair<Rule> {
 
 #[track_caller]
 fn unexpected_rule(rule: Rule) -> ! {
-    panic!("unexpected rule: {:?}", rule)
+    panic!("unexpected rule: {rule:?}")
 }

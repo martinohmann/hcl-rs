@@ -133,7 +133,7 @@ impl FromStr for HeredocStripMode {
         match s {
             "<<" => Ok(HeredocStripMode::None),
             "<<-" => Ok(HeredocStripMode::Indent),
-            _ => Err(Error::new(format!("invalid heredoc strip mode: `{}`", s))),
+            _ => Err(Error::new(format!("invalid heredoc strip mode: `{s}`"))),
         }
     }
 }

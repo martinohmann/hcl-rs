@@ -89,9 +89,9 @@ impl fmt::Display for ParamType {
             ParamType::Bool => f.write_str("`bool`"),
             ParamType::Number => f.write_str("`number`"),
             ParamType::String => f.write_str("`string`"),
-            ParamType::Array(elem_type) => write!(f, "`array({})`", elem_type),
-            ParamType::Object(elem_type) => write!(f, "`object({})`", elem_type),
-            ParamType::Nullable(elem_type) => write!(f, "`nullable({})`", elem_type),
+            ParamType::Array(elem_type) => write!(f, "`array({elem_type})`"),
+            ParamType::Object(elem_type) => write!(f, "`object({elem_type})`"),
+            ParamType::Nullable(elem_type) => write!(f, "`nullable({elem_type})`"),
             ParamType::OneOf(elem_types) => match elem_types.len() {
                 0 => f.write_str("`any`"),
                 1 => fmt::Display::fmt(&elem_types[0], f),

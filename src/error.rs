@@ -67,16 +67,16 @@ impl Display for Error {
             Error::Utf8(err) => Display::fmt(err, f),
             Error::Message { msg, location } => match location {
                 Some(loc) => {
-                    write!(f, "{} in line {}, col {}", msg, loc.line, loc.col)
+                    write!(f, "{msg} in line {}, col {}", loc.line, loc.col)
                 }
-                None => write!(f, "{}", msg),
+                None => write!(f, "{msg}"),
             },
-            Error::InvalidEscape(c) => write!(f, "invalid escape sequence '\\{}'", c),
+            Error::InvalidEscape(c) => write!(f, "invalid escape sequence '\\{c}'"),
             Error::InvalidUnicodeCodePoint(u) => {
-                write!(f, "invalid unicode code point '\\u{}'", u)
+                write!(f, "invalid unicode code point '\\u{u}'")
             }
-            Error::InvalidIdentifier(ident) => write!(f, "invalid identifier `{}`", ident),
-            Error::Eval(err) => write!(f, "eval error: {}", err),
+            Error::InvalidIdentifier(ident) => write!(f, "invalid identifier `{ident}`"),
+            Error::Eval(err) => write!(f, "eval error: {err}"),
         }
     }
 }

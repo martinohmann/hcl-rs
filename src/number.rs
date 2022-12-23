@@ -228,7 +228,7 @@ impl fmt::Display for Number {
 
 impl fmt::Debug for Number {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "Number({})", self)
+        write!(formatter, "Number({self})")
     }
 }
 
