@@ -345,11 +345,13 @@ impl Format for Conditional {
     where
         W: io::Write,
     {
-        self.cond_expr.format(fmt)?;
-        fmt.write_bytes(b" ? ")?;
-        self.true_expr.format(fmt)?;
-        fmt.write_bytes(b" : ")?;
-        self.false_expr.format(fmt)
+        fmt.with_compact_mode(|fmt| {
+            self.cond_expr.format(fmt)?;
+            fmt.write_bytes(b" ? ")?;
+            self.true_expr.format(fmt)?;
+            fmt.write_bytes(b" : ")?;
+            self.false_expr.format(fmt)
+        })
     }
 }
 
