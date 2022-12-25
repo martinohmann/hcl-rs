@@ -28,30 +28,30 @@ path = "specsuite/main.rs"
 harness = false
 
 [dependencies]
-pest = "2.2.1"
-pest_derive = "2.2.1"
-itoa = "1.0.1"
-ryu = "1.0.9"
-unicode-ident = "1.0.0"
+pest = "2.5.2"
+pest_derive = "2.5.2"
+itoa = "1.0.5"
+ryu = "1.0.12"
+unicode-ident = "1.0.6"
 
 [dependencies.indexmap]
 features = ["serde"]
-version = "1.7.0"
+version = "1.9.2"
 
 [dependencies.serde]
 features = ["derive"]
-version = "1.0.130"
+version = "1.0.151"
 
 [dependencies.vecmap-rs]
 features = ["serde"]
-version = "0.1.7"
+version = "0.1.9"
 
 [dev-dependencies]
 criterion = "0.4"
-assert-json-diff = "2.0.1"
+assert-json-diff = "2.0.2"
 pretty_assertions = "1.3.0"
 textwrap = "0.16.0"
 
 [dev-dependencies.serde_json]
 features = ["preserve_order"]
-version = "1.0.68"
+version = "1.0.91"
