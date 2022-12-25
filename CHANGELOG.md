@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.11.0](https://github.com/martinohmann/hcl-rs/compare/v0.10.0...v0.11.0) (2022-12-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **serde:** `hcl::ser::Serializer` does not implement `serde::Serializer` anymore. Use `serializer.serialize(&value)` in places where `value.serialize(&mut serializer)` was used before.
+
+### Features
+
+* **de:** support expressions in custom types ([#139](https://github.com/martinohmann/hcl-rs/issues/139)) ([3fd68ec](https://github.com/martinohmann/hcl-rs/commit/3fd68ec70c7f2a30ef5e13782e473ca654b2cef8)), closes [#137](https://github.com/martinohmann/hcl-rs/issues/137)
+* **serde:** use internal serialization to roundtrip crate types ([#135](https://github.com/martinohmann/hcl-rs/issues/135)) ([fbd555b](https://github.com/martinohmann/hcl-rs/commit/fbd555b457e3f97d443ffdd33b9ed15971aa4a2a))
+* **ser:** support serializing blocks from custom types ([#140](https://github.com/martinohmann/hcl-rs/issues/140)) ([d97bceb](https://github.com/martinohmann/hcl-rs/commit/d97bceb3c76865012f5177e66c4767db9decaaf8)), closes [#138](https://github.com/martinohmann/hcl-rs/issues/138)
+
+
+### Miscellaneous
+
+* **clippy:** fix newly added lints ([e95e4d0](https://github.com/martinohmann/hcl-rs/commit/e95e4d0c7bb5b5c975738da3d69796ac37b64f0f))
+* **deps:** bump dependencies to latest versions ([#141](https://github.com/martinohmann/hcl-rs/issues/141)) ([509e62e](https://github.com/martinohmann/hcl-rs/commit/509e62e41d3e574ec39b15199ed77bd0ec1cbf64))
+
 ## [0.10.0](https://github.com/martinohmann/hcl-rs/compare/v0.9.3...v0.10.0) (2022-11-17)
 
 
