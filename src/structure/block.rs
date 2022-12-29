@@ -134,6 +134,14 @@ impl BlockLabel {
             BlockLabel::String(string) => string,
         }
     }
+
+    /// Borrows the `BlockLabel`'s inner value as a `&str`.
+    pub fn as_str(&self) -> &str {
+        match self {
+            BlockLabel::Identifier(ident) => ident.as_str(),
+            BlockLabel::String(string) => string.as_str(),
+        }
+    }
 }
 
 impl<T> From<T> for BlockLabel
