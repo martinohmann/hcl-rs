@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/martinohmann/hcl-rs/compare/v0.11.0...v0.11.1) (2022-12-29)
+
+
+### Features
+
+* **structure:** add `BlockLabel::as_str` ([#144](https://github.com/martinohmann/hcl-rs/issues/144)) ([75ade0b](https://github.com/martinohmann/hcl-rs/commit/75ade0bce3cf1b53acba4fc6177a412ac9dedfd2)), closes [#143](https://github.com/martinohmann/hcl-rs/issues/143)
+
 ## [0.11.0](https://github.com/martinohmann/hcl-rs/compare/v0.10.0...v0.11.0) (2022-12-25)
 
 
