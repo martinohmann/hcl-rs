@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2](https://github.com/martinohmann/hcl-rs/compare/v0.11.1...v0.11.2) (2022-12-31)
+
+
+### Features
+
+* **structure:** add `Structure::into_{attribute, block}` ([e927806](https://github.com/martinohmann/hcl-rs/commit/e927806e55035b1f3dc509686c1e6a8dd317249e))
+
 ## [0.11.1](https://github.com/martinohmann/hcl-rs/compare/v0.11.0...v0.11.1) (2022-12-29)
 
 
