@@ -1354,15 +1354,14 @@ where
     T: ?Sized + Serialize,
     F: Fn(&mut Vec<BlockLabel>),
 {
-    for structure in value.serialize(BlockSerializer::new(ident))? {
-        match structure {
-            Structure::Attribute(_) => unreachable!(),
-            Structure::Block(mut block) => {
-                f(&mut block.labels);
-                structures.push(block.into());
-            }
-        }
-    }
+    value
+        .serialize(BlockSerializer::new(ident))?
+        .into_iter()
+        .filter_map(Structure::into_block)
+        .for_each(|mut block| {
+            f(&mut block.labels);
+            structures.push(block.into());
+        });
 
     Ok(())
 }

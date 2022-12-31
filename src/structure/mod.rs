@@ -85,8 +85,16 @@ impl Structure {
         self.as_block().is_some()
     }
 
-    /// If the `Structure` is an Attribute, returns a reference to the `Attribute`. Returns None
-    /// otherwise.
+    /// Takes ownership of the `Structure` and, if it is an `Attribute`, returns its value,
+    /// otherwise `None`.
+    pub fn into_attribute(self) -> Option<Attribute> {
+        match self {
+            Structure::Attribute(attr) => Some(attr),
+            Structure::Block(_) => None,
+        }
+    }
+
+    /// If the `Structure` is an `Attribute`, returns a reference to it, otherwise `None`.
     pub fn as_attribute(&self) -> Option<&Attribute> {
         match self {
             Structure::Attribute(attr) => Some(attr),
@@ -94,8 +102,7 @@ impl Structure {
         }
     }
 
-    /// If the `Structure` is an Attribute, returns a mutable reference to the `Attribute`. Returns
-    /// None otherwise.
+    /// If the `Structure` is an `Attribute`, returns a mutable reference to it, otherwise `None`.
     pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
         match self {
             Structure::Attribute(attr) => Some(attr),
@@ -103,7 +110,16 @@ impl Structure {
         }
     }
 
-    /// If the `Structure` is a Block, returns a reference to the `Block`. Returns None otherwise.
+    /// Takes ownership of the `Structure` and, if it is a `Block`, returns its value,
+    /// otherwise `None`.
+    pub fn into_block(self) -> Option<Block> {
+        match self {
+            Structure::Block(block) => Some(block),
+            Structure::Attribute(_) => None,
+        }
+    }
+
+    /// If the `Structure` is a `Block`, returns a reference to it, otherwise `None`.
     pub fn as_block(&self) -> Option<&Block> {
         match self {
             Structure::Block(block) => Some(block),
@@ -111,8 +127,7 @@ impl Structure {
         }
     }
 
-    /// If the `Structure` is a Block, returns a mutable reference to the `Block`. Returns None
-    /// otherwise.
+    /// If the `Structure` is a `Block`, returns a mutable reference to it, otherwise `None`.
     pub fn as_block_mut(&mut self) -> Option<&mut Block> {
         match self {
             Structure::Block(block) => Some(block),
