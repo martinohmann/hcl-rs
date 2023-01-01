@@ -49,6 +49,7 @@ mod attribute;
 mod block;
 mod body;
 pub(crate) mod de;
+pub mod iter;
 mod json_spec;
 mod ser;
 #[cfg(test)]
