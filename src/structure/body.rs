@@ -1,11 +1,13 @@
 //! Types to represent and build HCL body structures.
 
+use super::iter::{
+    Attributes, AttributesMut, Blocks, BlocksMut, IntoAttributes, IntoBlocks, Iter, IterMut,
+};
 use super::ser::BodySerializer;
 use super::{Attribute, Block, Structure};
 use crate::ser::with_internal_serialization;
 use crate::Result;
 use serde::{Deserialize, Serialize};
-use std::vec::IntoIter;
 
 /// Represents an HCL config file body.
 ///
@@ -33,158 +35,204 @@ impl Body {
         BodyBuilder::default()
     }
 
-    /// Returns an iterator over all [`Structure`]s of the `Body`.
+    /// An iterator visiting all structures within the `Body`. The iterator element type is `&'a
+    /// Structure`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Body};
+    ///
+    /// let body = Body::from([
+    ///     Attribute::new("a", 1),
+    ///     Attribute::new("b", 2),
+    ///     Attribute::new("c", 3),
+    /// ]);
+    ///
+    /// for structure in body.iter() {
+    ///     println!("{structure:?}");
+    /// }
+    /// ```
     pub fn iter(&self) -> Iter<'_> {
-        Iter {
-            inner: self.0.iter(),
-        }
+        Iter::new(self)
     }
 
-    /// Returns an iterator over all [`Structure`]s of the `Body` that allows modifying the
-    /// structures.
+    /// An iterator visiting all structures within the `Body`. The iterator element type is `&'a
+    /// mut Structure`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Identifier, Structure};
+    ///
+    /// let mut body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// // Update all attribute keys and block identifiers
+    /// for structure in body.iter_mut() {
+    ///     match structure {
+    ///         Structure::Attribute(attr) => {
+    ///             attr.key = Identifier::new(format!("attr_{}", attr.key)).unwrap();
+    ///         }
+    ///         Structure::Block(block) => {
+    ///             block.identifier = Identifier::new(format!("block_{}", block.identifier)).unwrap();
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// assert_eq!(body.into_inner(), [
+    ///     Structure::Attribute(Attribute::new("attr_a", 1)),
+    ///     Structure::Block(Block::new("block_b")),
+    ///     Structure::Attribute(Attribute::new("attr_c", 3)),
+    /// ]);
+    /// ```
     pub fn iter_mut(&mut self) -> IterMut<'_> {
-        IterMut {
-            inner: self.0.iter_mut(),
-        }
+        IterMut::new(self)
     }
 
-    /// Returns an iterator over all [`Attribute`]s of the `Body`.
-    pub fn attributes(&self) -> AttributeIter<'_> {
-        AttributeIter { inner: self.iter() }
+    /// An iterator visiting all attributes within the `Body`. The iterator element type is `&'a
+    /// Attribute`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Structure};
+    ///
+    /// let body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// let vec: Vec<&Attribute> = body.attributes().collect();
+    /// assert_eq!(vec, [&Attribute::new("a", 1), &Attribute::new("c", 3)]);
+    /// ```
+    pub fn attributes(&self) -> Attributes<'_> {
+        Attributes::new(self)
     }
 
-    /// Returns an iterator over all [`Attribute`]s of the `Body` that allows modifying the
-    /// attributes.
-    pub fn attributes_mut(&mut self) -> AttributeIterMut<'_> {
-        AttributeIterMut {
-            inner: self.iter_mut(),
-        }
+    /// An iterator visiting all attributes within the `Body`. The iterator element type is `&'a
+    /// mut Attribute`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Identifier, Structure};
+    ///
+    /// let mut body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// // Update all attribute keys
+    /// for attr in body.attributes_mut() {
+    ///     attr.key = Identifier::new(format!("attr_{}", attr.key)).unwrap();
+    /// }
+    ///
+    /// assert_eq!(body.into_inner(), [
+    ///     Structure::Attribute(Attribute::new("attr_a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("attr_c", 3)),
+    /// ]);
+    /// ```
+    pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+        AttributesMut::new(self)
     }
 
-    /// Returns an iterator over all [`Block`]s of the `Body`.
-    pub fn blocks(&self) -> BlockIter<'_> {
-        BlockIter { inner: self.iter() }
+    /// Creates a consuming iterator visiting all attributes within the `Body`. The object cannot
+    /// be used after calling this. The iterator element type is `Attribute`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Structure};
+    ///
+    /// let body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// let vec: Vec<Attribute> = body.into_attributes().collect();
+    /// assert_eq!(vec, [Attribute::new("a", 1), Attribute::new("c", 3)]);
+    /// ```
+    pub fn into_attributes(self) -> IntoAttributes {
+        IntoAttributes::new(self)
     }
 
-    /// Returns an iterator over all [`Block`]s of the `Body` that allows modifying the blocks.
-    pub fn blocks_mut(&mut self) -> BlockIterMut<'_> {
-        BlockIterMut {
-            inner: self.iter_mut(),
-        }
+    /// An iterator visiting all blocks within the `Body`. The iterator element type is `&'a
+    /// Block`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Structure};
+    ///
+    /// let body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// let vec: Vec<&Block> = body.blocks().collect();
+    /// assert_eq!(vec, [&Block::new("b")]);
+    /// ```
+    pub fn blocks(&self) -> Blocks<'_> {
+        Blocks::new(self)
     }
-}
 
-/// Immutable body iterator.
-///
-/// This struct is created by the [`iter`](Body::iter) method on a [`Body`].
-pub struct Iter<'a> {
-    inner: std::slice::Iter<'a, Structure>,
-}
-
-impl<'a> Iterator for Iter<'a> {
-    type Item = &'a Structure;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
+    /// An iterator visiting all blocks within the `Body`. The iterator element type is `&'a mut
+    /// Block`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Identifier, Structure};
+    ///
+    /// let mut body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// // Update all block identifiers
+    /// for block in body.blocks_mut() {
+    ///     block.identifier = Identifier::new(format!("block_{}", block.identifier)).unwrap();
+    /// }
+    ///
+    /// assert_eq!(body.into_inner(), [
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("block_b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    /// ```
+    pub fn blocks_mut(&mut self) -> BlocksMut<'_> {
+        BlocksMut::new(self)
     }
-}
 
-/// Mutable body iterator.
-///
-/// This struct is created by the [`iter_mut`](Body::iter_mut) method on a [`Body`].
-pub struct IterMut<'a> {
-    inner: std::slice::IterMut<'a, Structure>,
-}
-
-impl<'a> Iterator for IterMut<'a> {
-    type Item = &'a mut Structure;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next()
-    }
-}
-
-/// Immutable `Attribute` iterator.
-///
-/// This struct is created by the [`attributes`](Body::attributes) method on a [`Body`].
-pub struct AttributeIter<'a> {
-    inner: Iter<'a>,
-}
-
-impl<'a> Iterator for AttributeIter<'a> {
-    type Item = &'a Attribute;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for structure in &mut self.inner {
-            if let Structure::Attribute(attr) = structure {
-                return Some(attr);
-            }
-        }
-
-        None
-    }
-}
-
-/// Mutable `Attribute` iterator.
-///
-/// This struct is created by the [`attributes_mut`](Body::attributes_mut) method on a [`Body`].
-pub struct AttributeIterMut<'a> {
-    inner: IterMut<'a>,
-}
-
-impl<'a> Iterator for AttributeIterMut<'a> {
-    type Item = &'a mut Attribute;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for structure in &mut self.inner {
-            if let Structure::Attribute(attr) = structure {
-                return Some(attr);
-            }
-        }
-
-        None
-    }
-}
-
-/// Immutable `Block` iterator.
-///
-/// This struct is created by the [`blocks`](Body::blocks) method on a [`Body`].
-pub struct BlockIter<'a> {
-    inner: Iter<'a>,
-}
-
-impl<'a> Iterator for BlockIter<'a> {
-    type Item = &'a Block;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for structure in &mut self.inner {
-            if let Structure::Block(block) = structure {
-                return Some(block);
-            }
-        }
-
-        None
-    }
-}
-
-/// Mutable `Block` iterator.
-///
-/// This struct is created by the [`blocks_mut`](Body::blocks_mut) method on a [`Body`].
-pub struct BlockIterMut<'a> {
-    inner: IterMut<'a>,
-}
-
-impl<'a> Iterator for BlockIterMut<'a> {
-    type Item = &'a mut Block;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for structure in &mut self.inner {
-            if let Structure::Block(block) = structure {
-                return Some(block);
-            }
-        }
-
-        None
+    /// Creates a consuming iterator visiting all blocks within the `Body`. The object cannot
+    /// be used after calling this. The iterator element type is `Block`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl::{Attribute, Block, Body, Structure};
+    ///
+    /// let body = Body::from([
+    ///     Structure::Attribute(Attribute::new("a", 1)),
+    ///     Structure::Block(Block::new("b")),
+    ///     Structure::Attribute(Attribute::new("c", 3)),
+    /// ]);
+    ///
+    /// let vec: Vec<Block> = body.into_blocks().collect();
+    /// assert_eq!(vec, [Block::new("b")]);
+    /// ```
+    pub fn into_blocks(self) -> IntoBlocks {
+        IntoBlocks::new(self)
     }
 }
 
@@ -197,25 +245,39 @@ where
     }
 }
 
-impl<S> FromIterator<S> for Body
+impl<T> From<Vec<T>> for Body
 where
-    S: Into<Structure>,
+    T: Into<Structure>,
 {
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-    {
-        Body(iter.into_iter().map(Into::into).collect())
+    fn from(vec: Vec<T>) -> Self {
+        Body::from_iter(vec)
     }
 }
 
-impl IntoIterator for Body {
-    type Item = Structure;
+impl<T> From<&[T]> for Body
+where
+    T: Clone + Into<Structure>,
+{
+    fn from(slice: &[T]) -> Self {
+        Body::from_iter(slice.to_vec())
+    }
+}
 
-    type IntoIter = IntoIter<Self::Item>;
+impl<T> From<&mut [T]> for Body
+where
+    T: Clone + Into<Structure>,
+{
+    fn from(slice: &mut [T]) -> Self {
+        Body::from_iter(slice.to_vec())
+    }
+}
 
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
+impl<T, const N: usize> From<[T; N]> for Body
+where
+    T: Into<Structure>,
+{
+    fn from(arr: [T; N]) -> Self {
+        Body::from_iter(arr)
     }
 }
 
