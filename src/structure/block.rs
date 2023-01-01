@@ -25,19 +25,15 @@ pub struct Block {
 }
 
 impl Block {
-    /// Creates a new `Block` from a block identifier, block labels and a block body.
-    pub fn new<I, L, B>(identifier: I, labels: L, body: B) -> Block
+    /// Creates a new empty `Block`.
+    pub fn new<I>(ident: I) -> Block
     where
         I: Into<Identifier>,
-        L: IntoIterator,
-        L::Item: Into<BlockLabel>,
-        B: IntoIterator,
-        B::Item: Into<Structure>,
     {
         Block {
-            identifier: identifier.into(),
-            labels: labels.into_iter().map(Into::into).collect(),
-            body: body.into_iter().collect(),
+            identifier: ident.into(),
+            labels: Vec::new(),
+            body: Body::default(),
         }
     }
 
@@ -69,13 +65,31 @@ impl Block {
 impl<I, B> From<(I, B)> for Block
 where
     I: Into<Identifier>,
-    B: Into<Body>,
+    B: IntoIterator,
+    B::Item: Into<Structure>,
 {
     fn from((ident, body): (I, B)) -> Block {
         Block {
             identifier: ident.into(),
             labels: Vec::new(),
-            body: body.into(),
+            body: body.into_iter().collect(),
+        }
+    }
+}
+
+impl<I, L, B> From<(I, L, B)> for Block
+where
+    I: Into<Identifier>,
+    L: IntoIterator,
+    L::Item: Into<BlockLabel>,
+    B: IntoIterator,
+    B::Item: Into<Structure>,
+{
+    fn from((ident, labels, body): (I, L, B)) -> Block {
+        Block {
+            identifier: ident.into(),
+            labels: labels.into_iter().map(Into::into).collect(),
+            body: body.into_iter().collect(),
         }
     }
 }
