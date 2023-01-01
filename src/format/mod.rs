@@ -36,8 +36,6 @@
 
 mod escape;
 mod impls;
-#[cfg(test)]
-mod tests;
 
 use self::escape::{CharEscape, ESCAPE};
 use crate::Result;
@@ -765,4 +763,20 @@ where
     let mut string = value.format_string(&mut formatter)?;
     string.push('}');
     Ok(string)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::to_interpolated_string;
+    use crate::expr::{BinaryOp, BinaryOperator, FuncCall};
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn format_interpolated_string() {
+        let binop = BinaryOp::new(1, BinaryOperator::Plus, 1);
+        assert_eq!(to_interpolated_string(&binop).unwrap(), "${1 + 1}");
+
+        let expr = FuncCall::builder("add").arg(1).arg(1).build();
+        assert_eq!(to_interpolated_string(&expr).unwrap(), "${add(1, 1)}");
+    }
 }

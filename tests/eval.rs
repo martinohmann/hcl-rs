@@ -1,64 +1,38 @@
-use super::*;
-use crate::expr::Variable;
-use crate::Number;
-use std::fmt;
-use std::str::FromStr;
+mod common;
 
-#[track_caller]
-fn eval_to_ctx<T, U>(ctx: &Context, value: T, expected: U)
-where
-    T: Evaluate<Output = U> + fmt::Debug + PartialEq,
-    U: fmt::Debug + PartialEq,
-{
-    assert_eq!(value.evaluate(ctx).unwrap(), expected);
-}
-
-#[track_caller]
-fn eval_to<T, U>(value: T, expected: U)
-where
-    T: Evaluate<Output = U> + fmt::Debug + PartialEq,
-    U: fmt::Debug + PartialEq,
-{
-    let ctx = Context::new();
-    eval_to_ctx(&ctx, value, expected);
-}
-
-#[track_caller]
-fn eval_error<T, E>(value: T, expected: E)
-where
-    T: Evaluate + fmt::Debug + PartialEq,
-    <T as Evaluate>::Output: fmt::Debug,
-    E: Into<Error>,
-{
-    let ctx = Context::new();
-    let err = value.evaluate(&ctx).unwrap_err();
-    let expected = expected.into();
-    assert_eq!(err.kind(), expected.kind());
-    assert_eq!(err.expr(), expected.expr());
-}
+use common::{assert_eval, assert_eval_ctx, assert_eval_error};
+use hcl::eval::{Context, ErrorKind, EvalResult, FuncArgs, FuncDef, ParamType};
+use hcl::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, TemplateExpr, Traversal,
+    TraversalOperator, Variable,
+};
+use hcl::structure::Body;
+use hcl::template::Template;
+use hcl::{Identifier, Number, Value};
+use indoc::indoc;
 
 #[test]
 fn eval_binary_op() {
-    use {BinaryOperator::*, Operation::*};
+    use BinaryOperator::*;
 
-    eval_to(
+    assert_eval(
         BinaryOp::new(
-            Binary(BinaryOp::new(1, Div, 2)),
+            BinaryOp::new(1, Div, 2),
             Mul,
-            Binary(BinaryOp::new(3, Plus, Binary(BinaryOp::new(4, Div, 5)))),
+            BinaryOp::new(3, Plus, BinaryOp::new(4, Div, 5)),
         ),
         Value::from(2.3),
     );
-    eval_to(BinaryOp::new("foo", Eq, "foo"), Value::from(true));
-    eval_to(BinaryOp::new(false, Or, true), Value::from(true));
-    eval_to(BinaryOp::new(true, And, true), Value::from(true));
-    eval_to(BinaryOp::new(true, And, false), Value::from(false));
-    eval_to(BinaryOp::new(1, Less, 2), Value::from(true));
-    eval_to(
+    assert_eval(BinaryOp::new("foo", Eq, "foo"), Value::from(true));
+    assert_eval(BinaryOp::new(false, Or, true), Value::from(true));
+    assert_eval(BinaryOp::new(true, And, true), Value::from(true));
+    assert_eval(BinaryOp::new(true, And, false), Value::from(false));
+    assert_eval(BinaryOp::new(1, Less, 2), Value::from(true));
+    assert_eval(
         BinaryOp::new(
-            Binary(BinaryOp::new(1, Greater, 0)),
+            BinaryOp::new(1, Greater, 0),
             And,
-            Binary(BinaryOp::new("foo", NotEq, Expression::Null)),
+            BinaryOp::new("foo", NotEq, Expression::Null),
         ),
         Value::from(true),
     );
@@ -66,9 +40,9 @@ fn eval_binary_op() {
 
 #[test]
 fn eval_conditional() {
-    eval_to(Conditional::new(true, "yes", "no"), Value::from("yes"));
-    eval_to(Conditional::new(false, "yes", "no"), Value::from("no"));
-    eval_error(
+    assert_eval(Conditional::new(true, "yes", "no"), Value::from("yes"));
+    assert_eval(Conditional::new(false, "yes", "no"), Value::from("no"));
+    assert_eval_error(
         Conditional::new("foo", "yes", "no"),
         ErrorKind::Unexpected(Value::from("foo"), "a boolean"),
     );
@@ -76,25 +50,21 @@ fn eval_conditional() {
 
 #[test]
 fn eval_for_expr() {
-    eval_to(
+    assert_eval(
         ForExpr::new(
             Identifier::unchecked("item"),
             Expression::from_iter([1, 2, 3, 4, 5, 6, 7]),
-            Operation::Binary(BinaryOp::new(
-                Variable::unchecked("item"),
-                BinaryOperator::Mul,
-                2,
-            )),
+            BinaryOp::new(Variable::unchecked("item"), BinaryOperator::Mul, 2),
         )
-        .with_cond_expr(Operation::Binary(BinaryOp::new(
+        .with_cond_expr(BinaryOp::new(
             Variable::unchecked("item"),
             BinaryOperator::Less,
             5,
-        ))),
+        )),
         Value::from_iter([2, 4, 6, 8]),
     );
 
-    eval_to(
+    assert_eval(
         ForExpr::new(
             Identifier::unchecked("value"),
             Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
@@ -102,15 +72,15 @@ fn eval_for_expr() {
         )
         .with_key_var(Identifier::unchecked("key"))
         .with_key_expr(Variable::unchecked("value"))
-        .with_cond_expr(Operation::Binary(BinaryOp::new(
+        .with_cond_expr(BinaryOp::new(
             Variable::unchecked("key"),
             BinaryOperator::NotEq,
             Expression::from("d"),
-        ))),
+        )),
         Value::from_iter([("1", "a"), ("2", "b"), ("3", "c")]),
     );
 
-    eval_to(
+    assert_eval(
         ForExpr::new(
             Identifier::unchecked("value"),
             Expression::from_iter(["a", "b", "c", "d"]),
@@ -121,7 +91,7 @@ fn eval_for_expr() {
         Value::from_iter([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]),
     );
 
-    eval_to(
+    assert_eval(
         ForExpr::new(
             Identifier::unchecked("value"),
             Expression::from_iter([("a", "1"), ("b", "2"), ("c", "3"), ("d", "4")]),
@@ -131,7 +101,7 @@ fn eval_for_expr() {
         Value::from_iter(["a", "b", "c", "d"]),
     );
 
-    eval_to(
+    assert_eval(
         ForExpr::new(
             Identifier::unchecked("value"),
             Expression::from_iter(["a", "b", "c", "d"]),
@@ -142,7 +112,7 @@ fn eval_for_expr() {
         Value::from_iter([("0", "a"), ("1", "b"), ("2", "c"), ("3", "d")]),
     );
 
-    eval_to(
+    assert_eval(
         ForExpr::new(
             Identifier::unchecked("value"),
             Expression::from_iter([("a", 1), ("b", 2), ("c", 3), ("d", 4)]),
@@ -150,16 +120,16 @@ fn eval_for_expr() {
         )
         .with_key_var(Identifier::unchecked("key"))
         .with_key_expr(Expression::from("foo"))
-        .with_cond_expr(Operation::Binary(BinaryOp::new(
+        .with_cond_expr(BinaryOp::new(
             Variable::unchecked("key"),
             BinaryOperator::NotEq,
             Expression::from("d"),
-        )))
+        ))
         .with_grouping(true),
         Value::from_iter([("foo", vec![1, 2, 3])]),
     );
 
-    eval_error(
+    assert_eval_error(
         ForExpr::new(
             Identifier::unchecked("v"),
             Expression::from_iter(["a"]),
@@ -175,31 +145,31 @@ fn eval_traversal() {
     use TraversalOperator::*;
 
     // legacy index access: expr.2
-    eval_to(
+    assert_eval(
         Traversal::new(vec![1, 2, 3], [LegacyIndex(1)]),
         Value::from(2),
     );
 
     // legacy index access: expr[2]
-    eval_to(
+    assert_eval(
         Traversal::new(vec![1, 2, 3], [Index(Expression::from(2))]),
         Value::from(3),
     );
 
     // get-attr: expr.foo
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            hcl::expression!({"foo" = [1, 2, 3], "bar" = []}),
             [GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([1, 2, 3]),
     );
 
     // chain get-attr -> index: expr.foo[2]
-    eval_to(
+    assert_eval(
         Traversal::new(
             Traversal::new(
-                expression!({"foo" = [1, 2, 3], "bar" = []}),
+                hcl::expression!({"foo" = [1, 2, 3], "bar" = []}),
                 [GetAttr(Identifier::unchecked("foo"))],
             ),
             [Index(Expression::from(2))],
@@ -208,18 +178,18 @@ fn eval_traversal() {
     );
 
     // full-splat non-array
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            hcl::expression!({"foo" = [1, 2, 3], "bar" = []}),
             [FullSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([vec![1, 2, 3]]),
     );
 
     // full-splat array
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression! {
+            hcl::expression! {
                 [
                     { "foo" = 2 },
                     { "foo" = 1, "bar" = 2 }
@@ -231,7 +201,7 @@ fn eval_traversal() {
     );
 
     // full-splat null
-    eval_to(
+    assert_eval(
         Traversal::new(
             Expression::Null,
             [FullSplat, GetAttr(Identifier::unchecked("foo"))],
@@ -240,18 +210,18 @@ fn eval_traversal() {
     );
 
     // attr-splat non-array
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression!({"foo" = [1, 2, 3], "bar" = []}),
+            hcl::expression!({"foo" = [1, 2, 3], "bar" = []}),
             [AttrSplat, GetAttr(Identifier::unchecked("foo"))],
         ),
         Value::from_iter([vec![1, 2, 3]]),
     );
 
     // attr-splat array
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression! {
+            hcl::expression! {
                 [
                     { "foo" = 2 },
                     { "foo" = 1, "bar" = 2 }
@@ -263,7 +233,7 @@ fn eval_traversal() {
     );
 
     // attr-splat null
-    eval_to(
+    assert_eval(
         Traversal::new(
             Expression::Null,
             [AttrSplat, GetAttr(Identifier::unchecked("foo"))],
@@ -272,9 +242,9 @@ fn eval_traversal() {
     );
 
     // attr-splat followed by non-get-attr
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression! {
+            hcl::expression! {
                 [
                     { "foo" = { "bar" = [1, 2, 3] } },
                     { "foo" = { "bar" = [10, 20, 30] } }
@@ -284,16 +254,16 @@ fn eval_traversal() {
                 AttrSplat,
                 GetAttr(Identifier::unchecked("foo")),
                 GetAttr(Identifier::unchecked("bar")),
-                Index(expression!(1)),
+                Index(hcl::expression!(1)),
             ],
         ),
         Value::from_iter([10, 20, 30]),
     );
 
     // full-splat followed by non-get-attr
-    eval_to(
+    assert_eval(
         Traversal::new(
-            expression! {
+            hcl::expression! {
                 [
                     { "foo" = { "bar" = [1, 2, 3] } },
                     { "foo" = { "bar" = [10, 20, 30] } }
@@ -303,14 +273,14 @@ fn eval_traversal() {
                 FullSplat,
                 GetAttr(Identifier::unchecked("foo")),
                 GetAttr(Identifier::unchecked("bar")),
-                Index(expression!(1)),
+                Index(hcl::expression!(1)),
             ],
         ),
         Value::from_iter([2, 20]),
     );
 
     // errors
-    eval_error(
+    assert_eval_error(
         Traversal::new(vec![1, 2, 3], [LegacyIndex(5)]),
         ErrorKind::Index(5),
     );
@@ -340,7 +310,7 @@ fn eval_func_call() {
         FuncDef::builder().param(ParamType::String).build(strlen),
     );
 
-    eval_to_ctx(
+    assert_eval_ctx(
         &ctx,
         FuncCall::builder("add")
             .arg(FuncCall::builder("strlen").arg("foo").build())
@@ -352,50 +322,56 @@ fn eval_func_call() {
 
 #[test]
 fn eval_template() {
+    use std::str::FromStr;
+
     let mut ctx = Context::new();
     ctx.declare_var("name", "World");
 
-    eval_to_ctx(
+    assert_eval_ctx(
         &ctx,
         Template::from_str("Hello, ${name ~} !").unwrap(),
         String::from("Hello, World!"),
     );
 
-    let template_str = r#"Let's ${~ what ~} :
-%{ for item in items ~}
-- ${item}
-%{~ endfor ~}
+    let template_str = indoc! {r#"
+        Let's ${~ what ~} :
+        %{ for item in items ~}
+        - ${item}
+        %{~ endfor ~}
 
-"#;
+    "#};
 
-    let expected = r#"Let's render a list:
-- foo
-- bar
-- baz"#;
+    let expected = indoc! {r#"
+        Let's render a list:
+        - foo
+        - bar
+        - baz
+    "#}
+    .trim_end();
 
     let mut ctx = Context::new();
     ctx.declare_var("what", " render a list");
     ctx.declare_var("items", vec!["foo", "bar", "baz"]);
 
-    eval_to_ctx(
+    assert_eval_ctx(
         &ctx,
         Template::from_str(template_str).unwrap(),
-        String::from(expected),
+        expected.to_owned(),
     );
 }
 
 #[test]
 fn expr_error_context() {
-    let input = r#"
+    let input = indoc! {r#"
         block {
             attr = cond ? "yes" : "no"
         }
-    "#;
+    "#};
 
     // The `cond` variable is not defined which should forcefully fail the evaluation.
     let ctx = Context::new();
 
-    let err = from_str::<Body>(input, &ctx).unwrap_err();
+    let err = hcl::eval::from_str::<Body>(input, &ctx).unwrap_err();
 
     assert_eq!(
         err.to_string(),
@@ -406,76 +382,39 @@ fn expr_error_context() {
 #[test]
 fn interpolation_unwrapping() {
     // unwrapping
-    eval_to(TemplateExpr::from("${null}"), Value::Null);
-    eval_to(TemplateExpr::from("${\"foo\"}"), Value::from("foo"));
-    eval_to(TemplateExpr::from("${true}"), Value::Bool(true));
-    eval_to(TemplateExpr::from("${\"${true}\"}"), Value::Bool(true));
-    eval_to(
+    assert_eval(TemplateExpr::from("${null}"), Value::Null);
+    assert_eval(TemplateExpr::from("${\"foo\"}"), Value::from("foo"));
+    assert_eval(TemplateExpr::from("${true}"), Value::Bool(true));
+    assert_eval(TemplateExpr::from("${\"${true}\"}"), Value::Bool(true));
+    assert_eval(
         TemplateExpr::from("${42}"),
         Value::Number(Number::from(42u64)),
     );
-    eval_to(
+    assert_eval(
         TemplateExpr::from("${1.5}"),
         Value::Number(Number::from_f64(1.5).unwrap()),
     );
-    eval_to(
+    assert_eval(
         TemplateExpr::from("${[1, 2, 3]}"),
         Value::from_iter([1, 2, 3]),
     );
-    eval_to(
+    assert_eval(
         TemplateExpr::from("${{ a = 1, b = 2 }}"),
         Value::from_iter([("a", 1), ("b", 2)]),
     );
 
     let mut ctx = Context::new();
     ctx.declare_var("var", true);
-    eval_to_ctx(&ctx, TemplateExpr::from("${\"${var}\"}"), Value::Bool(true));
+    assert_eval_ctx(&ctx, TemplateExpr::from("${\"${var}\"}"), Value::Bool(true));
 
     // no unwrapping
-    eval_to(
+    assert_eval(
         TemplateExpr::from("hello ${true}"),
         Value::from("hello true"),
     );
-    eval_to(TemplateExpr::from("${\"\"}${true}"), Value::from("true"));
-    eval_to(
+    assert_eval(TemplateExpr::from("${\"\"}${true}"), Value::from("true"));
+    assert_eval(
         TemplateExpr::from("%{ for v in [true] }${v}%{ endfor }"),
         Value::from("true"),
     );
-}
-
-#[test]
-fn param_type() {
-    let string = Value::from("a string");
-    let number = Value::from(42);
-    let boolean = Value::from(true);
-    let string_array = Value::from_iter(["foo", "bar"]);
-    let number_array = Value::from_iter([1, 2, 3]);
-    let object_of_strings = Value::from_iter([("foo", "bar"), ("baz", "qux")]);
-    let object_of_numbers = Value::from_iter([("foo", 1), ("bar", 2)]);
-
-    let param = ParamType::String;
-    assert!(param.is_satisfied_by(&string));
-    assert!(!param.is_satisfied_by(&number));
-
-    let param = ParamType::Any;
-    assert!(param.is_satisfied_by(&string));
-    assert!(param.is_satisfied_by(&number));
-
-    let param = ParamType::nullable(ParamType::String);
-    assert!(param.is_satisfied_by(&string));
-    assert!(param.is_satisfied_by(&Value::Null));
-    assert!(!param.is_satisfied_by(&number));
-
-    let param = ParamType::one_of([ParamType::String, ParamType::Number]);
-    assert!(param.is_satisfied_by(&string));
-    assert!(param.is_satisfied_by(&number));
-    assert!(!param.is_satisfied_by(&boolean));
-
-    let param = ParamType::array_of(ParamType::String);
-    assert!(param.is_satisfied_by(&string_array));
-    assert!(!param.is_satisfied_by(&number_array));
-
-    let param = ParamType::object_of(ParamType::String);
-    assert!(param.is_satisfied_by(&object_of_strings));
-    assert!(!param.is_satisfied_by(&object_of_numbers));
 }

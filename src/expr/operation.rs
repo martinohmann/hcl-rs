@@ -300,3 +300,72 @@ impl FromStr for BinaryOperator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    macro_rules! binop {
+        ($l:expr, $op:expr, $r:expr $(,)?) => {
+            BinaryOp::new($l, $op, $r)
+        };
+    }
+
+    macro_rules! assert_normalizes_to {
+        ($op:expr, $expected:expr $(,)?) => {
+            assert_eq!($op.normalize(), $expected);
+        };
+    }
+
+    #[test]
+    fn normalize_binary_op() {
+        use BinaryOperator::{Div, Mod, Mul, Plus};
+
+        assert_normalizes_to!(
+            binop!(binop!(1, Plus, 2), Div, binop!(3, Mul, 4)),
+            binop!(1, Plus, binop!(2, Div, binop!(3, Mul, 4))),
+        );
+
+        assert_normalizes_to!(
+            binop!(binop!(1, Div, 2), Mul, binop!(3, Plus, binop!(4, Mod, 5))),
+            binop!(binop!(binop!(1, Div, 2), Mul, 3), Plus, binop!(4, Mod, 5)),
+        );
+
+        assert_normalizes_to!(
+            binop!(binop!(binop!(1, Plus, 2), Mul, 3), Div, 4),
+            binop!(1, Plus, binop!(binop!(2, Mul, 3), Div, 4)),
+        );
+
+        assert_normalizes_to!(
+            binop!(1, Div, binop!(binop!(2, Plus, 3), Mul, 4)),
+            binop!(binop!(1, Div, 2), Plus, binop!(3, Mul, 4)),
+        );
+    }
+
+    #[test]
+    fn normalize_parenthesized() {
+        use BinaryOperator::{Div, Mod, Mul, Plus};
+
+        fn parens(op: BinaryOp) -> Expression {
+            Expression::Parenthesis(Box::new(op.into()))
+        }
+
+        let op = binop!(
+            parens(binop!(1, Div, 2)),
+            Mul,
+            parens(binop!(3, Mod, parens(binop!(4, Plus, 5)))),
+        );
+
+        assert_normalizes_to!(op.clone(), op);
+    }
+
+    #[test]
+    fn already_normalized() {
+        use BinaryOperator::Plus;
+
+        let op = binop!(binop!(1, Plus, 2), Plus, binop!(3, Plus, 4));
+
+        assert_normalizes_to!(op.clone(), op);
+    }
+}

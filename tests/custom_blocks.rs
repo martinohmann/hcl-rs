@@ -1,12 +1,14 @@
+mod common;
+
+use common::assert_serialize;
 use hcl::{
     expr::{BinaryOp, BinaryOperator, Conditional, Expression, Traversal, Variable},
     ser::{block, doubly_labeled_block, labeled_block},
+    Map,
 };
-use indexmap::{indexmap, IndexMap};
-use pretty_assertions::assert_eq;
+use indexmap::indexmap;
+use indoc::indoc;
 use serde::Serialize;
-
-type Map<K, V> = IndexMap<K, V>;
 
 #[test]
 fn custom_block() {
@@ -20,15 +22,14 @@ fn custom_block() {
         block: indexmap! { "a" => "b", "c" => "d" },
     };
 
-    let expected = r#"
-block {
-  a = "b"
-  c = "d"
-}
-"#
-    .trim_start();
+    let expected = indoc! {r#"
+        block {
+          a = "b"
+          c = "d"
+        }
+    "#};
 
-    assert_eq!(hcl::to_string(&config).unwrap(), expected);
+    assert_serialize(config, expected);
 }
 
 #[test]
@@ -46,18 +47,17 @@ fn custom_labeled_block() {
         },
     };
 
-    let expected = r#"
-block "one" {
-  a = "b"
-}
+    let expected = indoc! {r#"
+        block "one" {
+          a = "b"
+        }
 
-block "two" {
-  c = "d"
-}
-"#
-    .trim_start();
+        block "two" {
+          c = "d"
+        }
+    "#};
 
-    assert_eq!(hcl::to_string(&config).unwrap(), expected);
+    assert_serialize(config, expected);
 }
 
 #[test]
@@ -77,18 +77,17 @@ fn custom_doubly_labeled_block() {
         },
     };
 
-    let expected = r#"
-block "foo" "one" {
-  a = "b"
-}
+    let expected = indoc! {r#"
+        block "foo" "one" {
+          a = "b"
+        }
 
-block "foo" "two" {
-  c = "d"
-}
-"#
-    .trim_start();
+        block "foo" "two" {
+          c = "d"
+        }
+    "#};
 
-    assert_eq!(hcl::to_string(&config).unwrap(), expected);
+    assert_serialize(config, expected);
 }
 
 #[test]
@@ -137,34 +136,33 @@ fn custom_block_structs() {
         },
     };
 
-    let expected = r#"
-a {
-  b = "c"
+    let expected = indoc! {r#"
+        a {
+          b = "c"
 
-  d {
-    e = "f1"
-  }
+          d {
+            e = "f1"
+          }
 
-  d {
-    e = "f2"
-  }
-}
+          d {
+            e = "f2"
+          }
+        }
 
-b "c1" "d" {
-  e = "f3"
-}
+        b "c1" "d" {
+          e = "f3"
+        }
 
-b "c2" "d" {
-  e = "f4"
-}
+        b "c2" "d" {
+          e = "f4"
+        }
 
-b "c2" "d" {
-  e = "f5"
-}
-"#
-    .trim_start();
+        b "c2" "d" {
+          e = "f5"
+        }
+    "#};
 
-    assert_eq!(hcl::to_string(&config).unwrap(), expected);
+    assert_serialize(config, expected);
 }
 
 #[test]
@@ -254,35 +252,34 @@ fn custom_terraform_blocks() {
         },
     };
 
-    let expected = r#"
-resource "aws_s3_bucket" "mybucket" {
-  bucket = "mybucket"
-  force_destroy = true
+    let expected = indoc! {r#"
+        resource "aws_s3_bucket" "mybucket" {
+          bucket = "mybucket"
+          force_destroy = true
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = aws_kms_key.mykey.arn
-        sse_algorithm = "aws:kms"
-      }
-    }
-  }
+          server_side_encryption_configuration {
+            rule {
+              apply_server_side_encryption_by_default {
+                kms_master_key_id = aws_kms_key.mykey.arn
+                sse_algorithm = "aws:kms"
+              }
+            }
+          }
 
-  dynamic "kubernetes_network_config" {
-    for_each = var.service_ipv4_cidr == null ? [] : [var.service_ipv4_cidr]
+          dynamic "kubernetes_network_config" {
+            for_each = var.service_ipv4_cidr == null ? [] : [var.service_ipv4_cidr]
 
-    content {
-      service_ipv4_cidr = kubernetes_network_config.value
-    }
-  }
+            content {
+              service_ipv4_cidr = kubernetes_network_config.value
+            }
+          }
 
-  tags = {
-    "application" = "myapp"
-    "environment" = "dev"
-  }
-}
-"#
-    .trim_start();
+          tags = {
+            "application" = "myapp"
+            "environment" = "dev"
+          }
+        }
+    "#};
 
-    assert_eq!(hcl::to_string(&config).unwrap(), expected);
+    assert_serialize(config, expected);
 }

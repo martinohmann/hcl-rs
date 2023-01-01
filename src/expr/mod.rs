@@ -10,8 +10,6 @@ mod func_call;
 mod operation;
 pub(crate) mod ser;
 mod template_expr;
-#[cfg(test)]
-mod tests;
 mod traversal;
 mod variable;
 
