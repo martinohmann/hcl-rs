@@ -59,6 +59,35 @@ pub trait Format: private::Sealed {
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
         W: io::Write;
+
+    /// Formats a HCL structure using a formatter and returns the result as a `Vec<u8>`.
+    ///
+    /// # Errors
+    ///
+    /// Formatting the data structure or writing to the writer may fail with an `Error`.
+    fn format_vec<W>(&self, fmt: &mut Formatter<W>) -> Result<Vec<u8>>
+    where
+        W: io::Write + AsMut<Vec<u8>>,
+    {
+        self.format(fmt)?;
+        // "Drain" the buffer by splitting off all bytes, leaving the formatter's buffer empty
+        // ready for reuse.
+        Ok(fmt.writer.as_mut().split_off(0))
+    }
+
+    /// Formats a HCL structure using a formatter and returns the result as a `String`.
+    ///
+    /// # Errors
+    ///
+    /// Formatting the data structure or writing to the writer may fail with an `Error`.
+    fn format_string<W>(&self, fmt: &mut Formatter<W>) -> Result<String>
+    where
+        W: io::Write + AsMut<Vec<u8>>,
+    {
+        let bytes = self.format_vec(fmt)?;
+        // SAFETY: The `Formatter` never emits invalid UTF-8.
+        Ok(unsafe { String::from_utf8_unchecked(bytes) })
+    }
 }
 
 #[derive(PartialEq)]
@@ -293,6 +322,53 @@ impl<'a> FormatterBuilder<'a> {
             compact_mode_level: 0,
         }
     }
+
+    /// Consumes the `FormatterBuilder` and turns it into a `Formatter` which is specialized to use
+    /// a pre-allocated `Vec<u8>` as internal buffer.
+    ///
+    /// The returned formatter can be passed to the [`format_string`][Format::format_string] or
+    /// [`format_vec`][Format::format_vec] method of types implementing [`Format`].
+    ///
+    /// Alternatively, the internal buffer can be obtained by calling
+    /// [`into_inner`][Formatter::into_inner] on the returned `Formatter` after passing it to the
+    /// [`format`][Format::format] method of a type implementing [`Format`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl::format::{Format, Formatter};
+    /// use hcl::structure::Attribute;
+    ///
+    /// let mut formatter = Formatter::builder()
+    ///     .compact_arrays(true)
+    ///     .build_vec();
+    ///
+    /// let attr = Attribute::new("foo", vec![1, 2, 3]);
+    ///
+    /// assert_eq!(attr.format_string(&mut formatter)?, "foo = [1, 2, 3]\n");
+    /// #    Ok(())
+    /// # }
+    /// ```
+    pub fn build_vec(self) -> Formatter<'a, Vec<u8>> {
+        let vec = Vec::with_capacity(128);
+        self.build(vec)
+    }
+}
+
+impl<'a> Default for Formatter<'a, Vec<u8>> {
+    /// Creates the default `Formatter` which is specialized to use a pre-allocated `Vec<u8>` as
+    /// internal buffer.
+    ///
+    /// The formatter can be passed to the [`format_string`][Format::format_string] or
+    /// [`format_vec`][Format::format_vec] method of types implementing [`Format`].
+    ///
+    /// Alternatively, the internal buffer can be obtained by calling
+    /// [`into_inner`][Formatter::into_inner] after passing it to the [`format`][Format::format]
+    /// method of a type implementing [`Format`].
+    fn default() -> Self {
+        Formatter::builder().build_vec()
+    }
 }
 
 // Public API.
@@ -315,7 +391,7 @@ where
         Formatter::builder().build(writer)
     }
 
-    /// Consumes `self` and returns the wrapped writer.
+    /// Takes ownership of the `Formatter` and returns the underlying writer.
     pub fn into_inner(self) -> W {
         self.writer
     }
@@ -635,9 +711,8 @@ pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: ?Sized + Format,
 {
-    let mut vec = Vec::with_capacity(128);
-    to_writer(&mut vec, value)?;
-    Ok(vec)
+    let mut formatter = Formatter::default();
+    value.format_vec(&mut formatter)
 }
 
 /// Format the given value as an HCL string.
@@ -652,12 +727,8 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Format,
 {
-    let vec = to_vec(value)?;
-    let string = unsafe {
-        // We do not emit invalid UTF-8.
-        String::from_utf8_unchecked(vec)
-    };
-    Ok(string)
+    let mut formatter = Formatter::default();
+    value.format_string(&mut formatter)
 }
 
 /// Format the given value as HCL into the IO stream.
@@ -689,17 +760,9 @@ pub(crate) fn to_interpolated_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Format,
 {
-    let mut buf = Vec::with_capacity(128);
-    buf.push(b'$');
-    buf.push(b'{');
-
-    let mut formatter = Formatter::builder().compact(true).build(&mut buf);
-    value.format(&mut formatter)?;
-
-    let mut string = unsafe {
-        // We do not emit invalid UTF-8.
-        String::from_utf8_unchecked(buf)
-    };
+    let mut formatter = Formatter::builder().compact(true).build_vec();
+    formatter.writer.extend([b'$', b'{']);
+    let mut string = value.format_string(&mut formatter)?;
     string.push('}');
     Ok(string)
 }

@@ -16,10 +16,8 @@ where
     T: Format,
     F: FnOnce(FormatterBuilder<'a>) -> FormatterBuilder<'a>,
 {
-    let mut buf = Vec::with_capacity(128);
-    let mut fmt = f(Formatter::builder()).build(&mut buf);
-    value.format(&mut fmt).unwrap();
-    let formatted = std::str::from_utf8(&buf).unwrap();
+    let mut fmt = f(Formatter::builder()).build_vec();
+    let formatted = value.format_string(&mut fmt).unwrap();
     assert_eq!(formatted, expected);
 }
 
