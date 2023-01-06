@@ -75,13 +75,13 @@ impl TraversalBuilder {
     }
 
     /// Add an [attribute splat operator][TraversalOperator::AttrSplat] to the traversal chain.
-    pub fn attr_splat<T>(mut self) -> Self {
+    pub fn attr_splat(mut self) -> Self {
         self.operators.push(TraversalOperator::AttrSplat);
         self
     }
 
     /// Add a [full splat operator][TraversalOperator::FullSplat] to the traversal chain.
-    pub fn full_splat<T>(mut self) -> Self {
+    pub fn full_splat(mut self) -> Self {
         self.operators.push(TraversalOperator::FullSplat);
         self
     }
