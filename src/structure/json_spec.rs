@@ -13,7 +13,7 @@ pub(crate) trait IntoJsonSpec: Sized {
     /// Provides a default implementation which converts the result of `into_nodes` into an
     /// `Expression` and unsually does not need to be overridden.
     fn into_json_spec(self) -> Expression {
-        Expression::from_iter(self.into_nodes())
+        Expression::from_iter(self.into_json_nodes())
     }
 
     /// Converts the value into a map of nodes.
@@ -21,21 +21,20 @@ pub(crate) trait IntoJsonSpec: Sized {
     /// The detour over a map of nodes is necessary as HCL blocks with the same identifier and
     /// labels need to be merged so that the `Expression` resulting from `into_json_spec` conforms
     /// to the HCL JSON specification.
-    fn into_nodes(self) -> Map<String, JsonNode>;
+    fn into_json_nodes(self) -> Map<String, JsonNode>;
 }
 
 impl IntoJsonSpec for Body {
-    fn into_nodes(self) -> Map<String, JsonNode> {
+    fn into_json_nodes(self) -> Map<String, JsonNode> {
         self.into_iter().fold(Map::new(), |mut map, structure| {
             match structure {
                 Structure::Attribute(attr) => {
                     map.insert(attr.key.into_inner(), JsonNode::Expr(attr.expr));
                 }
                 Structure::Block(block) => {
-                    block
-                        .into_nodes()
-                        .into_iter()
-                        .for_each(|(key, node)| node.deep_merge_into(&mut map, key));
+                    for (key, node) in block.into_json_nodes() {
+                        node.deep_merge_into(&mut map, key);
+                    }
                 }
             };
 
@@ -45,7 +44,7 @@ impl IntoJsonSpec for Body {
 }
 
 impl IntoJsonSpec for Block {
-    fn into_nodes(self) -> Map<String, JsonNode> {
+    fn into_json_nodes(self) -> Map<String, JsonNode> {
         let mut labels = self.labels.into_iter();
 
         let node = match labels.next() {
@@ -56,7 +55,7 @@ impl IntoJsonSpec for Block {
                     body: self.body,
                 };
 
-                JsonNode::Map(block.into_nodes())
+                JsonNode::Map(block.into_json_nodes())
             }
             None => JsonNode::Body(vec![self.body]),
         };
@@ -125,8 +124,9 @@ impl JsonNode {
     fn deep_merge(&mut self, other: JsonNode) {
         match (self, other) {
             (JsonNode::Map(lhs), JsonNode::Map(rhs)) => {
-                rhs.into_iter()
-                    .for_each(|(key, node)| node.deep_merge_into(lhs, key));
+                for (key, node) in rhs {
+                    node.deep_merge_into(lhs, key);
+                }
             }
             (JsonNode::Body(lhs), JsonNode::Body(mut rhs)) => {
                 lhs.append(&mut rhs);
