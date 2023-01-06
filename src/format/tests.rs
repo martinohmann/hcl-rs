@@ -14,7 +14,7 @@ fn expect_format<T: Format>(value: T, expected: &str) {
 fn expect_formatb<'a, F, T>(f: F, value: T, expected: &str)
 where
     T: Format,
-    F: FnOnce(FormatterBuilder<'a, &'a mut Vec<u8>>) -> FormatterBuilder<'a, &'a mut Vec<u8>>,
+    F: FnOnce(FormatterBuilder<'a>) -> FormatterBuilder<'a>,
 {
     let mut buf = Vec::with_capacity(128);
     let mut fmt = f(Formatter::builder()).build(&mut buf);

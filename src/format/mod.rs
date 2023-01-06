@@ -42,7 +42,6 @@ mod tests;
 use self::escape::{CharEscape, ESCAPE};
 use crate::Result;
 use std::io;
-use std::marker::PhantomData;
 
 mod private {
     pub trait Sealed {}
@@ -158,12 +157,11 @@ pub struct Formatter<'a, W> {
 /// A builder to create a `Formatter`.
 ///
 /// See the documentation of [`Formatter`] for a usage example.
-pub struct FormatterBuilder<'a, W> {
+pub struct FormatterBuilder<'a> {
     config: FormatConfig<'a>,
-    marker: PhantomData<W>,
 }
 
-impl<'a, W> FormatterBuilder<'a, W> {
+impl<'a> FormatterBuilder<'a> {
     /// Set the indent for indenting nested HCL structures.
     ///
     /// The default indentation is two spaces.
@@ -281,7 +279,10 @@ impl<'a, W> FormatterBuilder<'a, W> {
 
     /// Consumes the `FormatterBuilder` and turns it into a `Formatter` which writes HCL to the
     /// provided writer.
-    pub fn build(self, writer: W) -> Formatter<'a, W> {
+    pub fn build<W>(self, writer: W) -> Formatter<'a, W>
+    where
+        W: io::Write,
+    {
         Formatter {
             writer,
             config: self.config,
@@ -295,18 +296,23 @@ impl<'a, W> FormatterBuilder<'a, W> {
 }
 
 // Public API.
-impl<'a, W> Formatter<'a, W> {
+impl<'a> Formatter<'a, ()> {
+    /// Creates a new [`FormatterBuilder`] to start building a new `Formatter`.
+    pub fn builder() -> FormatterBuilder<'a> {
+        FormatterBuilder {
+            config: FormatConfig::default(),
+        }
+    }
+}
+
+// Public API.
+impl<'a, W> Formatter<'a, W>
+where
+    W: io::Write,
+{
     /// Creates a new `Formatter` which writes HCL to the provided writer.
     pub fn new(writer: W) -> Formatter<'a, W> {
         Formatter::builder().build(writer)
-    }
-
-    /// Creates a new [`FormatterBuilder`] to start building a new `Formatter`.
-    pub fn builder() -> FormatterBuilder<'a, W> {
-        FormatterBuilder {
-            config: FormatConfig::default(),
-            marker: PhantomData,
-        }
     }
 
     /// Consumes `self` and returns the wrapped writer.
