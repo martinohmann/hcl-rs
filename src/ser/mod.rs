@@ -335,8 +335,39 @@ where
     where
         T: ?Sized + Serialize,
     {
-        let body = Body::from_serializable(value)?;
-        body.format(&mut self.formatter)
+        let serialized = Body::from_serializable(value)?;
+        serialized.format(&mut self.formatter)
+    }
+}
+
+impl<'a, W> Serializer<'a, W>
+where
+    W: io::Write + AsMut<Vec<u8>>,
+{
+    /// Serialize the given value as HCL and returns the result as a `String`.
+    ///
+    /// # Errors
+    ///
+    /// Serialization fails if the type cannot be represented as HCL.
+    pub fn serialize_string<T>(&mut self, value: &T) -> Result<String>
+    where
+        T: ?Sized + Serialize,
+    {
+        let serialized = Body::from_serializable(value)?;
+        serialized.format_string(&mut self.formatter)
+    }
+
+    /// Serialize the given value as HCL and returns the result as a `Vec<u8>`.
+    ///
+    /// # Errors
+    ///
+    /// Serialization fails if the type cannot be represented as HCL.
+    pub fn serialize_vec<T>(&mut self, value: &T) -> Result<Vec<u8>>
+    where
+        T: ?Sized + Serialize,
+    {
+        let serialized = Body::from_serializable(value)?;
+        serialized.format_vec(&mut self.formatter)
     }
 }
 
@@ -353,9 +384,8 @@ pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: ?Sized + Serialize,
 {
-    let mut vec = Vec::with_capacity(128);
-    to_writer(&mut vec, value)?;
-    Ok(vec)
+    let mut serializer = Serializer::with_formatter(Formatter::default());
+    serializer.serialize_vec(value)
 }
 
 /// Serialize the given value as an HCL string.
@@ -371,12 +401,8 @@ pub fn to_string<T>(value: &T) -> Result<String>
 where
     T: ?Sized + Serialize,
 {
-    let vec = to_vec(value)?;
-    let string = unsafe {
-        // We do not emit invalid UTF-8.
-        String::from_utf8_unchecked(vec)
-    };
-    Ok(string)
+    let mut serializer = Serializer::with_formatter(Formatter::default());
+    serializer.serialize_string(value)
 }
 
 /// Serialize the given value as HCL into the IO stream.
