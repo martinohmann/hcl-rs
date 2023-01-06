@@ -5,9 +5,6 @@
 //!
 //! [hcl-json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md
 
-#[cfg(test)]
-mod tests;
-
 use crate::structure::IntoJsonSpec;
 use crate::{parser, Body, Error, Identifier, Result};
 use serde::de::value::StringDeserializer;

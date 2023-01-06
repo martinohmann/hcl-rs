@@ -264,8 +264,6 @@
 //! ```
 
 pub(crate) mod blocks;
-#[cfg(test)]
-mod tests;
 
 pub use self::blocks::{block, doubly_labeled_block, labeled_block, Block, LabeledBlock};
 use crate::format::{Format, Formatter};

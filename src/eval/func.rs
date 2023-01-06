@@ -437,3 +437,45 @@ impl<'a> Iterator for VariadicArgs<'a> {
         self.iter.next()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn param_type() {
+        let string = Value::from("a string");
+        let number = Value::from(42);
+        let boolean = Value::from(true);
+        let string_array = Value::from_iter(["foo", "bar"]);
+        let number_array = Value::from_iter([1, 2, 3]);
+        let object_of_strings = Value::from_iter([("foo", "bar"), ("baz", "qux")]);
+        let object_of_numbers = Value::from_iter([("foo", 1), ("bar", 2)]);
+
+        let param = ParamType::String;
+        assert!(param.is_satisfied_by(&string));
+        assert!(!param.is_satisfied_by(&number));
+
+        let param = ParamType::Any;
+        assert!(param.is_satisfied_by(&string));
+        assert!(param.is_satisfied_by(&number));
+
+        let param = ParamType::nullable(ParamType::String);
+        assert!(param.is_satisfied_by(&string));
+        assert!(param.is_satisfied_by(&Value::Null));
+        assert!(!param.is_satisfied_by(&number));
+
+        let param = ParamType::one_of([ParamType::String, ParamType::Number]);
+        assert!(param.is_satisfied_by(&string));
+        assert!(param.is_satisfied_by(&number));
+        assert!(!param.is_satisfied_by(&boolean));
+
+        let param = ParamType::array_of(ParamType::String);
+        assert!(param.is_satisfied_by(&string_array));
+        assert!(!param.is_satisfied_by(&number_array));
+
+        let param = ParamType::object_of(ParamType::String);
+        assert!(param.is_satisfied_by(&object_of_strings));
+        assert!(!param.is_satisfied_by(&object_of_numbers));
+    }
+}

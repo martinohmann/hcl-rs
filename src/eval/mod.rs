@@ -205,8 +205,6 @@ mod expr;
 mod func;
 mod impls;
 mod template;
-#[cfg(test)]
-mod tests;
 
 pub use self::error::{Error, ErrorKind, EvalResult};
 pub use self::func::{
