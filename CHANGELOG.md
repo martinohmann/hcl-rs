@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.12.0](https://github.com/martinohmann/hcl-rs/compare/v0.11.2...v0.12.0) (2023-01-06)
+
+
+### ⚠ BREAKING CHANGES
+
+* **structure:** The signature of `Block::new` was changed from `Block::new(ident, labels, body)` to `Block::new(ident)`. If you depend on the previos behaviour, use `Body::from((ident, labels, body))` instead.
+
+### Features
+
+* **format:** allow formatting to `String` and `Vec&lt;u8&gt;` directly ([#151](https://github.com/martinohmann/hcl-rs/issues/151)) ([2384e39](https://github.com/martinohmann/hcl-rs/commit/2384e3972db89dc3301a22857ae4dc6a0025815f))
+* **structure:** implement all structure iterators for `Body` ([#149](https://github.com/martinohmann/hcl-rs/issues/149)) ([ee752fa](https://github.com/martinohmann/hcl-rs/commit/ee752fad3d9bee3fab73656db5004cb4aaf47ee1))
+
+
+### Bug Fixes
+
+* **expr:** remove unused generics in `TraversalBuilder` ([56cbeb5](https://github.com/martinohmann/hcl-rs/commit/56cbeb557af86aa6ad0d8d2808cd5d0ab093b3d8))
+* **format:** remove unnecessary generic from `FormatterBuilder` ([010932d](https://github.com/martinohmann/hcl-rs/commit/010932d063d2cc2637fcec49633fd65b771b8612))
+* **structure:** update signature of `Block::new` ([2622f4d](https://github.com/martinohmann/hcl-rs/commit/2622f4deb156d95bc3fc9f4513861b094db8d32a))
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.0.11 to 3.2.2 ([#148](https://github.com/martinohmann/hcl-rs/issues/148)) ([10c550a](https://github.com/martinohmann/hcl-rs/commit/10c550a0a8100a98ed1afde964f9d0a1601fae12))
+* **license:** update year ([faee584](https://github.com/martinohmann/hcl-rs/commit/faee5844d83d324caefb6993e6bfcbb468f23910))
+* **test:** convert most of the tests into integration tests ([#152](https://github.com/martinohmann/hcl-rs/issues/152)) ([3361d9d](https://github.com/martinohmann/hcl-rs/commit/3361d9d38dd3145f3ee4bfe2c21dfb54ac2ae983))
+
 ## [0.11.2](https://github.com/martinohmann/hcl-rs/compare/v0.11.1...v0.11.2) (2022-12-31)
 
 
