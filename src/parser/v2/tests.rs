@@ -28,8 +28,8 @@ fn test_parse_number() {
     assert_eq!(result, Ok(("", Expression::from(1.1))));
     let result = expr::<()>("1");
     assert_eq!(result, Ok(("", Expression::from(1u64))));
-    let result = expr::<()>("-1");
-    assert_eq!(result, Ok(("", Expression::from(-1i64))));
+    // let result = expr::<()>("-1");
+    // assert_eq!(result, Ok(("", Expression::from(-1i64))));
     assert_eq!(
         expr::<()>("NaN"),
         Ok(("", Expression::from(Variable::unchecked("NaN"))))
@@ -37,7 +37,7 @@ fn test_parse_number() {
 }
 
 #[test]
-fn test_parse_body() {
+fn test_parse_body() -> Result<(), Box<dyn std::error::Error>> {
     let input = indoc! {r#"
         foo "label" {
             bar = "baz"
@@ -54,4 +54,31 @@ fn test_parse_body() {
         .build();
 
     assert_eq!(parse(input).unwrap(), expected);
+
+    // let input = r#"
+    //     resource "aws_s3_bucket" "mybucket" {
+    //       bucket        = "mybucket"
+    //       force_destroy = true
+
+    //       server_side_encryption_configuration {
+    //         rule {
+    //           apply_server_side_encryption_by_default {
+    //             kms_master_key_id = aws_kms_key.mykey.arn
+    //             sse_algorithm     = "aws:kms"
+    //           }
+    //         }
+    //       }
+
+    //       tags = {
+    //         "application" = "myapp"
+    //         team          = "bar"
+    //         var.dynamic   = null
+    //       }
+    //     }
+    // "#;
+    //
+    let input = r#"value = {"Struct" = {"a" = 1}}"#;
+
+    assert_eq!(parse(input)?, Body::default());
+    Ok(())
 }

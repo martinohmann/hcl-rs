@@ -5,6 +5,7 @@ mod template;
 mod tests;
 mod v2;
 
+pub use self::v2::parse;
 use self::{expr::expression, structure::body, template::template};
 use crate::{
     expr::Expression, structure::Body, template::Template, util::unescape, Identifier, Number,
@@ -62,7 +63,7 @@ struct HclParser;
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse(input: &str) -> Result<Body> {
+pub fn parse2(input: &str) -> Result<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
     body(pair)
 }
