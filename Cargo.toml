@@ -31,6 +31,7 @@ harness = false
 pest = "2.5.2"
 pest_derive = "2.5.2"
 itoa = "1.0.5"
+nom = "7"
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
 
