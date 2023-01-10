@@ -62,12 +62,20 @@ fn object_key_value<'a, E>(input: &'a str) -> IResult<&'a str, (ObjectKey, Expre
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    let kv_sep = || sp_comment_delimited0(one_of("=:"));
-
-    alt((
-        separated_pair(map(ident, ObjectKey::Identifier), kv_sep(), cut(expr)),
-        separated_pair(map(expr, ObjectKey::Expression), kv_sep(), cut(expr)),
-    ))(input)
+    separated_pair(
+        map(expr, |expr| {
+            // Variable identifiers without traversal are treated as identifier object keys. This
+            // allows us to avoid re-parsing the whole key-value pair when an identifier followed
+            // by a traversal operator is encountered.
+            if let Expression::Variable(variable) = expr {
+                ObjectKey::Identifier(variable.into_inner())
+            } else {
+                ObjectKey::Expression(expr)
+            }
+        }),
+        sp_comment_delimited0(one_of("=:")),
+        cut(expr),
+    )(input)
 }
 
 fn parenthesis<'a, E>(input: &'a str) -> IResult<&'a str, Box<Expression>, E>
