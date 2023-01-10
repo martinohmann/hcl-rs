@@ -1,5 +1,5 @@
 use super::{
-    combinators::{sp_comment_delimited0, ws_comment_delimited0},
+    combinators::{opt_sep, sp_comment_delimited0, ws_comment_delimited0},
     comment::ws_comment0,
     primitives::{boolean, ident, null, number, string},
 };
@@ -27,35 +27,43 @@ fn array<'a, E>(input: &'a str) -> IResult<&'a str, Vec<Expression>, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    let empty_array = map(delimited(char('['), ws_comment0, char(']')), |_| Vec::new());
-
-    let non_empty_array = delimited(
-        terminated(char('['), ws_comment0),
-        separated_list1(ws_comment_delimited0(char(',')), expr),
-        preceded(ws_comment_delimited0(opt(char(','))), char(']')),
-    );
-
-    context("array", alt((empty_array, non_empty_array)))(input)
+    context(
+        "array",
+        map(
+            delimited(
+                terminated(char('['), ws_comment0),
+                opt(terminated(
+                    separated_list1(ws_comment_delimited0(char(',')), expr),
+                    terminated(opt_sep(char(',')), ws_comment0),
+                )),
+                char(']'),
+            ),
+            Option::unwrap_or_default,
+        ),
+    )(input)
 }
 
 fn object<'a, E>(input: &'a str) -> IResult<&'a str, Object<ObjectKey, Expression>, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    let empty_object = map(delimited(char('{'), ws_comment0, char('}')), |_| {
-        Object::new()
-    });
-
-    let non_empty_object = delimited(
-        terminated(char('{'), ws_comment0),
+    context(
+        "object",
         map(
-            separated_list1(ws_comment_delimited0(opt(char(','))), object_key_value),
-            Object::from_iter,
+            delimited(
+                terminated(char('{'), ws_comment0),
+                opt(terminated(
+                    map(
+                        separated_list1(ws_comment_delimited0(one_of(",\n")), object_key_value),
+                        Object::from_iter,
+                    ),
+                    terminated(opt_sep(one_of(",\n")), ws_comment0),
+                )),
+                char('}'),
+            ),
+            Option::unwrap_or_default,
         ),
-        preceded(ws_comment_delimited0(opt(char(','))), char('}')),
-    );
-
-    context("object", alt((empty_object, non_empty_object)))(input)
+    )(input)
 }
 
 fn object_key_value<'a, E>(input: &'a str) -> IResult<&'a str, (ObjectKey, Expression), E>
@@ -130,7 +138,7 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
     map(
-        separated_pair(ident, ws_comment0, opt(func_sig)),
+        pair(ident, opt(preceded(ws_comment0, func_sig))),
         |(name, sig)| match sig {
             Some((args, expand_final)) => Expression::from(FuncCall {
                 name,

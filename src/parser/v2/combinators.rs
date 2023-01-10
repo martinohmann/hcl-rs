@@ -1,8 +1,11 @@
 use super::comment::{sp_comment0, ws_comment0};
-use nom::character::complete::{multispace0, space0};
-use nom::error::ParseError;
-use nom::sequence::delimited;
-use nom::{IResult, Parser};
+use nom::{
+    character::complete::{multispace0, space0},
+    combinator::opt,
+    error::ParseError,
+    sequence::{delimited, preceded},
+    IResult, Parser,
+};
 
 pub fn sp_delimited0<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
@@ -34,4 +37,12 @@ where
     E: ParseError<&'a str>,
 {
     delimited(ws_comment0, inner, ws_comment0)
+}
+
+pub fn opt_sep<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, Option<O>, E>
+where
+    F: Parser<&'a str, O, E> + 'a,
+    E: ParseError<&'a str>,
+{
+    opt(preceded(ws_comment0, inner))
 }

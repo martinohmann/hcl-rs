@@ -56,7 +56,7 @@ fn test_parse_body() {
 
     assert_eq!(parse(input).unwrap(), expected);
 
-    let input = r#"value = {"Struct" = {"a" = 1}}"#;
+    let input = r#"value = {"Struct"=1}"#;
 
     assert_eq!(parse(input).unwrap(), Body::default());
 }
