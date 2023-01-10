@@ -17,7 +17,7 @@ use nom::{
     character::complete::{char, one_of, u64},
     combinator::{cut, map, opt},
     error::{context, ContextError, FromExternalError, ParseError},
-    multi::{separated_list0, separated_list1},
+    multi::{many0, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
@@ -169,18 +169,16 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
     map(
-        pair(
-            preceded(
-                tag("for"),
-                ws_comment_delimited0(separated_pair(
-                    ident,
-                    ws_comment_delimited0(char(',')),
-                    opt(ident),
-                )),
-            ),
-            terminated(preceded(tag("in"), ws_comment_delimited0(expr)), char(':')),
+        delimited(
+            terminated(tag("for"), ws_comment0),
+            tuple((
+                ident,
+                opt(preceded(ws_comment_delimited0(char(',')), ident)),
+                preceded(ws_comment_delimited0(tag("in")), expr),
+            )),
+            preceded(ws_comment0, char(':')),
         ),
-        |((first, second), expr)| match second {
+        |(first, second, expr)| match second {
             Some(second) => ForIntro {
                 key_var: Some(first),
                 value_var: second,
@@ -209,15 +207,15 @@ where
     alt((
         map(
             delimited(
-                char('['),
-                ws_comment_delimited0(separated_pair(
-                    separated_pair(for_intro, ws_comment0, expr),
-                    ws_comment0,
-                    opt(for_cond_expr),
+                terminated(char('['), ws_comment0),
+                tuple((
+                    terminated(for_intro, ws_comment0),
+                    expr,
+                    opt(preceded(ws_comment0, for_cond_expr)),
                 )),
-                char(']'),
+                preceded(ws_comment0, char(']')),
             ),
-            |((intro, value_expr), cond_expr)| ForExpr {
+            |(intro, value_expr, cond_expr)| ForExpr {
                 key_var: intro.key_var,
                 value_var: intro.value_var,
                 collection_expr: intro.collection_expr,
@@ -229,19 +227,16 @@ where
         ),
         map(
             delimited(
-                char('{'),
-                ws_comment_delimited0(separated_pair(
-                    separated_pair(
-                        for_intro,
-                        ws_comment0,
-                        separated_pair(expr, ws_comment_delimited0(tag("=>")), expr),
-                    ),
-                    ws_comment0,
-                    separated_pair(opt(tag("...")), ws_comment0, opt(for_cond_expr)),
+                terminated(char('{'), ws_comment0),
+                tuple((
+                    terminated(for_intro, ws_comment0),
+                    separated_pair(expr, ws_comment_delimited0(tag("=>")), expr),
+                    opt(preceded(ws_comment0, tag("..."))),
+                    opt(preceded(ws_comment0, for_cond_expr)),
                 )),
-                char('}'),
+                preceded(ws_comment0, char('}')),
             ),
-            |((intro, (key_expr, value_expr)), (grouping, cond_expr))| ForExpr {
+            |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
                 key_var: intro.key_var,
                 value_var: intro.value_var,
                 collection_expr: intro.collection_expr,
@@ -308,7 +303,7 @@ where
                 map(for_expr, Expression::from),
                 map(parenthesis, Expression::Parenthesis),
             )),
-            separated_list0(ws_comment0, traversal_operator),
+            many0(preceded(ws_comment0, traversal_operator)),
         ),
         |(expr, operators)| {
             if operators.is_empty() {
