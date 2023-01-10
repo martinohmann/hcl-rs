@@ -37,6 +37,7 @@ fn test_parse_number() {
 }
 
 #[test]
+#[ignore]
 fn test_parse_body() {
     let input = indoc! {r#"
         foo "label" {

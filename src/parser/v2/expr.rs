@@ -5,8 +5,8 @@ use super::{
 };
 use crate::{
     expr::{
-        Expression, ForExpr, FuncCall, Object, ObjectKey, TemplateExpr, Traversal,
-        TraversalOperator, Variable,
+        BinaryOp, BinaryOperator, Expression, ForExpr, FuncCall, Object, ObjectKey, TemplateExpr,
+        Traversal, TraversalOperator, UnaryOp, UnaryOperator, Variable,
     },
     util::is_templated,
     Identifier,
@@ -17,8 +17,8 @@ use nom::{
     character::complete::{char, one_of, u64},
     combinator::{cut, map, opt},
     error::{context, ContextError, FromExternalError, ParseError},
-    multi::{many0, separated_list0, separated_list1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
+    multi::{separated_list0, separated_list1},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use std::num::ParseIntError;
@@ -254,6 +254,43 @@ where
     ))(input)
 }
 
+fn unary_operator<'a, E>(input: &'a str) -> IResult<&'a str, UnaryOperator, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
+{
+    context(
+        "unary operator",
+        alt((
+            map(char('-'), |_| UnaryOperator::Neg),
+            map(char('!'), |_| UnaryOperator::Not),
+        )),
+    )(input)
+}
+
+fn binary_operator<'a, E>(input: &'a str) -> IResult<&'a str, BinaryOperator, E>
+where
+    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
+{
+    context(
+        "binary operator",
+        alt((
+            map(tag("=="), |_| BinaryOperator::Eq),
+            map(tag("!="), |_| BinaryOperator::NotEq),
+            map(tag("<="), |_| BinaryOperator::LessEq),
+            map(tag(">="), |_| BinaryOperator::GreaterEq),
+            map(char('<'), |_| BinaryOperator::Less),
+            map(char('>'), |_| BinaryOperator::Greater),
+            map(char('+'), |_| BinaryOperator::Plus),
+            map(char('-'), |_| BinaryOperator::Minus),
+            map(char('*'), |_| BinaryOperator::Mul),
+            map(char('/'), |_| BinaryOperator::Div),
+            map(char('%'), |_| BinaryOperator::Mod),
+            map(tag("&&"), |_| BinaryOperator::And),
+            map(tag("||"), |_| BinaryOperator::Or),
+        )),
+    )(input)
+}
+
 fn expr_term<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
@@ -271,7 +308,7 @@ where
                 map(for_expr, Expression::from),
                 map(parenthesis, Expression::Parenthesis),
             )),
-            many0(ws_comment_delimited0(traversal_operator)),
+            separated_list0(ws_comment0, traversal_operator),
         ),
         |(expr, operators)| {
             if operators.is_empty() {
@@ -287,5 +324,32 @@ pub fn expr<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    context("expression", expr_term)(input)
+    context(
+        "expression",
+        map(
+            tuple((
+                opt(terminated(unary_operator, ws_comment0)),
+                expr_term,
+                opt(pair(ws_comment_delimited0(binary_operator), expr)),
+            )),
+            |(operator, expr, binary_op)| {
+                let lhs_expr = match operator {
+                    Some(operator) => match (operator, expr) {
+                        (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
+                        (operator, expr) => Expression::from(UnaryOp { operator, expr }),
+                    },
+                    None => expr,
+                };
+
+                match binary_op {
+                    Some((operator, rhs_expr)) => Expression::from(BinaryOp {
+                        lhs_expr,
+                        operator,
+                        rhs_expr,
+                    }),
+                    None => lhs_expr,
+                }
+            },
+        ),
+    )(input)
 }

@@ -9,7 +9,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::char,
-    combinator::map,
+    combinator::{map, opt},
     error::{context, ContextError, FromExternalError, ParseError},
     multi::many0,
     sequence::{delimited, pair, preceded, separated_pair, terminated},
@@ -54,7 +54,7 @@ fn block_body<'a, E>(input: &'a str) -> IResult<&'a str, Body, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    delimited(tag("{"), body, tag("}"))(input)
+    delimited(tag("{"), body, terminated(tag("}"), ws_comment0))(input)
 }
 
 fn block_label<'a, E>(input: &'a str) -> IResult<&'a str, BlockLabel, E>
@@ -83,7 +83,7 @@ where
 {
     preceded(
         ws_comment0,
-        map(many0(terminated(structure, ws_comment0)), Into::into),
+        map(many0(terminated(structure, ws_comment0)), Body::from),
     )(input)
 }
 
