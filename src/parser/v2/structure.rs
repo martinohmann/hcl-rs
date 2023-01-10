@@ -7,12 +7,11 @@ use super::{
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{
     branch::alt,
-    bytes::complete::tag,
     character::complete::char,
-    combinator::{map, opt},
+    combinator::map,
     error::{context, ContextError, FromExternalError, ParseError},
     multi::many0,
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
+    sequence::{delimited, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use std::num::ParseIntError;
@@ -37,24 +36,18 @@ where
     context(
         "block",
         map(
-            pair(
+            tuple((
                 terminated(ident, sp_comment0),
-                pair(many0(terminated(block_label, sp_comment0)), block_body),
-            ),
-            |(identifier, (labels, body))| Block {
+                many0(terminated(block_label, sp_comment0)),
+                delimited(char('{'), body, char('}')),
+            )),
+            |(identifier, labels, body)| Block {
                 identifier,
                 labels,
                 body,
             },
         ),
     )(input)
-}
-
-fn block_body<'a, E>(input: &'a str) -> IResult<&'a str, Body, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
-    delimited(tag("{"), body, terminated(tag("}"), ws_comment0))(input)
 }
 
 fn block_label<'a, E>(input: &'a str) -> IResult<&'a str, BlockLabel, E>

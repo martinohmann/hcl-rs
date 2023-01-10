@@ -167,12 +167,9 @@ pub fn ident<'a, E>(input: &'a str) -> IResult<&'a str, Identifier, E>
 where
     E: ParseError<&'a str>,
 {
-    map(
-        verify(str_ident, |ident: &str| {
-            ident != "true" && ident != "false" && ident != "null"
-        }),
-        Identifier::unchecked,
-    )(input)
+    let not_a_keyword = |ident: &str| ident != "true" && ident != "false" && ident != "null";
+
+    map(verify(str_ident, not_a_keyword), Identifier::unchecked)(input)
 }
 
 fn decimal<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
