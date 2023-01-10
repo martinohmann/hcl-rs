@@ -7,6 +7,7 @@ use hcl::expr::{
 };
 use hcl::structure::{Block, Body};
 use hcl::{Identifier, Value};
+use indoc::indoc;
 use serde::Deserialize;
 use std::fmt::Debug;
 
@@ -27,7 +28,17 @@ fn object() {
     assert_deserialize(
         r#"foo = { bar = 42, "baz" = true }"#,
         hcl::value!({ foo = { bar = 42, baz = true } }),
-    )
+    );
+
+    assert_deserialize(
+        indoc! {r#"
+            foo = {
+                bar = 42
+                "baz" = true
+            }
+        "#},
+        hcl::value!({ foo = { bar = 42, baz = true } }),
+    );
 }
 
 #[test]

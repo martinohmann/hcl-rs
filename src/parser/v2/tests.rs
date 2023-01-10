@@ -11,7 +11,7 @@ fn test_parse_string() {
     let result = expr::<()>(data);
     assert_eq!(result, Ok(("", Expression::from("abc"))));
 
-    let data = "\"tab:\\tafter tab, newline:\\nnew line, quote: \\\", emoji: \\u{1F602}, newline:\\nescaped whitespace: \\    abc\"";
+    let data = "\"tab:\\tafter tab, newline:\\nnew line, quote: \\\", emoji: \\u1F602, newline:\\nescaped whitespace: \\    abc\"";
     let result = expr::<()>(data);
     assert_eq!(
     result,
@@ -37,7 +37,6 @@ fn test_parse_number() {
 }
 
 #[test]
-#[ignore]
 fn test_parse_body() {
     let input = indoc! {r#"
         foo "label" {
@@ -56,7 +55,11 @@ fn test_parse_body() {
 
     assert_eq!(parse(input).unwrap(), expected);
 
-    let input = r#"value = {"Struct"=1}"#;
+    // let input = r#"
+    //   heredoc = <<EOS
+    //   foobarEOS
+    //   EOS
+    // "#;
 
-    assert_eq!(parse(input).unwrap(), Body::default());
+    // assert_eq!(parse(input).unwrap(), Body::default());
 }

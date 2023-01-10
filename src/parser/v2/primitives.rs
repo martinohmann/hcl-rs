@@ -15,9 +15,9 @@ use std::num::ParseIntError;
 // first we write parsers for the smallest elements (escaped characters),
 // then combine them into larger parsers.
 
-/// Parse a unicode sequence, of the form u{XXXX}, where XXXX is 1 to 6
+/// Parse a unicode sequence, of the form uXXXX, where XXXX is 1 to 6
 /// hexadecimal numerals. We will combine this later with parse_escaped_char
-/// to parse sequences like \u{00AC}.
+/// to parse sequences like \u00AC.
 fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
 where
     E: ParseError<&'a str> + FromExternalError<&'a str, ParseIntError>,
@@ -27,14 +27,8 @@ where
     let parse_hex = take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit());
 
     // `preceded` takes a prefix parser, and if it succeeds, returns the result
-    // of the body parser. In this case, it parses u{XXXX}.
-    let parse_delimited_hex = preceded(
-        char('u'),
-        // `delimited` is like `preceded`, but it parses both a prefix and a suffix.
-        // It returns the result of the middle parser. In this case, it parses
-        // {XXXX}, where XXXX is 1 to 6 hex numerals, and returns XXXX
-        delimited(char('{'), parse_hex, char('}')),
-    );
+    // of the body parser. In this case, it parses uXXXX.
+    let parse_delimited_hex = preceded(char('u'), parse_hex);
 
     // `map_res` takes the result of a parser and applies a function that returns
     // a Result. In this case we take the hex bytes from parse_hex and attempt to
