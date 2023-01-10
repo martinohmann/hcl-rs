@@ -1,8 +1,7 @@
 use super::{
     combinators::{sp_comment_delimited0, ws_comment_delimited0},
     comment::ws_comment0,
-    ident,
-    string::string,
+    primitives::{boolean, ident, null, number, string},
 };
 use crate::{
     expr::{
@@ -10,85 +9,19 @@ use crate::{
         TraversalOperator, Variable,
     },
     util::is_templated,
-    Identifier, Number,
+    Identifier,
 };
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{char, one_of, u64 as u64_num},
-    combinator::{cut, map, map_opt, opt, recognize, value},
+    character::complete::{char, one_of, u64},
+    combinator::{cut, map, opt},
     error::{context, ContextError, FromExternalError, ParseError},
-    multi::{many0, many1, separated_list0, separated_list1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    multi::{many0, separated_list0, separated_list1},
+    sequence::{delimited, pair, preceded, separated_pair, terminated},
     IResult,
 };
 use std::num::ParseIntError;
-
-fn decimal<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str>,
-{
-    recognize(many1(one_of("0123456789")))(input)
-}
-
-fn float<'a, E>(input: &'a str) -> IResult<&'a str, f64, E>
-where
-    E: ParseError<&'a str>,
-{
-    map_opt(
-        alt((
-            // Case one: .42
-            recognize(tuple((
-                char('.'),
-                decimal,
-                opt(tuple((one_of("eE"), opt(one_of("+-")), decimal))),
-            ))),
-            // Case two: 42e42 and 42.42e42
-            recognize(tuple((
-                decimal,
-                opt(preceded(char('.'), decimal)),
-                one_of("eE"),
-                opt(one_of("+-")),
-                decimal,
-            ))),
-            // Case three: 42. and 42.42
-            recognize(tuple((decimal, char('.'), opt(decimal)))),
-            // Integer
-        )),
-        |v| v.parse().ok(),
-    )(input)
-}
-
-fn integer<'a, E>(input: &'a str) -> IResult<&'a str, u64, E>
-where
-    E: ParseError<&'a str>,
-{
-    map_opt(decimal, |v| v.parse().ok())(input)
-}
-
-fn number<'a, E>(input: &'a str) -> IResult<&'a str, Number, E>
-where
-    E: ParseError<&'a str>,
-{
-    alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
-}
-
-fn boolean<'a, E>(input: &'a str) -> IResult<&'a str, bool, E>
-where
-    E: ParseError<&'a str>,
-{
-    let true_tag = value(true, tag("true"));
-    let false_tag = value(false, tag("false"));
-
-    alt((true_tag, false_tag))(input)
-}
-
-fn null<'a, E>(input: &'a str) -> IResult<&'a str, (), E>
-where
-    E: ParseError<&'a str>,
-{
-    value((), tag("null"))(input)
-}
 
 fn array<'a, E>(input: &'a str) -> IResult<&'a str, Vec<Expression>, E>
 where
@@ -170,7 +103,7 @@ where
             alt((
                 map(char('*'), |_| TraversalOperator::AttrSplat),
                 map(ident, TraversalOperator::GetAttr),
-                map(u64_num, TraversalOperator::LegacyIndex),
+                map(u64, TraversalOperator::LegacyIndex),
             )),
         ),
         delimited(

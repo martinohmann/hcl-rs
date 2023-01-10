@@ -1,11 +1,14 @@
-use nom::branch::alt;
-use nom::bytes::complete::{is_not, take_while_m_n};
-use nom::character::complete::{char, multispace1};
-use nom::combinator::{map, map_opt, map_res, value, verify};
-use nom::error::{FromExternalError, ParseError};
-use nom::multi::fold_many0;
-use nom::sequence::{delimited, preceded};
-use nom::IResult;
+use crate::{Identifier, Number};
+use nom::{
+    branch::alt,
+    bytes::complete::{is_not, tag, take_while_m_n},
+    character::complete::{alpha1, alphanumeric1, char, multispace1, one_of},
+    combinator::{map, map_opt, map_res, opt, recognize, value, verify},
+    error::{FromExternalError, ParseError},
+    multi::{fold_many0, many0_count, many1},
+    sequence::{delimited, pair, preceded, tuple},
+    IResult,
+};
 use std::num::ParseIntError;
 
 // parser combinators are constructed from the bottom up:
@@ -148,4 +151,92 @@ where
     // `delimited` with a looping parser (like fold), be sure that the
     // loop won't accidentally match your closing delimiter!
     delimited(char('"'), build_string, char('"'))(input)
+}
+
+fn str_ident<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
+where
+    E: ParseError<&'a str>,
+{
+    recognize(pair(
+        alt((alpha1, tag("_"))),
+        many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
+    ))(input)
+}
+
+pub fn ident<'a, E>(input: &'a str) -> IResult<&'a str, Identifier, E>
+where
+    E: ParseError<&'a str>,
+{
+    map(
+        verify(str_ident, |ident: &str| {
+            ident != "true" && ident != "false" && ident != "null"
+        }),
+        Identifier::unchecked,
+    )(input)
+}
+
+fn decimal<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
+where
+    E: ParseError<&'a str>,
+{
+    recognize(many1(one_of("0123456789")))(input)
+}
+
+fn float<'a, E>(input: &'a str) -> IResult<&'a str, f64, E>
+where
+    E: ParseError<&'a str>,
+{
+    map_opt(
+        alt((
+            // Case one: .42
+            recognize(tuple((
+                char('.'),
+                decimal,
+                opt(tuple((one_of("eE"), opt(one_of("+-")), decimal))),
+            ))),
+            // Case two: 42e42 and 42.42e42
+            recognize(tuple((
+                decimal,
+                opt(preceded(char('.'), decimal)),
+                one_of("eE"),
+                opt(one_of("+-")),
+                decimal,
+            ))),
+            // Case three: 42. and 42.42
+            recognize(tuple((decimal, char('.'), opt(decimal)))),
+            // Integer
+        )),
+        |v| v.parse().ok(),
+    )(input)
+}
+
+fn integer<'a, E>(input: &'a str) -> IResult<&'a str, u64, E>
+where
+    E: ParseError<&'a str>,
+{
+    map_opt(decimal, |v| v.parse().ok())(input)
+}
+
+pub fn number<'a, E>(input: &'a str) -> IResult<&'a str, Number, E>
+where
+    E: ParseError<&'a str>,
+{
+    alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
+}
+
+pub fn boolean<'a, E>(input: &'a str) -> IResult<&'a str, bool, E>
+where
+    E: ParseError<&'a str>,
+{
+    let true_tag = value(true, tag("true"));
+    let false_tag = value(false, tag("false"));
+
+    alt((true_tag, false_tag))(input)
+}
+
+pub fn null<'a, E>(input: &'a str) -> IResult<&'a str, (), E>
+where
+    E: ParseError<&'a str>,
+{
+    value((), tag("null"))(input)
 }

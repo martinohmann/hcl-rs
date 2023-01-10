@@ -2,8 +2,7 @@ use super::{
     combinators::sp_comment_delimited0,
     comment::{sp_comment0, ws_comment0},
     expr::expr,
-    ident,
-    string::string,
+    primitives::{ident, string},
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{

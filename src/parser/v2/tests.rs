@@ -37,7 +37,7 @@ fn test_parse_number() {
 }
 
 #[test]
-fn test_parse_body() -> Result<(), Box<dyn std::error::Error>> {
+fn test_parse_body() {
     let input = indoc! {r#"
         foo "label" {
             bar = "baz"
@@ -79,6 +79,5 @@ fn test_parse_body() -> Result<(), Box<dyn std::error::Error>> {
     //
     let input = r#"value = {"Struct" = {"a" = 1}}"#;
 
-    assert_eq!(parse(input)?, Body::default());
-    Ok(())
+    assert_eq!(parse(input).unwrap(), Body::default());
 }
