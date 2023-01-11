@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use hcl::{Body, Value};
 
 fn benchmark(c: &mut Criterion) {
-    let input = std::fs::read_to_string("specsuite/hcl/terraform.hcl").unwrap();
+    let input = std::fs::read_to_string("benches/terraform.hcl").unwrap();
     let body: Body = hcl::from_str(&input).unwrap();
     let value: Value = hcl::from_str(&input).unwrap();
 

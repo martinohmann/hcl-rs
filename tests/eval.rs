@@ -355,9 +355,10 @@ fn eval_template() {
 
     assert_eval_ctx(
         &ctx,
-        Template::from_str(template_str).unwrap(),
+        dbg!(Template::from_str(template_str).unwrap()),
         expected.to_owned(),
     );
+    panic!("fail");
 }
 
 #[test]
