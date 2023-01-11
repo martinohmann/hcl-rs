@@ -1,26 +1,19 @@
-mod expr;
-mod structure;
-mod template;
-#[cfg(test)]
-mod tests;
-mod v2;
+#[cfg(feature = "nom")]
+pub(crate) mod nom;
+#[cfg(feature = "pest")]
+pub(crate) mod pest;
 
-pub use self::v2::parse;
-use self::{expr::expression, structure::body, template::template};
-use crate::{
-    expr::Expression, structure::Body, template::Template, util::unescape, Identifier, Number,
-    Result,
-};
-use pest::{
-    iterators::{Pair, Pairs},
-    Parser as _,
-};
-use pest_derive::Parser;
-use std::str::FromStr;
+#[cfg(feature = "nom")]
+use self::nom::parse as parse_impl;
+#[cfg(all(feature = "nom", not(feature = "pest")))]
+use self::nom::parse_template as parse_template_impl;
 
-#[derive(Parser)]
-#[grammar = "parser/grammar/hcl.pest"]
-struct HclParser;
+#[cfg(all(feature = "pest", not(feature = "nom")))]
+use self::pest::parse as parse_impl;
+#[cfg(all(feature = "pest"))]
+use self::pest::parse_template as parse_template_impl;
+
+use crate::{structure::Body, template::Template, Result};
 
 /// Parse a `hcl::Body` from a `&str`.
 ///
@@ -63,41 +56,10 @@ struct HclParser;
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse2(input: &str) -> Result<Body> {
-    let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-    body(pair)
+pub fn parse(input: &str) -> Result<Body> {
+    parse_impl(input)
 }
 
 pub fn parse_template(input: &str) -> Result<Template> {
-    let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();
-    template(inner(pair))
-}
-
-fn string(pair: Pair<Rule>) -> String {
-    pair.as_str().to_owned()
-}
-
-fn unescape_string(pair: Pair<Rule>) -> Result<String> {
-    unescape(pair.as_str()).map(|c| c.to_string())
-}
-
-fn ident(pair: Pair<Rule>) -> Identifier {
-    Identifier::unchecked(pair.as_str())
-}
-
-fn from_str<T>(pair: Pair<Rule>) -> T
-where
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Debug,
-{
-    pair.as_str().parse::<T>().unwrap()
-}
-
-fn inner(pair: Pair<Rule>) -> Pair<Rule> {
-    pair.into_inner().next().unwrap()
-}
-
-#[track_caller]
-fn unexpected_rule(rule: Rule) -> ! {
-    panic!("unexpected rule: {rule:?}")
+    parse_template_impl(input)
 }

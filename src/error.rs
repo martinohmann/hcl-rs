@@ -1,6 +1,8 @@
 //! The `Error` and `Result` types used by this crate.
 use crate::eval;
-use crate::parser::Rule;
+#[cfg(feature = "pest")]
+use crate::parser::pest::Rule;
+#[cfg(feature = "pest")]
 use pest::{error::LineColLocation, Span};
 use serde::{de, ser};
 use std::fmt::{self, Display};
@@ -93,6 +95,7 @@ impl From<Utf8Error> for Error {
     }
 }
 
+#[cfg(feature = "pest")]
 impl From<pest::error::Error<Rule>> for Error {
     fn from(err: pest::error::Error<Rule>) -> Self {
         let (line, col) = match err.line_col {
@@ -135,6 +138,7 @@ pub struct Location {
     pub col: usize,
 }
 
+#[cfg(feature = "pest")]
 impl From<Span<'_>> for Location {
     fn from(span: Span<'_>) -> Self {
         let (line, col) = span.start_pos().line_col();

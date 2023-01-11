@@ -27,11 +27,16 @@ name = "specsuite"
 path = "specsuite/main.rs"
 harness = false
 
+[features]
+default = ["nom", "pest"]
+nom = ["dep:nom"]
+pest = ["dep:pest", "dep:pest_derive"]
+
 [dependencies]
-pest = "2.5.2"
-pest_derive = "2.5.2"
+pest = { version = "2.5.2", optional = true }
+pest_derive = { version = "2.5.2", optional = true }
 itoa = "1.0.5"
-nom = "7"
+nom = { version = "7", optional = true }
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
 
