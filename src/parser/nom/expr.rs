@@ -1,7 +1,7 @@
 use super::{
     combinators::{opt_sep, sp_comment_delimited0, ws_comment_delimited0},
     comment::{sp_comment0, ws_comment0},
-    primitives::{boolean, ident, null, number, string},
+    primitives::{boolean, ident, null, number, str_ident, string},
 };
 use crate::{
     expr::{
@@ -13,13 +13,13 @@ use crate::{
 };
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_until},
-    character::complete::{char, line_ending, one_of, space0, u64},
-    combinator::{cut, map, opt},
+    bytes::complete::tag,
+    character::complete::{anychar, char, line_ending, one_of, space0, u64},
+    combinator::{cut, map, not, opt, recognize},
     error::{context, ContextError, FromExternalError, ParseError},
     multi::{many0, many1, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
-    FindSubstring, IResult, InputLength,
+    IResult,
 };
 use std::num::ParseIntError;
 
@@ -106,79 +106,60 @@ where
     })(input)
 }
 
-fn heredoc_strip_mode<'a, E>(input: &'a str) -> IResult<&'a str, HeredocStripMode, E>
+fn heredoc_start<'a, E>(input: &'a str) -> IResult<&'a str, (HeredocStripMode, &'a str), E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    alt((
-        map(tag("<<-"), |_| HeredocStripMode::Indent),
-        map(tag("<<"), |_| HeredocStripMode::None),
-    ))(input)
+    terminated(
+        pair(
+            alt((
+                map(tag("<<-"), |_| HeredocStripMode::Indent),
+                map(tag("<<"), |_| HeredocStripMode::None),
+            )),
+            str_ident,
+        ),
+        pair(space0, line_ending),
+    )(input)
+}
+
+fn heredoc_end<'a, E>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str, E>
+where
+    E: ParseError<&'a str>,
+{
+    recognize(tuple((line_ending, space0, tag(delim))))
+}
+
+fn heredoc_template<'a, E>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, String, E>
+where
+    E: ParseError<&'a str>,
+{
+    move |input: &'a str| {
+        map(
+            recognize(many1(preceded(not(heredoc_end(delim)), anychar))),
+            |template| {
+                // Append the trailing newline here. This is easier than doing this via the parser combinators.
+                let mut template = template.to_owned();
+                template.push('\n');
+                template
+            },
+        )(input)
+    }
 }
 
 fn heredoc<'a, E>(input: &'a str) -> IResult<&'a str, Heredoc, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    let (input, (strip, delimiter)) =
-        terminated(pair(heredoc_strip_mode, ident), pair(space0, line_ending))(input)?;
+    let (input, (strip, delim)) = heredoc_start(input)?;
 
-    let delim = delimiter.as_str();
-
-    let (input, template) = terminated(take_until(HeredocDelimiter(delim)), tag(delim))(input)?;
-
-    let template = template
-        .trim_end_matches(|ch| ch == ' ' || ch == '\t')
-        .to_owned();
-
-    Ok((
-        input,
-        Heredoc {
-            delimiter,
+    map(
+        terminated(heredoc_template(delim), heredoc_end(delim)),
+        move |template| Heredoc {
+            delimiter: Identifier::unchecked(delim),
             template,
             strip,
         },
-    ))
-}
-
-#[derive(Clone)]
-struct HeredocDelimiter<'a>(&'a str);
-
-impl<'a, 'b> FindSubstring<HeredocDelimiter<'b>> for &'a str {
-    fn find_substring(&self, substr: HeredocDelimiter<'b>) -> Option<usize> {
-        let mut input = *self;
-        let mut offset = 0;
-
-        loop {
-            match input.find_substring(substr.0) {
-                Some(0) => return Some(offset),
-                Some(index) => {
-                    // Check that the delimiter is preceded by optional whitespace and a newline.
-                    for ch in input[..index].chars().rev() {
-                        if ch == '\n' {
-                            // We found a newline, this is our heredoc delimiter.
-                            return Some(index + offset);
-                        } else if !ch.is_ascii_whitespace() {
-                            break;
-                        }
-                    }
-
-                    // The delimiter did not match the criteria. Skip it and search the remaining
-                    // substring.
-                    let skip = index + substr.0.len();
-                    input = &input[skip..];
-                    offset += skip;
-                }
-                None => return None,
-            }
-        }
-    }
-}
-
-impl<'a> InputLength for HeredocDelimiter<'a> {
-    fn input_len(&self) -> usize {
-        self.0.input_len()
-    }
+    )(input)
 }
 
 fn traversal_operator<'a, E>(input: &'a str) -> IResult<&'a str, TraversalOperator, E>

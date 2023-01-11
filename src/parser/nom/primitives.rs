@@ -147,7 +147,7 @@ where
     delimited(char('"'), build_string, char('"'))(input)
 }
 
-fn str_ident<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
+pub fn str_ident<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
 where
     E: ParseError<&'a str>,
 {
