@@ -2,6 +2,7 @@ use std::num::ParseIntError;
 
 use super::primitives::ident;
 use crate::{
+    parser::nom::combinators::ws_preceded,
     template::{Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template},
     Expression, Identifier,
 };
@@ -16,7 +17,7 @@ use nom::{
     IResult,
 };
 
-use super::{combinators::ws_comment_delimited0, comment::ws_comment0, expr::expr};
+use super::{combinators::ws_delimited, expr::expr};
 
 fn literal<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
 where
@@ -39,11 +40,7 @@ where
     context(
         "interpolation",
         map(
-            tuple((
-                interpolation_start,
-                ws_comment_delimited0(expr),
-                element_end,
-            )),
+            tuple((interpolation_start, ws_delimited(expr), element_end)),
             |(strip_start, expr, strip_end)| Interpolation {
                 expr,
                 strip: StripMode::from((strip_start, strip_end)),
@@ -85,8 +82,8 @@ where
 
     let if_expr = map(
         tuple((
-            terminated(directive_start, preceded(ws_comment0, tag("if"))),
-            ws_comment_delimited0(expr),
+            terminated(directive_start, ws_preceded(tag("if"))),
+            ws_delimited(expr),
             element_end,
             template,
         )),
@@ -104,7 +101,7 @@ where
 
     let else_expr = map(
         tuple((
-            terminated(directive_start, ws_comment_delimited0(tag("else"))),
+            terminated(directive_start, ws_delimited(tag("else"))),
             element_end,
             template,
         )),
@@ -119,11 +116,7 @@ where
     }
 
     let endif_expr = map(
-        separated_pair(
-            directive_start,
-            ws_comment_delimited0(tag("endif")),
-            element_end,
-        ),
+        separated_pair(directive_start, ws_delimited(tag("endif")), element_end),
         |(strip_start, strip_end)| EndIfExpr {
             strip: StripMode::from((strip_start, strip_end)),
         },
@@ -166,10 +159,10 @@ where
 
     let for_expr = map(
         tuple((
-            terminated(directive_start, preceded(ws_comment0, tag("for"))),
-            ws_comment_delimited0(ident),
-            opt(preceded(char(','), ws_comment_delimited0(ident))),
-            preceded(tag("in"), ws_comment_delimited0(expr)),
+            terminated(directive_start, ws_preceded(tag("for"))),
+            ws_delimited(ident),
+            opt(preceded(char(','), ws_delimited(ident))),
+            preceded(tag("in"), ws_delimited(expr)),
             element_end,
             template,
         )),
@@ -193,11 +186,7 @@ where
     }
 
     let endfor_expr = map(
-        separated_pair(
-            directive_start,
-            ws_comment_delimited0(tag("endfor")),
-            element_end,
-        ),
+        separated_pair(directive_start, ws_delimited(tag("endfor")), element_end),
         |(strip_start, strip_end)| EndForExpr {
             strip: StripMode::from((strip_start, strip_end)),
         },

@@ -28,14 +28,14 @@ where
     alt((line_comment, block_comment))(input)
 }
 
-pub fn sp_comment0<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
+pub fn sp<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
 where
     E: ParseError<&'a str>,
 {
     recognize(pair(space0, many0(pair(block_comment, space0))))(input)
 }
 
-pub fn ws_comment0<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
+pub fn ws<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
 where
     E: ParseError<&'a str>,
 {

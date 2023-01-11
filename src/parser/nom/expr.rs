@@ -1,6 +1,5 @@
 use super::{
-    combinators::{opt_sep, sp_comment_delimited0, ws_comment_delimited0},
-    comment::{sp_comment0, ws_comment0},
+    combinators::{opt_sep, sp_delimited, ws_delimited, ws_preceded, ws_terminated},
     primitives::{boolean, ident, null, number, str_ident, string},
 };
 use crate::{
@@ -15,7 +14,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char, line_ending, one_of, space0, u64},
-    combinator::{cut, map, not, opt, recognize},
+    combinator::{cut, map, not, opt, recognize, value},
     error::{context, ContextError, FromExternalError, ParseError},
     multi::{many0, many1, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
@@ -31,10 +30,10 @@ where
         "array",
         map(
             delimited(
-                terminated(char('['), ws_comment0),
+                ws_terminated(char('[')),
                 opt(terminated(
-                    separated_list1(ws_comment_delimited0(char(',')), expr),
-                    terminated(opt_sep(char(',')), ws_comment0),
+                    separated_list1(ws_delimited(char(',')), expr),
+                    ws_terminated(opt_sep(char(','))),
                 )),
                 char(']'),
             ),
@@ -51,10 +50,10 @@ where
         "object",
         map(
             delimited(
-                terminated(char('{'), ws_comment0),
+                ws_terminated(char('{')),
                 opt(many1(terminated(
                     object_key_value,
-                    terminated(opt_sep(one_of(",\n")), ws_comment0),
+                    ws_terminated(opt_sep(one_of(",\n"))),
                 ))),
                 char('}'),
             ),
@@ -78,7 +77,7 @@ where
                 ObjectKey::Expression(expr)
             }
         }),
-        sp_comment_delimited0(one_of("=:")),
+        sp_delimited(one_of("=:")),
         cut(expr),
     )(input)
 }
@@ -87,10 +86,7 @@ fn parenthesis<'a, E>(input: &'a str) -> IResult<&'a str, Box<Expression>, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    map(
-        delimited(tag("("), ws_comment_delimited0(expr), tag(")")),
-        Box::new,
-    )(input)
+    map(delimited(tag("("), ws_delimited(expr), tag(")")), Box::new)(input)
 }
 
 fn string_or_template<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
@@ -113,8 +109,8 @@ where
     terminated(
         pair(
             alt((
-                map(tag("<<-"), |_| HeredocStripMode::Indent),
-                map(tag("<<"), |_| HeredocStripMode::None),
+                value(HeredocStripMode::Indent, tag("<<-")),
+                value(HeredocStripMode::None, tag("<<")),
             )),
             str_ident,
         ),
@@ -168,20 +164,20 @@ where
 {
     alt((
         preceded(
-            terminated(char('.'), ws_comment0),
+            ws_terminated(char('.')),
             alt((
-                map(char('*'), |_| TraversalOperator::AttrSplat),
+                value(TraversalOperator::AttrSplat, char('*')),
                 map(ident, TraversalOperator::GetAttr),
                 map(u64, TraversalOperator::LegacyIndex),
             )),
         ),
         delimited(
-            terminated(char('['), ws_comment0),
+            ws_terminated(char('[')),
             alt((
-                map(char('*'), |_| TraversalOperator::FullSplat),
+                value(TraversalOperator::FullSplat, char('*')),
                 map(expr, TraversalOperator::Index),
             )),
-            preceded(ws_comment0, char(']')),
+            ws_preceded(char(']')),
         ),
     ))(input)
 }
@@ -191,7 +187,7 @@ where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
     map(
-        pair(ident, opt(preceded(ws_comment0, func_sig))),
+        pair(ident, opt(ws_preceded(func_sig))),
         |(name, sig)| match sig {
             Some((args, expand_final)) => Expression::from(FuncCall {
                 name,
@@ -211,10 +207,10 @@ where
         "func signature",
         map(
             delimited(
-                terminated(char('('), ws_comment0),
+                ws_terminated(char('(')),
                 opt(pair(
-                    separated_list1(ws_comment_delimited0(char(',')), expr),
-                    terminated(opt_sep(alt((tag(","), tag("...")))), ws_comment0),
+                    separated_list1(ws_delimited(char(',')), expr),
+                    ws_terminated(opt_sep(alt((tag(","), tag("..."))))),
                 )),
                 char(')'),
             ),
@@ -238,13 +234,13 @@ where
 {
     map(
         delimited(
-            terminated(tag("for"), ws_comment0),
+            ws_terminated(tag("for")),
             tuple((
                 ident,
-                opt(preceded(ws_comment_delimited0(char(',')), ident)),
-                preceded(ws_comment_delimited0(tag("in")), expr),
+                opt(preceded(ws_delimited(char(',')), ident)),
+                preceded(ws_delimited(tag("in")), expr),
             )),
-            preceded(ws_comment0, char(':')),
+            ws_preceded(char(':')),
         ),
         |(first, second, expr)| match second {
             Some(second) => ForIntro {
@@ -265,7 +261,7 @@ fn for_cond_expr<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    preceded(terminated(tag("if"), ws_comment0), expr)(input)
+    preceded(ws_terminated(tag("if")), expr)(input)
 }
 
 fn for_list_expr<'a, E>(input: &'a str) -> IResult<&'a str, ForExpr, E>
@@ -274,9 +270,9 @@ where
 {
     map(
         tuple((
-            terminated(for_intro, ws_comment0),
+            ws_terminated(for_intro),
             expr,
-            opt(preceded(ws_comment0, for_cond_expr)),
+            opt(ws_preceded(for_cond_expr)),
         )),
         |(intro, value_expr, cond_expr)| ForExpr {
             key_var: intro.key_var,
@@ -296,10 +292,10 @@ where
 {
     map(
         tuple((
-            terminated(for_intro, ws_comment0),
-            separated_pair(expr, ws_comment_delimited0(tag("=>")), expr),
-            opt(preceded(ws_comment0, tag("..."))),
-            opt(preceded(ws_comment0, for_cond_expr)),
+            ws_terminated(for_intro),
+            separated_pair(expr, ws_delimited(tag("=>")), expr),
+            opt(ws_preceded(tag("..."))),
+            opt(ws_preceded(for_cond_expr)),
         )),
         |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
             key_var: intro.key_var,
@@ -319,14 +315,14 @@ where
 {
     alt((
         delimited(
-            terminated(char('['), ws_comment0),
+            ws_terminated(char('[')),
             for_list_expr,
-            preceded(ws_comment0, char(']')),
+            ws_preceded(char(']')),
         ),
         delimited(
-            terminated(char('{'), ws_comment0),
+            ws_terminated(char('{')),
             for_object_expr,
-            preceded(ws_comment0, char('}')),
+            ws_preceded(char('}')),
         ),
     ))(input)
 }
@@ -338,8 +334,8 @@ where
     context(
         "unary operator",
         alt((
-            map(char('-'), |_| UnaryOperator::Neg),
-            map(char('!'), |_| UnaryOperator::Not),
+            value(UnaryOperator::Neg, char('-')),
+            value(UnaryOperator::Not, char('!')),
         )),
     )(input)
 }
@@ -351,19 +347,19 @@ where
     context(
         "binary operator",
         alt((
-            map(tag("=="), |_| BinaryOperator::Eq),
-            map(tag("!="), |_| BinaryOperator::NotEq),
-            map(tag("<="), |_| BinaryOperator::LessEq),
-            map(tag(">="), |_| BinaryOperator::GreaterEq),
-            map(char('<'), |_| BinaryOperator::Less),
-            map(char('>'), |_| BinaryOperator::Greater),
-            map(char('+'), |_| BinaryOperator::Plus),
-            map(char('-'), |_| BinaryOperator::Minus),
-            map(char('*'), |_| BinaryOperator::Mul),
-            map(char('/'), |_| BinaryOperator::Div),
-            map(char('%'), |_| BinaryOperator::Mod),
-            map(tag("&&"), |_| BinaryOperator::And),
-            map(tag("||"), |_| BinaryOperator::Or),
+            value(BinaryOperator::Eq, tag("==")),
+            value(BinaryOperator::NotEq, tag("!=")),
+            value(BinaryOperator::LessEq, tag("<=")),
+            value(BinaryOperator::GreaterEq, tag(">=")),
+            value(BinaryOperator::Less, char('<')),
+            value(BinaryOperator::Greater, char('>')),
+            value(BinaryOperator::Plus, char('+')),
+            value(BinaryOperator::Minus, char('-')),
+            value(BinaryOperator::Mul, char('*')),
+            value(BinaryOperator::Div, char('/')),
+            value(BinaryOperator::Mod, char('%')),
+            value(BinaryOperator::And, tag("&&")),
+            value(BinaryOperator::Or, tag("||")),
         )),
     )(input)
 }
@@ -386,7 +382,7 @@ where
                 map(parenthesis, Expression::Parenthesis),
                 map(heredoc, Expression::from),
             )),
-            many0(preceded(ws_comment0, traversal_operator)),
+            many0(ws_preceded(traversal_operator)),
         ),
         |(expr, operators)| {
             if operators.is_empty() {
@@ -402,13 +398,13 @@ pub fn expr<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    let unary_op = terminated(unary_operator, ws_comment0);
+    let unary_op = ws_terminated(unary_operator);
 
-    let binary_op = pair(ws_comment_delimited0(binary_operator), expr);
+    let binary_op = pair(ws_delimited(binary_operator), expr);
 
     let conditional = pair(
-        sp_comment_delimited0(preceded(terminated(char('?'), sp_comment0), expr)),
-        preceded(terminated(char(':'), sp_comment0), expr),
+        preceded(sp_delimited(char('?')), expr),
+        preceded(sp_delimited(char(':')), expr),
     );
 
     context(

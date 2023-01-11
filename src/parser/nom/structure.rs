@@ -1,6 +1,5 @@
 use super::{
-    combinators::sp_comment_delimited0,
-    comment::{sp_comment0, ws_comment0},
+    combinators::{sp_delimited, sp_terminated, ws_preceded, ws_terminated},
     expr::expr,
     primitives::{ident, string},
 };
@@ -11,7 +10,7 @@ use nom::{
     combinator::map,
     error::{context, ContextError, FromExternalError, ParseError},
     multi::many0,
-    sequence::{delimited, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, separated_pair, tuple},
     IResult,
 };
 use std::num::ParseIntError;
@@ -23,7 +22,7 @@ where
     context(
         "attribute",
         map(
-            separated_pair(ident, sp_comment_delimited0(char('=')), expr),
+            separated_pair(ident, sp_delimited(char('=')), expr),
             |(key, expr)| Attribute { key, expr },
         ),
     )(input)
@@ -37,8 +36,8 @@ where
         "block",
         map(
             tuple((
-                terminated(ident, sp_comment0),
-                many0(terminated(block_label, sp_comment0)),
+                sp_terminated(ident),
+                many0(sp_terminated(block_label)),
                 delimited(char('{'), body, char('}')),
             )),
             |(identifier, labels, body)| Block {
@@ -74,10 +73,7 @@ pub fn body<'a, E>(input: &'a str) -> IResult<&'a str, Body, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
-    preceded(
-        ws_comment0,
-        map(many0(terminated(structure, ws_comment0)), Body::from),
-    )(input)
+    ws_preceded(map(many0(ws_terminated(structure)), Body::from))(input)
 }
 
 #[cfg(test)]

@@ -1,42 +1,49 @@
-use super::comment::{sp_comment0, ws_comment0};
+use super::comment::{sp, ws};
 use nom::{
-    character::complete::{multispace0, space0},
     combinator::opt,
     error::ParseError,
-    sequence::{delimited, preceded},
+    sequence::{delimited, preceded, terminated},
     IResult, Parser,
 };
 
-pub fn sp_delimited0<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn sp_delimited<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
     F: Parser<&'a str, O, E> + 'a,
     E: ParseError<&'a str>,
 {
-    delimited(space0, inner, space0)
+    delimited(sp, inner, sp)
 }
 
-pub fn ws_delimited0<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn sp_terminated<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
     F: Parser<&'a str, O, E> + 'a,
     E: ParseError<&'a str>,
 {
-    delimited(multispace0, inner, multispace0)
+    terminated(inner, sp)
 }
 
-pub fn sp_comment_delimited0<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn ws_delimited<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
     F: Parser<&'a str, O, E> + 'a,
     E: ParseError<&'a str>,
 {
-    delimited(sp_comment0, inner, sp_comment0)
+    delimited(ws, inner, ws)
 }
 
-pub fn ws_comment_delimited0<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn ws_preceded<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
     F: Parser<&'a str, O, E> + 'a,
     E: ParseError<&'a str>,
 {
-    delimited(ws_comment0, inner, ws_comment0)
+    preceded(ws, inner)
+}
+
+pub fn ws_terminated<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Parser<&'a str, O, E> + 'a,
+    E: ParseError<&'a str>,
+{
+    terminated(inner, ws)
 }
 
 pub fn opt_sep<'a, F, O, E>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, Option<O>, E>
@@ -44,5 +51,5 @@ where
     F: Parser<&'a str, O, E> + 'a,
     E: ParseError<&'a str>,
 {
-    opt(preceded(ws_comment0, inner))
+    opt(ws_preceded(inner))
 }
