@@ -1,6 +1,6 @@
 use super::{
     combinators::{opt_sep, sp_comment_delimited0, ws_comment_delimited0},
-    comment::ws_comment0,
+    comment::{sp_comment0, ws_comment0},
     primitives::{boolean, ident, null, number, string},
 };
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
         ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator, Variable,
     },
     util::is_templated,
-    Identifier,
+    Conditional, Identifier,
 };
 use nom::{
     branch::alt,
@@ -421,18 +421,25 @@ pub fn expr<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
 where
     E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
 {
+    let unary_op = terminated(unary_operator, ws_comment0);
+
+    let binary_op = pair(ws_comment_delimited0(binary_operator), expr);
+
+    let conditional = pair(
+        sp_comment_delimited0(preceded(terminated(char('?'), sp_comment0), expr)),
+        preceded(terminated(char(':'), sp_comment0), expr),
+    );
+
     context(
         "expression",
         map(
-            tuple((
-                opt(terminated(unary_operator, ws_comment0)),
-                expr_term,
-                opt(pair(ws_comment_delimited0(binary_operator), expr)),
-            )),
-            |(operator, expr, binary_op)| {
-                let lhs_expr = match operator {
+            tuple((opt(unary_op), expr_term, opt(binary_op), opt(conditional))),
+            |(unary_op, expr, binary_op, conditional)| {
+                let lhs_expr = match unary_op {
                     Some(operator) => {
-                        // Negative numbers are implemented as unary negation operations.
+                        // Negative numbers are implemented as unary negation operations in the HCL
+                        // spec. We'll convert these to negative numbers to make them more
+                        // convenient to use.
                         match (operator, expr) {
                             (UnaryOperator::Neg, Expression::Number(num)) => {
                                 Expression::Number(-num)
@@ -443,13 +450,22 @@ where
                     None => expr,
                 };
 
-                match binary_op {
+                let expr = match binary_op {
                     Some((operator, rhs_expr)) => Expression::from(BinaryOp {
                         lhs_expr,
                         operator,
                         rhs_expr,
                     }),
                     None => lhs_expr,
+                };
+
+                match conditional {
+                    Some((true_expr, false_expr)) => Expression::from(Conditional {
+                        cond_expr: expr,
+                        true_expr,
+                        false_expr,
+                    }),
+                    None => expr,
                 }
             },
         ),
