@@ -1,8 +1,4 @@
-use super::{
-    expr::expr,
-    primitives::{ident, string},
-    sp_delimited, sp_terminated, ws_preceded, ws_terminated,
-};
+use super::{expr::expr, ident, sp_delimited, sp_terminated, string, ws_preceded, ws_terminated};
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{
     branch::alt,

@@ -1,7 +1,6 @@
 use super::{
-    opt_sep,
-    primitives::{boolean, ident, null, number, str_ident, string},
-    sp_delimited, ws_delimited, ws_preceded, ws_terminated,
+    boolean, ident, null, number, opt_sep, sp_delimited, str_ident, string, ws_delimited,
+    ws_preceded, ws_terminated,
 };
 use crate::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,

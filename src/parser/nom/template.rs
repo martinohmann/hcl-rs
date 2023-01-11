@@ -1,4 +1,4 @@
-use super::{expr::expr, primitives::ident, ws_delimited, ws_preceded};
+use super::{expr::expr, ident, ws_delimited, ws_preceded};
 use crate::expr::Expression;
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
