@@ -1,31 +1,27 @@
 use super::{
-    combinators::{opt_sep, sp_delimited, ws_delimited, ws_preceded, ws_terminated},
+    opt_sep,
     primitives::{boolean, ident, null, number, str_ident, string},
+    sp_delimited, ws_delimited, ws_preceded, ws_terminated,
 };
-use crate::{
-    expr::{
-        BinaryOp, BinaryOperator, Expression, ForExpr, FuncCall, Heredoc, HeredocStripMode, Object,
-        ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator, Variable,
-    },
-    util::is_templated,
-    Conditional, Identifier,
+use crate::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
+    HeredocStripMode, Object, ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+    UnaryOperator, Variable,
 };
+use crate::util::is_templated;
+use crate::Identifier;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char, line_ending, one_of, space0, u64},
     combinator::{cut, map, not, opt, recognize, value},
-    error::{context, ContextError, FromExternalError, ParseError},
+    error::context,
     multi::{many0, many1, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
-use std::num::ParseIntError;
 
-fn array<'a, E>(input: &'a str) -> IResult<&'a str, Vec<Expression>, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn array(input: &str) -> IResult<&str, Vec<Expression>> {
     context(
         "array",
         map(
@@ -42,10 +38,7 @@ where
     )(input)
 }
 
-fn object<'a, E>(input: &'a str) -> IResult<&'a str, Object<ObjectKey, Expression>, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn object(input: &str) -> IResult<&str, Object<ObjectKey, Expression>> {
     context(
         "object",
         map(
@@ -62,10 +55,7 @@ where
     )(input)
 }
 
-fn object_key_value<'a, E>(input: &'a str) -> IResult<&'a str, (ObjectKey, Expression), E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn object_key_value(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
     separated_pair(
         map(expr, |expr| {
             // Variable identifiers without traversal are treated as identifier object keys. This
@@ -82,17 +72,11 @@ where
     )(input)
 }
 
-fn parenthesis<'a, E>(input: &'a str) -> IResult<&'a str, Box<Expression>, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn parenthesis(input: &str) -> IResult<&str, Box<Expression>> {
     map(delimited(tag("("), ws_delimited(expr), tag(")")), Box::new)(input)
 }
 
-fn string_or_template<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn string_or_template(input: &str) -> IResult<&str, Expression> {
     map(string, |s| {
         if is_templated(&s) {
             Expression::from(TemplateExpr::QuotedString(s))
@@ -102,10 +86,7 @@ where
     })(input)
 }
 
-fn heredoc_start<'a, E>(input: &'a str) -> IResult<&'a str, (HeredocStripMode, &'a str), E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn heredoc_start(input: &str) -> IResult<&str, (HeredocStripMode, &str)> {
     terminated(
         pair(
             alt((
@@ -118,17 +99,11 @@ where
     )(input)
 }
 
-fn heredoc_end<'a, E>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str>,
-{
+fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str> {
     recognize(tuple((line_ending, space0, tag(delim))))
 }
 
-fn heredoc_template<'a, E>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, String, E>
-where
-    E: ParseError<&'a str>,
-{
+fn heredoc_template<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, String> {
     move |input: &'a str| {
         map(
             recognize(many1(preceded(not(heredoc_end(delim)), anychar))),
@@ -142,10 +117,7 @@ where
     }
 }
 
-fn heredoc<'a, E>(input: &'a str) -> IResult<&'a str, Heredoc, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn heredoc(input: &str) -> IResult<&str, Heredoc> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
     map(
@@ -158,10 +130,7 @@ where
     )(input)
 }
 
-fn traversal_operator<'a, E>(input: &'a str) -> IResult<&'a str, TraversalOperator, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn traversal_operator(input: &str) -> IResult<&str, TraversalOperator> {
     alt((
         preceded(
             ws_terminated(char('.')),
@@ -182,10 +151,7 @@ where
     ))(input)
 }
 
-fn variable_or_func_call<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn variable_or_func_call(input: &str) -> IResult<&str, Expression> {
     map(
         pair(ident, opt(ws_preceded(func_sig))),
         |(name, sig)| match sig {
@@ -199,10 +165,7 @@ where
     )(input)
 }
 
-fn func_sig<'a, E>(input: &'a str) -> IResult<&'a str, (Vec<Expression>, bool), E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn func_sig(input: &str) -> IResult<&str, (Vec<Expression>, bool)> {
     context(
         "func signature",
         map(
@@ -228,10 +191,7 @@ struct ForIntro {
     collection_expr: Expression,
 }
 
-fn for_intro<'a, E>(input: &'a str) -> IResult<&'a str, ForIntro, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn for_intro(input: &str) -> IResult<&str, ForIntro> {
     map(
         delimited(
             ws_terminated(tag("for")),
@@ -257,17 +217,11 @@ where
     )(input)
 }
 
-fn for_cond_expr<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn for_cond_expr(input: &str) -> IResult<&str, Expression> {
     preceded(ws_terminated(tag("if")), expr)(input)
 }
 
-fn for_list_expr<'a, E>(input: &'a str) -> IResult<&'a str, ForExpr, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn for_list_expr(input: &str) -> IResult<&str, ForExpr> {
     map(
         tuple((
             ws_terminated(for_intro),
@@ -286,10 +240,7 @@ where
     )(input)
 }
 
-fn for_object_expr<'a, E>(input: &'a str) -> IResult<&'a str, ForExpr, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn for_object_expr(input: &str) -> IResult<&str, ForExpr> {
     map(
         tuple((
             ws_terminated(for_intro),
@@ -309,10 +260,7 @@ where
     )(input)
 }
 
-fn for_expr<'a, E>(input: &'a str) -> IResult<&'a str, ForExpr, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn for_expr(input: &str) -> IResult<&str, ForExpr> {
     alt((
         delimited(
             ws_terminated(char('[')),
@@ -327,10 +275,7 @@ where
     ))(input)
 }
 
-fn unary_operator<'a, E>(input: &'a str) -> IResult<&'a str, UnaryOperator, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn unary_operator(input: &str) -> IResult<&str, UnaryOperator> {
     context(
         "unary operator",
         alt((
@@ -340,10 +285,7 @@ where
     )(input)
 }
 
-fn binary_operator<'a, E>(input: &'a str) -> IResult<&'a str, BinaryOperator, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn binary_operator(input: &str) -> IResult<&str, BinaryOperator> {
     context(
         "binary operator",
         alt((
@@ -364,10 +306,7 @@ where
     )(input)
 }
 
-fn expr_term<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn expr_term(input: &str) -> IResult<&str, Expression> {
     map(
         pair(
             alt((
@@ -394,10 +333,7 @@ where
     )(input)
 }
 
-pub fn expr<'a, E>(input: &'a str) -> IResult<&'a str, Expression, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+pub fn expr(input: &str) -> IResult<&str, Expression> {
     let unary_op = ws_terminated(unary_operator);
 
     let binary_op = pair(ws_delimited(binary_operator), expr);

@@ -8,11 +8,11 @@ use pretty_assertions::assert_eq;
 #[test]
 fn test_parse_string() {
     let data = "\"abc\"";
-    let result = expr::<()>(data);
+    let result = expr(data);
     assert_eq!(result, Ok(("", Expression::from("abc"))));
 
     let data = "\"tab:\\tafter tab, newline:\\nnew line, quote: \\\", emoji: \\u1F602, newline:\\nescaped whitespace: \\    abc\"";
-    let result = expr::<()>(data);
+    let result = expr(data);
     assert_eq!(
     result,
     Ok((
@@ -24,14 +24,14 @@ fn test_parse_string() {
 
 #[test]
 fn test_parse_number() {
-    let result = expr::<()>("1.1");
+    let result = expr("1.1");
     assert_eq!(result, Ok(("", Expression::from(1.1))));
-    let result = expr::<()>("1");
+    let result = expr("1");
     assert_eq!(result, Ok(("", Expression::from(1u64))));
-    // let result = expr::<()>("-1");
+    // let result = expr("-1");
     // assert_eq!(result, Ok(("", Expression::from(-1i64))));
     assert_eq!(
-        expr::<()>("NaN"),
+        expr("NaN"),
         Ok(("", Expression::from(Variable::unchecked("NaN"))))
     );
 }

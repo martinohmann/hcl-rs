@@ -1,28 +1,21 @@
-use std::num::ParseIntError;
-
-use super::primitives::ident;
-use crate::{
-    parser::nom::combinators::ws_preceded,
-    template::{Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template},
-    Expression, Identifier,
+use super::{expr::expr, primitives::ident, ws_delimited, ws_preceded};
+use crate::expr::Expression;
+use crate::template::{
+    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
 };
+use crate::Identifier;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char},
     combinator::{map, not, opt, recognize, value},
-    error::{context, ContextError, FromExternalError, ParseError},
+    error::context,
     multi::{many0, many1},
     sequence::{pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 
-use super::{combinators::ws_delimited, expr::expr};
-
-fn literal<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn literal(input: &str) -> IResult<&str, &str> {
     context(
         "literal",
         recognize(many1(alt((
@@ -33,10 +26,7 @@ where
     )(input)
 }
 
-fn interpolation<'a, E>(input: &'a str) -> IResult<&'a str, Interpolation, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn interpolation(input: &str) -> IResult<&str, Interpolation> {
     context(
         "interpolation",
         map(
@@ -49,31 +39,19 @@ where
     )(input)
 }
 
-fn interpolation_start<'a, E>(input: &'a str) -> IResult<&'a str, bool, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn interpolation_start(input: &str) -> IResult<&str, bool> {
     alt((value(true, tag("${~")), value(false, tag("${"))))(input)
 }
 
-fn directive_start<'a, E>(input: &'a str) -> IResult<&'a str, bool, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn directive_start(input: &str) -> IResult<&str, bool> {
     alt((value(true, tag("%{~")), value(false, tag("%{"))))(input)
 }
 
-fn element_end<'a, E>(input: &'a str) -> IResult<&'a str, bool, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn element_end(input: &str) -> IResult<&str, bool> {
     alt((value(true, tag("~}")), value(false, tag("}"))))(input)
 }
 
-fn if_directive<'a, E>(input: &'a str) -> IResult<&'a str, IfDirective, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn if_directive(input: &str) -> IResult<&str, IfDirective> {
     struct IfExpr {
         cond_expr: Expression,
         template: Template,
@@ -145,10 +123,7 @@ where
     )(input)
 }
 
-fn for_directive<'a, E>(input: &'a str) -> IResult<&'a str, ForDirective, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn for_directive(input: &str) -> IResult<&str, ForDirective> {
     struct ForExpr {
         key_var: Option<Identifier>,
         value_var: Identifier,
@@ -207,10 +182,7 @@ where
     )(input)
 }
 
-fn directive<'a, E>(input: &'a str) -> IResult<&'a str, Directive, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn directive(input: &str) -> IResult<&str, Directive> {
     context(
         "directive",
         alt((
@@ -220,10 +192,7 @@ where
     )(input)
 }
 
-pub fn template<'a, E>(input: &'a str) -> IResult<&'a str, Template, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+pub fn template(input: &str) -> IResult<&str, Template> {
     context(
         "template",
         map(

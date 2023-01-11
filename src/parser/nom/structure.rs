@@ -1,24 +1,20 @@
 use super::{
-    combinators::{sp_delimited, sp_terminated, ws_preceded, ws_terminated},
     expr::expr,
     primitives::{ident, string},
+    sp_delimited, sp_terminated, ws_preceded, ws_terminated,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{
     branch::alt,
     character::complete::char,
     combinator::map,
-    error::{context, ContextError, FromExternalError, ParseError},
+    error::context,
     multi::many0,
     sequence::{delimited, separated_pair, tuple},
     IResult,
 };
-use std::num::ParseIntError;
 
-fn attribute<'a, E>(input: &'a str) -> IResult<&'a str, Attribute, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn attribute(input: &str) -> IResult<&str, Attribute> {
     context(
         "attribute",
         map(
@@ -28,10 +24,7 @@ where
     )(input)
 }
 
-fn block<'a, E>(input: &'a str) -> IResult<&'a str, Block, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn block(input: &str) -> IResult<&str, Block> {
     context(
         "block",
         map(
@@ -49,36 +42,26 @@ where
     )(input)
 }
 
-fn block_label<'a, E>(input: &'a str) -> IResult<&'a str, BlockLabel, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn block_label(input: &str) -> IResult<&str, BlockLabel> {
     alt((
         map(ident, BlockLabel::Identifier),
         map(string, BlockLabel::String),
     ))(input)
 }
 
-fn structure<'a, E>(input: &'a str) -> IResult<&'a str, Structure, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+fn structure(input: &str) -> IResult<&str, Structure> {
     alt((
         map(attribute, Structure::Attribute),
         map(block, Structure::Block),
     ))(input)
 }
 
-pub fn body<'a, E>(input: &'a str) -> IResult<&'a str, Body, E>
-where
-    E: ParseError<&'a str> + ContextError<&'a str> + FromExternalError<&'a str, ParseIntError> + 'a,
-{
+pub fn body(input: &str) -> IResult<&str, Body> {
     ws_preceded(map(many0(ws_terminated(structure)), Body::from))(input)
 }
 
 #[cfg(test)]
 mod tests {
-    use nom::error::VerboseError;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -86,7 +69,7 @@ mod tests {
     #[test]
     fn test_attribute() {
         assert_eq!(
-            body::<VerboseError<&str>>("foo = \"bar\"\nbar = 2\n\n"),
+            body("foo = \"bar\"\nbar = 2\n\n"),
             Ok((
                 "",
                 Body::builder()

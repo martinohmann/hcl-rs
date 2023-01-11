@@ -4,12 +4,10 @@ use nom::{
     bytes::complete::{is_not, tag, take_while_m_n},
     character::complete::{alpha1, alphanumeric1, char, multispace1, one_of},
     combinator::{map, map_opt, map_res, opt, recognize, value, verify},
-    error::{FromExternalError, ParseError},
     multi::{fold_many0, many0_count, many1},
     sequence::{delimited, pair, preceded, tuple},
     IResult,
 };
-use std::num::ParseIntError;
 
 // parser combinators are constructed from the bottom up:
 // first we write parsers for the smallest elements (escaped characters),
@@ -18,10 +16,7 @@ use std::num::ParseIntError;
 /// Parse a unicode sequence, of the form uXXXX, where XXXX is 1 to 6
 /// hexadecimal numerals. We will combine this later with parse_escaped_char
 /// to parse sequences like \u00AC.
-fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, ParseIntError>,
-{
+fn parse_unicode(input: &str) -> IResult<&str, char> {
     // `take_while_m_n` parses between `m` and `n` bytes (inclusive) that match
     // a predicate. `parse_hex` here parses between 1 and 6 hexadecimal numerals.
     let parse_hex = take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit());
@@ -43,10 +38,7 @@ where
 }
 
 /// Parse an escaped character: \n, \t, \r, \u{00AC}, etc.
-fn parse_escaped_char<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, ParseIntError>,
-{
+fn parse_escaped_char(input: &str) -> IResult<&str, char> {
     preceded(
         char('\\'),
         // `alt` tries each parser in sequence, returning the result of
@@ -71,14 +63,12 @@ where
 
 /// Parse a backslash, followed by any amount of whitespace. This is used later
 /// to discard any escaped whitespace.
-fn parse_escaped_whitespace<'a, E: ParseError<&'a str>>(
-    input: &'a str,
-) -> IResult<&'a str, &'a str, E> {
+fn parse_escaped_whitespace(input: &str) -> IResult<&str, &str> {
     preceded(char('\\'), multispace1)(input)
 }
 
 /// Parse a non-empty block of text that doesn't include \ or "
-fn parse_literal<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+fn parse_literal(input: &str) -> IResult<&str, &str> {
     // `is_not` parses a string of 0 or more characters that aren't one of the
     // given characters.
     let not_quote_slash = is_not("\"\\");
@@ -102,10 +92,7 @@ enum StringFragment<'a> {
 
 /// Combine parse_literal, parse_escaped_whitespace, and parse_escaped_char
 /// into a StringFragment.
-fn parse_fragment<'a, E>(input: &'a str) -> IResult<&'a str, StringFragment<'a>, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, ParseIntError>,
-{
+fn parse_fragment(input: &str) -> IResult<&str, StringFragment<'_>> {
     alt((
         // The `map` combinator runs a parser, then applies a function to the output
         // of that parser.
@@ -117,10 +104,7 @@ where
 
 /// Parse a string. Use a loop of parse_fragment and push all of the fragments
 /// into an output string.
-pub fn string<'a, E>(input: &'a str) -> IResult<&'a str, String, E>
-where
-    E: ParseError<&'a str> + FromExternalError<&'a str, ParseIntError>,
-{
+pub fn string(input: &str) -> IResult<&str, String> {
     // fold is the equivalent of iterator::fold. It runs a parser in a loop,
     // and for each output value, calls a folding function on each output value.
     let build_string = fold_many0(
@@ -147,36 +131,24 @@ where
     delimited(char('"'), build_string, char('"'))(input)
 }
 
-pub fn str_ident<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str>,
-{
+pub fn str_ident(input: &str) -> IResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
     ))(input)
 }
 
-pub fn ident<'a, E>(input: &'a str) -> IResult<&'a str, Identifier, E>
-where
-    E: ParseError<&'a str>,
-{
+pub fn ident(input: &str) -> IResult<&str, Identifier> {
     let not_a_keyword = |ident: &str| ident != "true" && ident != "false" && ident != "null";
 
     map(verify(str_ident, not_a_keyword), Identifier::unchecked)(input)
 }
 
-fn decimal<'a, E>(input: &'a str) -> IResult<&'a str, &'a str, E>
-where
-    E: ParseError<&'a str>,
-{
+fn decimal(input: &str) -> IResult<&str, &str> {
     recognize(many1(one_of("0123456789")))(input)
 }
 
-fn float<'a, E>(input: &'a str) -> IResult<&'a str, f64, E>
-where
-    E: ParseError<&'a str>,
-{
+fn float(input: &str) -> IResult<&str, f64> {
     map_opt(
         alt((
             // Case one: .42
@@ -201,33 +173,21 @@ where
     )(input)
 }
 
-fn integer<'a, E>(input: &'a str) -> IResult<&'a str, u64, E>
-where
-    E: ParseError<&'a str>,
-{
+fn integer(input: &str) -> IResult<&str, u64> {
     map_opt(decimal, |v| v.parse().ok())(input)
 }
 
-pub fn number<'a, E>(input: &'a str) -> IResult<&'a str, Number, E>
-where
-    E: ParseError<&'a str>,
-{
+pub fn number(input: &str) -> IResult<&str, Number> {
     alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
 }
 
-pub fn boolean<'a, E>(input: &'a str) -> IResult<&'a str, bool, E>
-where
-    E: ParseError<&'a str>,
-{
+pub fn boolean(input: &str) -> IResult<&str, bool> {
     let true_tag = value(true, tag("true"));
     let false_tag = value(false, tag("false"));
 
     alt((true_tag, false_tag))(input)
 }
 
-pub fn null<'a, E>(input: &'a str) -> IResult<&'a str, (), E>
-where
-    E: ParseError<&'a str>,
-{
+pub fn null(input: &str) -> IResult<&str, ()> {
     value((), tag("null"))(input)
 }
