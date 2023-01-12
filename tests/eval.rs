@@ -337,7 +337,10 @@ fn eval_template() {
         Let's ${~ what ~} :
         %{ for item in items ~}
         - ${item}
+
         %{~ endfor ~}
+
+        Yay!
 
     "#};
 
@@ -346,8 +349,10 @@ fn eval_template() {
         - foo
         - bar
         - baz
-    "#}
-    .trim_end();
+
+        Yay!
+
+    "#};
 
     let mut ctx = Context::new();
     ctx.declare_var("what", " render a list");
