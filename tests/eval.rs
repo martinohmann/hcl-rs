@@ -321,7 +321,6 @@ fn eval_func_call() {
 }
 
 #[test]
-#[ignore]
 fn eval_template() {
     use std::str::FromStr;
 
@@ -338,8 +337,7 @@ fn eval_template() {
         Let's ${~ what ~} :
         %{ for item in items ~}
         - ${item}
-
-        %{~ endfor ~}
+        %{ endfor ~}
 
     "#};
 
@@ -348,8 +346,7 @@ fn eval_template() {
         - foo
         - bar
         - baz
-    "#}
-    .trim_end();
+    "#};
 
     let mut ctx = Context::new();
     ctx.declare_var("what", " render a list");
@@ -357,7 +354,7 @@ fn eval_template() {
 
     assert_eval_ctx(
         &ctx,
-        Template::from_str(template_str).unwrap(),
+        dbg!(Template::from_str(template_str).unwrap()),
         expected.to_owned(),
     );
 }

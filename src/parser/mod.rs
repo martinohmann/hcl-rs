@@ -5,12 +5,12 @@ pub(crate) mod pest;
 
 #[cfg(feature = "nom")]
 use self::nom::parse as parse_impl;
-#[cfg(all(feature = "nom", not(feature = "pest")))]
+#[cfg(feature = "nom")]
 use self::nom::parse_template as parse_template_impl;
 
 #[cfg(all(feature = "pest", not(feature = "nom")))]
 use self::pest::parse as parse_impl;
-#[cfg(all(feature = "pest"))]
+#[cfg(all(feature = "pest", not(feature = "nom")))]
 use self::pest::parse_template as parse_template_impl;
 
 use crate::{structure::Body, template::Template, Result};

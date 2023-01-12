@@ -8,7 +8,7 @@ use self::structure::body;
 use self::template::template;
 use crate::structure::Body;
 use crate::template::Template;
-use crate::{Identifier, Number, Result};
+use crate::{Error, Identifier, Number, Result};
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, take_until, take_while_m_n},
@@ -16,7 +16,6 @@ use nom::{
         alpha1, alphanumeric1, char, multispace0, multispace1, not_line_ending, one_of, space0,
     },
     combinator::{all_consuming, map, map_opt, map_res, opt, recognize, value, verify},
-    error::Error,
     multi::{fold_many0, many0, many0_count, many1},
     sequence::{delimited, pair, preceded, terminated, tuple},
     Finish, IResult, Parser,
@@ -28,7 +27,7 @@ pub fn parse(input: &str) -> Result<Body> {
         .parse(input)
         .finish()
         .map(|(_, body)| body)
-        .map_err(crate::Error::new)
+        .map_err(Error::new)
 }
 
 pub fn parse_template(input: &str) -> Result<Template> {
@@ -36,7 +35,7 @@ pub fn parse_template(input: &str) -> Result<Template> {
         .parse(input)
         .finish()
         .map(|(_, template)| template)
-        .map_err(crate::Error::new)
+        .map_err(Error::new)
 }
 
 fn line_comment(input: &str) -> IResult<&str, &str> {
@@ -61,47 +60,47 @@ fn ws(input: &str) -> IResult<&str, &str> {
 
 fn sp_delimited<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
 where
-    F: Parser<&'a str, O, Error<&'a str>>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     delimited(sp, inner, sp)
 }
 
 fn sp_terminated<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
 where
-    F: Parser<&'a str, O, Error<&'a str>>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     terminated(inner, sp)
 }
 
 fn ws_delimited<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
 where
-    F: Parser<&'a str, O, Error<&'a str>>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     delimited(ws, inner, ws)
 }
 
 fn ws_preceded<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
 where
-    F: Parser<&'a str, O, Error<&'a str>>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     preceded(ws, inner)
 }
 
 fn ws_terminated<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
 where
-    F: Parser<&'a str, O, Error<&'a str>>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     terminated(inner, ws)
 }
 
 fn opt_sep<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, Option<O>>
 where
-    F: Parser<&'a str, O, Error<&'a str>>,
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     opt(ws_preceded(inner))
 }
 
-/// Parse a unicode sequence, of the form uXXXX, where XXXX is 1 to 6
+/// Parse a unicode sequence, of the form `uXXXX`, where XXXX is 1 to 6
 /// hexadecimal numerals.
 fn unicode(input: &str) -> IResult<&str, char> {
     let parse_hex = take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit());
@@ -110,7 +109,7 @@ fn unicode(input: &str) -> IResult<&str, char> {
     map_opt(parse_u32, std::char::from_u32)(input)
 }
 
-/// Parse an escaped character: \n, \t, \r, \u{00AC}, etc.
+/// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
 fn escaped_char(input: &str) -> IResult<&str, char> {
     preceded(
         char('\\'),
@@ -188,25 +187,17 @@ fn decimal(input: &str) -> IResult<&str, &str> {
     recognize(many1(one_of("0123456789")))(input)
 }
 
+fn exponent(input: &str) -> IResult<&str, &str> {
+    recognize(tuple((one_of("eE"), opt(one_of("+-")), decimal)))(input)
+}
+
 fn float(input: &str) -> IResult<&str, f64> {
+    let fraction = preceded(char('.'), decimal);
+
     map_res(
-        alt((
-            // Case one: .42
-            recognize(tuple((
-                char('.'),
-                decimal,
-                opt(tuple((one_of("eE"), opt(one_of("+-")), decimal))),
-            ))),
-            // Case two: 42e42 and 42.42e42
-            recognize(tuple((
-                decimal,
-                opt(preceded(char('.'), decimal)),
-                one_of("eE"),
-                opt(one_of("+-")),
-                decimal,
-            ))),
-            // Case three: 42. and 42.42
-            recognize(tuple((decimal, char('.'), opt(decimal)))),
+        recognize(terminated(
+            decimal,
+            alt((terminated(fraction, opt(exponent)), exponent)),
         )),
         f64::from_str,
     )(input)
@@ -218,14 +209,4 @@ fn integer(input: &str) -> IResult<&str, u64> {
 
 fn number(input: &str) -> IResult<&str, Number> {
     alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
-}
-
-fn boolean(input: &str) -> IResult<&str, bool> {
-    let true_tag = value(true, tag("true"));
-    let false_tag = value(false, tag("false"));
-    alt((true_tag, false_tag))(input)
-}
-
-fn null(input: &str) -> IResult<&str, ()> {
-    value((), tag("null"))(input)
 }

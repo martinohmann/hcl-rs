@@ -1,6 +1,6 @@
 use super::{
-    boolean, ident, null, number, opt_sep, sp_delimited, str_ident, string, ws_delimited,
-    ws_preceded, ws_terminated,
+    ident, number, opt_sep, sp_delimited, str_ident, string, ws_delimited, ws_preceded,
+    ws_terminated,
 };
 use crate::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
@@ -20,41 +20,74 @@ use nom::{
     IResult,
 };
 
-fn array(input: &str) -> IResult<&str, Vec<Expression>> {
+fn array(input: &str) -> IResult<&str, Expression> {
     context(
         "array",
-        map(
-            delimited(
-                ws_terminated(char('[')),
-                opt(terminated(
-                    separated_list1(ws_delimited(char(',')), expr),
-                    ws_terminated(opt_sep(char(','))),
-                )),
-                char(']'),
-            ),
-            Option::unwrap_or_default,
+        delimited(
+            ws_terminated(char('[')),
+            alt((
+                map(for_list_expr, Expression::from),
+                map(array_items, Expression::from),
+            )),
+            ws_preceded(char(']')),
         ),
     )(input)
 }
 
-fn object(input: &str) -> IResult<&str, Object<ObjectKey, Expression>> {
+fn array_items(input: &str) -> IResult<&str, Vec<Expression>> {
+    map(
+        opt(terminated(
+            separated_list1(ws_delimited(char(',')), expr),
+            opt_sep(char(',')),
+        )),
+        Option::unwrap_or_default,
+    )(input)
+}
+
+fn for_list_expr(input: &str) -> IResult<&str, ForExpr> {
+    map(
+        tuple((
+            ws_terminated(for_intro),
+            expr,
+            opt(ws_preceded(for_cond_expr)),
+        )),
+        |(intro, value_expr, cond_expr)| ForExpr {
+            key_var: intro.key_var,
+            value_var: intro.value_var,
+            collection_expr: intro.collection_expr,
+            key_expr: None,
+            value_expr,
+            cond_expr,
+            grouping: false,
+        },
+    )(input)
+}
+
+fn object(input: &str) -> IResult<&str, Expression> {
     context(
         "object",
-        map(
-            delimited(
-                ws_terminated(char('{')),
-                opt(many1(terminated(
-                    object_key_value,
-                    ws_terminated(opt_sep(one_of(",\n"))),
-                ))),
-                char('}'),
-            ),
-            |items| Object::from(items.unwrap_or_default()),
+        delimited(
+            ws_terminated(char('{')),
+            alt((
+                map(ws_terminated(for_object_expr), Expression::from),
+                map(object_items, Expression::from),
+            )),
+            char('}'),
         ),
     )(input)
 }
 
-fn object_key_value(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
+fn object_items(input: &str) -> IResult<&str, Object<ObjectKey, Expression>> {
+    map(
+        opt(many1(terminated(
+            object_item,
+            ws_terminated(opt_sep(one_of(",\n"))),
+        ))),
+        |items| Object::from(items.unwrap_or_default()),
+    )(input)
+}
+
+fn object_item(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
     separated_pair(
         map(expr, |expr| {
             // Variable identifiers without traversal are treated as identifier object keys. This
@@ -69,6 +102,62 @@ fn object_key_value(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
         sp_delimited(one_of("=:")),
         cut(expr),
     )(input)
+}
+
+fn for_object_expr(input: &str) -> IResult<&str, ForExpr> {
+    map(
+        tuple((
+            ws_terminated(for_intro),
+            separated_pair(expr, ws_delimited(tag("=>")), expr),
+            opt(ws_preceded(tag("..."))),
+            opt(ws_preceded(for_cond_expr)),
+        )),
+        |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
+            key_var: intro.key_var,
+            value_var: intro.value_var,
+            collection_expr: intro.collection_expr,
+            key_expr: Some(key_expr),
+            value_expr,
+            cond_expr,
+            grouping: grouping.is_some(),
+        },
+    )(input)
+}
+
+struct ForIntro {
+    key_var: Option<Identifier>,
+    value_var: Identifier,
+    collection_expr: Expression,
+}
+
+fn for_intro(input: &str) -> IResult<&str, ForIntro> {
+    map(
+        delimited(
+            ws_terminated(tag("for")),
+            tuple((
+                cut(ident),
+                opt(preceded(ws_delimited(char(',')), ident)),
+                preceded(ws_delimited(tag("in")), expr),
+            )),
+            ws_preceded(char(':')),
+        ),
+        |(first, second, expr)| match second {
+            Some(second) => ForIntro {
+                key_var: Some(first),
+                value_var: second,
+                collection_expr: expr,
+            },
+            None => ForIntro {
+                key_var: None,
+                value_var: first,
+                collection_expr: expr,
+            },
+        },
+    )(input)
+}
+
+fn for_cond_expr(input: &str) -> IResult<&str, Expression> {
+    preceded(ws_terminated(tag("if")), expr)(input)
 }
 
 fn parenthesis(input: &str) -> IResult<&str, Box<Expression>> {
@@ -150,16 +239,21 @@ fn traversal_operator(input: &str) -> IResult<&str, TraversalOperator> {
     ))(input)
 }
 
-fn variable_or_func_call(input: &str) -> IResult<&str, Expression> {
+fn ident_or_func_call(input: &str) -> IResult<&str, Expression> {
     map(
-        pair(ident, opt(ws_preceded(func_sig))),
-        |(name, sig)| match sig {
+        pair(str_ident, opt(ws_preceded(func_sig))),
+        |(ident, sig)| match sig {
             Some((args, expand_final)) => Expression::from(FuncCall {
-                name,
+                name: Identifier::unchecked(ident),
                 args,
                 expand_final,
             }),
-            None => Expression::from(Variable::from(name)),
+            None => match ident {
+                "null" => Expression::Null,
+                "true" => Expression::Bool(true),
+                "false" => Expression::Bool(false),
+                var => Expression::from(Variable::unchecked(var)),
+            },
         },
     )(input)
 }
@@ -182,96 +276,6 @@ fn func_sig(input: &str) -> IResult<&str, (Vec<Expression>, bool)> {
             },
         ),
     )(input)
-}
-
-struct ForIntro {
-    key_var: Option<Identifier>,
-    value_var: Identifier,
-    collection_expr: Expression,
-}
-
-fn for_intro(input: &str) -> IResult<&str, ForIntro> {
-    map(
-        delimited(
-            ws_terminated(tag("for")),
-            tuple((
-                ident,
-                opt(preceded(ws_delimited(char(',')), ident)),
-                preceded(ws_delimited(tag("in")), expr),
-            )),
-            ws_preceded(char(':')),
-        ),
-        |(first, second, expr)| match second {
-            Some(second) => ForIntro {
-                key_var: Some(first),
-                value_var: second,
-                collection_expr: expr,
-            },
-            None => ForIntro {
-                key_var: None,
-                value_var: first,
-                collection_expr: expr,
-            },
-        },
-    )(input)
-}
-
-fn for_cond_expr(input: &str) -> IResult<&str, Expression> {
-    preceded(ws_terminated(tag("if")), expr)(input)
-}
-
-fn for_list_expr(input: &str) -> IResult<&str, ForExpr> {
-    map(
-        tuple((
-            ws_terminated(for_intro),
-            expr,
-            opt(ws_preceded(for_cond_expr)),
-        )),
-        |(intro, value_expr, cond_expr)| ForExpr {
-            key_var: intro.key_var,
-            value_var: intro.value_var,
-            collection_expr: intro.collection_expr,
-            key_expr: None,
-            value_expr,
-            cond_expr,
-            grouping: false,
-        },
-    )(input)
-}
-
-fn for_object_expr(input: &str) -> IResult<&str, ForExpr> {
-    map(
-        tuple((
-            ws_terminated(for_intro),
-            separated_pair(expr, ws_delimited(tag("=>")), expr),
-            opt(ws_preceded(tag("..."))),
-            opt(ws_preceded(for_cond_expr)),
-        )),
-        |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
-            key_var: intro.key_var,
-            value_var: intro.value_var,
-            collection_expr: intro.collection_expr,
-            key_expr: Some(key_expr),
-            value_expr,
-            cond_expr,
-            grouping: grouping.is_some(),
-        },
-    )(input)
-}
-
-fn for_expr(input: &str) -> IResult<&str, ForExpr> {
-    alt((
-        delimited(
-            ws_terminated(char('[')),
-            for_list_expr,
-            ws_preceded(char(']')),
-        ),
-        delimited(
-            ws_terminated(char('{')),
-            for_object_expr,
-            ws_preceded(char('}')),
-        ),
-    ))(input)
 }
 
 fn unary_operator(input: &str) -> IResult<&str, UnaryOperator> {
@@ -309,16 +313,13 @@ fn expr_term(input: &str) -> IResult<&str, Expression> {
     map(
         pair(
             alt((
-                string_or_template,
-                variable_or_func_call,
                 map(number, Expression::Number),
-                map(boolean, Expression::Bool),
-                map(null, |_| Expression::Null),
-                map(array, Expression::Array),
-                map(object, Expression::Object),
-                map(for_expr, Expression::from),
-                map(parenthesis, Expression::Parenthesis),
+                string_or_template,
+                ident_or_func_call,
+                array,
+                object,
                 map(heredoc, Expression::from),
+                map(parenthesis, Expression::Parenthesis),
             )),
             many0(ws_preceded(traversal_operator)),
         ),
@@ -326,7 +327,7 @@ fn expr_term(input: &str) -> IResult<&str, Expression> {
             if operators.is_empty() {
                 expr
             } else {
-                Expression::from(Traversal { expr, operators })
+                Expression::from(Traversal::new(expr, operators))
             }
         },
     )(input)
@@ -338,7 +339,7 @@ pub fn expr(input: &str) -> IResult<&str, Expression> {
     let binary_op = pair(ws_delimited(binary_operator), expr);
 
     let conditional = pair(
-        preceded(sp_delimited(char('?')), expr),
+        preceded(sp_delimited(char('?')), cut(expr)),
         preceded(sp_delimited(char(':')), expr),
     );
 
@@ -347,37 +348,28 @@ pub fn expr(input: &str) -> IResult<&str, Expression> {
         map(
             tuple((opt(unary_op), expr_term, opt(binary_op), opt(conditional))),
             |(unary_op, expr, binary_op, conditional)| {
-                let lhs_expr = match unary_op {
-                    Some(operator) => {
-                        // Negative numbers are implemented as unary negation operations in the HCL
-                        // spec. We'll convert these to negative numbers to make them more
-                        // convenient to use.
-                        match (operator, expr) {
-                            (UnaryOperator::Neg, Expression::Number(num)) => {
-                                Expression::Number(-num)
-                            }
-                            (operator, expr) => Expression::from(UnaryOp { operator, expr }),
-                        }
+                let expr = if let Some(operator) = unary_op {
+                    // Negative numbers are implemented as unary negation operations in the HCL
+                    // spec. We'll convert these to negative numbers to make them more
+                    // convenient to use.
+                    match (operator, expr) {
+                        (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
+                        (operator, expr) => Expression::from(UnaryOp::new(operator, expr)),
                     }
-                    None => expr,
+                } else {
+                    expr
                 };
 
-                let expr = match binary_op {
-                    Some((operator, rhs_expr)) => Expression::from(BinaryOp {
-                        lhs_expr,
-                        operator,
-                        rhs_expr,
-                    }),
-                    None => lhs_expr,
+                let expr = if let Some((operator, rhs_expr)) = binary_op {
+                    Expression::from(BinaryOp::new(expr, operator, rhs_expr))
+                } else {
+                    expr
                 };
 
-                match conditional {
-                    Some((true_expr, false_expr)) => Expression::from(Conditional {
-                        cond_expr: expr,
-                        true_expr,
-                        false_expr,
-                    }),
-                    None => expr,
+                if let Some((true_expr, false_expr)) = conditional {
+                    Expression::from(Conditional::new(expr, true_expr, false_expr))
+                } else {
+                    expr
                 }
             },
         ),

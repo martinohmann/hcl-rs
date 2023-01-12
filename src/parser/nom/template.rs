@@ -58,6 +58,11 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
         strip: StripMode,
     }
 
+    struct ElseExpr {
+        template: Template,
+        strip: StripMode,
+    }
+
     let if_expr = map(
         tuple((
             terminated(directive_start, ws_preceded(tag("if"))),
@@ -72,11 +77,6 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
         },
     );
 
-    struct ElseExpr {
-        template: Template,
-        strip: StripMode,
-    }
-
     let else_expr = map(
         tuple((
             terminated(directive_start, ws_delimited(tag("else"))),
@@ -89,22 +89,16 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
         },
     );
 
-    struct EndIfExpr {
-        strip: StripMode,
-    }
-
     let endif_expr = map(
         separated_pair(directive_start, ws_delimited(tag("endif")), element_end),
-        |(strip_start, strip_end)| EndIfExpr {
-            strip: StripMode::from((strip_start, strip_end)),
-        },
+        StripMode::from,
     );
 
     context(
         "if directive",
         map(
             tuple((if_expr, opt(else_expr), endif_expr)),
-            |(if_expr, else_expr, endif_expr)| {
+            |(if_expr, else_expr, endif_strip)| {
                 let (false_template, else_strip) = match else_expr {
                     Some(else_expr) => (Some(else_expr.template), else_expr.strip),
                     None => (None, StripMode::default()),
@@ -116,7 +110,7 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
                     false_template,
                     if_strip: if_expr.strip,
                     else_strip,
-                    endif_strip: endif_expr.strip,
+                    endif_strip,
                 }
             },
         ),
@@ -156,27 +150,21 @@ fn for_directive(input: &str) -> IResult<&str, ForDirective> {
         },
     );
 
-    struct EndForExpr {
-        strip: StripMode,
-    }
-
     let endfor_expr = map(
         separated_pair(directive_start, ws_delimited(tag("endfor")), element_end),
-        |(strip_start, strip_end)| EndForExpr {
-            strip: StripMode::from((strip_start, strip_end)),
-        },
+        StripMode::from,
     );
 
     context(
         "if directive",
-        map(pair(for_expr, endfor_expr), |(for_expr, endfor_expr)| {
+        map(pair(for_expr, endfor_expr), |(for_expr, endfor_strip)| {
             ForDirective {
                 key_var: for_expr.key_var,
                 value_var: for_expr.value_var,
                 collection_expr: for_expr.collection_expr,
                 template: for_expr.template,
                 for_strip: for_expr.strip,
-                endfor_strip: endfor_expr.strip,
+                endfor_strip,
             }
         }),
     )(input)
