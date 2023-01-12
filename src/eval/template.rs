@@ -34,17 +34,42 @@ fn evaluate_element(
 ) -> EvalResult<()> {
     match element {
         Element::Literal(literal) => {
-            let stripped = match strip {
-                StripMode::Both => literal.trim(),
-                StripMode::Start => literal.trim_start(),
-                StripMode::End => literal.trim_end(),
-                StripMode::None => literal,
-            };
-            result.push_str(stripped);
+            result.push_str(strip_literal(literal, strip));
             Ok(())
         }
         Element::Interpolation(interp) => evaluate_interpolation(result, interp, ctx),
         Element::Directive(dir) => evaluate_directive(result, dir, ctx),
+    }
+}
+
+// Depending on the `StripMode`, strips off leading and trailing spaces up until the first line
+// break that is encountered. The line break is stripped as well.
+fn strip_literal(literal: &str, strip: StripMode) -> &str {
+    fn is_space(ch: char) -> bool {
+        ch.is_whitespace() && ch != '\r' && ch != '\n'
+    }
+
+    fn trim_start(s: &str) -> &str {
+        let s = s.trim_start_matches(is_space);
+
+        s.strip_prefix("\r\n")
+            .or_else(|| s.strip_prefix('\n'))
+            .unwrap_or(s)
+    }
+
+    fn trim_end(s: &str) -> &str {
+        let s = s.trim_end_matches(is_space);
+
+        s.strip_suffix("\r\n")
+            .or_else(|| s.strip_suffix('\n'))
+            .unwrap_or(s)
+    }
+
+    match strip {
+        StripMode::Both => trim_start(trim_end(literal)),
+        StripMode::Start => trim_start(literal),
+        StripMode::End => trim_end(literal),
+        StripMode::None => literal,
     }
 }
 
@@ -91,23 +116,11 @@ fn evaluate_for_directive(
     dir: &ForDirective,
     ctx: &Context,
 ) -> EvalResult<()> {
+    let strip = StripMode::from_adjacent(dir.for_strip, dir.endfor_strip);
     let collection = expr::Collection::from_for_directive(dir, ctx)?;
-    let len = collection.len();
 
-    for (index, ctx) in collection.into_iter().enumerate() {
-        let ctx = &ctx?;
-
-        let strip = if index == 0 && len == 1 {
-            StripMode::from_adjacent(dir.for_strip, dir.endfor_strip)
-        } else if index == 0 {
-            StripMode::from_adjacent(dir.for_strip, StripMode::None)
-        } else if index == len - 1 {
-            StripMode::from_adjacent(StripMode::None, dir.endfor_strip)
-        } else {
-            StripMode::None
-        };
-
-        evaluate_template(result, &dir.template, ctx, strip)?;
+    for ctx in collection {
+        evaluate_template(result, &dir.template, &ctx?, strip)?;
     }
 
     Ok(())
