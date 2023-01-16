@@ -46,16 +46,16 @@ fn line_comment(input: &str) -> IResult<&str, ()> {
     )(input)
 }
 
-fn block_comment(input: &str) -> IResult<&str, ()> {
+fn inline_comment(input: &str) -> IResult<&str, ()> {
     value((), tuple((tag("/*"), take_until("*/"), tag("*/"))))(input)
 }
 
 fn comment(input: &str) -> IResult<&str, ()> {
-    alt((line_comment, block_comment))(input)
+    alt((line_comment, inline_comment))(input)
 }
 
 fn sp(input: &str) -> IResult<&str, ()> {
-    value((), pair(space0, many0_count(pair(block_comment, space0))))(input)
+    value((), pair(space0, many0_count(pair(inline_comment, space0))))(input)
 }
 
 fn ws(input: &str) -> IResult<&str, ()> {
@@ -70,6 +70,13 @@ where
     F: FnMut(&'a str) -> IResult<&'a str, O>,
 {
     delimited(sp, inner, sp)
+}
+
+fn sp_preceded<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
+{
+    preceded(sp, inner)
 }
 
 fn sp_terminated<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>

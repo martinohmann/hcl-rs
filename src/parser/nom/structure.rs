@@ -1,14 +1,27 @@
-use super::{expr::expr, ident, sp_delimited, sp_terminated, string, ws_preceded, ws_terminated};
+use super::{
+    expr::expr, ident, line_comment, sp_delimited, sp_preceded, sp_terminated, string, ws_preceded,
+    ws_terminated,
+};
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{
     branch::alt,
-    character::complete::char,
-    combinator::map,
+    character::complete::{char, line_ending},
+    combinator::{eof, map, opt, value},
     error::context,
     multi::many0,
-    sequence::{delimited, separated_pair, tuple},
+    sequence::{delimited, separated_pair, terminated, tuple},
     IResult,
 };
+
+fn line_ending_terminated<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
+{
+    terminated(
+        inner,
+        sp_preceded(alt((value((), line_ending), value((), eof), line_comment))),
+    )
+}
 
 fn attribute(input: &str) -> IResult<&str, Attribute> {
     context(
@@ -27,7 +40,15 @@ fn block(input: &str) -> IResult<&str, Block> {
             tuple((
                 sp_terminated(ident),
                 many0(sp_terminated(block_label)),
-                delimited(char('{'), body, char('}')),
+                alt((
+                    // Multiline block.
+                    delimited(line_ending_terminated(char('{')), body, char('}')),
+                    // One-line block.
+                    map(
+                        delimited(char('{'), sp_delimited(opt(attribute)), char('}')),
+                        |attr| attr.map(Body::from).unwrap_or_default(),
+                    ),
+                )),
             )),
             |(identifier, labels, body)| Block {
                 identifier,
@@ -53,7 +74,10 @@ fn structure(input: &str) -> IResult<&str, Structure> {
 }
 
 pub fn body(input: &str) -> IResult<&str, Body> {
-    ws_preceded(map(many0(ws_terminated(structure)), Body::from))(input)
+    ws_terminated(map(
+        many0(ws_preceded(line_ending_terminated(structure))),
+        Body::from,
+    ))(input)
 }
 
 #[cfg(test)]

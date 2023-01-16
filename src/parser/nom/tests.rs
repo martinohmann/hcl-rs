@@ -1,10 +1,13 @@
 use super::expr::expr;
+use super::structure::body;
 use super::template::template;
 use crate::expr::{Conditional, Expression, FuncCall, Heredoc, TemplateExpr, Traversal, Variable};
+use crate::structure::{Block, Body};
 use crate::template::{IfDirective, StripMode, Template};
 use crate::{Identifier, Number};
 use indexmap::indexmap;
 use indoc::indoc;
+use nom::combinator::all_consuming;
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -182,4 +185,19 @@ fn parse_template() {
                 )
         )),
     );
+}
+
+#[test]
+fn parse_oneline_block() {
+    assert_eq!(
+        body("block { attr = 1 }"),
+        Ok((
+            "",
+            Body::builder()
+                .add_block(Block::builder("block").add_attribute(("attr", 1)).build())
+                .build()
+        ))
+    );
+
+    assert!(all_consuming(body)("block { attr = 1 attr2 = 2 }").is_err());
 }
