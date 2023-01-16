@@ -1,5 +1,7 @@
 use super::expr::expr;
+use super::template::template;
 use crate::expr::{Conditional, Expression, FuncCall, Heredoc, TemplateExpr, Traversal, Variable};
+use crate::template::{IfDirective, StripMode, Template};
 use crate::{Identifier, Number};
 use indexmap::indexmap;
 use indoc::indoc;
@@ -78,6 +80,14 @@ fn parse_object() {
 #[test]
 fn parse_heredoc() {
     assert_eq!(
+        expr("<<HEREDOC\nHEREDOC\n"),
+        Ok((
+            "\n",
+            Expression::from(Heredoc::new(Identifier::unchecked("HEREDOC"), "")),
+        ))
+    );
+
+    assert_eq!(
         expr(indoc! {r#"
             <<HEREDOC
             ${foo}
@@ -89,20 +99,20 @@ fn parse_heredoc() {
             "\n",
             Expression::from(Heredoc::new(
                 Identifier::unchecked("HEREDOC"),
-                "${foo}\n%{if asdf}qux%{endif}\nheredoc\n"
+                "${foo}\n%{ if asdf }qux%{ endif }\nheredoc\n"
             )),
         ))
     );
 }
 
 #[test]
-fn parse_template() {
+fn parse_template_expr() {
     assert_eq!(
         expr("\"foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}\""),
         Ok((
             "",
             Expression::from(TemplateExpr::from(
-                "foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}"
+                "foo ${bar} $${baz}, %{ if cond ~} qux %{~ endif }"
             ))
         )),
     );
@@ -148,6 +158,28 @@ fn parse_nested_function_call_with_splat() {
                     .arg(0)
                     .build()
             )
+        )),
+    );
+}
+
+#[test]
+fn parse_template() {
+    assert_eq!(
+        template("foo $${baz} ${bar}, %{if cond ~} qux %{~ endif}"),
+        Ok((
+            "",
+            Template::new()
+                .add_literal("foo $${baz} ")
+                .add_interpolation(Variable::unchecked("bar"))
+                .add_literal(", ")
+                .add_directive(
+                    IfDirective::new(
+                        Variable::unchecked("cond"),
+                        Template::new().add_literal(" qux ")
+                    )
+                    .with_if_strip(StripMode::End)
+                    .with_endif_strip(StripMode::Start)
+                )
         )),
     );
 }

@@ -1,4 +1,6 @@
-use super::{expr::expr, ident, ws_delimited, ws_preceded};
+use super::{
+    anything_except, expr::expr, ident, string_fragment, ws_delimited, ws_preceded, StringFragment,
+};
 use crate::expr::Expression;
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
@@ -7,26 +9,30 @@ use crate::Identifier;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, char},
-    combinator::{cut, map, not, opt, recognize},
+    character::complete::char,
+    combinator::{map, opt, recognize},
     error::context,
-    multi::{many0, many1},
+    multi::{fold_many1, many0, many1_count},
     sequence::{pair, preceded, terminated, tuple},
     IResult,
 };
 
-fn literal(input: &str) -> IResult<&str, String> {
-    context(
-        "literal",
-        map(
-            recognize(many1(alt((
-                tag("$${"),
-                tag("%%{"),
-                recognize(preceded(not(alt((tag("${"), tag("%{")))), anychar)),
-            )))),
-            ToOwned::to_owned,
-        ),
-    )(input)
+fn literal<'a, F>(literal_parser: F) -> impl FnMut(&'a str) -> IResult<&str, String>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+{
+    fold_many1(
+        string_fragment(literal_parser),
+        String::new,
+        |mut string, fragment| {
+            match fragment {
+                StringFragment::Literal(s) => string.push_str(s),
+                StringFragment::EscapedChar(c) => string.push(c),
+                StringFragment::EscapedWS => {}
+            }
+            string
+        },
+    )
 }
 
 fn interpolation(input: &str) -> IResult<&str, Interpolation> {
@@ -50,7 +56,7 @@ where
         tuple((
             preceded(tag(start_tag), opt(char('~'))),
             ws_delimited(inner),
-            terminated(opt(char('~')), cut(char('}'))),
+            terminated(opt(char('~')), char('}')),
         )),
         |(strip_start, output, strip_end)| {
             (output, (strip_start.is_some(), strip_end.is_some()).into())
@@ -73,7 +79,7 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
 
     let if_expr = map(
         pair(
-            template_tag("%{", preceded(tag("if"), ws_preceded(cut(expr)))),
+            template_tag("%{", preceded(tag("if"), ws_preceded(expr))),
             template,
         ),
         |((cond_expr, strip), template)| IfExpr {
@@ -127,9 +133,9 @@ fn for_directive(input: &str) -> IResult<&str, ForDirective> {
             template_tag(
                 "%{",
                 tuple((
-                    preceded(tag("for"), ws_delimited(cut(ident))),
-                    opt(preceded(char(','), ws_delimited(cut(ident)))),
-                    preceded(tag("in"), ws_preceded(cut(expr))),
+                    preceded(tag("for"), ws_delimited(ident)),
+                    opt(preceded(char(','), ws_delimited(ident))),
+                    preceded(tag("in"), ws_preceded(expr)),
                 )),
             ),
             template,
@@ -176,16 +182,29 @@ fn directive(input: &str) -> IResult<&str, Directive> {
     )(input)
 }
 
-pub fn template(input: &str) -> IResult<&str, Template> {
+pub fn build_template<'a, F>(literal_parser: F) -> impl FnMut(&'a str) -> IResult<&'a str, Template>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+{
     context(
         "template",
         map(
             many0(alt((
-                map(literal, Element::Literal),
+                map(literal(literal_parser), Element::Literal),
                 map(interpolation, Element::Interpolation),
                 map(directive, Element::Directive),
             ))),
             Template::from_iter,
         ),
-    )(input)
+    )
+}
+
+pub fn template(input: &str) -> IResult<&str, Template> {
+    let literal = recognize(many1_count(alt((
+        tag("$${"),
+        tag("%%{"),
+        anything_except(alt((tag("\\"), tag("${"), tag("%{")))),
+    ))));
+
+    build_template(literal)(input)
 }

@@ -11,12 +11,13 @@ use crate::template::Template;
 use crate::{Error, Identifier, Number, Result};
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, take_until, take_while_m_n},
+    bytes::complete::{tag, take_until, take_while_m_n},
     character::complete::{
-        alpha1, alphanumeric1, char, multispace0, multispace1, not_line_ending, one_of, space0,
+        alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, multispace1,
+        not_line_ending, one_of, space0,
     },
-    combinator::{all_consuming, map, map_opt, map_res, opt, recognize, value, verify},
-    multi::{fold_many0, many0, many0_count, many1},
+    combinator::{all_consuming, map, map_opt, map_res, not, opt, recognize, value},
+    multi::{fold_many0, many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
     Finish, IResult, Parser,
 };
@@ -38,24 +39,30 @@ pub fn parse_template(input: &str) -> Result<Template> {
         .map_err(Error::new)
 }
 
-fn line_comment(input: &str) -> IResult<&str, &str> {
-    recognize(tuple((alt((tag("#"), tag("//"))), not_line_ending)))(input)
+fn line_comment(input: &str) -> IResult<&str, ()> {
+    value(
+        (),
+        tuple((alt((tag("#"), tag("//"))), not_line_ending, line_ending)),
+    )(input)
 }
 
-fn block_comment(input: &str) -> IResult<&str, &str> {
-    recognize(tuple((tag("/*"), take_until("*/"), tag("*/"))))(input)
+fn block_comment(input: &str) -> IResult<&str, ()> {
+    value((), tuple((tag("/*"), take_until("*/"), tag("*/"))))(input)
 }
 
-fn comment(input: &str) -> IResult<&str, &str> {
+fn comment(input: &str) -> IResult<&str, ()> {
     alt((line_comment, block_comment))(input)
 }
 
-fn sp(input: &str) -> IResult<&str, &str> {
-    recognize(pair(space0, many0(pair(block_comment, space0))))(input)
+fn sp(input: &str) -> IResult<&str, ()> {
+    value((), pair(space0, many0_count(pair(block_comment, space0))))(input)
 }
 
-fn ws(input: &str) -> IResult<&str, &str> {
-    recognize(pair(multispace0, many0(pair(comment, multispace0))))(input)
+fn ws(input: &str) -> IResult<&str, ()> {
+    value(
+        (),
+        pair(multispace0, many0_count(pair(comment, multispace0))),
+    )(input)
 }
 
 fn sp_delimited<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
@@ -133,10 +140,14 @@ fn escaped_whitespace(input: &str) -> IResult<&str, &str> {
     preceded(char('\\'), multispace1)(input)
 }
 
-/// Parse a non-empty block of text that doesn't include \ or "
+/// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
+/// interpolation/directive start markers.
 fn string_literal(input: &str) -> IResult<&str, &str> {
-    let not_quote_slash = is_not("\"\\");
-    verify(not_quote_slash, |s: &str| !s.is_empty())(input)
+    recognize(many1_count(alt((
+        tag("$${"),
+        tag("%%{"),
+        anything_except(alt((tag("\""), tag("\\"), tag("${"), tag("%{")))),
+    ))))(input)
 }
 
 /// A string fragment contains a fragment of a string being parsed: either
@@ -149,23 +160,32 @@ enum StringFragment<'a> {
     EscapedWS,
 }
 
-fn string_fragment(input: &str) -> IResult<&str, StringFragment<'_>> {
+fn string_fragment<'a, F>(
+    literal_parser: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, StringFragment<'a>>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+{
     alt((
-        map(string_literal, StringFragment::Literal),
+        map(literal_parser, StringFragment::Literal),
         map(escaped_char, StringFragment::EscapedChar),
         value(StringFragment::EscapedWS, escaped_whitespace),
-    ))(input)
+    ))
 }
 
 fn string(input: &str) -> IResult<&str, String> {
-    let build_string = fold_many0(string_fragment, String::new, |mut string, fragment| {
-        match fragment {
-            StringFragment::Literal(s) => string.push_str(s),
-            StringFragment::EscapedChar(c) => string.push(c),
-            StringFragment::EscapedWS => {}
-        }
-        string
-    });
+    let build_string = fold_many0(
+        string_fragment(string_literal),
+        String::new,
+        |mut string, fragment| {
+            match fragment {
+                StringFragment::Literal(s) => string.push_str(s),
+                StringFragment::EscapedChar(c) => string.push(c),
+                StringFragment::EscapedWS => {}
+            }
+            string
+        },
+    );
 
     delimited(char('"'), build_string, char('"'))(input)
 }
@@ -178,25 +198,19 @@ fn str_ident(input: &str) -> IResult<&str, &str> {
 }
 
 fn ident(input: &str) -> IResult<&str, Identifier> {
-    let not_a_keyword = |ident: &str| ident != "true" && ident != "false" && ident != "null";
-
-    map(verify(str_ident, not_a_keyword), Identifier::unchecked)(input)
-}
-
-fn decimal(input: &str) -> IResult<&str, &str> {
-    recognize(many1(one_of("0123456789")))(input)
+    map(str_ident, Identifier::unchecked)(input)
 }
 
 fn exponent(input: &str) -> IResult<&str, &str> {
-    recognize(tuple((one_of("eE"), opt(one_of("+-")), decimal)))(input)
+    recognize(tuple((one_of("eE"), opt(one_of("+-")), digit1)))(input)
 }
 
 fn float(input: &str) -> IResult<&str, f64> {
-    let fraction = preceded(char('.'), decimal);
+    let fraction = preceded(char('.'), digit1);
 
     map_res(
         recognize(terminated(
-            decimal,
+            digit1,
             alt((terminated(fraction, opt(exponent)), exponent)),
         )),
         f64::from_str,
@@ -204,9 +218,16 @@ fn float(input: &str) -> IResult<&str, f64> {
 }
 
 fn integer(input: &str) -> IResult<&str, u64> {
-    map_res(decimal, u64::from_str)(input)
+    map_res(digit1, u64::from_str)(input)
 }
 
 fn number(input: &str) -> IResult<&str, Number> {
     alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
+}
+
+fn anything_except<'a, F>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+{
+    recognize(preceded(not(inner), anychar))
 }

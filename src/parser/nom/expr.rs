@@ -1,21 +1,20 @@
 use super::{
-    ident, number, opt_sep, sp_delimited, str_ident, string, ws_delimited, ws_preceded,
-    ws_terminated,
+    anything_except, ident, number, opt_sep, sp_delimited, str_ident, string, string_literal,
+    template::build_template, ws_delimited, ws_preceded, ws_terminated,
 };
 use crate::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
     HeredocStripMode, Object, ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
     UnaryOperator, Variable,
 };
-use crate::util::is_templated;
 use crate::Identifier;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, char, line_ending, one_of, space0, u64},
-    combinator::{cut, map, not, opt, recognize, value},
+    character::complete::{char, line_ending, one_of, space0, u64},
+    combinator::{map, opt, recognize, value},
     error::context,
-    multi::{many0, many1, separated_list1},
+    multi::{many0, many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
@@ -100,7 +99,7 @@ fn object_item(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
             }
         }),
         sp_delimited(one_of("=:")),
-        cut(expr),
+        expr,
     )(input)
 }
 
@@ -135,7 +134,7 @@ fn for_intro(input: &str) -> IResult<&str, ForIntro> {
         delimited(
             ws_terminated(tag("for")),
             tuple((
-                cut(ident),
+                ident,
                 opt(preceded(ws_delimited(char(',')), ident)),
                 preceded(ws_delimited(tag("in")), expr),
             )),
@@ -164,14 +163,14 @@ fn parenthesis(input: &str) -> IResult<&str, Box<Expression>> {
     map(delimited(tag("("), ws_delimited(expr), tag(")")), Box::new)(input)
 }
 
-fn string_or_template(input: &str) -> IResult<&str, Expression> {
-    map(string, |s| {
-        if is_templated(&s) {
-            Expression::from(TemplateExpr::QuotedString(s))
-        } else {
-            Expression::String(s)
-        }
-    })(input)
+fn string_template(input: &str) -> IResult<&str, String> {
+    delimited(
+        char('"'),
+        map(build_template(string_literal), |template| {
+            template.to_string()
+        }),
+        char('"'),
+    )(input)
 }
 
 fn heredoc_start(input: &str) -> IResult<&str, (HeredocStripMode, &str)> {
@@ -191,30 +190,44 @@ fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'
     recognize(tuple((line_ending, space0, tag(delim))))
 }
 
-fn heredoc_template<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, String> {
-    move |input: &'a str| {
-        map(
-            recognize(many1(preceded(not(heredoc_end(delim)), anychar))),
-            |template| {
-                // Append the trailing newline here. This is easier than doing this via the parser combinators.
-                let mut template = template.to_owned();
-                template.push('\n');
-                template
-            },
-        )(input)
-    }
-}
-
-fn heredoc(input: &str) -> IResult<&str, Heredoc> {
+fn heredoc_template(input: &str) -> IResult<&str, Heredoc> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
+    let literal = recognize(many1_count(alt((
+        tag("$${"),
+        tag("%%{"),
+        anything_except(alt((tag("\\"), tag("${"), tag("%{"), heredoc_end(delim)))),
+    ))));
+
+    let nonempty_heredoc = terminated(build_template(literal), heredoc_end(delim));
+
+    let empty_heredoc = recognize(pair(space0, tag(delim)));
+
     map(
-        terminated(heredoc_template(delim), heredoc_end(delim)),
+        alt((
+            map(nonempty_heredoc, |template| {
+                // Append the trailing newline here. This is easier than doing this via the parser combinators.
+                let mut content = template.to_string();
+                content.push('\n');
+                content
+            }),
+            map(empty_heredoc, |_| String::new()),
+        )),
         move |template| Heredoc {
             delimiter: Identifier::unchecked(delim),
             template,
             strip,
         },
+    )(input)
+}
+
+fn template_expr(input: &str) -> IResult<&str, TemplateExpr> {
+    context(
+        "template expression",
+        alt((
+            map(string_template, TemplateExpr::from),
+            map(heredoc_template, TemplateExpr::from),
+        )),
     )(input)
 }
 
@@ -314,11 +327,11 @@ fn expr_term(input: &str) -> IResult<&str, Expression> {
         pair(
             alt((
                 map(number, Expression::Number),
-                string_or_template,
+                map(string, Expression::String),
                 ident_or_func_call,
                 array,
                 object,
-                map(heredoc, Expression::from),
+                map(template_expr, Expression::from),
                 map(parenthesis, Expression::Parenthesis),
             )),
             many0(ws_preceded(traversal_operator)),
@@ -339,7 +352,7 @@ pub fn expr(input: &str) -> IResult<&str, Expression> {
     let binary_op = pair(ws_delimited(binary_operator), expr);
 
     let conditional = pair(
-        preceded(sp_delimited(char('?')), cut(expr)),
+        preceded(sp_delimited(char('?')), expr),
         preceded(sp_delimited(char(':')), expr),
     );
 

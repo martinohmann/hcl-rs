@@ -273,7 +273,7 @@ fn template_expr() {
     let expected = Body::builder()
         .add_attribute((
             "foo",
-            TemplateExpr::QuotedString("bar ${baz} %{~ if cond}qux%{ endif ~}".into()),
+            TemplateExpr::QuotedString("bar ${baz} %{~ if cond }qux%{ endif ~}".into()),
         ))
         .build();
 
@@ -372,7 +372,7 @@ fn unescape_strings() {
                     TemplateExpr::Heredoc(
                         Heredoc::new(
                             Identifier::unchecked("EOS"),
-                            "            heredoc template with \\\n            escaped newline and \\\\backslash is not unescaped yet\n"
+                            "            heredoc template with escaped newline and \\backslash is not unescaped yet\n"
                         )
                         .with_strip_mode(HeredocStripMode::Indent)
                     )
