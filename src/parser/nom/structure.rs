@@ -1,3 +1,4 @@
+use super::IResult;
 use super::{
     expr::expr, ident, line_comment, sp_delimited, sp_preceded, sp_terminated, string, ws_preceded,
     ws_terminated,
@@ -6,11 +7,10 @@ use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{
     branch::alt,
     character::complete::{char, line_ending},
-    combinator::{eof, map, opt, value},
+    combinator::{cut, eof, map, opt, value},
     error::context,
     multi::many0,
     sequence::{delimited, separated_pair, terminated, tuple},
-    IResult,
 };
 
 fn line_ending_terminated<'a, F, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
@@ -25,9 +25,9 @@ where
 
 fn attribute(input: &str) -> IResult<&str, Attribute> {
     context(
-        "attribute",
+        "Attribute",
         map(
-            separated_pair(ident, sp_delimited(char('=')), expr),
+            separated_pair(ident, sp_delimited(char('=')), cut(expr)),
             |(key, expr)| Attribute { key, expr },
         ),
     )(input)
@@ -35,17 +35,21 @@ fn attribute(input: &str) -> IResult<&str, Attribute> {
 
 fn block(input: &str) -> IResult<&str, Block> {
     context(
-        "block",
+        "Block",
         map(
             tuple((
                 sp_terminated(ident),
                 many0(sp_terminated(block_label)),
                 alt((
                     // Multiline block.
-                    delimited(line_ending_terminated(char('{')), body, char('}')),
+                    delimited(line_ending_terminated(cut(char('{'))), body, cut(char('}'))),
                     // One-line block.
                     map(
-                        delimited(char('{'), sp_delimited(opt(attribute)), char('}')),
+                        delimited(
+                            cut(char('{')),
+                            sp_delimited(opt(cut(attribute))),
+                            cut(char('}')),
+                        ),
                         |attr| attr.map(Body::from).unwrap_or_default(),
                     ),
                 )),

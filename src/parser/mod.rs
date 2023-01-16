@@ -13,7 +13,7 @@ use self::pest::parse as parse_impl;
 #[cfg(all(feature = "pest", not(feature = "nom")))]
 use self::pest::parse_template as parse_template_impl;
 
-use crate::{structure::Body, template::Template, Result};
+use crate::{structure::Body, template::Template, Error, Result};
 
 /// Parse a `hcl::Body` from a `&str`.
 ///
@@ -57,9 +57,9 @@ use crate::{structure::Body, template::Template, Result};
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> Result<Body> {
-    parse_impl(input)
+    parse_impl(input).map_err(Error::new)
 }
 
 pub fn parse_template(input: &str) -> Result<Template> {
-    parse_template_impl(input)
+    parse_template_impl(input).map_err(Error::new)
 }

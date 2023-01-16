@@ -1,14 +1,17 @@
+mod error;
 mod expr;
 mod structure;
 mod template;
 #[cfg(test)]
 mod tests;
 
+use self::error::IResult;
+pub use self::error::{Error, ErrorKind, Location, ParseResult};
 use self::structure::body;
 use self::template::template;
 use crate::structure::Body;
 use crate::template::Template;
-use crate::{Error, Identifier, Number, Result};
+use crate::{Identifier, Number};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while_m_n},
@@ -16,27 +19,31 @@ use nom::{
         alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, multispace1,
         not_line_ending, one_of, space0,
     },
-    combinator::{all_consuming, map, map_opt, map_res, not, opt, recognize, value},
+    combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value},
+    error::context,
     multi::{fold_many0, many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
-    Finish, IResult, Parser,
+    Finish, Parser,
 };
 use std::str::FromStr;
 
-pub fn parse(input: &str) -> Result<Body> {
-    all_consuming(body)
-        .parse(input)
-        .finish()
-        .map(|(_, body)| body)
-        .map_err(Error::new)
+pub fn parse(input: &str) -> ParseResult<Body> {
+    parse_to_end(input, body)
 }
 
-pub fn parse_template(input: &str) -> Result<Template> {
-    all_consuming(template)
+pub fn parse_template(input: &str) -> ParseResult<Template> {
+    parse_to_end(input, template)
+}
+
+fn parse_to_end<'a, F, O>(input: &'a str, parser: F) -> ParseResult<O>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, O>,
+{
+    all_consuming(parser)
         .parse(input)
         .finish()
-        .map(|(_, template)| template)
-        .map_err(Error::new)
+        .map(|(_, output)| output)
+        .map_err(|err| Error::from_internal_error(input, err))
 }
 
 fn line_comment(input: &str) -> IResult<&str, ()> {
@@ -205,11 +212,11 @@ fn str_ident(input: &str) -> IResult<&str, &str> {
 }
 
 fn ident(input: &str) -> IResult<&str, Identifier> {
-    map(str_ident, Identifier::unchecked)(input)
+    context("Identifier", map(str_ident, Identifier::unchecked))(input)
 }
 
 fn exponent(input: &str) -> IResult<&str, &str> {
-    recognize(tuple((one_of("eE"), opt(one_of("+-")), digit1)))(input)
+    recognize(tuple((one_of("eE"), opt(one_of("+-")), cut(digit1))))(input)
 }
 
 fn float(input: &str) -> IResult<&str, f64> {
@@ -229,7 +236,10 @@ fn integer(input: &str) -> IResult<&str, u64> {
 }
 
 fn number(input: &str) -> IResult<&str, Number> {
-    alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
+    context(
+        "Number",
+        alt((map_opt(float, Number::from_f64), map(integer, Number::from))),
+    )(input)
 }
 
 fn anything_except<'a, F>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str>
