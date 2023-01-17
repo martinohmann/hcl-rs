@@ -1,7 +1,7 @@
-use super::IResult;
 use super::{
-    anything_except, ident, number, opt_sep, sp_delimited, str_ident, string, string_literal,
-    template::build_template, ws_delimited, ws_preceded, ws_terminated,
+    anything_except, char_or_cut, ident, number, opt_sep, sp_delimited, str_ident, string,
+    string_literal, tag_or_cut, template::build_template, ws_delimited, ws_preceded, ws_terminated,
+    IResult,
 };
 use crate::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
@@ -13,23 +13,20 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, line_ending, one_of, space0, u64},
-    combinator::{cut, map, opt, recognize, value},
+    combinator::{cut, fail, map, not, opt, recognize, value},
     error::context,
     multi::{many0, many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
 
 fn array(input: &str) -> IResult<&str, Expression> {
-    context(
-        "Array",
-        delimited(
-            ws_terminated(char('[')),
-            alt((
-                map(for_list_expr, Expression::from),
-                map(array_items, Expression::from),
-            )),
-            ws_preceded(cut(char(']'))),
-        ),
+    delimited(
+        ws_terminated(char('[')),
+        alt((
+            map(for_list_expr, Expression::from),
+            map(array_items, Expression::from),
+        )),
+        ws_preceded(char_or_cut(']')),
     )(input)
 }
 
@@ -44,38 +41,32 @@ fn array_items(input: &str) -> IResult<&str, Vec<Expression>> {
 }
 
 fn for_list_expr(input: &str) -> IResult<&str, ForExpr> {
-    context(
-        "ForListExpr",
-        map(
-            tuple((
-                ws_terminated(for_intro),
-                cut(expr),
-                opt(ws_preceded(for_cond_expr)),
-            )),
-            |(intro, value_expr, cond_expr)| ForExpr {
-                key_var: intro.key_var,
-                value_var: intro.value_var,
-                collection_expr: intro.collection_expr,
-                key_expr: None,
-                value_expr,
-                cond_expr,
-                grouping: false,
-            },
-        ),
+    map(
+        tuple((
+            ws_terminated(for_intro),
+            cut(expr),
+            opt(ws_preceded(for_cond_expr)),
+        )),
+        |(intro, value_expr, cond_expr)| ForExpr {
+            key_var: intro.key_var,
+            value_var: intro.value_var,
+            collection_expr: intro.collection_expr,
+            key_expr: None,
+            value_expr,
+            cond_expr,
+            grouping: false,
+        },
     )(input)
 }
 
 fn object(input: &str) -> IResult<&str, Expression> {
-    context(
-        "Object",
-        delimited(
-            ws_terminated(char('{')),
-            alt((
-                map(ws_terminated(for_object_expr), Expression::from),
-                map(object_items, Expression::from),
-            )),
-            cut(char('}')),
-        ),
+    delimited(
+        ws_terminated(char('{')),
+        alt((
+            map(ws_terminated(for_object_expr), Expression::from),
+            map(object_items, Expression::from),
+        )),
+        char_or_cut('}'),
     )(input)
 }
 
@@ -107,25 +98,22 @@ fn object_item(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
 }
 
 fn for_object_expr(input: &str) -> IResult<&str, ForExpr> {
-    context(
-        "ForObjectExpr",
-        map(
-            tuple((
-                ws_terminated(for_intro),
-                separated_pair(cut(expr), ws_delimited(cut(tag("=>"))), cut(expr)),
-                opt(ws_preceded(tag("..."))),
-                opt(ws_preceded(for_cond_expr)),
-            )),
-            |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
-                key_var: intro.key_var,
-                value_var: intro.value_var,
-                collection_expr: intro.collection_expr,
-                key_expr: Some(key_expr),
-                value_expr,
-                cond_expr,
-                grouping: grouping.is_some(),
-            },
-        ),
+    map(
+        tuple((
+            ws_terminated(for_intro),
+            separated_pair(cut(expr), ws_delimited(tag_or_cut("=>")), cut(expr)),
+            opt(ws_preceded(tag("..."))),
+            opt(ws_preceded(for_cond_expr)),
+        )),
+        |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
+            key_var: intro.key_var,
+            value_var: intro.value_var,
+            collection_expr: intro.collection_expr,
+            key_expr: Some(key_expr),
+            value_expr,
+            cond_expr,
+            grouping: grouping.is_some(),
+        },
     )(input)
 }
 
@@ -142,9 +130,9 @@ fn for_intro(input: &str) -> IResult<&str, ForIntro> {
             tuple((
                 cut(ident),
                 opt(preceded(ws_delimited(char(',')), cut(ident))),
-                preceded(ws_delimited(cut(tag("in"))), cut(expr)),
+                preceded(ws_delimited(tag_or_cut("in")), cut(expr)),
             )),
-            ws_preceded(cut(char(':'))),
+            ws_preceded(char_or_cut(':')),
         ),
         |(first, second, expr)| match second {
             Some(second) => ForIntro {
@@ -167,7 +155,7 @@ fn for_cond_expr(input: &str) -> IResult<&str, Expression> {
 
 fn parenthesis(input: &str) -> IResult<&str, Box<Expression>> {
     map(
-        delimited(tag("("), ws_delimited(cut(expr)), cut(tag(")"))),
+        delimited(char('('), ws_delimited(cut(expr)), char_or_cut(')')),
         Box::new,
     )(input)
 }
@@ -189,9 +177,9 @@ fn heredoc_start(input: &str) -> IResult<&str, (HeredocStripMode, &str)> {
                 value(HeredocStripMode::Indent, tag("<<-")),
                 value(HeredocStripMode::None, tag("<<")),
             )),
-            str_ident,
+            cut(str_ident),
         ),
-        pair(space0, line_ending),
+        pair(space0, cut(line_ending)),
     )(input)
 }
 
@@ -199,37 +187,35 @@ fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'
     recognize(tuple((line_ending, space0, tag(delim))))
 }
 
-fn heredoc_template<'a>(input: &'a str) -> IResult<&'a str, Heredoc> {
-    context("Heredoc", |input: &'a str| {
-        let (input, (strip, delim)) = heredoc_start(input)?;
+fn heredoc_template(input: &str) -> IResult<&str, Heredoc> {
+    let (input, (strip, delim)) = heredoc_start(input)?;
 
-        let literal = recognize(many1_count(alt((
-            tag("$${"),
-            tag("%%{"),
-            anything_except(alt((tag("\\"), tag("${"), tag("%{"), heredoc_end(delim)))),
-        ))));
+    let literal = recognize(many1_count(alt((
+        tag("$${"),
+        tag("%%{"),
+        anything_except(alt((tag("\\"), tag("${"), tag("%{"), heredoc_end(delim)))),
+    ))));
 
-        let nonempty_heredoc = terminated(build_template(literal), heredoc_end(delim));
+    let nonempty_heredoc = terminated(build_template(literal), heredoc_end(delim));
 
-        let empty_heredoc = recognize(pair(space0, cut(tag(delim))));
+    let empty_heredoc = recognize(pair(space0, tag_or_cut(delim)));
 
-        map(
-            alt((
-                map(nonempty_heredoc, |template| {
-                    // Append the trailing newline here. This is easier than doing this via the parser combinators.
-                    let mut content = template.to_string();
-                    content.push('\n');
-                    content
-                }),
-                map(empty_heredoc, |_| String::new()),
-            )),
-            move |template| Heredoc {
-                delimiter: Identifier::unchecked(delim),
-                template,
-                strip,
-            },
-        )(input)
-    })(input)
+    map(
+        alt((
+            map(nonempty_heredoc, |template| {
+                // Append the trailing newline here. This is easier than doing this via the parser combinators.
+                let mut content = template.to_string();
+                content.push('\n');
+                content
+            }),
+            map(empty_heredoc, |_| String::new()),
+        )),
+        move |template| Heredoc {
+            delimiter: Identifier::unchecked(delim),
+            template,
+            strip,
+        },
+    )(input)
 }
 
 fn template_expr(input: &str) -> IResult<&str, TemplateExpr> {
@@ -245,11 +231,16 @@ fn traversal_operator(input: &str) -> IResult<&str, TraversalOperator> {
         alt((
             preceded(
                 ws_terminated(char('.')),
-                alt((
-                    value(TraversalOperator::AttrSplat, char('*')),
-                    map(ident, TraversalOperator::GetAttr),
-                    map(u64, TraversalOperator::LegacyIndex),
-                )),
+                preceded(
+                    // Must not match `for` object value grouping or func call expand final which
+                    // are both `...`.
+                    not(char('.')),
+                    cut(alt((
+                        value(TraversalOperator::AttrSplat, char('*')),
+                        map(ident, TraversalOperator::GetAttr),
+                        map(u64, TraversalOperator::LegacyIndex),
+                    ))),
+                ),
             ),
             delimited(
                 ws_terminated(char('[')),
@@ -257,7 +248,7 @@ fn traversal_operator(input: &str) -> IResult<&str, TraversalOperator> {
                     value(TraversalOperator::FullSplat, char('*')),
                     map(expr, TraversalOperator::Index),
                 ))),
-                ws_preceded(cut(char(']'))),
+                ws_preceded(char_or_cut(']')),
             ),
         )),
     )(input)
@@ -283,22 +274,19 @@ fn ident_or_func_call(input: &str) -> IResult<&str, Expression> {
 }
 
 fn func_call(input: &str) -> IResult<&str, (Vec<Expression>, bool)> {
-    context(
-        "FuncCall",
-        map(
-            delimited(
-                ws_terminated(char('(')),
-                opt(pair(
-                    separated_list1(ws_delimited(char(',')), expr),
-                    ws_terminated(opt_sep(alt((tag(","), tag("..."))))),
-                )),
-                cut(char(')')),
-            ),
-            |pair| {
-                pair.map(|(args, trailer)| (args, trailer == Some("...")))
-                    .unwrap_or_default()
-            },
+    map(
+        delimited(
+            ws_terminated(char('(')),
+            opt(pair(
+                separated_list1(ws_delimited(char(',')), expr),
+                ws_terminated(opt_sep(alt((tag(","), tag("..."))))),
+            )),
+            char_or_cut(')'),
         ),
+        |pair| {
+            pair.map(|(args, trailer)| (args, trailer == Some("...")))
+                .unwrap_or_default()
+        },
     )(input)
 }
 
@@ -338,6 +326,7 @@ fn expr_term(input: &str) -> IResult<&str, Expression> {
                 object,
                 map(template_expr, Expression::from),
                 map(parenthesis, Expression::Parenthesis),
+                fail,
             )),
             many0(ws_preceded(traversal_operator)),
         ),
@@ -356,12 +345,9 @@ pub fn expr(input: &str) -> IResult<&str, Expression> {
 
     let binary_op = pair(ws_delimited(binary_operator), cut(expr));
 
-    let conditional = context(
-        "Conditional",
-        pair(
-            preceded(sp_delimited(char('?')), cut(expr)),
-            preceded(sp_delimited(cut(char(':'))), cut(expr)),
-        ),
+    let conditional = pair(
+        preceded(sp_delimited(char('?')), cut(expr)),
+        preceded(sp_delimited(char_or_cut(':')), cut(expr)),
     );
 
     context(

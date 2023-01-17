@@ -1,6 +1,6 @@
-use super::IResult;
 use super::{
-    anything_except, expr::expr, ident, string_fragment, ws_delimited, ws_preceded, StringFragment,
+    anything_except, char_or_cut, expr::expr, ident, string_fragment, tag_or_cut, ws_delimited,
+    ws_preceded, IResult, StringFragment,
 };
 use crate::expr::Expression;
 use crate::template::{
@@ -12,7 +12,6 @@ use nom::{
     bytes::complete::tag,
     character::complete::char,
     combinator::{cut, map, opt, recognize},
-    error::context,
     multi::{fold_many1, many0, many1_count},
     sequence::{pair, preceded, terminated, tuple},
 };
@@ -52,7 +51,7 @@ where
         tuple((
             preceded(tag(start_tag), opt(char('~'))),
             ws_delimited(inner),
-            terminated(opt(char('~')), cut(char('}'))),
+            terminated(opt(char('~')), char_or_cut('}')),
         )),
         |(strip_start, output, strip_end)| {
             (output, (strip_start.is_some(), strip_end.is_some()).into())
@@ -73,19 +72,16 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
         strip: StripMode,
     }
 
-    let if_expr = context(
-        "If",
-        map(
-            pair(
-                template_tag("%{", preceded(tag("if"), ws_preceded(cut(expr)))),
-                template,
-            ),
-            |((cond_expr, strip), template)| IfExpr {
-                cond_expr,
-                template,
-                strip,
-            },
+    let if_expr = map(
+        pair(
+            template_tag("%{", preceded(tag("if"), ws_preceded(cut(expr)))),
+            template,
         ),
+        |((cond_expr, strip), template)| IfExpr {
+            cond_expr,
+            template,
+            strip,
+        },
     );
 
     let else_expr = map(
@@ -96,10 +92,7 @@ fn if_directive(input: &str) -> IResult<&str, IfDirective> {
         },
     );
 
-    let endif_expr = context(
-        "EndIf",
-        map(template_tag("%{", cut(tag("endif"))), |(_, strip)| strip),
-    );
+    let endif_expr = map(template_tag("%{", tag_or_cut("endif")), |(_, strip)| strip);
 
     map(
         tuple((if_expr, opt(else_expr), endif_expr)),
@@ -127,40 +120,34 @@ fn for_directive(input: &str) -> IResult<&str, ForDirective> {
         strip: StripMode,
     }
 
-    let for_expr = context(
-        "For",
-        map(
-            pair(
-                template_tag(
-                    "%{",
-                    tuple((
-                        preceded(tag("for"), ws_delimited(cut(ident))),
-                        opt(preceded(char(','), ws_delimited(cut(ident)))),
-                        preceded(cut(tag("in")), ws_preceded(cut(expr))),
-                    )),
-                ),
-                template,
+    let for_expr = map(
+        pair(
+            template_tag(
+                "%{",
+                tuple((
+                    preceded(tag("for"), ws_delimited(cut(ident))),
+                    opt(preceded(char(','), ws_delimited(cut(ident)))),
+                    preceded(tag_or_cut("in"), ws_preceded(cut(expr))),
+                )),
             ),
-            |(((key_var, value_var, collection_expr), strip), template)| {
-                let (key_var, value_var) = match value_var {
-                    Some(value_var) => (Some(key_var), value_var),
-                    None => (None, key_var),
-                };
-                ForExpr {
-                    key_var,
-                    value_var,
-                    collection_expr,
-                    template,
-                    strip,
-                }
-            },
+            template,
         ),
+        |(((key_var, value_var, collection_expr), strip), template)| {
+            let (key_var, value_var) = match value_var {
+                Some(value_var) => (Some(key_var), value_var),
+                None => (None, key_var),
+            };
+            ForExpr {
+                key_var,
+                value_var,
+                collection_expr,
+                template,
+                strip,
+            }
+        },
     );
 
-    let endfor_expr = context(
-        "EndFor",
-        map(template_tag("%{", cut(tag("endfor"))), |(_, strip)| strip),
-    );
+    let endfor_expr = map(template_tag("%{", tag_or_cut("endfor")), |(_, strip)| strip);
 
     map(pair(for_expr, endfor_expr), |(for_expr, endfor_strip)| {
         ForDirective {
@@ -185,16 +172,13 @@ pub fn build_template<'a, F>(literal_parser: F) -> impl FnMut(&'a str) -> IResul
 where
     F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
 {
-    context(
-        "Template",
-        map(
-            many0(alt((
-                map(literal(literal_parser), Element::Literal),
-                map(interpolation, Element::Interpolation),
-                map(directive, Element::Directive),
-            ))),
-            Template::from_iter,
-        ),
+    map(
+        many0(alt((
+            map(literal(literal_parser), Element::Literal),
+            map(interpolation, Element::Interpolation),
+            map(directive, Element::Directive),
+        ))),
+        Template::from_iter,
     )
 }
 

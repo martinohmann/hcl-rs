@@ -1,14 +1,12 @@
-use super::IResult;
 use super::{
-    expr::expr, ident, line_comment, sp_delimited, sp_preceded, sp_terminated, string, ws_preceded,
-    ws_terminated,
+    char_or_cut, expr::expr, ident, line_comment, sp_delimited, sp_preceded, sp_terminated, string,
+    ws_preceded, ws_terminated, IResult,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use nom::{
     branch::alt,
     character::complete::{char, line_ending},
     combinator::{cut, eof, map, opt, value},
-    error::context,
     multi::many0,
     sequence::{delimited, separated_pair, terminated, tuple},
 };
@@ -24,42 +22,40 @@ where
 }
 
 fn attribute(input: &str) -> IResult<&str, Attribute> {
-    context(
-        "Attribute",
-        map(
-            separated_pair(ident, sp_delimited(char('=')), cut(expr)),
-            |(key, expr)| Attribute { key, expr },
-        ),
+    map(
+        separated_pair(ident, sp_delimited(char('=')), cut(expr)),
+        |(key, expr)| Attribute { key, expr },
     )(input)
 }
 
 fn block(input: &str) -> IResult<&str, Block> {
-    context(
-        "Block",
-        map(
-            tuple((
-                sp_terminated(ident),
-                many0(sp_terminated(block_label)),
-                alt((
-                    // Multiline block.
-                    delimited(line_ending_terminated(cut(char('{'))), body, cut(char('}'))),
-                    // One-line block.
-                    map(
-                        delimited(
-                            cut(char('{')),
-                            sp_delimited(opt(cut(attribute))),
-                            cut(char('}')),
-                        ),
-                        |attr| attr.map(Body::from).unwrap_or_default(),
+    map(
+        tuple((
+            sp_terminated(ident),
+            many0(sp_terminated(block_label)),
+            alt((
+                // Multiline block.
+                delimited(
+                    line_ending_terminated(char_or_cut('{')),
+                    body,
+                    char_or_cut('}'),
+                ),
+                // One-line block.
+                map(
+                    delimited(
+                        char_or_cut('{'),
+                        sp_delimited(opt(cut(attribute))),
+                        char_or_cut('}'),
                     ),
-                )),
+                    |attr| attr.map(Body::from).unwrap_or_default(),
+                ),
             )),
-            |(identifier, labels, body)| Block {
-                identifier,
-                labels,
-                body,
-            },
-        ),
+        )),
+        |(identifier, labels, body)| Block {
+            identifier,
+            labels,
+            body,
+        },
     )(input)
 }
 

@@ -198,6 +198,5 @@ fn parse_oneline_block() {
                 .build()
         ))
     );
-
     assert!(all_consuming(body)("block { attr = 1 attr2 = 2 }").is_err());
 }

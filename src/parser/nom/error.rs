@@ -9,43 +9,73 @@ pub type ParseResult<T, E = Error> = std::result::Result<T, E>;
 pub type IResult<I, O, E = InternalError<I>> = nom::IResult<I, O, E>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorKind {
+pub enum ErrorKind<T = String> {
     Nom(nom::error::ErrorKind),
     Context(&'static str),
     Char(char),
+    Tag(T),
+}
+
+impl<'a> ErrorKind<&'a str> {
+    fn into_owned(self) -> ErrorKind<String> {
+        match self {
+            ErrorKind::Nom(kind) => ErrorKind::Nom(kind),
+            ErrorKind::Context(ctx) => ErrorKind::Context(ctx),
+            ErrorKind::Char(ch) => ErrorKind::Char(ch),
+            ErrorKind::Tag(tag) => ErrorKind::Tag(tag.to_owned()),
+        }
+    }
+}
+
+impl<T> fmt::Display for ErrorKind<T>
+where
+    T: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ErrorKind::Context(ctx) => write!(f, "expected {ctx}"),
+            ErrorKind::Nom(kind) => write!(f, "error in {kind:?} parser"),
+            ErrorKind::Char(ch) => write!(f, "expected char `{ch}`"),
+            ErrorKind::Tag(tag) => write!(f, "expected `{tag}`"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct InternalError<I> {
     pub input: I,
-    pub kind: ErrorKind,
+    pub kind: ErrorKind<I>,
 }
 
 impl<I> InternalError<I> {
     #[inline]
-    pub(super) fn new(input: I, kind: ErrorKind) -> InternalError<I> {
+    pub(super) fn new(input: I, kind: ErrorKind<I>) -> InternalError<I> {
         InternalError { input, kind }
     }
 }
 
 impl<I> ParseError<I> for InternalError<I> {
+    #[inline]
     fn from_error_kind(input: I, kind: nom::error::ErrorKind) -> Self {
         InternalError::new(input, ErrorKind::Nom(kind))
     }
 
+    #[inline]
     fn from_char(input: I, ch: char) -> Self {
         InternalError::new(input, ErrorKind::Char(ch))
     }
 
+    #[inline]
     fn append(_: I, _: nom::error::ErrorKind, other: Self) -> Self {
         other
     }
 }
 
 impl<I> ContextError<I> for InternalError<I> {
+    #[inline]
     fn add_context(input: I, ctx: &'static str, other: Self) -> Self {
-        // Only attach context if it was a less specific error, but keep errors with context or
-        // explicit chars untouched.
+        // Keep `Char`, `Tag` and `Context` errors unchanged and only replace less specific nom
+        // errors with the context.
         if let ErrorKind::Nom(_) = &other.kind {
             InternalError::new(input, ErrorKind::Context(ctx))
         } else {
@@ -55,6 +85,7 @@ impl<I> ContextError<I> for InternalError<I> {
 }
 
 impl<I, E> FromExternalError<I, E> for InternalError<I> {
+    #[inline]
     fn from_external_error(input: I, kind: nom::error::ErrorKind, _e: E) -> Self {
         InternalError::new(input, ErrorKind::Nom(kind))
     }
@@ -65,11 +96,7 @@ where
     I: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.kind {
-            ErrorKind::Context(ctx) => write!(f, "error in {} at: {}", ctx, self.input),
-            ErrorKind::Nom(kind) => write!(f, "error {:?} at: {}", kind, self.input),
-            ErrorKind::Char(ch) => write!(f, "expected char '{}' at: {}", ch, self.input),
-        }
+        write!(f, "{} at: {}", self.kind, self.input)
     }
 }
 
@@ -95,9 +122,7 @@ pub struct Error {
 impl Error {
     pub(super) fn from_internal_error<'a>(input: &'a str, err: InternalError<&'a str>) -> Error {
         let substring = err.input;
-
         let offset = input.offset(substring);
-
         let prefix = &input.as_bytes()[..offset];
 
         // Find the line that includes the subslice:
@@ -123,12 +148,12 @@ impl Error {
 
         Error {
             line: line.to_owned(),
+            kind: err.kind.into_owned(),
             location: Location {
                 offset,
                 line: line_number,
                 col: column_number,
             },
-            kind: err.kind,
         }
     }
 
@@ -156,26 +181,10 @@ impl Error {
     }
 
     fn message(&self) -> String {
-        match &self.kind {
-            ErrorKind::Context(ctx) => {
-                format!(
-                    "expected {ctx} in line {}, col {}",
-                    self.location.line, self.location.col
-                )
-            }
-            ErrorKind::Char(ch) => {
-                format!(
-                    "expected char {ch} in line {}, col {}",
-                    self.location.line, self.location.col
-                )
-            }
-            ErrorKind::Nom(kind) => {
-                format!(
-                    "at {kind:?} in line {}, col {}",
-                    self.location.line, self.location.col
-                )
-            }
-        }
+        format!(
+            "{} in line {}, col {}",
+            self.kind, self.location.line, self.location.col
+        )
     }
 }
 

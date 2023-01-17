@@ -5,8 +5,8 @@ mod template;
 #[cfg(test)]
 mod tests;
 
-use self::error::IResult;
 pub use self::error::{Error, ErrorKind, Location, ParseResult};
+use self::error::{IResult, InternalError};
 use self::structure::body;
 use self::template::template;
 use crate::structure::Body;
@@ -23,7 +23,7 @@ use nom::{
     error::context,
     multi::{fold_many0, many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
-    Finish, Parser,
+    Compare, CompareResult, Finish, InputLength, InputTake, Parser,
 };
 use std::str::FromStr;
 
@@ -44,6 +44,29 @@ where
         .finish()
         .map(|(_, output)| output)
         .map_err(|err| Error::from_internal_error(input, err))
+}
+
+fn char_or_cut<'a>(ch: char) -> impl Fn(&'a str) -> IResult<&'a str, char> {
+    move |input: &'a str| match input.chars().next().map(|t| t == ch) {
+        Some(true) => Ok((&input[ch.len_utf8()..], ch)),
+        _ => Err(nom::Err::Error(InternalError::new(
+            input,
+            ErrorKind::Char(ch),
+        ))),
+    }
+}
+
+fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(&'a str) -> IResult<&'a str, &'a str> {
+    move |input: &'a str| {
+        let tag_len = tag.input_len();
+        match input.compare(tag) {
+            CompareResult::Ok => Ok(input.take_split(tag_len)),
+            _ => Err(nom::Err::Failure(InternalError::new(
+                input,
+                ErrorKind::Tag(tag),
+            ))),
+        }
+    }
 }
 
 fn line_comment(input: &str) -> IResult<&str, ()> {
@@ -205,14 +228,17 @@ fn string(input: &str) -> IResult<&str, String> {
 }
 
 fn str_ident(input: &str) -> IResult<&str, &str> {
-    recognize(pair(
-        alt((alpha1, tag("_"))),
-        many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
-    ))(input)
+    context(
+        "Identifier",
+        recognize(pair(
+            alt((alpha1, tag("_"))),
+            many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
+        )),
+    )(input)
 }
 
 fn ident(input: &str) -> IResult<&str, Identifier> {
-    context("Identifier", map(str_ident, Identifier::unchecked))(input)
+    map(str_ident, Identifier::unchecked)(input)
 }
 
 fn exponent(input: &str) -> IResult<&str, &str> {
