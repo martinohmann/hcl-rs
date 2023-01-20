@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/martinohmann/hcl-rs/compare/v0.12.0...v0.12.1) (2023-01-12)
+
+
+### Bug Fixes
+
+* **eval:** implement correct template literal stripping ([#153](https://github.com/martinohmann/hcl-rs/issues/153)) ([d13db03](https://github.com/martinohmann/hcl-rs/commit/d13db031772c5597e28bb53baf8dc0f124b92159))
+
 ## [0.12.0](https://github.com/martinohmann/hcl-rs/compare/v0.11.2...v0.12.0) (2023-01-06)
 
 

@@ -185,7 +185,7 @@ fn parse_template() {
                             HeredocLiteral(16, 17),
                             TemplateDirective(17, 38, [
                                 TemplateIf(17, 38, [
-                                    TemplateIfExpr(17, 30, [
+                                    TemplateIfExpr(17, 27, [
                                         TemplateDExprStartNormal(17, 19),
                                         Expression(22, 26, [
                                             ExprTerm(22, 26, [
@@ -193,9 +193,9 @@ fn parse_template() {
                                             ])
                                         ]),
                                         TemplateExprEndNormal(26, 27),
-                                        Template(27, 30, [
-                                            TemplateLiteral(27, 30)
-                                        ]),
+                                    ]),
+                                    Template(27, 30, [
+                                        TemplateLiteral(27, 30)
                                     ]),
                                     TemplateEndIfExpr(30, 38, [
                                         TemplateDExprStartNormal(30, 32),
@@ -233,7 +233,7 @@ fn parse_template() {
                             QuotedStringTemplateLiteral(11, 21),
                             TemplateDirective(21, 48, [
                                 TemplateIf(21, 48, [
-                                    TemplateIfExpr(21, 38, [
+                                    TemplateIfExpr(21, 33, [
                                         TemplateDExprStartNormal(21, 23),
                                         Expression(26, 31, [
                                             ExprTerm(26, 31, [
@@ -241,9 +241,9 @@ fn parse_template() {
                                             ])
                                         ]),
                                         TemplateExprEndStrip(31, 33),
-                                        Template(34, 38, [
-                                            TemplateLiteral(34, 38)
-                                        ]),
+                                    ]),
+                                    Template(33, 38, [
+                                        TemplateLiteral(33, 38)
                                     ]),
                                     TemplateEndIfExpr(38, 48, [
                                         TemplateDExprStartStrip(38, 41),
