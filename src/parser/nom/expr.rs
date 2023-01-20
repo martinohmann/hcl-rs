@@ -83,9 +83,11 @@ fn object_items(input: &str) -> IResult<&str, Object<ObjectKey, Expression>> {
 fn object_item(input: &str) -> IResult<&str, (ObjectKey, Expression)> {
     separated_pair(
         map(expr, |expr| {
-            // Variable identifiers without traversal are treated as identifier object keys. This
-            // allows us to avoid re-parsing the whole key-value pair when an identifier followed
-            // by a traversal operator is encountered.
+            // Variable identifiers without traversal are treated as identifier object keys.
+            //
+            // Handle this case here by converting the variable into an identifier. This
+            // avoids re-parsing the whole key-value pair when an identifier followed by a
+            // traversal operator is encountered.
             if let Expression::Variable(variable) = expr {
                 ObjectKey::Identifier(variable.into_inner())
             } else {

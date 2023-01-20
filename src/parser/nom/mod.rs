@@ -49,7 +49,7 @@ where
 fn char_or_cut<'a>(ch: char) -> impl Fn(&'a str) -> IResult<&'a str, char> {
     move |input: &'a str| match input.chars().next().map(|t| t == ch) {
         Some(true) => Ok((&input[ch.len_utf8()..], ch)),
-        _ => Err(nom::Err::Error(InternalError::new(
+        _ => Err(nom::Err::Failure(InternalError::new(
             input,
             ErrorKind::Char(ch),
         ))),

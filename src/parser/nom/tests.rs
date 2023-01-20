@@ -200,3 +200,17 @@ fn parse_oneline_block() {
     );
     assert!(all_consuming(body)("block { attr = 1 attr2 = 2 }").is_err());
 }
+
+#[test]
+fn parse_body() {
+    assert_eq!(
+        body("foo = \"bar\"\nbar = 2"),
+        Ok((
+            "",
+            Body::builder()
+                .add_attribute(("foo", "bar"))
+                .add_attribute(("bar", 2u64))
+                .build()
+        )),
+    );
+}

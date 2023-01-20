@@ -79,24 +79,3 @@ pub fn body(input: &str) -> IResult<&str, Body> {
         Body::from,
     ))(input)
 }
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn test_attribute() {
-        assert_eq!(
-            body("foo = \"bar\"\nbar = 2\n\n"),
-            Ok((
-                "",
-                Body::builder()
-                    .add_attribute(Attribute::new("foo", "bar"))
-                    .add_attribute(Attribute::new("bar", 2u64))
-                    .build()
-            )),
-        );
-    }
-}

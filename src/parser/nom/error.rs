@@ -3,7 +3,7 @@ use nom::Offset;
 use std::fmt;
 
 /// The result type used by this module.
-pub type ParseResult<T, E = Error> = std::result::Result<T, E>;
+pub type ParseResult<T> = std::result::Result<T, Error>;
 
 /// The result type used by parsers internally.
 pub type IResult<I, O, E = InternalError<I>> = nom::IResult<I, O, E>;
@@ -108,8 +108,6 @@ pub struct Location {
     pub line: usize,
     /// The one-based column number of the error.
     pub col: usize,
-    /// The zero-based byte offset into the input where the error occured.
-    pub offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +115,7 @@ pub struct Error {
     line: String,
     kind: ErrorKind,
     location: Location,
+    offset: usize,
 }
 
 impl Error {
@@ -149,15 +148,15 @@ impl Error {
         Error {
             line: line.to_owned(),
             kind: err.kind.into_owned(),
+            offset,
             location: Location {
-                offset,
                 line: line_number,
                 col: column_number,
             },
         }
     }
 
-    /// Returns the line from the input where the error occurs as a `&str`.
+    /// Returns the line from the input where the error occurred.
     ///
     /// Note that this returns the full line containing the invalid input. Use
     /// [`.location()`][Error::location] to obtain the column in which the error starts.
@@ -165,14 +164,14 @@ impl Error {
         &self.line
     }
 
-    /// Returns the location in the input at which the error occured.
+    /// Returns the location in the input at which the error occurred.
     pub fn location(&self) -> &Location {
         &self.location
     }
 
-    /// Returns the kind of the error.
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
+    /// Returns the zero-based byte offset into the input where the error occurred.
+    pub fn offset(&self) -> usize {
+        self.offset
     }
 
     fn spacing(&self) -> String {
