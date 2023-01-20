@@ -122,6 +122,8 @@ pub enum ErrorKind {
     KeyExists(String),
     /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
+    /// It was attempted to evaluate a raw expression.
+    RawExpression,
 }
 
 impl From<Error> for ErrorKind {
@@ -171,6 +173,7 @@ impl fmt::Display for ErrorKind {
             ErrorKind::FuncCall(name, msg) => {
                 write!(f, "error calling function `{name}`: {msg}")
             }
+            ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
         }
     }
 }

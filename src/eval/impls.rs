@@ -72,7 +72,7 @@ impl Evaluate for Expression {
             Expression::Conditional(cond) => cond.evaluate(ctx),
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
-            Expression::Raw(_) => Err(ctx.error("raw expressions cannot be evaluated")),
+            Expression::Raw(_) => Err(ctx.error(ErrorKind::RawExpression)),
             other => Ok(Value::from(other.clone())),
         }
     }
