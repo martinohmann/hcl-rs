@@ -5,7 +5,7 @@ mod template;
 #[cfg(test)]
 mod tests;
 
-pub use self::error::{Error, ErrorKind, Location, ParseResult};
+pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::structure::body;
 use self::template::template;
@@ -27,11 +27,50 @@ use nom::{
 };
 use std::str::FromStr;
 
+/// Parse a `hcl::Body` from a `&str`.
+///
+/// If deserialization into a different type is preferred consider using [`hcl::from_str`][crate::from_str].
+///
+/// # Example
+///
+/// ```
+/// use hcl::{Attribute, Block, Body};
+/// # use std::error::Error;
+/// #
+/// # fn main() -> Result<(), Box<dyn Error>> {
+/// let input = r#"
+///     some_attr = "foo"
+///
+///     some_block "some_block_label" {
+///       attr = "value"
+///     }
+/// "#;
+///
+/// let expected = Body::builder()
+///     .add_attribute(("some_attr", "foo"))
+///     .add_block(
+///         Block::builder("some_block")
+///             .add_label("some_block_label")
+///             .add_attribute(("attr", "value"))
+///             .build()
+///     )
+///     .build();
+///
+/// let body = hcl::parse(input)?;
+///
+/// assert_eq!(body, expected);
+/// #   Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> ParseResult<Body> {
     parse_to_end(input, body)
 }
 
-pub fn parse_template(input: &str) -> ParseResult<Template> {
+pub(crate) fn parse_template(input: &str) -> ParseResult<Template> {
     parse_to_end(input, template)
 }
 

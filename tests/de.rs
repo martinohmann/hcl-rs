@@ -267,6 +267,7 @@ fn negative_numbers() {
 }
 
 #[test]
+#[cfg_attr(feature = "pest", ignore)]
 fn template_expr() {
     let input = r#"foo = "bar ${baz} %{~ if cond}qux%{ endif ~}""#;
 
@@ -342,6 +343,7 @@ fn traversal_with_expression() {
 }
 
 #[test]
+#[cfg_attr(feature = "pest", ignore)]
 fn unescape_strings() {
     let input = r#"
         block "label\\with\\backslashes" {

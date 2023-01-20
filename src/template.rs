@@ -85,7 +85,8 @@
 
 use crate::de::FromStrVisitor;
 use crate::expr::{Expression, TemplateExpr};
-use crate::{format, parser, Error, Identifier, Result};
+use crate::parser::{self, ParseResult};
+use crate::{format, Identifier, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::str::FromStr;
@@ -115,8 +116,8 @@ impl Template {
     ///
     /// Returns an error if the parsing of raw string templates fails or if the template expression
     /// contains string literals with invalid escape sequences.
-    pub fn from_expr(expr: &TemplateExpr) -> Result<Self> {
-        Template::from_str(&expr.to_cow_str())
+    pub fn from_expr(expr: &TemplateExpr) -> ParseResult<Self> {
+        parser::parse_template(&expr.to_cow_str())
     }
 
     /// Returns a reference to the template elements.
@@ -167,9 +168,9 @@ impl Template {
 }
 
 impl FromStr for Template {
-    type Err = Error;
+    type Err = parser::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> ParseResult<Self> {
         parser::parse_template(s)
     }
 }

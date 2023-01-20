@@ -32,7 +32,7 @@ pub mod expr;
 pub mod format;
 mod ident;
 mod number;
-mod parser;
+pub mod parser;
 pub mod ser;
 pub mod structure;
 pub mod template;

@@ -441,7 +441,7 @@ impl<T> FromStrVisitor<T> {
 impl<'de, T> de::Visitor<'de> for FromStrVisitor<T>
 where
     T: std::str::FromStr,
-    T::Err: de::Error,
+    T::Err: fmt::Display,
 {
     type Value = T;
 

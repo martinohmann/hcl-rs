@@ -1,3 +1,4 @@
+use crate::parser::Location;
 use nom::error::{ContextError, FromExternalError, ParseError};
 use nom::Offset;
 use std::fmt;
@@ -102,24 +103,60 @@ where
 
 impl<I> std::error::Error for InternalError<I> where I: fmt::Debug + fmt::Display {}
 
+/// Error type returned when the parser encountered an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Location {
-    /// The one-based line number of the error.
-    pub line: usize,
-    /// The one-based column number of the error.
-    pub col: usize,
+pub struct Error {
+    inner: Box<ErrorInner>,
+}
+
+impl Error {
+    pub(super) fn from_internal_error<'a>(input: &'a str, err: InternalError<&'a str>) -> Error {
+        Error::new(ErrorInner::from_internal_error(input, err))
+    }
+
+    fn new(inner: ErrorInner) -> Error {
+        Error {
+            inner: Box::new(inner),
+        }
+    }
+
+    /// Returns the line from the input where the error occurred.
+    ///
+    /// Note that this returns the full line containing the invalid input. Use
+    /// [`.location()`][Error::location] to obtain the column in which the error starts.
+    pub fn line(&self) -> &str {
+        &self.inner.line
+    }
+
+    /// Returns the location in the input at which the error occurred.
+    pub fn location(&self) -> &Location {
+        &self.inner.location
+    }
+
+    /// Returns the zero-based byte offset into the input where the error occurred.
+    pub fn offset(&self) -> usize {
+        self.inner.offset
+    }
+}
+
+impl std::error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.inner, f)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Error {
+struct ErrorInner {
     line: String,
     kind: ErrorKind,
     location: Location,
     offset: usize,
 }
 
-impl Error {
-    pub(super) fn from_internal_error<'a>(input: &'a str, err: InternalError<&'a str>) -> Error {
+impl ErrorInner {
+    fn from_internal_error<'a>(input: &'a str, err: InternalError<&'a str>) -> ErrorInner {
         let substring = err.input;
         let offset = input.offset(substring);
         let prefix = &input.as_bytes()[..offset];
@@ -145,7 +182,7 @@ impl Error {
         // The (1-indexed) column number is the offset of our substring into that line
         let column_number = line.offset(substring) + 1;
 
-        Error {
+        ErrorInner {
             line: line.to_owned(),
             kind: err.kind.into_owned(),
             offset,
@@ -154,24 +191,6 @@ impl Error {
                 col: column_number,
             },
         }
-    }
-
-    /// Returns the line from the input where the error occurred.
-    ///
-    /// Note that this returns the full line containing the invalid input. Use
-    /// [`.location()`][Error::location] to obtain the column in which the error starts.
-    pub fn line(&self) -> &str {
-        &self.line
-    }
-
-    /// Returns the location in the input at which the error occurred.
-    pub fn location(&self) -> &Location {
-        &self.location
-    }
-
-    /// Returns the zero-based byte offset into the input where the error occurred.
-    pub fn offset(&self) -> usize {
-        self.offset
     }
 
     fn spacing(&self) -> String {
@@ -187,9 +206,7 @@ impl Error {
     }
 }
 
-impl std::error::Error for Error {}
-
-impl fmt::Display for Error {
+impl fmt::Display for ErrorInner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

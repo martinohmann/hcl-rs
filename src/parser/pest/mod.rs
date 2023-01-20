@@ -1,10 +1,13 @@
+mod error;
 mod expr;
 mod structure;
 mod template;
 #[cfg(test)]
 mod tests;
 
+pub use self::error::Error;
 use self::{expr::expression, structure::body, template::template};
+use super::ParseResult;
 use crate::{
     expr::Expression, structure::Body, template::Template, util::unescape, Identifier, Number,
     Result,
@@ -22,9 +25,7 @@ struct HclParser;
 
 /// Parse a `hcl::Body` from a `&str`.
 ///
-/// If deserialization into a different type is preferred consider using [`hcl::from_str`][from_str].
-///
-/// [from_str]: ./de/fn.from_str.html
+/// If deserialization into a different type is preferred consider using [`hcl::from_str`][crate::from_str].
 ///
 /// # Example
 ///
@@ -61,14 +62,14 @@ struct HclParser;
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse(input: &str) -> Result<Body> {
+pub fn parse(input: &str) -> ParseResult<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-    body(pair)
+    body(pair).map_err(Into::into)
 }
 
-pub fn parse_template(input: &str) -> Result<Template> {
+pub(crate) fn parse_template(input: &str) -> ParseResult<Template> {
     let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();
-    template(inner(pair))
+    template(inner(pair)).map_err(Into::into)
 }
 
 fn string(pair: Pair<Rule>) -> String {
