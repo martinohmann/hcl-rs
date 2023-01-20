@@ -39,14 +39,16 @@ fn directive(pair: Pair<Rule>) -> Result<Directive> {
 fn if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
     let mut pairs = pair.into_inner();
     let if_expr = if_expr(pairs.next().unwrap())?;
+    let true_template = template(pairs.next().unwrap())?;
     let mut expr = pairs.next().unwrap();
 
     // Else branch is optional.
     let (false_template, else_strip) = match expr.as_rule() {
         Rule::TemplateElseExpr => {
-            let else_expr = else_expr(expr)?;
+            let else_strip = else_expr_strip_mode(expr);
+            let false_template = template(pairs.next().unwrap())?;
             expr = pairs.next().unwrap();
-            (Some(else_expr.false_template), else_expr.else_strip)
+            (Some(false_template), else_strip)
         }
         Rule::TemplateEndIfExpr => (None, StripMode::default()),
         rule => unexpected_rule(rule),
@@ -54,7 +56,7 @@ fn if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
 
     Ok(IfDirective {
         cond_expr: if_expr.cond_expr,
-        true_template: if_expr.true_template,
+        true_template,
         false_template,
         if_strip: if_expr.if_strip,
         else_strip,
@@ -64,51 +66,41 @@ fn if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
 
 struct IfExpr {
     cond_expr: Expression,
-    true_template: Template,
     if_strip: StripMode,
 }
 
 fn if_expr(pair: Pair<Rule>) -> Result<IfExpr> {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
-    let expr = pairs.next().unwrap();
+    let cond_expr = expression(pairs.next().unwrap())?;
     let end = pairs.next().unwrap();
 
     Ok(IfExpr {
-        cond_expr: expression(expr)?,
+        cond_expr,
         if_strip: strip_mode(start, end),
-        true_template: template(pairs.next().unwrap())?,
     })
 }
 
-struct ElseExpr {
-    false_template: Template,
-    else_strip: StripMode,
-}
-
-fn else_expr(pair: Pair<Rule>) -> Result<ElseExpr> {
+fn else_expr_strip_mode(pair: Pair<Rule>) -> StripMode {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let end = pairs.next().unwrap();
-
-    Ok(ElseExpr {
-        else_strip: strip_mode(start, end),
-        false_template: template(pairs.next().unwrap())?,
-    })
+    strip_mode(start, end)
 }
 
 fn for_directive(pair: Pair<Rule>) -> Result<ForDirective> {
     let mut pairs = pair.into_inner();
     let for_expr = for_expr(pairs.next().unwrap())?;
-    let endfor_expr = pairs.next().unwrap();
+    let template = template(pairs.next().unwrap())?;
+    let endfor_strip = end_expr_strip_mode(pairs.next().unwrap());
 
     Ok(ForDirective {
         key_var: for_expr.key_var,
         value_var: for_expr.value_var,
         collection_expr: for_expr.collection_expr,
-        template: for_expr.template,
+        template,
         for_strip: for_expr.for_strip,
-        endfor_strip: end_expr_strip_mode(endfor_expr),
+        endfor_strip,
     })
 }
 
@@ -116,7 +108,6 @@ struct ForExpr {
     key_var: Option<Identifier>,
     value_var: Identifier,
     collection_expr: Expression,
-    template: Template,
     for_strip: StripMode,
 }
 
@@ -142,7 +133,6 @@ fn for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
         key_var,
         value_var: value_var.take().unwrap(),
         collection_expr: expression(expr)?,
-        template: template(pairs.next().unwrap())?,
         for_strip: strip_mode(start, end),
     })
 }

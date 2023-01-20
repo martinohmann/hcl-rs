@@ -149,7 +149,7 @@ HclTemplate = ${ SOI ~ Template ~ EOI }
 Template              = ${ (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
 TemplateLiteral       = @{ ("$${" | "%%{" | (!("${" | "%{") ~ ANY))+ }
 TemplateInterpolation = !{ TemplateIExprStart ~ Expression ~ TemplateExprEnd }
-TemplateDirective     = !{ TemplateIf | TemplateFor }
+TemplateDirective     =  { TemplateIf | TemplateFor }
 
 // Interpolation expression start
 TemplateIExprStart       = _{ TemplateIExprStartStrip | TemplateIExprStartNormal }
@@ -167,12 +167,12 @@ TemplateExprEndNormal =  { "}" }
 TemplateExprEndStrip  =  { "~}" }
 
 // If directive
-TemplateIf        = { TemplateIfExpr ~ TemplateElseExpr? ~ TemplateEndIfExpr }
-TemplateIfExpr    = { TemplateDExprStart ~ "if" ~ Expression ~ TemplateExprEnd ~ Template }
-TemplateElseExpr  = { TemplateDExprStart ~ "else" ~ TemplateExprEnd ~ Template }
-TemplateEndIfExpr = { TemplateDExprStart ~ "endif" ~ TemplateExprEnd }
+TemplateIf        = ${ TemplateIfExpr ~ Template ~ (TemplateElseExpr ~ Template)? ~ TemplateEndIfExpr }
+TemplateIfExpr    = !{ TemplateDExprStart ~ "if" ~ Expression ~ TemplateExprEnd }
+TemplateElseExpr  = !{ TemplateDExprStart ~ "else" ~ TemplateExprEnd }
+TemplateEndIfExpr = !{ TemplateDExprStart ~ "endif" ~ TemplateExprEnd }
 
 // For directive
-TemplateFor        = { TemplateForExpr ~ TemplateEndForExpr }
-TemplateForExpr    = { TemplateDExprStart ~ "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ TemplateExprEnd ~ Template }
-TemplateEndForExpr = { TemplateDExprStart ~ "endfor" ~ TemplateExprEnd }
+TemplateFor        = ${ TemplateForExpr ~ Template ~ TemplateEndForExpr }
+TemplateForExpr    = !{ TemplateDExprStart ~ "for" ~ Identifier ~ ("," ~ Identifier)? ~ "in" ~ Expression ~ TemplateExprEnd }
+TemplateEndForExpr = !{ TemplateDExprStart ~ "endfor" ~ TemplateExprEnd }

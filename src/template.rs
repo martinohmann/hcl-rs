@@ -64,7 +64,7 @@
 //!             Identifier::new("item")?,
 //!             Variable::new("items")?,
 //!             Template::new()
-//!                 .add_literal("- ")
+//!                 .add_literal("\n- ")
 //!                 .add_interpolation(Variable::new("item")?)
 //!                 .add_literal("\n")
 //!         )
