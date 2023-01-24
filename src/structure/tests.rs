@@ -33,7 +33,7 @@ fn body_into_value() {
             TemplateExpr::Heredoc(
                 Heredoc::new(
                     Identifier::unchecked("EOS"),
-                    "  foo \\\n  bar ${baz}\\\\backslash",
+                    "foo \\\nbar ${baz}\\\\backslash",
                 )
                 .with_strip_mode(HeredocStripMode::Indent),
             ),

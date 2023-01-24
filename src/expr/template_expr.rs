@@ -1,7 +1,6 @@
-use crate::util::{dedent, try_unescape};
+use crate::util::try_unescape;
 use crate::{Error, Identifier, Result};
 use serde::Deserialize;
-use std::borrow::Cow;
 use std::fmt;
 use std::str::FromStr;
 
@@ -23,11 +22,11 @@ pub enum TemplateExpr {
 }
 
 impl TemplateExpr {
-    /// Returns the template as a copy-on-write string.
-    pub(crate) fn to_cow_str(&self) -> Cow<str> {
+    /// Returns the template as a `&str`.
+    pub(crate) fn as_str(&self) -> &str {
         match self {
-            TemplateExpr::QuotedString(s) => Cow::Borrowed(s),
-            TemplateExpr::Heredoc(heredoc) => heredoc.to_cow_str(),
+            TemplateExpr::QuotedString(s) => s,
+            TemplateExpr::Heredoc(heredoc) => &heredoc.template,
         }
     }
 }
@@ -52,8 +51,7 @@ impl From<Heredoc> for TemplateExpr {
 
 impl fmt::Display for TemplateExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let s = self.to_cow_str();
-        f.write_str(&try_unescape(&s))
+        f.write_str(&try_unescape(self.as_str()))
     }
 }
 
@@ -86,14 +84,6 @@ impl Heredoc {
     pub fn with_strip_mode(mut self, strip: HeredocStripMode) -> Heredoc {
         self.strip = strip;
         self
-    }
-
-    /// Returns the template as a copy-on-write string.
-    pub(crate) fn to_cow_str(&self) -> Cow<str> {
-        match self.strip {
-            HeredocStripMode::None => Cow::Borrowed(&self.template),
-            HeredocStripMode::Indent => dedent(&self.template),
-        }
     }
 }
 
