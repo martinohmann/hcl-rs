@@ -1,8 +1,11 @@
 use super::*;
-use crate::expr::{
-    BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncCallBuilder, Heredoc,
-    HeredocStripMode, Object, ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator,
-    UnaryOp, UnaryOperator, Variable,
+use crate::{
+    expr::{
+        BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncCallBuilder, Heredoc,
+        HeredocStripMode, Object, ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator,
+        UnaryOp, UnaryOperator, Variable,
+    },
+    util::dedent,
 };
 
 pub fn expression(pair: Pair<Rule>) -> Result<Expression> {
@@ -247,7 +250,13 @@ fn heredoc(pair: Pair<Rule>) -> Heredoc {
     };
 
     let delimiter = ident(pairs.next().unwrap());
-    let mut template = string(pairs.next().unwrap());
+
+    let template = pairs.next().unwrap();
+
+    let mut template = match strip {
+        HeredocStripMode::None => string(template),
+        HeredocStripMode::Indent => dedent(template.as_str()).to_string(),
+    };
 
     // Append the trailing newline here. This is easier than doing this in the grammar.
     template.push('\n');
