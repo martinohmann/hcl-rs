@@ -56,7 +56,7 @@ fn body_into_value() {
                 foo = 1
             }
         }
-        heredoc = "foo bar ${baz}\\backslash"
+        heredoc = "foo \\\nbar ${baz}\\\\backslash"
     });
 
     assert_eq!(Value::from(body), expected);
