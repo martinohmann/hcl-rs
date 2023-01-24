@@ -1,7 +1,7 @@
 use super::{
-    anything_except, char_or_cut, ident, number, opt_sep, sp_delimited, str_ident, string,
-    string_literal, tag_or_cut, template::build_template, ws_delimited, ws_preceded, ws_terminated,
-    IResult,
+    char_or_cut, ident, number, opt_sep, sp_delimited, str_ident, string, tag_or_cut,
+    template::{heredoc_template, quoted_string_template},
+    ws_delimited, ws_preceded, ws_terminated, IResult,
 };
 use crate::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
@@ -15,7 +15,7 @@ use nom::{
     character::complete::{char, line_ending, one_of, space0, u64},
     combinator::{cut, fail, map, not, opt, recognize, value},
     error::context,
-    multi::{many0, many1, many1_count, separated_list1},
+    multi::{many0, many1, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
 
@@ -162,16 +162,6 @@ fn parenthesis(input: &str) -> IResult<&str, Box<Expression>> {
     )(input)
 }
 
-fn string_template(input: &str) -> IResult<&str, String> {
-    delimited(
-        char('"'),
-        map(build_template(string_literal), |template| {
-            template.to_string()
-        }),
-        char('"'),
-    )(input)
-}
-
 fn heredoc_start(input: &str) -> IResult<&str, (HeredocStripMode, &str)> {
     terminated(
         pair(
@@ -189,18 +179,12 @@ fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'
     recognize(tuple((line_ending, space0, tag(delim))))
 }
 
-fn heredoc_template(input: &str) -> IResult<&str, Heredoc> {
+fn heredoc(input: &str) -> IResult<&str, Heredoc> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
-    let literal = recognize(many1_count(alt((
-        tag("$${"),
-        tag("%%{"),
-        anything_except(alt((tag("\\"), tag("${"), tag("%{"), heredoc_end(delim)))),
-    ))));
+    let nonempty_heredoc = terminated(heredoc_template(heredoc_end(delim)), heredoc_end(delim));
 
-    let nonempty_heredoc = terminated(build_template(literal), heredoc_end(delim));
-
-    let empty_heredoc = recognize(pair(space0, tag_or_cut(delim)));
+    let empty_heredoc = terminated(space0, tag_or_cut(delim));
 
     map(
         alt((
@@ -222,8 +206,10 @@ fn heredoc_template(input: &str) -> IResult<&str, Heredoc> {
 
 fn template_expr(input: &str) -> IResult<&str, TemplateExpr> {
     alt((
-        map(string_template, TemplateExpr::from),
-        map(heredoc_template, TemplateExpr::from),
+        map(quoted_string_template, |template| {
+            TemplateExpr::from(template.to_string())
+        }),
+        map(heredoc, TemplateExpr::from),
     ))(input)
 }
 

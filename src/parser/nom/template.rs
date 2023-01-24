@@ -1,6 +1,6 @@
 use super::{
-    anything_except, char_or_cut, expr::expr, ident, string_fragment, tag_or_cut, ws_delimited,
-    ws_preceded, IResult, StringFragment,
+    char_or_cut, expr::expr, ident, literal, string_fragment, string_literal, tag_or_cut,
+    ws_delimited, ws_preceded, IResult, StringFragment,
 };
 use crate::expr::Expression;
 use crate::template::{
@@ -11,23 +11,22 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::char,
-    combinator::{cut, map, opt, recognize},
-    multi::{fold_many1, many0, many1_count},
-    sequence::{pair, preceded, terminated, tuple},
+    combinator::{cut, map, opt},
+    multi::{fold_many1, many0},
+    sequence::{delimited, pair, preceded, terminated, tuple},
 };
 
-fn literal<'a, F>(literal_parser: F) -> impl FnMut(&'a str) -> IResult<&str, String>
+fn build_literal<'a, F>(literal: F) -> impl FnMut(&'a str) -> IResult<&str, String>
 where
     F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
 {
     fold_many1(
-        string_fragment(literal_parser),
+        string_fragment(literal),
         String::new,
         |mut string, fragment| {
             match fragment {
                 StringFragment::Literal(s) => string.push_str(s),
                 StringFragment::EscapedChar(c) => string.push(c),
-                StringFragment::EscapedWS => {}
             }
             string
         },
@@ -168,13 +167,13 @@ fn directive(input: &str) -> IResult<&str, Directive> {
     ))(input)
 }
 
-pub fn build_template<'a, F>(literal_parser: F) -> impl FnMut(&'a str) -> IResult<&'a str, Template>
+fn build_template<'a, F>(literal: F) -> impl FnMut(&'a str) -> IResult<&'a str, Template>
 where
-    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+    F: FnMut(&'a str) -> IResult<&'a str, String>,
 {
     map(
         many0(alt((
-            map(literal(literal_parser), Element::Literal),
+            map(literal, Element::Literal),
             map(interpolation, Element::Interpolation),
             map(directive, Element::Directive),
         ))),
@@ -182,12 +181,21 @@ where
     )
 }
 
-pub fn template(input: &str) -> IResult<&str, Template> {
-    let literal = recognize(many1_count(alt((
-        tag("$${"),
-        tag("%%{"),
-        anything_except(alt((tag("\\"), tag("${"), tag("%{")))),
-    ))));
+pub fn quoted_string_template(input: &str) -> IResult<&str, Template> {
+    delimited(
+        char('"'),
+        build_template(build_literal(string_literal)),
+        char('"'),
+    )(input)
+}
 
-    build_template(literal)(input)
+pub fn heredoc_template<'a, F>(heredoc_end: F) -> impl FnMut(&'a str) -> IResult<&str, Template>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+{
+    build_template(map(literal(heredoc_end), ToString::to_string))
+}
+
+pub fn template(input: &str) -> IResult<&str, Template> {
+    build_template(build_literal(literal(tag("\\"))))(input)
 }

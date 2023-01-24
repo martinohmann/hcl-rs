@@ -16,8 +16,8 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while_m_n},
     character::complete::{
-        alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, multispace1,
-        not_line_ending, one_of, space0,
+        alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, not_line_ending,
+        one_of, space0,
     },
     combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value},
     error::context,
@@ -210,42 +210,39 @@ fn escaped_char(input: &str) -> IResult<&str, char> {
     )(input)
 }
 
-/// Parse a backslash, followed by any amount of whitespace. This is used to discard any escaped
-/// whitespace.
-fn escaped_whitespace(input: &str) -> IResult<&str, &str> {
-    preceded(char('\\'), multispace1)(input)
-}
-
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
 fn string_literal(input: &str) -> IResult<&str, &str> {
+    literal(recognize(one_of("\"\\")))(input)
+}
+
+fn literal<'a, F>(literal_end: F) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str>
+where
+    F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
+{
     recognize(many1_count(alt((
         tag("$${"),
         tag("%%{"),
-        anything_except(alt((tag("\""), tag("\\"), tag("${"), tag("%{")))),
-    ))))(input)
+        anything_except(alt((literal_end, tag("${"), tag("%{")))),
+    ))))
 }
 
 /// A string fragment contains a fragment of a string being parsed: either
-/// a non-empty Literal (a series of non-escaped characters), a single
-/// parsed escaped character, or a block of escaped whitespace.
+/// a non-empty Literal (a series of non-escaped characters) or a single
+/// parsed escaped character.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StringFragment<'a> {
     Literal(&'a str),
     EscapedChar(char),
-    EscapedWS,
 }
 
-fn string_fragment<'a, F>(
-    literal_parser: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, StringFragment<'a>>
+fn string_fragment<'a, F>(literal: F) -> impl FnMut(&'a str) -> IResult<&'a str, StringFragment<'a>>
 where
     F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
 {
     alt((
-        map(literal_parser, StringFragment::Literal),
+        map(literal, StringFragment::Literal),
         map(escaped_char, StringFragment::EscapedChar),
-        value(StringFragment::EscapedWS, escaped_whitespace),
     ))
 }
 
@@ -257,7 +254,6 @@ fn string(input: &str) -> IResult<&str, String> {
             match fragment {
                 StringFragment::Literal(s) => string.push_str(s),
                 StringFragment::EscapedChar(c) => string.push(c),
-                StringFragment::EscapedWS => {}
             }
             string
         },
