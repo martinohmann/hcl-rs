@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.3](https://github.com/martinohmann/hcl-rs/compare/v0.12.2...v0.12.3) (2023-01-24)
+
+
+### Bug Fixes
+
+* do not strip escaped whitespace from strings ([24d0e6a](https://github.com/martinohmann/hcl-rs/commit/24d0e6a40b040a00819a70ad5ffb727820b95ee2))
+* **parser:** automatically dedent indented heredocs ([#157](https://github.com/martinohmann/hcl-rs/issues/157)) ([011e95e](https://github.com/martinohmann/hcl-rs/commit/011e95e85f0681d11c12f4c0b01791d1e847e511))
+
 ## [0.12.2](https://github.com/martinohmann/hcl-rs/compare/v0.12.1...v0.12.2) (2023-01-20)
 
 
