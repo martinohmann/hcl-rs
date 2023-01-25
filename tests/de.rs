@@ -374,7 +374,7 @@ fn unescape_strings() {
                     TemplateExpr::Heredoc(
                         Heredoc::new(
                             Identifier::unchecked("EOS"),
-                            "            heredoc template with \\\n            escaped newline and \\\\backslash is not unescaped yet\n"
+                            "heredoc template with \\\nescaped newline and \\\\backslash is not unescaped yet\n"
                         )
                         .with_strip_mode(HeredocStripMode::Indent)
                     )

@@ -213,7 +213,7 @@ fn escaped_char(input: &str) -> IResult<&str, char> {
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
 fn string_literal(input: &str) -> IResult<&str, &str> {
-    literal(recognize(one_of("\"\\")))(input)
+    literal(alt((recognize(one_of("\"\\")), tag("${"), tag("%{"))))(input)
 }
 
 fn literal<'a, F>(literal_end: F) -> impl FnMut(&'a str) -> IResult<&'a str, &'a str>
@@ -223,7 +223,7 @@ where
     recognize(many1_count(alt((
         tag("$${"),
         tag("%%{"),
-        anything_except(alt((literal_end, tag("${"), tag("%{")))),
+        anything_except(literal_end),
     ))))
 }
 

@@ -193,9 +193,16 @@ pub fn heredoc_template<'a, F>(heredoc_end: F) -> impl FnMut(&'a str) -> IResult
 where
     F: FnMut(&'a str) -> IResult<&'a str, &'a str>,
 {
-    build_template(map(literal(heredoc_end), ToString::to_string))
+    build_template(map(
+        literal(alt((tag("${"), tag("%{"), heredoc_end))),
+        ToString::to_string,
+    ))
 }
 
 pub fn template(input: &str) -> IResult<&str, Template> {
-    build_template(build_literal(literal(tag("\\"))))(input)
+    build_template(build_literal(literal(alt((
+        tag("\\"),
+        tag("${"),
+        tag("%{"),
+    )))))(input)
 }

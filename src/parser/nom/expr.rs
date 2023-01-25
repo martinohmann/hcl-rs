@@ -1,23 +1,30 @@
 use super::{
-    char_or_cut, ident, number, opt_sep, sp_delimited, str_ident, string, tag_or_cut,
+    anything_except, char_or_cut,
+    error::InternalError,
+    ident, number, opt_sep, sp_delimited, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
-    ws_delimited, ws_preceded, ws_terminated, IResult,
-};
-use crate::expr::{
-    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
-    HeredocStripMode, Object, ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
-    UnaryOperator, Variable,
+    ws_delimited, ws_preceded, ws_terminated, ErrorKind, IResult,
 };
 use crate::Identifier;
+use crate::{
+    expr::{
+        BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
+        HeredocStripMode, Object, ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+        UnaryOperator, Variable,
+    },
+    template::Template,
+    util::dedent,
+};
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{char, line_ending, one_of, space0, u64},
-    combinator::{cut, fail, map, not, opt, recognize, value},
+    combinator::{all_consuming, cut, fail, map, map_res, not, opt, recognize, value},
     error::context,
-    multi::{many0, many1, separated_list1},
+    multi::{many0, many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
+use std::borrow::Cow;
 
 fn array(input: &str) -> IResult<&str, Expression> {
     delimited(
@@ -179,11 +186,33 @@ fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(&'a str) -> IResult<&'a str, &'
     recognize(tuple((line_ending, space0, tag(delim))))
 }
 
+fn heredoc_content_template<'a>(
+    strip: HeredocStripMode,
+    delim: &'a str,
+) -> impl FnMut(&'a str) -> IResult<&'a str, Template> {
+    let raw_content = terminated(
+        recognize(many1_count(anything_except(heredoc_end(delim)))),
+        heredoc_end(delim),
+    );
+
+    map_res(raw_content, move |raw_content| {
+        let content = match strip {
+            HeredocStripMode::None => Cow::Borrowed(raw_content),
+            HeredocStripMode::Indent => dedent(raw_content),
+        };
+
+        let result = all_consuming(heredoc_template(heredoc_end(delim)))(&content);
+
+        result
+            .map(|(_, template)| template)
+            .map_err(|_| InternalError::new(raw_content, ErrorKind::Context("HeredocTemplate")))
+    })
+}
+
 fn heredoc(input: &str) -> IResult<&str, Heredoc> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
-    let nonempty_heredoc = terminated(heredoc_template(heredoc_end(delim)), heredoc_end(delim));
-
+    let nonempty_heredoc = heredoc_content_template(strip, delim);
     let empty_heredoc = terminated(space0, tag_or_cut(delim));
 
     map(

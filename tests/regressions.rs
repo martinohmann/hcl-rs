@@ -129,7 +129,7 @@ fn issue_137() {
         cond_string: String::from("${var ? true : false}"),
         nested: Nested {
             template_expr: TemplateExpr::from("${some_var}"),
-            heredoc: Heredoc::new(Identifier::unchecked("EOS"), "    ${some_var}\n")
+            heredoc: Heredoc::new(Identifier::unchecked("EOS"), "${some_var}\n")
                 .with_strip_mode(HeredocStripMode::Indent),
         },
     };
