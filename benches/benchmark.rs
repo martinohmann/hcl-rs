@@ -8,6 +8,11 @@ fn benchmark(c: &mut Criterion) {
 
     c.bench_function("hcl::parse", |b| b.iter(|| hcl::parse(&input)));
 
+    #[cfg(feature = "nom")]
+    c.bench_function("hcl::parser::parse_spanned", |b| {
+        b.iter(|| hcl::parser::parse_spanned(&input))
+    });
+
     c.bench_function("hcl::from_str::<Body>", |b| {
         b.iter(|| hcl::from_str::<Body>(&input))
     });
@@ -55,6 +60,11 @@ fn benchmark(c: &mut Criterion) {
 
     c.bench_function("hcl::parse(&deeply_nested)", |b| {
         b.iter(|| hcl::parse(deeply_nested))
+    });
+
+    #[cfg(feature = "nom")]
+    c.bench_function("hcl::parser::parse_spanned(deeply_nested)", |b| {
+        b.iter(|| hcl::parser::parse_spanned(deeply_nested))
     });
 }
 

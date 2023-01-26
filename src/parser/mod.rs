@@ -9,6 +9,10 @@ mod imp;
 mod imp;
 
 pub(crate) use self::imp::parse_template;
+#[cfg(feature = "nom")]
+pub use self::imp::spanned::{
+    ast::*, parse as parse_spanned, Error as SpannedError, ParseResult as SpannedParseResult,
+};
 pub use self::imp::{parse, Error};
 
 /// The result type used by this module.
