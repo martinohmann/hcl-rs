@@ -1,4 +1,4 @@
-use crate::Number;
+use crate::{BlockLabel, Identifier, Number};
 use nom_locate::LocatedSpan;
 use std::borrow::Cow;
 use vecmap::VecMap;
@@ -18,6 +18,19 @@ pub struct Spanned<'a, T> {
     pub start: Span<'a>,
     pub end: Span<'a>,
     // pub decor: Decor<'a>,
+}
+
+impl<'a, T> Spanned<'a, T> {
+    pub fn map_value<F, U>(self, f: F) -> Spanned<'a, U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Spanned {
+            value: f(self.value),
+            start: self.start,
+            end: self.end,
+        }
+    }
 }
 
 pub type SpannedExpr<'a> = Spanned<'a, Expr<'a>>;
@@ -85,27 +98,26 @@ pub struct ForExpr<'a> {
 
 // Structure
 
+#[derive(Debug, Clone, Default)]
 pub struct Body<'a> {
-    pub structures: Spanned<'a, Vec<Structure<'a>>>,
+    pub structures: Vec<Spanned<'a, Structure<'a>>>,
 }
 
+#[derive(Debug, Clone)]
 pub enum Structure<'a> {
-    Attribute(Spanned<'a, Attribute<'a>>),
-    Block(Spanned<'a, Block<'a>>),
+    Attribute(Attribute<'a>),
+    Block(Block<'a>),
 }
 
+#[derive(Debug, Clone)]
 pub struct Attribute<'a> {
-    pub key: SpannedStr<'a>,
-    pub expr: SpannedExpr<'a>,
+    pub key: Spanned<'a, Identifier>,
+    pub expr: crate::expr::Expression,
 }
 
+#[derive(Debug, Clone)]
 pub struct Block<'a> {
-    pub ident: SpannedStr<'a>,
-    pub labels: Spanned<'a, Vec<BlockLabel<'a>>>,
+    pub identifier: Spanned<'a, Identifier>,
+    pub labels: Vec<Spanned<'a, BlockLabel>>,
     pub body: Spanned<'a, Body<'a>>,
-}
-
-pub enum BlockLabel<'a> {
-    Identifier(SpannedStr<'a>),
-    String(SpannedStr<'a>),
 }

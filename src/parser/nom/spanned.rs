@@ -8,7 +8,6 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::structure::body;
-use crate::structure::Body;
 use crate::{Identifier, Number};
 use nom::{
     branch::alt,
@@ -74,7 +73,7 @@ where
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse(input: &str) -> ParseResult<Body> {
+pub fn parse(input: &str) -> ParseResult<Spanned<Body>> {
     parse_to_end(input, body)
 }
 

@@ -1,9 +1,10 @@
-use super::Span;
+use super::ast::{Attribute, Block, Body, Structure};
 use super::{
     char_or_cut, expr::expr, ident, line_comment, sp_delimited, sp_preceded, sp_terminated, string,
     ws_preceded, ws_terminated, IResult,
 };
-use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
+use super::{spanned, Span, Spanned};
+use crate::structure::BlockLabel;
 use nom::{
     branch::alt,
     character::complete::{char, line_ending},
@@ -24,7 +25,7 @@ where
 
 fn attribute(input: Span) -> IResult<Span, Attribute> {
     map(
-        separated_pair(ident, sp_delimited(char('=')), cut(expr)),
+        separated_pair(spanned(ident), sp_delimited(char('=')), cut(expr)),
         |(key, expr)| Attribute { key, expr },
     )(input)
 }
@@ -32,7 +33,7 @@ fn attribute(input: Span) -> IResult<Span, Attribute> {
 fn block(input: Span) -> IResult<Span, Block> {
     map(
         tuple((
-            sp_terminated(ident),
+            sp_terminated(spanned(ident)),
             many0(sp_terminated(block_label)),
             alt((
                 // Multiline block.
@@ -42,14 +43,19 @@ fn block(input: Span) -> IResult<Span, Block> {
                     char_or_cut('}'),
                 ),
                 // One-line block.
-                map(
+                spanned(map(
                     delimited(
                         char_or_cut('{'),
-                        sp_delimited(opt(cut(attribute))),
+                        sp_delimited(opt(cut(spanned(attribute)))),
                         char_or_cut('}'),
                     ),
-                    |attr| attr.map(Body::from).unwrap_or_default(),
-                ),
+                    |attr| {
+                        attr.map(|spanned| Body {
+                            structures: vec![spanned.map_value(Structure::Attribute)],
+                        })
+                        .unwrap_or_default()
+                    },
+                )),
             )),
         )),
         |(identifier, labels, body)| Block {
@@ -60,23 +66,23 @@ fn block(input: Span) -> IResult<Span, Block> {
     )(input)
 }
 
-fn block_label(input: Span) -> IResult<Span, BlockLabel> {
-    alt((
+fn block_label(input: Span) -> IResult<Span, Spanned<BlockLabel>> {
+    spanned(alt((
         map(ident, BlockLabel::Identifier),
         map(string, BlockLabel::String),
-    ))(input)
+    )))(input)
 }
 
-fn structure(input: Span) -> IResult<Span, Structure> {
-    alt((
+fn structure(input: Span) -> IResult<Span, Spanned<Structure>> {
+    spanned(alt((
         map(attribute, Structure::Attribute),
         map(block, Structure::Block),
-    ))(input)
+    )))(input)
 }
 
-pub fn body(input: Span) -> IResult<Span, Body> {
-    ws_terminated(map(
+pub fn body(input: Span) -> IResult<Span, Spanned<Body>> {
+    spanned(ws_terminated(map(
         many0(ws_preceded(line_ending_terminated(structure))),
-        Body::from,
-    ))(input)
+        |structures| Body { structures },
+    )))(input)
 }
