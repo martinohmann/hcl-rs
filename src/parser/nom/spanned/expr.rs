@@ -1,4 +1,7 @@
-use super::Span;
+use super::ast::{
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, Heredoc, ObjectKey, Operation, Template,
+    TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+};
 use super::{
     anything_except, char_or_cut,
     error::InternalError,
@@ -6,14 +9,11 @@ use super::{
     template::{heredoc_template, quoted_string_template},
     ws_delimited, ws_preceded, ws_terminated, ErrorKind, IResult,
 };
+use super::{spanned, Span, Spanned};
+use crate::template;
 use crate::Identifier;
 use crate::{
-    expr::{
-        BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
-        HeredocStripMode, Object, ObjectKey, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
-        UnaryOperator, Variable,
-    },
-    template::Template,
+    expr::{BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable},
     util::dedent,
 };
 use nom::{
@@ -31,14 +31,14 @@ fn array(input: Span) -> IResult<Span, Expression> {
     delimited(
         ws_terminated(char('[')),
         alt((
-            map(for_list_expr, Expression::from),
-            map(array_items, Expression::from),
+            map(for_list_expr, |expr| Expression::ForExpr(Box::new(expr))),
+            map(array_items, Expression::Array),
         )),
         ws_preceded(char_or_cut(']')),
     )(input)
 }
 
-fn array_items(input: Span) -> IResult<Span, Vec<Expression>> {
+fn array_items(input: Span) -> IResult<Span, Vec<Spanned<Expression>>> {
     map(
         opt(terminated(
             separated_list1(ws_delimited(char(',')), expr),
@@ -71,14 +71,16 @@ fn object(input: Span) -> IResult<Span, Expression> {
     delimited(
         ws_terminated(char('{')),
         alt((
-            map(ws_terminated(for_object_expr), Expression::from),
-            map(object_items, Expression::from),
+            map(ws_terminated(for_object_expr), |expr| {
+                Expression::ForExpr(Box::new(expr))
+            }),
+            map(object_items, Expression::Object),
         )),
         char_or_cut('}'),
     )(input)
 }
 
-fn object_items(input: Span) -> IResult<Span, Object<ObjectKey, Expression>> {
+fn object_items(input: Span) -> IResult<Span, Object<Spanned<ObjectKey>, Spanned<Expression>>> {
     map(
         opt(many1(terminated(
             object_item,
@@ -88,19 +90,21 @@ fn object_items(input: Span) -> IResult<Span, Object<ObjectKey, Expression>> {
     )(input)
 }
 
-fn object_item(input: Span) -> IResult<Span, (ObjectKey, Expression)> {
+fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expression>)> {
     separated_pair(
-        map(expr, |expr| {
+        map(expr, |spanned| {
             // Variable identifiers without traversal are treated as identifier object keys.
             //
             // Handle this case here by converting the variable into an identifier. This
             // avoids re-parsing the whole key-value pair when an identifier followed by a
             // traversal operator is encountered.
-            if let Expression::Variable(variable) = expr {
-                ObjectKey::Identifier(variable.into_inner())
-            } else {
-                ObjectKey::Expression(expr)
-            }
+            spanned.map_value(|expr| {
+                if let Expression::Variable(variable) = expr {
+                    ObjectKey::Identifier(variable.into_inner())
+                } else {
+                    ObjectKey::Expression(expr)
+                }
+            })
         }),
         sp_delimited(cut(one_of("=:"))),
         cut(expr),
@@ -127,10 +131,10 @@ fn for_object_expr(input: Span) -> IResult<Span, ForExpr> {
     )(input)
 }
 
-struct ForIntro {
-    key_var: Option<Identifier>,
-    value_var: Identifier,
-    collection_expr: Expression,
+struct ForIntro<'a> {
+    key_var: Option<Spanned<'a, Identifier>>,
+    value_var: Spanned<'a, Identifier>,
+    collection_expr: Spanned<'a, Expression<'a>>,
 }
 
 fn for_intro(input: Span) -> IResult<Span, ForIntro> {
@@ -138,8 +142,8 @@ fn for_intro(input: Span) -> IResult<Span, ForIntro> {
         delimited(
             ws_terminated(tag("for")),
             tuple((
-                cut(ident),
-                opt(preceded(ws_delimited(char(',')), cut(ident))),
+                cut(spanned(ident)),
+                opt(preceded(ws_delimited(char(',')), cut(spanned(ident)))),
                 preceded(ws_delimited(tag_or_cut("in")), cut(expr)),
             )),
             ws_preceded(char_or_cut(':')),
@@ -159,11 +163,11 @@ fn for_intro(input: Span) -> IResult<Span, ForIntro> {
     )(input)
 }
 
-fn for_cond_expr(input: Span) -> IResult<Span, Expression> {
+fn for_cond_expr(input: Span) -> IResult<Span, Spanned<Expression>> {
     preceded(ws_terminated(tag("if")), cut(expr))(input)
 }
 
-fn parenthesis(input: Span) -> IResult<Span, Box<Expression>> {
+fn parenthesis(input: Span) -> IResult<Span, Box<Spanned<Expression>>> {
     map(
         delimited(char('('), ws_delimited(cut(expr)), char_or_cut(')')),
         Box::new,
@@ -190,19 +194,22 @@ fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, 
 fn heredoc_content_template<'a>(
     strip: HeredocStripMode,
     delim: &'a str,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Template> {
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<'a, Template<'a>>> {
     let raw_content = terminated(
         recognize(many1_count(anything_except(heredoc_end(delim)))),
         heredoc_end(delim),
     );
 
     map_res(raw_content, move |raw_content| {
-        let content = match strip {
-            HeredocStripMode::None => Cow::Borrowed(*raw_content),
-            HeredocStripMode::Indent => dedent(*raw_content),
-        };
+        // let content = match strip {
+        //     HeredocStripMode::None => Cow::Borrowed(*raw_content),
+        //     HeredocStripMode::Indent => dedent(*raw_content),
+        // };
 
-        let result = all_consuming(heredoc_template(heredoc_end(delim)))(Span::new(&content));
+        // let input = Span::new(&content);
+        // let result = all_consuming(heredoc_template(heredoc_end(delim)))(input);
+        let _ = strip;
+        let result = all_consuming(heredoc_template(heredoc_end(delim)))(raw_content);
 
         result
             .map(|(_, template)| template)
@@ -218,9 +225,9 @@ fn heredoc(input: Span) -> IResult<Span, Heredoc> {
 
     map(
         alt((
-            map(nonempty_heredoc, |template| {
+            map(nonempty_heredoc, |spanned| {
                 // Append the trailing newline here. This is easier than doing this via the parser combinators.
-                let mut content = template.to_string();
+                let mut content = template::Template::from(spanned.value).to_string();
                 content.push('\n');
                 content
             }),
@@ -236,10 +243,10 @@ fn heredoc(input: Span) -> IResult<Span, Heredoc> {
 
 fn template_expr(input: Span) -> IResult<Span, TemplateExpr> {
     alt((
-        map(quoted_string_template, |template| {
-            TemplateExpr::from(template.to_string())
+        map(quoted_string_template, |spanned| {
+            TemplateExpr::QuotedString(template::Template::from(spanned.value).to_string())
         }),
-        map(heredoc, TemplateExpr::from),
+        map(heredoc, TemplateExpr::Heredoc),
     ))(input)
 }
 
@@ -264,7 +271,7 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
                 ws_terminated(char('[')),
                 cut(alt((
                     value(TraversalOperator::FullSplat, char('*')),
-                    map(expr, TraversalOperator::Index),
+                    map(expr, |expr| TraversalOperator::Index(expr.value)),
                 ))),
                 ws_preceded(char_or_cut(']')),
             ),
@@ -274,24 +281,24 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
 
 fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
     map(
-        pair(str_ident, opt(ws_preceded(func_call))),
+        pair(spanned(str_ident), opt(ws_preceded(func_call))),
         |(ident, func_call)| match func_call {
-            Some((args, expand_final)) => Expression::from(FuncCall {
-                name: Identifier::unchecked(*ident),
+            Some((args, expand_final)) => Expression::FuncCall(Box::new(FuncCall {
+                name: ident.map_value(|value| Identifier::unchecked(*value)),
                 args,
                 expand_final,
-            }),
-            None => match *ident {
+            })),
+            None => match *ident.value {
                 "null" => Expression::Null,
                 "true" => Expression::Bool(true),
                 "false" => Expression::Bool(false),
-                var => Expression::from(Variable::unchecked(var)),
+                var => Expression::Variable(Variable::unchecked(var)),
             },
         },
     )(input)
 }
 
-fn func_call(input: Span) -> IResult<Span, (Vec<Expression>, bool)> {
+fn func_call(input: Span) -> IResult<Span, (Vec<Spanned<Expression>>, bool)> {
     map(
         delimited(
             ws_terminated(char('(')),
@@ -333,32 +340,39 @@ fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
     ))(input)
 }
 
-fn expr_term(input: Span) -> IResult<Span, Expression> {
+fn expr_term(input: Span) -> IResult<Span, Spanned<Expression>> {
     map(
         pair(
-            alt((
+            spanned(alt((
                 map(number, Expression::Number),
                 map(string, Expression::String),
                 ident_or_func_call,
                 array,
                 object,
-                map(template_expr, Expression::from),
-                map(parenthesis, Expression::Parenthesis),
+                map(template_expr, |expr| {
+                    Expression::TemplateExpr(Box::new(expr))
+                }),
+                map(parenthesis, |expr| Expression::Parenthesis(expr)),
                 fail,
-            )),
-            many0(ws_preceded(traversal_operator)),
+            ))),
+            many0(ws_preceded(spanned(traversal_operator))),
         ),
         |(expr, operators)| {
             if operators.is_empty() {
                 expr
             } else {
-                Expression::from(Traversal::new(expr, operators))
+                expr.map_value(|value| {
+                    Expression::Traversal(Box::new(Traversal {
+                        expr: value,
+                        operators,
+                    }))
+                })
             }
         },
     )(input)
 }
 
-pub fn expr(input: Span) -> IResult<Span, Expression> {
+pub fn expr(input: Span) -> IResult<Span, Spanned<Expression>> {
     let unary_op = ws_terminated(unary_operator);
 
     let binary_op = pair(ws_delimited(binary_operator), cut(expr));
@@ -370,33 +384,47 @@ pub fn expr(input: Span) -> IResult<Span, Expression> {
 
     context(
         "Expression",
-        map(
+        spanned(map(
             tuple((opt(unary_op), expr_term, opt(binary_op), opt(conditional))),
             |(unary_op, expr, binary_op, conditional)| {
+                let expr = expr.value;
                 let expr = if let Some(operator) = unary_op {
                     // Negative numbers are implemented as unary negation operations in the HCL
                     // spec. We'll convert these to negative numbers to make them more
                     // convenient to use.
                     match (operator, expr) {
                         (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
-                        (operator, expr) => Expression::from(UnaryOp::new(operator, expr)),
+                        (operator, expr) => {
+                            Expression::Operation(Box::new(Operation::Unary(UnaryOp {
+                                operator,
+                                expr,
+                            })))
+                        }
                     }
                 } else {
                     expr
                 };
 
                 let expr = if let Some((operator, rhs_expr)) = binary_op {
-                    Expression::from(BinaryOp::new(expr, operator, rhs_expr))
+                    Expression::Operation(Box::new(Operation::Binary(BinaryOp {
+                        lhs_expr: expr,
+                        operator,
+                        rhs_expr,
+                    })))
                 } else {
                     expr
                 };
 
                 if let Some((true_expr, false_expr)) = conditional {
-                    Expression::from(Conditional::new(expr, true_expr, false_expr))
+                    Expression::Conditional(Box::new(Conditional {
+                        cond_expr: expr,
+                        true_expr,
+                        false_expr,
+                    }))
                 } else {
                     expr
                 }
             },
-        ),
+        )),
     )(input)
 }

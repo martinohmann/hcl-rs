@@ -1,12 +1,12 @@
-use super::Span;
+use super::ast::{
+    Directive, Element, Expression, ForDirective, IfDirective, Interpolation, Template,
+};
 use super::{
     char_or_cut, expr::expr, ident, literal, string_fragment, string_literal, tag_or_cut,
     ws_delimited, ws_preceded, IResult, StringFragment,
 };
-use crate::expr::Expression;
-use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
-};
+use super::{spanned, Span, Spanned};
+use crate::template::StripMode;
 use crate::Identifier;
 use nom::{
     branch::alt,
@@ -60,15 +60,15 @@ where
 }
 
 fn if_directive(input: Span) -> IResult<Span, IfDirective> {
-    struct IfExpr {
-        cond_expr: Expression,
-        template: Template,
+    struct IfExpr<'a> {
+        cond_expr: Spanned<'a, Expression<'a>>,
+        template: Spanned<'a, Template<'a>>,
         strip: StripMode,
     }
 
     #[derive(Default)]
-    struct ElseExpr {
-        template: Option<Template>,
+    struct ElseExpr<'a> {
+        template: Option<Spanned<'a, Template<'a>>>,
         strip: StripMode,
     }
 
@@ -112,11 +112,11 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
 }
 
 fn for_directive(input: Span) -> IResult<Span, ForDirective> {
-    struct ForExpr {
-        key_var: Option<Identifier>,
-        value_var: Identifier,
-        collection_expr: Expression,
-        template: Template,
+    struct ForExpr<'a> {
+        key_var: Option<Spanned<'a, Identifier>>,
+        value_var: Spanned<'a, Identifier>,
+        collection_expr: Spanned<'a, Expression<'a>>,
+        template: Spanned<'a, Template<'a>>,
         strip: StripMode,
     }
 
@@ -125,8 +125,8 @@ fn for_directive(input: Span) -> IResult<Span, ForDirective> {
             template_tag(
                 "%{",
                 tuple((
-                    preceded(tag("for"), ws_delimited(cut(ident))),
-                    opt(preceded(char(','), ws_delimited(cut(ident)))),
+                    preceded(tag("for"), ws_delimited(cut(spanned(ident)))),
+                    opt(preceded(char(','), ws_delimited(cut(spanned(ident))))),
                     preceded(tag_or_cut("in"), ws_preceded(cut(expr))),
                 )),
             ),
@@ -173,39 +173,39 @@ where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, String>,
 {
     map(
-        many0(alt((
+        many0(spanned(alt((
             map(literal, Element::Literal),
             map(interpolation, Element::Interpolation),
             map(directive, Element::Directive),
-        ))),
-        Template::from_iter,
+        )))),
+        |elements| Template { elements },
     )
 }
 
-pub fn quoted_string_template(input: Span) -> IResult<Span, Template> {
-    delimited(
+pub fn quoted_string_template(input: Span) -> IResult<Span, Spanned<Template>> {
+    spanned(delimited(
         char('"'),
         build_template(build_literal(string_literal)),
         char('"'),
-    )(input)
+    ))(input)
 }
 
 pub fn heredoc_template<'a, F>(
     heredoc_end: F,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Template>
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<Template>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>,
 {
-    build_template(map(
+    spanned(build_template(map(
         literal(alt((tag("${"), tag("%{"), heredoc_end))),
         |s: Span| s.fragment().to_string(),
-    ))
+    )))
 }
 
-pub fn template(input: Span) -> IResult<Span, Template> {
-    build_template(build_literal(literal(alt((
+pub fn template(input: Span) -> IResult<Span, Spanned<Template>> {
+    spanned(build_template(build_literal(literal(alt((
         tag("\\"),
         tag("${"),
         tag("%{"),
-    )))))(input)
+    ))))))(input)
 }
