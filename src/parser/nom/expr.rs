@@ -21,7 +21,7 @@ use nom::{
     character::complete::{char, line_ending, one_of, space0, u64},
     combinator::{all_consuming, cut, fail, map, map_res, not, opt, recognize, value},
     error::context,
-    multi::{many0, many1, many1_count, separated_list1},
+    multi::{many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
 use std::borrow::Cow;

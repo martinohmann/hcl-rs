@@ -277,18 +277,21 @@ fn string(input: Span) -> IResult<Span, String> {
     delimited(char('"'), build_string, char('"'))(input)
 }
 
-fn str_ident(input: Span) -> IResult<Span, Span> {
+fn str_ident(input: Span) -> IResult<Span, &str> {
     context(
         "Identifier",
-        recognize(pair(
-            alt((alpha1, tag("_"))),
-            many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
-        )),
+        map(
+            recognize(pair(
+                alt((alpha1, tag("_"))),
+                many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
+            )),
+            |span: Span| *span,
+        ),
     )(input)
 }
 
 fn ident(input: Span) -> IResult<Span, Identifier> {
-    map(str_ident, |s: Span| Identifier::unchecked(*s))(input)
+    map(str_ident, Identifier::unchecked)(input)
 }
 
 fn exponent(input: Span) -> IResult<Span, Span> {

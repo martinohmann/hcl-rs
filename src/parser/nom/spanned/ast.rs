@@ -1,5 +1,7 @@
+#![allow(missing_docs)]
+
 use crate::expr::{self, BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable};
-use crate::structure::{self, BlockLabel};
+use crate::structure::BlockLabel;
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
 use nom_locate::LocatedSpan;
@@ -24,6 +26,14 @@ pub struct Spanned<'a, T> {
 }
 
 impl<'a, T> Spanned<'a, T> {
+    pub fn new(value: T, span: Range<usize>) -> Spanned<'a, T> {
+        Spanned {
+            value,
+            span,
+            marker: std::marker::PhantomData,
+        }
+    }
+
     pub fn map_value<F, U>(self, f: F) -> Spanned<'a, U>
     where
         F: FnOnce(T) -> U,
@@ -44,7 +54,7 @@ pub enum Expression<'a> {
     String(String),
     Array(Vec<Spanned<'a, Expression<'a>>>),
     Object(Object<Spanned<'a, ObjectKey<'a>>, Spanned<'a, Expression<'a>>>),
-    TemplateExpr(Box<TemplateExpr>),
+    TemplateExpr(Box<TemplateExpr<'a>>),
     Parenthesis(Box<Spanned<'a, Expression<'a>>>),
     Variable(Variable),
     Conditional(Box<Conditional<'a>>),
@@ -99,13 +109,13 @@ impl<'a> From<ObjectKey<'a>> for expr::ObjectKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TemplateExpr {
+pub enum TemplateExpr<'a> {
     QuotedString(String),
-    Heredoc(Heredoc),
+    Heredoc(Heredoc<'a>),
 }
 
-impl From<TemplateExpr> for expr::TemplateExpr {
-    fn from(expr: TemplateExpr) -> Self {
+impl<'a> From<TemplateExpr<'a>> for expr::TemplateExpr {
+    fn from(expr: TemplateExpr<'a>) -> Self {
         match expr {
             TemplateExpr::QuotedString(s) => expr::TemplateExpr::QuotedString(s),
             TemplateExpr::Heredoc(hd) => expr::TemplateExpr::Heredoc(hd.into()),
@@ -114,17 +124,17 @@ impl From<TemplateExpr> for expr::TemplateExpr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Heredoc {
-    pub delimiter: Identifier,
-    pub template: String,
+pub struct Heredoc<'a> {
+    pub delimiter: Spanned<'a, Identifier>,
+    pub template: Spanned<'a, String>,
     pub strip: HeredocStripMode,
 }
 
-impl From<Heredoc> for expr::Heredoc {
-    fn from(heredoc: Heredoc) -> Self {
+impl<'a> From<Heredoc<'a>> for expr::Heredoc {
+    fn from(heredoc: Heredoc<'a>) -> Self {
         expr::Heredoc {
-            delimiter: heredoc.delimiter,
-            template: heredoc.template,
+            delimiter: heredoc.delimiter.value,
+            template: heredoc.template.value,
             strip: heredoc.strip,
         }
     }
@@ -132,7 +142,7 @@ impl From<Heredoc> for expr::Heredoc {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Conditional<'a> {
-    pub cond_expr: Expression<'a>,
+    pub cond_expr: Spanned<'a, Expression<'a>>,
     pub true_expr: Spanned<'a, Expression<'a>>,
     pub false_expr: Spanned<'a, Expression<'a>>,
 }
@@ -140,7 +150,7 @@ pub struct Conditional<'a> {
 impl<'a> From<Conditional<'a>> for expr::Conditional {
     fn from(cond: Conditional<'a>) -> Self {
         expr::Conditional {
-            cond_expr: cond.cond_expr.into(),
+            cond_expr: cond.cond_expr.value.into(),
             true_expr: cond.true_expr.value.into(),
             false_expr: cond.false_expr.value.into(),
         }
@@ -170,14 +180,14 @@ impl<'a> From<FuncCall<'a>> for expr::FuncCall {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Traversal<'a> {
-    pub expr: Expression<'a>,
+    pub expr: Spanned<'a, Expression<'a>>,
     pub operators: Vec<Spanned<'a, TraversalOperator<'a>>>,
 }
 
 impl<'a> From<Traversal<'a>> for expr::Traversal {
     fn from(traversal: Traversal<'a>) -> Self {
         expr::Traversal {
-            expr: traversal.expr.into(),
+            expr: traversal.expr.value.into(),
             operators: traversal
                 .operators
                 .into_iter()
@@ -225,31 +235,31 @@ impl<'a> From<Operation<'a>> for expr::Operation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnaryOp<'a> {
-    pub expr: Expression<'a>,
-    pub operator: UnaryOperator,
+    pub expr: Spanned<'a, Expression<'a>>,
+    pub operator: Spanned<'a, UnaryOperator>,
 }
 
 impl<'a> From<UnaryOp<'a>> for expr::UnaryOp {
     fn from(op: UnaryOp<'a>) -> Self {
         expr::UnaryOp {
-            operator: op.operator,
-            expr: op.expr.into(),
+            operator: op.operator.value,
+            expr: op.expr.value.into(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryOp<'a> {
-    pub lhs_expr: Expression<'a>,
-    pub operator: BinaryOperator,
+    pub lhs_expr: Spanned<'a, Expression<'a>>,
+    pub operator: Spanned<'a, BinaryOperator>,
     pub rhs_expr: Spanned<'a, Expression<'a>>,
 }
 
 impl<'a> From<BinaryOp<'a>> for expr::BinaryOp {
     fn from(op: BinaryOp<'a>) -> Self {
         expr::BinaryOp {
-            lhs_expr: op.lhs_expr.into(),
-            operator: op.operator,
+            lhs_expr: op.lhs_expr.value.into(),
+            operator: op.operator.value,
             rhs_expr: op.rhs_expr.value.into(),
         }
     }
