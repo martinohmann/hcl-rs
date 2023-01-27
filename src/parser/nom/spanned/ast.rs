@@ -4,6 +4,7 @@ use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
 use nom_locate::LocatedSpan;
 use std::borrow::Cow;
+use std::ops::Range;
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 pub type Str<'a> = Cow<'a, str>;
@@ -17,8 +18,8 @@ pub struct Decor<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spanned<'a, T> {
     pub value: T,
-    pub start: Span<'a>,
-    pub end: Span<'a>,
+    pub span: Range<usize>,
+    pub marker: std::marker::PhantomData<&'a ()>,
     // pub decor: Decor<'a>,
 }
 
@@ -29,8 +30,8 @@ impl<'a, T> Spanned<'a, T> {
     {
         Spanned {
             value: f(self.value),
-            start: self.start,
-            end: self.end,
+            span: self.span,
+            marker: std::marker::PhantomData,
         }
     }
 }

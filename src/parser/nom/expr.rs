@@ -333,32 +333,22 @@ fn binary_operator(input: &str) -> IResult<&str, BinaryOperator> {
 }
 
 fn expr_term(input: &str) -> IResult<&str, Expression> {
-    map(
-        pair(
-            alt((
-                map(number, Expression::Number),
-                map(string, Expression::String),
-                ident_or_func_call,
-                array,
-                object,
-                map(template_expr, Expression::from),
-                map(parenthesis, Expression::Parenthesis),
-                fail,
-            )),
-            many0(ws_preceded(traversal_operator)),
-        ),
-        |(expr, operators)| {
-            if operators.is_empty() {
-                expr
-            } else {
-                Expression::from(Traversal::new(expr, operators))
-            }
-        },
-    )(input)
+    alt((
+        map(number, Expression::Number),
+        map(string, Expression::String),
+        ident_or_func_call,
+        array,
+        object,
+        map(template_expr, Expression::from),
+        map(parenthesis, Expression::Parenthesis),
+        fail,
+    ))(input)
 }
 
 pub fn expr(input: &str) -> IResult<&str, Expression> {
     let unary_op = ws_terminated(unary_operator);
+
+    let traversal = many1(ws_preceded(traversal_operator));
 
     let binary_op = pair(ws_delimited(binary_operator), cut(expr));
 
@@ -370,8 +360,14 @@ pub fn expr(input: &str) -> IResult<&str, Expression> {
     context(
         "Expression",
         map(
-            tuple((opt(unary_op), expr_term, opt(binary_op), opt(conditional))),
-            |(unary_op, expr, binary_op, conditional)| {
+            tuple((
+                opt(unary_op),
+                expr_term,
+                opt(traversal),
+                opt(binary_op),
+                opt(conditional),
+            )),
+            |(unary_op, expr, traversal, binary_op, conditional)| {
                 let expr = if let Some(operator) = unary_op {
                     // Negative numbers are implemented as unary negation operations in the HCL
                     // spec. We'll convert these to negative numbers to make them more
@@ -382,6 +378,11 @@ pub fn expr(input: &str) -> IResult<&str, Expression> {
                     }
                 } else {
                     expr
+                };
+
+                let expr = match traversal {
+                    Some(operators) => Expression::from(Traversal::new(expr, operators)),
+                    None => expr,
                 };
 
                 let expr = if let Some((operator, rhs_expr)) = binary_op {

@@ -30,7 +30,11 @@ where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
     map(tuple((position, inner, position)), |(start, value, end)| {
-        Spanned { start, value, end }
+        Spanned {
+            value,
+            marker: std::marker::PhantomData,
+            span: (start.location_offset()..end.location_offset()),
+        }
     })
 }
 

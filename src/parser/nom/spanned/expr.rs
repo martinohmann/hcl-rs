@@ -340,40 +340,25 @@ fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
     ))(input)
 }
 
-fn expr_term(input: Span) -> IResult<Span, Spanned<Expression>> {
-    map(
-        pair(
-            spanned(alt((
-                map(number, Expression::Number),
-                map(string, Expression::String),
-                ident_or_func_call,
-                array,
-                object,
-                map(template_expr, |expr| {
-                    Expression::TemplateExpr(Box::new(expr))
-                }),
-                map(parenthesis, |expr| Expression::Parenthesis(expr)),
-                fail,
-            ))),
-            many0(ws_preceded(spanned(traversal_operator))),
-        ),
-        |(expr, operators)| {
-            if operators.is_empty() {
-                expr
-            } else {
-                expr.map_value(|value| {
-                    Expression::Traversal(Box::new(Traversal {
-                        expr: value,
-                        operators,
-                    }))
-                })
-            }
-        },
-    )(input)
+fn expr_term(input: Span) -> IResult<Span, Expression> {
+    alt((
+        map(number, Expression::Number),
+        map(string, Expression::String),
+        ident_or_func_call,
+        array,
+        object,
+        map(template_expr, |expr| {
+            Expression::TemplateExpr(Box::new(expr))
+        }),
+        map(parenthesis, |expr| Expression::Parenthesis(expr)),
+        fail,
+    ))(input)
 }
 
-pub fn expr(input: Span) -> IResult<Span, Spanned<Expression>> {
+pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
     let unary_op = ws_terminated(unary_operator);
+
+    let traversal = many1(ws_preceded(spanned(traversal_operator)));
 
     let binary_op = pair(ws_delimited(binary_operator), cut(expr));
 
@@ -382,49 +367,60 @@ pub fn expr(input: Span) -> IResult<Span, Spanned<Expression>> {
         preceded(sp_delimited(char_or_cut(':')), cut(expr)),
     );
 
-    context(
-        "Expression",
-        spanned(map(
-            tuple((opt(unary_op), expr_term, opt(binary_op), opt(conditional))),
-            |(unary_op, expr, binary_op, conditional)| {
-                let expr = expr.value;
-                let expr = if let Some(operator) = unary_op {
-                    // Negative numbers are implemented as unary negation operations in the HCL
-                    // spec. We'll convert these to negative numbers to make them more
-                    // convenient to use.
-                    match (operator, expr) {
-                        (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
-                        (operator, expr) => {
-                            Expression::Operation(Box::new(Operation::Unary(UnaryOp {
-                                operator,
-                                expr,
-                            })))
-                        }
-                    }
-                } else {
-                    expr
-                };
-
-                let expr = if let Some((operator, rhs_expr)) = binary_op {
-                    Expression::Operation(Box::new(Operation::Binary(BinaryOp {
-                        lhs_expr: expr,
-                        operator,
-                        rhs_expr,
-                    })))
-                } else {
-                    expr
-                };
-
-                if let Some((true_expr, false_expr)) = conditional {
-                    Expression::Conditional(Box::new(Conditional {
-                        cond_expr: expr,
-                        true_expr,
-                        false_expr,
-                    }))
-                } else {
-                    expr
-                }
-            },
+    map(
+        tuple((
+            opt(unary_op),
+            expr_term,
+            opt(traversal),
+            opt(binary_op),
+            opt(conditional),
         )),
+        |(unary_op, expr, traversal, binary_op, conditional)| {
+            let expr = if let Some(operator) = unary_op {
+                // Negative numbers are implemented as unary negation operations in the HCL
+                // spec. We'll convert these to negative numbers to make them more
+                // convenient to use.
+                match (operator, expr) {
+                    (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
+                    (operator, expr) => {
+                        Expression::Operation(Box::new(Operation::Unary(UnaryOp {
+                            operator,
+                            expr,
+                        })))
+                    }
+                }
+            } else {
+                expr
+            };
+
+            let expr = match traversal {
+                Some(operators) => Expression::Traversal(Box::new(Traversal { expr, operators })),
+                None => expr,
+            };
+
+            let expr = if let Some((operator, rhs_expr)) = binary_op {
+                Expression::Operation(Box::new(Operation::Binary(BinaryOp {
+                    lhs_expr: expr,
+                    operator,
+                    rhs_expr,
+                })))
+            } else {
+                expr
+            };
+
+            if let Some((true_expr, false_expr)) = conditional {
+                Expression::Conditional(Box::new(Conditional {
+                    cond_expr: expr,
+                    true_expr,
+                    false_expr,
+                }))
+            } else {
+                expr
+            }
+        },
     )(input)
+}
+
+pub fn expr(input: Span) -> IResult<Span, Spanned<Expression>> {
+    context("Expression", spanned(expr_inner))(input)
 }
