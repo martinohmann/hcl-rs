@@ -39,7 +39,6 @@ itoa = "1.0.5"
 nom = { version = "7", optional = true }
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
-nom_locate = "4.1.0"
 
 [dependencies.indexmap]
 features = ["serde"]

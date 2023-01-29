@@ -1,12 +1,14 @@
 pub mod ast;
 mod error;
 mod expr;
+mod span;
 mod structure;
 mod template;
 
 pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
+use self::span::position;
 use self::structure::body;
 use crate::{Identifier, Number};
 use nom::{
@@ -22,17 +24,15 @@ use nom::{
     sequence::{delimited, pair, preceded, terminated, tuple},
     Compare, CompareResult, Finish, InputLength, InputTake, Parser, Slice,
 };
-use nom_locate::position;
 use std::str::FromStr;
 
-fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<'a, T>>
+fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<T>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
     map(tuple((position, inner, position)), |(start, value, end)| {
         Spanned {
             value,
-            marker: std::marker::PhantomData,
             span: (start.location_offset()..end.location_offset()),
         }
     })

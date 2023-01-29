@@ -1,71 +1,62 @@
 #![allow(missing_docs)]
 
+use super::span::LocatedSpan;
 use crate::expr::{self, BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable};
 use crate::structure::BlockLabel;
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
-use nom_locate::LocatedSpan;
-use std::borrow::Cow;
 use std::ops::Range;
 
 pub type Span<'a> = LocatedSpan<&'a str>;
-pub type Str<'a> = Cow<'a, str>;
 
 #[derive(Default)]
-pub struct Decor<'a> {
-    pub prefix: Option<Str<'a>>,
-    pub suffix: Option<Str<'a>>,
+pub struct Decor {
+    pub prefix: Option<String>,
+    pub suffix: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Spanned<'a, T> {
+pub struct Spanned<T> {
     pub value: T,
     pub span: Range<usize>,
-    pub marker: std::marker::PhantomData<&'a ()>,
-    // pub decor: Decor<'a>,
 }
 
-impl<'a, T> Spanned<'a, T> {
-    pub fn new(value: T, span: Range<usize>) -> Spanned<'a, T> {
-        Spanned {
-            value,
-            span,
-            marker: std::marker::PhantomData,
-        }
+impl<T> Spanned<T> {
+    pub fn new(value: T, span: Range<usize>) -> Spanned<T> {
+        Spanned { value, span }
     }
 
-    pub fn map_value<F, U>(self, f: F) -> Spanned<'a, U>
+    pub fn map_value<F, U>(self, f: F) -> Spanned<U>
     where
         F: FnOnce(T) -> U,
     {
         Spanned {
             value: f(self.value),
             span: self.span,
-            marker: std::marker::PhantomData,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression<'a> {
+pub enum Expression {
     Null,
     Bool(bool),
     Number(Number),
     String(String),
-    Array(Vec<Spanned<'a, Expression<'a>>>),
-    Object(Object<Spanned<'a, ObjectKey<'a>>, Spanned<'a, Expression<'a>>>),
-    TemplateExpr(Box<TemplateExpr<'a>>),
-    Parenthesis(Box<Spanned<'a, Expression<'a>>>),
+    Array(Vec<Spanned<Expression>>),
+    Object(Object<Spanned<ObjectKey>, Spanned<Expression>>),
+    TemplateExpr(Box<TemplateExpr>),
+    Parenthesis(Box<Spanned<Expression>>),
     Variable(Variable),
-    Conditional(Box<Conditional<'a>>),
-    FuncCall(Box<FuncCall<'a>>),
-    Traversal(Box<Traversal<'a>>),
-    Operation(Box<Operation<'a>>),
-    ForExpr(Box<ForExpr<'a>>),
+    Conditional(Box<Conditional>),
+    FuncCall(Box<FuncCall>),
+    Traversal(Box<Traversal>),
+    Operation(Box<Operation>),
+    ForExpr(Box<ForExpr>),
 }
 
-impl<'a> From<Expression<'a>> for expr::Expression {
-    fn from(expr: Expression<'a>) -> Self {
+impl From<Expression> for expr::Expression {
+    fn from(expr: Expression) -> Self {
         match expr {
             Expression::Null => expr::Expression::Null,
             Expression::Bool(b) => expr::Expression::Bool(b),
@@ -94,13 +85,13 @@ impl<'a> From<Expression<'a>> for expr::Expression {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ObjectKey<'a> {
+pub enum ObjectKey {
     Identifier(Identifier),
-    Expression(Expression<'a>),
+    Expression(Expression),
 }
 
-impl<'a> From<ObjectKey<'a>> for expr::ObjectKey {
-    fn from(key: ObjectKey<'a>) -> Self {
+impl From<ObjectKey> for expr::ObjectKey {
+    fn from(key: ObjectKey) -> Self {
         match key {
             ObjectKey::Identifier(ident) => expr::ObjectKey::Identifier(ident),
             ObjectKey::Expression(expr) => expr::ObjectKey::Expression(expr.into()),
@@ -109,13 +100,13 @@ impl<'a> From<ObjectKey<'a>> for expr::ObjectKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TemplateExpr<'a> {
+pub enum TemplateExpr {
     QuotedString(String),
-    Heredoc(Heredoc<'a>),
+    Heredoc(Heredoc),
 }
 
-impl<'a> From<TemplateExpr<'a>> for expr::TemplateExpr {
-    fn from(expr: TemplateExpr<'a>) -> Self {
+impl From<TemplateExpr> for expr::TemplateExpr {
+    fn from(expr: TemplateExpr) -> Self {
         match expr {
             TemplateExpr::QuotedString(s) => expr::TemplateExpr::QuotedString(s),
             TemplateExpr::Heredoc(hd) => expr::TemplateExpr::Heredoc(hd.into()),
@@ -124,14 +115,14 @@ impl<'a> From<TemplateExpr<'a>> for expr::TemplateExpr {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Heredoc<'a> {
-    pub delimiter: Spanned<'a, Identifier>,
-    pub template: Spanned<'a, String>,
+pub struct Heredoc {
+    pub delimiter: Spanned<Identifier>,
+    pub template: Spanned<String>,
     pub strip: HeredocStripMode,
 }
 
-impl<'a> From<Heredoc<'a>> for expr::Heredoc {
-    fn from(heredoc: Heredoc<'a>) -> Self {
+impl From<Heredoc> for expr::Heredoc {
+    fn from(heredoc: Heredoc) -> Self {
         expr::Heredoc {
             delimiter: heredoc.delimiter.value,
             template: heredoc.template.value,
@@ -141,14 +132,14 @@ impl<'a> From<Heredoc<'a>> for expr::Heredoc {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Conditional<'a> {
-    pub cond_expr: Spanned<'a, Expression<'a>>,
-    pub true_expr: Spanned<'a, Expression<'a>>,
-    pub false_expr: Spanned<'a, Expression<'a>>,
+pub struct Conditional {
+    pub cond_expr: Spanned<Expression>,
+    pub true_expr: Spanned<Expression>,
+    pub false_expr: Spanned<Expression>,
 }
 
-impl<'a> From<Conditional<'a>> for expr::Conditional {
-    fn from(cond: Conditional<'a>) -> Self {
+impl From<Conditional> for expr::Conditional {
+    fn from(cond: Conditional) -> Self {
         expr::Conditional {
             cond_expr: cond.cond_expr.value.into(),
             true_expr: cond.true_expr.value.into(),
@@ -158,14 +149,14 @@ impl<'a> From<Conditional<'a>> for expr::Conditional {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FuncCall<'a> {
-    pub name: Spanned<'a, Identifier>,
-    pub args: Vec<Spanned<'a, Expression<'a>>>,
+pub struct FuncCall {
+    pub name: Spanned<Identifier>,
+    pub args: Vec<Spanned<Expression>>,
     pub expand_final: bool,
 }
 
-impl<'a> From<FuncCall<'a>> for expr::FuncCall {
-    fn from(call: FuncCall<'a>) -> Self {
+impl From<FuncCall> for expr::FuncCall {
+    fn from(call: FuncCall) -> Self {
         expr::FuncCall {
             name: call.name.value,
             args: call
@@ -179,13 +170,13 @@ impl<'a> From<FuncCall<'a>> for expr::FuncCall {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Traversal<'a> {
-    pub expr: Spanned<'a, Expression<'a>>,
-    pub operators: Vec<Spanned<'a, TraversalOperator<'a>>>,
+pub struct Traversal {
+    pub expr: Spanned<Expression>,
+    pub operators: Vec<Spanned<TraversalOperator>>,
 }
 
-impl<'a> From<Traversal<'a>> for expr::Traversal {
-    fn from(traversal: Traversal<'a>) -> Self {
+impl From<Traversal> for expr::Traversal {
+    fn from(traversal: Traversal) -> Self {
         expr::Traversal {
             expr: traversal.expr.value.into(),
             operators: traversal
@@ -198,16 +189,16 @@ impl<'a> From<Traversal<'a>> for expr::Traversal {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TraversalOperator<'a> {
+pub enum TraversalOperator {
     AttrSplat,
     FullSplat,
     GetAttr(Identifier),
-    Index(Expression<'a>),
+    Index(Expression),
     LegacyIndex(u64),
 }
 
-impl<'a> From<TraversalOperator<'a>> for expr::TraversalOperator {
-    fn from(operator: TraversalOperator<'a>) -> Self {
+impl From<TraversalOperator> for expr::TraversalOperator {
+    fn from(operator: TraversalOperator) -> Self {
         match operator {
             TraversalOperator::AttrSplat => expr::TraversalOperator::AttrSplat,
             TraversalOperator::FullSplat => expr::TraversalOperator::FullSplat,
@@ -219,13 +210,13 @@ impl<'a> From<TraversalOperator<'a>> for expr::TraversalOperator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Operation<'a> {
-    Unary(UnaryOp<'a>),
-    Binary(BinaryOp<'a>),
+pub enum Operation {
+    Unary(UnaryOp),
+    Binary(BinaryOp),
 }
 
-impl<'a> From<Operation<'a>> for expr::Operation {
-    fn from(op: Operation<'a>) -> Self {
+impl From<Operation> for expr::Operation {
+    fn from(op: Operation) -> Self {
         match op {
             Operation::Unary(unary) => expr::Operation::Unary(unary.into()),
             Operation::Binary(binary) => expr::Operation::Binary(binary.into()),
@@ -234,13 +225,13 @@ impl<'a> From<Operation<'a>> for expr::Operation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UnaryOp<'a> {
-    pub expr: Spanned<'a, Expression<'a>>,
-    pub operator: Spanned<'a, UnaryOperator>,
+pub struct UnaryOp {
+    pub expr: Spanned<Expression>,
+    pub operator: Spanned<UnaryOperator>,
 }
 
-impl<'a> From<UnaryOp<'a>> for expr::UnaryOp {
-    fn from(op: UnaryOp<'a>) -> Self {
+impl From<UnaryOp> for expr::UnaryOp {
+    fn from(op: UnaryOp) -> Self {
         expr::UnaryOp {
             operator: op.operator.value,
             expr: op.expr.value.into(),
@@ -249,14 +240,14 @@ impl<'a> From<UnaryOp<'a>> for expr::UnaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BinaryOp<'a> {
-    pub lhs_expr: Spanned<'a, Expression<'a>>,
-    pub operator: Spanned<'a, BinaryOperator>,
-    pub rhs_expr: Spanned<'a, Expression<'a>>,
+pub struct BinaryOp {
+    pub lhs_expr: Spanned<Expression>,
+    pub operator: Spanned<BinaryOperator>,
+    pub rhs_expr: Spanned<Expression>,
 }
 
-impl<'a> From<BinaryOp<'a>> for expr::BinaryOp {
-    fn from(op: BinaryOp<'a>) -> Self {
+impl From<BinaryOp> for expr::BinaryOp {
+    fn from(op: BinaryOp) -> Self {
         expr::BinaryOp {
             lhs_expr: op.lhs_expr.value.into(),
             operator: op.operator.value,
@@ -266,18 +257,18 @@ impl<'a> From<BinaryOp<'a>> for expr::BinaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ForExpr<'a> {
-    pub key_var: Option<Spanned<'a, Identifier>>,
-    pub value_var: Spanned<'a, Identifier>,
-    pub collection_expr: Spanned<'a, Expression<'a>>,
-    pub key_expr: Option<Spanned<'a, Expression<'a>>>,
-    pub value_expr: Spanned<'a, Expression<'a>>,
+pub struct ForExpr {
+    pub key_var: Option<Spanned<Identifier>>,
+    pub value_var: Spanned<Identifier>,
+    pub collection_expr: Spanned<Expression>,
+    pub key_expr: Option<Spanned<Expression>>,
+    pub value_expr: Spanned<Expression>,
     pub grouping: bool,
-    pub cond_expr: Option<Spanned<'a, Expression<'a>>>,
+    pub cond_expr: Option<Spanned<Expression>>,
 }
 
-impl<'a> From<ForExpr<'a>> for expr::ForExpr {
-    fn from(expr: ForExpr<'a>) -> Self {
+impl From<ForExpr> for expr::ForExpr {
+    fn from(expr: ForExpr) -> Self {
         expr::ForExpr {
             key_var: expr.key_var.map(|spanned| spanned.value),
             value_var: expr.value_var.value,
@@ -291,35 +282,35 @@ impl<'a> From<ForExpr<'a>> for expr::ForExpr {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Body<'a> {
-    pub structures: Vec<Spanned<'a, Structure<'a>>>,
+pub struct Body {
+    pub structures: Vec<Spanned<Structure>>,
 }
 
 #[derive(Debug, Clone)]
-pub enum Structure<'a> {
-    Attribute(Attribute<'a>),
-    Block(Block<'a>),
+pub enum Structure {
+    Attribute(Attribute),
+    Block(Block),
 }
 
 #[derive(Debug, Clone)]
-pub struct Attribute<'a> {
-    pub key: Spanned<'a, Identifier>,
-    pub expr: Spanned<'a, Expression<'a>>,
+pub struct Attribute {
+    pub key: Spanned<Identifier>,
+    pub expr: Spanned<Expression>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Block<'a> {
-    pub identifier: Spanned<'a, Identifier>,
-    pub labels: Vec<Spanned<'a, BlockLabel>>,
-    pub body: Spanned<'a, Body<'a>>,
+pub struct Block {
+    pub identifier: Spanned<Identifier>,
+    pub labels: Vec<Spanned<BlockLabel>>,
+    pub body: Spanned<Body>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Template<'a> {
-    pub elements: Vec<Spanned<'a, Element<'a>>>,
+pub struct Template {
+    pub elements: Vec<Spanned<Element>>,
 }
 
-impl<'a> From<Template<'a>> for template::Template {
+impl From<Template> for template::Template {
     fn from(template: Template) -> Self {
         template::Template::from_iter(
             template
@@ -331,13 +322,13 @@ impl<'a> From<Template<'a>> for template::Template {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Element<'a> {
+pub enum Element {
     Literal(String),
-    Interpolation(Interpolation<'a>),
-    Directive(Directive<'a>),
+    Interpolation(Interpolation),
+    Directive(Directive),
 }
 
-impl<'a> From<Element<'a>> for template::Element {
+impl From<Element> for template::Element {
     fn from(element: Element) -> Self {
         match element {
             Element::Literal(lit) => template::Element::Literal(lit),
@@ -348,13 +339,13 @@ impl<'a> From<Element<'a>> for template::Element {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Interpolation<'a> {
-    pub expr: Spanned<'a, Expression<'a>>,
+pub struct Interpolation {
+    pub expr: Spanned<Expression>,
     pub strip: StripMode,
 }
 
-impl<'a> From<Interpolation<'a>> for template::Interpolation {
-    fn from(interp: Interpolation<'a>) -> Self {
+impl From<Interpolation> for template::Interpolation {
+    fn from(interp: Interpolation) -> Self {
         template::Interpolation {
             expr: interp.expr.value.into(),
             strip: interp.strip,
@@ -363,13 +354,13 @@ impl<'a> From<Interpolation<'a>> for template::Interpolation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Directive<'a> {
-    If(IfDirective<'a>),
-    For(ForDirective<'a>),
+pub enum Directive {
+    If(IfDirective),
+    For(ForDirective),
 }
 
-impl<'a> From<Directive<'a>> for template::Directive {
-    fn from(dir: Directive<'a>) -> Self {
+impl From<Directive> for template::Directive {
+    fn from(dir: Directive) -> Self {
         match dir {
             Directive::If(dir) => template::Directive::If(dir.into()),
             Directive::For(dir) => template::Directive::For(dir.into()),
@@ -378,17 +369,17 @@ impl<'a> From<Directive<'a>> for template::Directive {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct IfDirective<'a> {
-    pub cond_expr: Spanned<'a, Expression<'a>>,
-    pub true_template: Spanned<'a, Template<'a>>,
-    pub false_template: Option<Spanned<'a, Template<'a>>>,
+pub struct IfDirective {
+    pub cond_expr: Spanned<Expression>,
+    pub true_template: Spanned<Template>,
+    pub false_template: Option<Spanned<Template>>,
     pub if_strip: StripMode,
     pub else_strip: StripMode,
     pub endif_strip: StripMode,
 }
 
-impl<'a> From<IfDirective<'a>> for template::IfDirective {
-    fn from(dir: IfDirective<'a>) -> Self {
+impl From<IfDirective> for template::IfDirective {
+    fn from(dir: IfDirective) -> Self {
         template::IfDirective {
             cond_expr: dir.cond_expr.value.into(),
             true_template: dir.true_template.value.into(),
@@ -401,17 +392,17 @@ impl<'a> From<IfDirective<'a>> for template::IfDirective {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ForDirective<'a> {
-    pub key_var: Option<Spanned<'a, Identifier>>,
-    pub value_var: Spanned<'a, Identifier>,
-    pub collection_expr: Spanned<'a, Expression<'a>>,
-    pub template: Spanned<'a, Template<'a>>,
+pub struct ForDirective {
+    pub key_var: Option<Spanned<Identifier>>,
+    pub value_var: Spanned<Identifier>,
+    pub collection_expr: Spanned<Expression>,
+    pub template: Spanned<Template>,
     pub for_strip: StripMode,
     pub endfor_strip: StripMode,
 }
 
-impl<'a> From<ForDirective<'a>> for template::ForDirective {
-    fn from(dir: ForDirective<'a>) -> Self {
+impl From<ForDirective> for template::ForDirective {
+    fn from(dir: ForDirective) -> Self {
         template::ForDirective {
             key_var: dir.key_var.map(|spanned| spanned.value),
             value_var: dir.value_var.value,

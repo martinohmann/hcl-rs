@@ -60,15 +60,15 @@ where
 }
 
 fn if_directive(input: Span) -> IResult<Span, IfDirective> {
-    struct IfExpr<'a> {
-        cond_expr: Spanned<'a, Expression<'a>>,
-        template: Spanned<'a, Template<'a>>,
+    struct IfExpr {
+        cond_expr: Spanned<Expression>,
+        template: Spanned<Template>,
         strip: StripMode,
     }
 
     #[derive(Default)]
-    struct ElseExpr<'a> {
-        template: Option<Spanned<'a, Template<'a>>>,
+    struct ElseExpr {
+        template: Option<Spanned<Template>>,
         strip: StripMode,
     }
 
@@ -112,11 +112,11 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
 }
 
 fn for_directive(input: Span) -> IResult<Span, ForDirective> {
-    struct ForExpr<'a> {
-        key_var: Option<Spanned<'a, Identifier>>,
-        value_var: Spanned<'a, Identifier>,
-        collection_expr: Spanned<'a, Expression<'a>>,
-        template: Spanned<'a, Template<'a>>,
+    struct ForExpr {
+        key_var: Option<Spanned<Identifier>>,
+        value_var: Spanned<Identifier>,
+        collection_expr: Spanned<Expression>,
+        template: Spanned<Template>,
         strip: StripMode,
     }
 

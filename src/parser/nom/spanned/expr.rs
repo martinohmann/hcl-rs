@@ -131,10 +131,10 @@ fn for_object_expr(input: Span) -> IResult<Span, ForExpr> {
     )(input)
 }
 
-struct ForIntro<'a> {
-    key_var: Option<Spanned<'a, Identifier>>,
-    value_var: Spanned<'a, Identifier>,
-    collection_expr: Spanned<'a, Expression<'a>>,
+struct ForIntro {
+    key_var: Option<Spanned<Identifier>>,
+    value_var: Spanned<Identifier>,
+    collection_expr: Spanned<Expression>,
 }
 
 fn for_intro(input: Span) -> IResult<Span, ForIntro> {
