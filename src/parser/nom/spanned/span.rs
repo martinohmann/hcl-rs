@@ -167,34 +167,32 @@ where
     type Item = T::Item;
     type Iter = T::Iter;
     type IterElem = T::IterElem;
-    #[inline]
+
     fn iter_indices(&self) -> Self::Iter {
         self.fragment.iter_indices()
     }
-    #[inline]
+
     fn iter_elements(&self) -> Self::IterElem {
         self.fragment.iter_elements()
     }
-    #[inline]
+
     fn position<P>(&self, predicate: P) -> Option<usize>
     where
         P: Fn(Self::Item) -> bool,
     {
         self.fragment.position(predicate)
     }
-    #[inline]
+
     fn slice_index(&self, count: usize) -> Result<usize, nom::Needed> {
         self.fragment.slice_index(count)
     }
 }
 
 impl<A: Compare<B>, B: Into<LocatedSpan<B>>> Compare<B> for LocatedSpan<A> {
-    #[inline(always)]
     fn compare(&self, t: B) -> CompareResult {
         self.fragment.compare(t.into().fragment)
     }
 
-    #[inline(always)]
     fn compare_no_case(&self, t: B) -> CompareResult {
         self.fragment.compare_no_case(t.into().fragment)
     }
@@ -226,7 +224,6 @@ impl<T, U> FindSubstring<U> for LocatedSpan<T>
 where
     T: FindSubstring<U>,
 {
-    #[inline]
     fn find_substring(&self, substr: U) -> Option<usize> {
         self.fragment.find_substring(substr)
     }
@@ -236,7 +233,6 @@ impl<R: FromStr, T> ParseTo<R> for LocatedSpan<T>
 where
     T: ParseTo<R>,
 {
-    #[inline]
     fn parse_to(&self) -> Option<R> {
         self.fragment.parse_to()
     }
@@ -264,12 +260,10 @@ where
     type Item = T::Item;
     type Extender = T::Extender;
 
-    #[inline]
     fn new_builder(&self) -> Self::Extender {
         self.fragment.new_builder()
     }
 
-    #[inline]
     fn extend_into(&self, acc: &mut Self::Extender) {
         self.fragment.extend_into(acc)
     }
