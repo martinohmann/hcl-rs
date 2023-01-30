@@ -27,25 +27,6 @@ use nom::{
 use std::ops::Range;
 use std::str::FromStr;
 
-fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<T>>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
-{
-    map(tuple((position, inner, position)), |(start, value, end)| {
-        let span = start.location()..end.location();
-        Spanned::new(value, span)
-    })
-}
-
-fn span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Range<usize>>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
-{
-    map(separated_pair(position, inner, position), |(start, end)| {
-        start.location()..end.location()
-    })
-}
-
 /// Parse a `hcl::Body` from a `&str`.
 ///
 /// If deserialization into a different type is preferred consider using [`hcl::from_str`][crate::from_str].
@@ -153,18 +134,30 @@ fn ws(input: Span) -> IResult<Span, ()> {
     )(input)
 }
 
-fn ws_preceded<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
+fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<T>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
-    preceded(ws, inner)
+    map(with_span(inner), |(value, span)| Spanned::new(value, span))
 }
 
-fn ws_terminated<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
+fn with_span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, (T, Range<usize>)>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
-    terminated(inner, ws)
+    map(tuple((position, inner, position)), |(start, value, end)| {
+        let span = start.location()..end.location();
+        (value, span)
+    })
+}
+
+fn span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Range<usize>>
+where
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
+{
+    map(separated_pair(position, inner, position), |(start, end)| {
+        start.location()..end.location()
+    })
 }
 
 fn prefix_decorated<'a, F, G, O1, O2>(
@@ -173,11 +166,15 @@ fn prefix_decorated<'a, F, G, O1, O2>(
 ) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
-    G: FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>,
+    G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
 {
-    map(pair(span(prefix), inner), |(prefix_span, spanned)| {
-        spanned.decorate_prefix(prefix_span)
-    })
+    map(
+        pair(span(prefix), with_span(inner)),
+        |(prefix_span, (value, span))| {
+            let decor = Decor::from_prefix(prefix_span);
+            Spanned::new_with_decor(value, span, decor)
+        },
+    )
 }
 
 fn suffix_decorated<'a, F, G, O1, O2>(
@@ -185,12 +182,16 @@ fn suffix_decorated<'a, F, G, O1, O2>(
     suffix: G,
 ) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O1>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O1>>,
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
     G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
 {
-    map(pair(inner, span(suffix)), |(spanned, suffix_span)| {
-        spanned.decorate_suffix(suffix_span)
-    })
+    map(
+        pair(with_span(inner), span(suffix)),
+        |((value, span), suffix_span)| {
+            let decor = Decor::from_suffix(suffix_span);
+            Spanned::new_with_decor(value, span, decor)
+        },
+    )
 }
 
 fn decorated<'a, F, G, H, O1, O2, O3>(
@@ -200,22 +201,16 @@ fn decorated<'a, F, G, H, O1, O2, O3>(
 ) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
-    G: FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>,
+    G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
     H: FnMut(Span<'a>) -> IResult<Span<'a>, O3>,
 {
     map(
-        tuple((span(prefix), inner, span(suffix))),
-        |(prefix_span, spanned, suffix_span)| {
-            spanned.decorate(Decor::new(prefix_span, suffix_span))
+        tuple((span(prefix), with_span(inner), span(suffix))),
+        |(prefix_span, (value, span), suffix_span)| {
+            let decor = Decor::new(prefix_span, suffix_span);
+            Spanned::new_with_decor(value, span, decor)
         },
     )
-}
-
-fn opt_sep<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Option<O>>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
-{
-    opt(ws_preceded(inner))
 }
 
 /// Parse a unicode sequence, of the form `uXXXX`, where XXXX is 1 to 6

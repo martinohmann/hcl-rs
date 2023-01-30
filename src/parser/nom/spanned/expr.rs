@@ -5,9 +5,9 @@ use super::ast::{
 use super::{
     anything_except, char_or_cut, decorated,
     error::InternalError,
-    ident, number, opt_sep, prefix_decorated, sp, str_ident, string, tag_or_cut,
+    ident, number, prefix_decorated, sp, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
-    ws, ws_preceded, ws_terminated, ErrorKind, IResult,
+    ws, ErrorKind, IResult,
 };
 use super::{spanned, suffix_decorated, Span, Spanned};
 use crate::template;
@@ -29,31 +29,31 @@ use std::borrow::Cow;
 
 fn array(input: Span) -> IResult<Span, Expression> {
     delimited(
-        ws_terminated(char('[')),
+        char('['),
         alt((
             map(for_list_expr, |expr| Expression::ForExpr(Box::new(expr))),
             map(array_items, Expression::Array),
         )),
-        ws_preceded(char_or_cut(']')),
+        char_or_cut(']'),
     )(input)
 }
 
 fn array_items(input: Span) -> IResult<Span, Vec<Spanned<Expression>>> {
-    map(
-        opt(terminated(
-            separated_list1(delimited(ws, char(','), ws), expr),
-            opt_sep(char(',')),
-        )),
-        Option::unwrap_or_default,
-    )(input)
+    alt((
+        terminated(
+            separated_list1(char(','), decorated(ws, expr, ws)),
+            opt(terminated(char(','), ws)),
+        ),
+        map(ws, |_| Vec::new()),
+    ))(input)
 }
 
 fn for_list_expr(input: Span) -> IResult<Span, ForExpr> {
     map(
         tuple((
-            ws_terminated(for_intro),
-            cut(expr),
-            opt(ws_preceded(for_cond_expr)),
+            preceded(ws, for_intro),
+            decorated(ws, cut(expr), ws),
+            opt(for_cond_expr),
         )),
         |(intro, value_expr, cond_expr)| ForExpr {
             key_var: intro.key_var,
@@ -69,11 +69,9 @@ fn for_list_expr(input: Span) -> IResult<Span, ForExpr> {
 
 fn object(input: Span) -> IResult<Span, Expression> {
     delimited(
-        ws_terminated(char('{')),
+        char('{'),
         alt((
-            map(ws_terminated(for_object_expr), |expr| {
-                Expression::ForExpr(Box::new(expr))
-            }),
+            map(for_object_expr, |expr| Expression::ForExpr(Box::new(expr))),
             map(object_items, Expression::Object),
         )),
         char_or_cut('}'),
@@ -81,18 +79,18 @@ fn object(input: Span) -> IResult<Span, Expression> {
 }
 
 fn object_items(input: Span) -> IResult<Span, Object<Spanned<ObjectKey>, Spanned<Expression>>> {
-    map(
-        opt(many1(terminated(
-            object_item,
-            ws_terminated(opt_sep(one_of(",\n"))),
-        ))),
-        |items| Object::from(items.unwrap_or_default()),
-    )(input)
+    alt((
+        map(
+            many1(terminated(object_item, opt(pair(one_of(",\n"), ws)))),
+            Object::from,
+        ),
+        map(ws, |_| Object::new()),
+    ))(input)
 }
 
 fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expression>)> {
     separated_pair(
-        map(suffix_decorated(expr, sp), |spanned| {
+        map(decorated(ws, expr, sp), |spanned| {
             // Variable identifiers without traversal are treated as identifier object keys.
             //
             // Handle this case here by converting the variable into an identifier. This
@@ -107,21 +105,21 @@ fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expres
             })
         }),
         cut(one_of("=:")),
-        cut(prefix_decorated(sp, expr)),
+        cut(decorated(sp, expr, ws)),
     )(input)
 }
 
 fn for_object_expr(input: Span) -> IResult<Span, ForExpr> {
     map(
         tuple((
-            ws_terminated(for_intro),
+            preceded(ws, for_intro),
             separated_pair(
-                suffix_decorated(cut(expr), ws),
+                decorated(ws, cut(expr), ws),
                 tag_or_cut("=>"),
-                prefix_decorated(ws, cut(expr)),
+                decorated(ws, cut(expr), ws),
             ),
-            opt(ws_preceded(tag("..."))),
-            opt(ws_preceded(for_cond_expr)),
+            opt(terminated(tag("..."), ws)),
+            opt(for_cond_expr),
         )),
         |(intro, (key_expr, value_expr), grouping, cond_expr)| ForExpr {
             key_var: intro.key_var,
@@ -146,8 +144,8 @@ fn for_intro(input: Span) -> IResult<Span, ForIntro> {
         delimited(
             tag("for"),
             tuple((
-                decorated(ws, cut(spanned(ident)), ws),
-                opt(preceded(char(','), decorated(ws, cut(spanned(ident)), ws))),
+                decorated(ws, cut(ident), ws),
+                opt(preceded(char(','), decorated(ws, cut(ident), ws))),
                 preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
             )),
             char_or_cut(':'),
@@ -168,7 +166,7 @@ fn for_intro(input: Span) -> IResult<Span, ForIntro> {
 }
 
 fn for_cond_expr(input: Span) -> IResult<Span, Spanned<Expression>> {
-    preceded(ws_terminated(tag("if")), cut(expr))(input)
+    preceded(tag("if"), decorated(ws, cut(expr), ws))(input)
 }
 
 fn parenthesis(input: Span) -> IResult<Span, Box<Spanned<Expression>>> {
@@ -185,7 +183,7 @@ fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Spanned<&str>)
                 value(HeredocStripMode::Indent, tag("<<-")),
                 value(HeredocStripMode::None, tag("<<")),
             )),
-            cut(spanned(str_ident)),
+            spanned(cut(str_ident)),
         ),
         pair(space0, cut(line_ending)),
     )(input)
@@ -265,7 +263,7 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
         "TraversalOperator",
         alt((
             preceded(
-                ws_terminated(char('.')),
+                terminated(char('.'), ws),
                 preceded(
                     // Must not match `for` object value grouping or func call expand final which
                     // are both `...`.
@@ -278,12 +276,12 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
                 ),
             ),
             delimited(
-                ws_terminated(char('[')),
+                terminated(char('['), ws),
                 cut(alt((
                     value(TraversalOperator::FullSplat, char('*')),
-                    map(expr, |expr| TraversalOperator::Index(expr.value)),
+                    map(expr, TraversalOperator::Index),
                 ))),
-                ws_preceded(char_or_cut(']')),
+                preceded(ws, char_or_cut(']')),
             ),
         )),
     )(input)
@@ -291,7 +289,7 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
 
 fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
     map(
-        pair(spanned(str_ident), opt(ws_preceded(func_call))),
+        pair(spanned(str_ident), opt(preceded(ws, func_call))),
         |(ident, func_call)| match func_call {
             Some((args, expand_final)) => Expression::FuncCall(Box::new(FuncCall {
                 name: ident.map_value(Identifier::unchecked),
@@ -309,19 +307,19 @@ fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
 }
 
 fn func_call(input: Span) -> IResult<Span, (Vec<Spanned<Expression>>, bool)> {
-    map(
-        delimited(
-            ws_terminated(char('(')),
-            opt(pair(
-                separated_list1(delimited(ws, char(','), ws), expr),
-                ws_terminated(opt_sep(alt((tag(","), tag("..."))))),
-            )),
-            char_or_cut(')'),
-        ),
-        |pair| {
-            pair.map(|(args, trailer)| (args, trailer.as_deref() == Some(&"...")))
-                .unwrap_or_default()
-        },
+    delimited(
+        char('('),
+        alt((
+            map(
+                pair(
+                    separated_list1(char(','), decorated(ws, expr, ws)),
+                    opt(terminated(alt((tag(","), tag("..."))), ws)),
+                ),
+                |(args, trailer)| (args, trailer.as_deref() == Some(&"...")),
+            ),
+            map(ws, |_| (Vec::new(), false)),
+        )),
+        char_or_cut(')'),
     )(input)
 }
 
@@ -350,8 +348,8 @@ fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
     ))(input)
 }
 
-fn expr_term(input: Span) -> IResult<Span, Spanned<Expression>> {
-    spanned(alt((
+fn expr_term(input: Span) -> IResult<Span, Expression> {
+    alt((
         map(number, Expression::Number),
         map(string, Expression::String),
         ident_or_func_call,
@@ -362,15 +360,15 @@ fn expr_term(input: Span) -> IResult<Span, Spanned<Expression>> {
         }),
         map(parenthesis, |expr| Expression::Parenthesis(expr)),
         fail,
-    )))(input)
+    ))(input)
 }
 
 pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
-    let unary_op = suffix_decorated(spanned(unary_operator), ws);
+    let unary_op = suffix_decorated(unary_operator, ws);
 
-    let traversal = many1(prefix_decorated(ws, spanned(traversal_operator)));
+    let traversal = many1(prefix_decorated(ws, traversal_operator));
 
-    let binary_op = pair(decorated(ws, spanned(binary_operator), ws), cut(expr));
+    let binary_op = pair(decorated(ws, binary_operator, ws), spanned(cut(expr)));
 
     let conditional = pair(
         preceded(pair(sp, char('?')), prefix_decorated(sp, cut(expr))),
@@ -380,7 +378,7 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
     map(
         tuple((
             opt(unary_op),
-            expr_term,
+            spanned(expr_term),
             opt(traversal),
             opt(binary_op),
             opt(conditional),
@@ -436,6 +434,6 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-pub fn expr(input: Span) -> IResult<Span, Spanned<Expression>> {
-    context("Expression", spanned(expr_inner))(input)
+pub fn expr(input: Span) -> IResult<Span, Expression> {
+    context("Expression", expr_inner)(input)
 }

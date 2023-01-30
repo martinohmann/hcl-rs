@@ -132,8 +132,8 @@ fn for_directive(input: Span) -> IResult<Span, ForDirective> {
             template_tag(
                 "%{",
                 tuple((
-                    preceded(pair(ws, tag("for")), decorated(ws, cut(spanned(ident)), ws)),
-                    opt(preceded(char(','), decorated(ws, cut(spanned(ident)), ws))),
+                    preceded(pair(ws, tag("for")), decorated(ws, cut(ident), ws)),
+                    opt(preceded(char(','), decorated(ws, cut(ident), ws))),
                     preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
                 )),
             ),

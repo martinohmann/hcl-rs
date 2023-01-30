@@ -26,7 +26,7 @@ where
 fn attribute(input: Span) -> IResult<Span, Attribute> {
     map(
         separated_pair(
-            suffix_decorated(spanned(ident), sp),
+            suffix_decorated(ident, sp),
             char('='),
             cut(prefix_decorated(sp, expr)),
         ),
@@ -37,8 +37,8 @@ fn attribute(input: Span) -> IResult<Span, Attribute> {
 fn block(input: Span) -> IResult<Span, Block> {
     map(
         tuple((
-            suffix_decorated(spanned(ident), sp),
-            many0(suffix_decorated(spanned(block_label), sp)),
+            suffix_decorated(ident, sp),
+            many0(suffix_decorated(block_label, sp)),
             alt((
                 // Multiline block.
                 delimited(
@@ -50,7 +50,7 @@ fn block(input: Span) -> IResult<Span, Block> {
                 spanned(map(
                     delimited(
                         char_or_cut('{'),
-                        opt(cut(decorated(sp, spanned(attribute), sp))),
+                        opt(cut(decorated(sp, attribute, sp))),
                         char_or_cut('}'),
                     ),
                     |attr| {
@@ -86,13 +86,10 @@ fn structure(input: Span) -> IResult<Span, Structure> {
 
 pub fn body(input: Span) -> IResult<Span, Spanned<Body>> {
     suffix_decorated(
-        spanned(map(
-            many0(prefix_decorated(
-                ws,
-                line_ending_terminated(spanned(structure)),
-            )),
+        map(
+            many0(prefix_decorated(ws, line_ending_terminated(structure))),
             |structures| Body { structures },
-        )),
+        ),
         ws,
     )(input)
 }

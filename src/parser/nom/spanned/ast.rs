@@ -99,29 +99,11 @@ pub struct Spanned<T> {
 
 impl<T> Spanned<T> {
     pub fn new(value: T, span: Range<usize>) -> Spanned<T> {
-        Spanned {
-            value,
-            span,
-            decor: Decor::default(),
-        }
+        Spanned::new_with_decor(value, span, Decor::default())
     }
 
-    pub fn decorate(self, decor: Decor) -> Spanned<T> {
-        Spanned {
-            value: self.value,
-            span: self.span,
-            decor,
-        }
-    }
-
-    pub fn decorate_prefix(mut self, prefix: impl Into<RawString>) -> Spanned<T> {
-        self.decor.set_prefix(prefix);
-        self
-    }
-
-    pub fn decorate_suffix(mut self, suffix: impl Into<RawString>) -> Spanned<T> {
-        self.decor.set_suffix(suffix);
-        self
+    pub fn new_with_decor(value: T, span: Range<usize>, decor: Decor) -> Spanned<T> {
+        Spanned { value, span, decor }
     }
 
     pub fn map_value<F, U>(self, f: F) -> Spanned<U>
