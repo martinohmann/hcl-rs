@@ -10,14 +10,14 @@ use std::str::FromStr;
 
 #[derive(Debug, Clone, Copy)]
 pub struct LocatedSpan<T> {
-    offset: usize,
-    fragment: T,
+    initial: T,
+    input: T,
 }
 
 impl<T> Deref for LocatedSpan<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.fragment
+        &self.input
     }
 }
 
@@ -27,34 +27,38 @@ where
     U: ?Sized,
 {
     fn as_ref(&self) -> &U {
-        self.fragment.as_ref()
+        self.input.as_ref()
     }
 }
 
-impl<T> LocatedSpan<T> {
+impl<T> LocatedSpan<T>
+where
+    T: Clone + Offset,
+{
     pub fn new(program: T) -> LocatedSpan<T> {
+        let initial = program.clone();
         LocatedSpan {
-            offset: 0,
-            fragment: program,
+            input: program,
+            initial,
         }
     }
-    pub fn location_offset(&self) -> usize {
-        self.offset
+    pub fn location(&self) -> usize {
+        self.initial.offset(&self.input)
     }
 
-    pub fn fragment(&self) -> &T {
-        &self.fragment
+    pub fn input(&self) -> &T {
+        &self.input
     }
 }
 
 impl<T: Hash> Hash for LocatedSpan<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.offset.hash(state);
-        self.fragment.hash(state);
+        self.initial.hash(state);
+        self.input.hash(state);
     }
 }
 
-impl<T: AsBytes> From<T> for LocatedSpan<T> {
+impl<T: AsBytes + Clone + Offset> From<T> for LocatedSpan<T> {
     fn from(i: T) -> Self {
         LocatedSpan::new(i)
     }
@@ -62,7 +66,7 @@ impl<T: AsBytes> From<T> for LocatedSpan<T> {
 
 impl<T: AsBytes + PartialEq> PartialEq for LocatedSpan<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.offset == other.offset && self.fragment == other.fragment
+        self.initial == other.initial && self.input == other.input
     }
 }
 
@@ -70,13 +74,13 @@ impl<T: AsBytes + Eq> Eq for LocatedSpan<T> {}
 
 impl<T: AsBytes> AsBytes for LocatedSpan<T> {
     fn as_bytes(&self) -> &[u8] {
-        self.fragment.as_bytes()
+        self.input.as_bytes()
     }
 }
 
 impl<T: InputLength> InputLength for LocatedSpan<T> {
     fn input_len(&self) -> usize {
-        self.fragment.input_len()
+        self.input.input_len()
     }
 }
 
@@ -117,7 +121,7 @@ where
     where
         P: Fn(Self::Item) -> bool,
     {
-        match self.fragment.position(predicate) {
+        match self.input.position(predicate) {
             Some(n) => Ok(self.take_split(n)),
             None => Err(Err::Incomplete(nom::Needed::new(1))),
         }
@@ -131,7 +135,7 @@ where
     where
         P: Fn(Self::Item) -> bool,
     {
-        match self.fragment.position(predicate) {
+        match self.input.position(predicate) {
             Some(0) => Err(Err::Error(E::from_error_kind(self.clone(), e))),
             Some(n) => Ok(self.take_split(n)),
             None => Err(Err::Incomplete(nom::Needed::new(1))),
@@ -146,11 +150,11 @@ where
     where
         P: Fn(Self::Item) -> bool,
     {
-        match self.fragment.position(predicate) {
+        match self.input.position(predicate) {
             Some(0) => Err(Err::Error(E::from_error_kind(self.clone(), e))),
             Some(n) => Ok(self.take_split(n)),
             None => {
-                if self.fragment.input_len() == 0 {
+                if self.input.input_len() == 0 {
                     Err(Err::Error(E::from_error_kind(self.clone(), e)))
                 } else {
                     Ok(self.take_split(self.input_len()))
@@ -169,54 +173,50 @@ where
     type IterElem = T::IterElem;
 
     fn iter_indices(&self) -> Self::Iter {
-        self.fragment.iter_indices()
+        self.input.iter_indices()
     }
 
     fn iter_elements(&self) -> Self::IterElem {
-        self.fragment.iter_elements()
+        self.input.iter_elements()
     }
 
     fn position<P>(&self, predicate: P) -> Option<usize>
     where
         P: Fn(Self::Item) -> bool,
     {
-        self.fragment.position(predicate)
+        self.input.position(predicate)
     }
 
     fn slice_index(&self, count: usize) -> Result<usize, nom::Needed> {
-        self.fragment.slice_index(count)
+        self.input.slice_index(count)
     }
 }
 
 impl<A: Compare<B>, B: Into<LocatedSpan<B>>> Compare<B> for LocatedSpan<A> {
     fn compare(&self, t: B) -> CompareResult {
-        self.fragment.compare(t.into().fragment)
+        self.input.compare(t.into().input)
     }
 
     fn compare_no_case(&self, t: B) -> CompareResult {
-        self.fragment.compare_no_case(t.into().fragment)
+        self.input.compare_no_case(t.into().input)
     }
 }
 
 impl<'a, T, R> Slice<R> for LocatedSpan<T>
 where
-    T: Slice<R> + Offset + AsBytes + Slice<RangeTo<usize>>,
+    T: Slice<R> + Offset + Clone,
 {
     fn slice(&self, range: R) -> Self {
-        let next_fragment = self.fragment.slice(range);
-        let consumed_len = self.fragment.offset(&next_fragment);
-        let next_offset = self.offset + consumed_len;
-
         LocatedSpan {
-            offset: next_offset,
-            fragment: next_fragment,
+            initial: self.initial.clone(),
+            input: self.input.slice(range),
         }
     }
 }
 
-impl<Fragment: FindToken<Token>, Token> FindToken<Token> for LocatedSpan<Fragment> {
+impl<T: FindToken<Token>, Token> FindToken<Token> for LocatedSpan<T> {
     fn find_token(&self, token: Token) -> bool {
-        self.fragment.find_token(token)
+        self.input.find_token(token)
     }
 }
 
@@ -225,7 +225,7 @@ where
     T: FindSubstring<U>,
 {
     fn find_substring(&self, substr: U) -> Option<usize> {
-        self.fragment.find_substring(substr)
+        self.input.find_substring(substr)
     }
 }
 
@@ -234,22 +234,19 @@ where
     T: ParseTo<R>,
 {
     fn parse_to(&self) -> Option<R> {
-        self.fragment.parse_to()
+        self.input.parse_to()
     }
 }
 
-impl<T> Offset for LocatedSpan<T> {
+impl<T: Offset> Offset for LocatedSpan<T> {
     fn offset(&self, second: &Self) -> usize {
-        let fst = self.offset;
-        let snd = second.offset;
-
-        snd - fst
+        self.input.offset(&second.input)
     }
 }
 
 impl<T: ToString> fmt::Display for LocatedSpan<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&self.fragment.to_string())
+        fmt.write_str(&self.input.to_string())
     }
 }
 
@@ -261,11 +258,11 @@ where
     type Extender = T::Extender;
 
     fn new_builder(&self) -> Self::Extender {
-        self.fragment.new_builder()
+        self.input.new_builder()
     }
 
     fn extend_into(&self, acc: &mut Self::Extender) {
-        self.fragment.extend_into(acc)
+        self.input.extend_into(acc)
     }
 }
 

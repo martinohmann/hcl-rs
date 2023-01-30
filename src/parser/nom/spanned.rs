@@ -33,7 +33,7 @@ where
     map(tuple((position, inner, position)), |(start, value, end)| {
         Spanned {
             value,
-            span: (start.location_offset()..end.location_offset()),
+            span: (start.location()..end.location()),
         }
     })
 }
@@ -200,7 +200,7 @@ fn unicode(input: Span) -> IResult<Span, char> {
     let parse_hex = take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit());
     let parse_delimited_hex = preceded(char('u'), parse_hex);
     let parse_u32 = map_res(parse_delimited_hex, move |hex: Span| {
-        u32::from_str_radix(hex.fragment(), 16)
+        u32::from_str_radix(hex.input(), 16)
     });
     map_opt(parse_u32, std::char::from_u32)(input)
 }
@@ -306,12 +306,12 @@ fn float(input: Span) -> IResult<Span, f64> {
             digit1,
             alt((terminated(fraction, opt(exponent)), exponent)),
         )),
-        |s: Span| f64::from_str(s.fragment()),
+        |s: Span| f64::from_str(s.input()),
     )(input)
 }
 
 fn integer(input: Span) -> IResult<Span, u64> {
-    map_res(digit1, |s: Span| u64::from_str(s.fragment()))(input)
+    map_res(digit1, |s: Span| u64::from_str(s.input()))(input)
 }
 
 fn number(input: Span) -> IResult<Span, Number> {

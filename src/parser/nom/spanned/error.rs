@@ -24,7 +24,7 @@ impl<'a> ErrorKind<Span<'a>> {
             ErrorKind::Nom(kind) => ErrorKind::Nom(kind),
             ErrorKind::Context(ctx) => ErrorKind::Context(ctx),
             ErrorKind::Char(ch) => ErrorKind::Char(ch),
-            ErrorKind::Tag(tag) => ErrorKind::Tag(tag.fragment().to_string()),
+            ErrorKind::Tag(tag) => ErrorKind::Tag(tag.input().to_string()),
         }
     }
 }

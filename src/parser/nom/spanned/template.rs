@@ -197,7 +197,7 @@ where
     map(
         build_template(map(
             literal(alt((tag("${"), tag("%{"), heredoc_end))),
-            |s: Span| s.fragment().to_string(),
+            |s: Span| s.input().to_string(),
         )),
         |t| crate::template::Template::from(t).to_string(),
     )
