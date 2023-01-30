@@ -3,13 +3,13 @@ use super::ast::{
     TemplateExpr, Traversal, TraversalOperator, UnaryOp,
 };
 use super::{
-    anything_except, char_or_cut,
+    anything_except, char_or_cut, decorated,
     error::InternalError,
-    ident, number, opt_sep, sp_delimited, str_ident, string, tag_or_cut,
+    ident, number, opt_sep, prefix_decorated, sp, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
-    ws_delimited, ws_preceded, ws_terminated, ErrorKind, IResult,
+    ws, ws_preceded, ws_terminated, ErrorKind, IResult,
 };
-use super::{spanned, Span, Spanned};
+use super::{spanned, suffix_decorated, Span, Spanned};
 use crate::template;
 use crate::Identifier;
 use crate::{
@@ -41,7 +41,7 @@ fn array(input: Span) -> IResult<Span, Expression> {
 fn array_items(input: Span) -> IResult<Span, Vec<Spanned<Expression>>> {
     map(
         opt(terminated(
-            separated_list1(ws_delimited(char(',')), expr),
+            separated_list1(delimited(ws, char(','), ws), expr),
             opt_sep(char(',')),
         )),
         Option::unwrap_or_default,
@@ -92,7 +92,7 @@ fn object_items(input: Span) -> IResult<Span, Object<Spanned<ObjectKey>, Spanned
 
 fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expression>)> {
     separated_pair(
-        map(expr, |spanned| {
+        map(suffix_decorated(expr, sp), |spanned| {
             // Variable identifiers without traversal are treated as identifier object keys.
             //
             // Handle this case here by converting the variable into an identifier. This
@@ -106,8 +106,8 @@ fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expres
                 }
             })
         }),
-        sp_delimited(cut(one_of("=:"))),
-        cut(expr),
+        cut(one_of("=:")),
+        cut(prefix_decorated(sp, expr)),
     )(input)
 }
 
@@ -115,7 +115,11 @@ fn for_object_expr(input: Span) -> IResult<Span, ForExpr> {
     map(
         tuple((
             ws_terminated(for_intro),
-            separated_pair(cut(expr), ws_delimited(tag_or_cut("=>")), cut(expr)),
+            separated_pair(
+                suffix_decorated(cut(expr), ws),
+                tag_or_cut("=>"),
+                prefix_decorated(ws, cut(expr)),
+            ),
             opt(ws_preceded(tag("..."))),
             opt(ws_preceded(for_cond_expr)),
         )),
@@ -140,13 +144,13 @@ struct ForIntro {
 fn for_intro(input: Span) -> IResult<Span, ForIntro> {
     map(
         delimited(
-            ws_terminated(tag("for")),
+            tag("for"),
             tuple((
-                cut(spanned(ident)),
-                opt(preceded(ws_delimited(char(',')), cut(spanned(ident)))),
-                preceded(ws_delimited(tag_or_cut("in")), cut(expr)),
+                decorated(ws, cut(spanned(ident)), ws),
+                opt(preceded(char(','), decorated(ws, cut(spanned(ident)), ws))),
+                preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
             )),
-            ws_preceded(char_or_cut(':')),
+            char_or_cut(':'),
         ),
         |(first, second, expr)| match second {
             Some(second) => ForIntro {
@@ -169,7 +173,7 @@ fn for_cond_expr(input: Span) -> IResult<Span, Spanned<Expression>> {
 
 fn parenthesis(input: Span) -> IResult<Span, Box<Spanned<Expression>>> {
     map(
-        delimited(char('('), ws_delimited(cut(expr)), char_or_cut(')')),
+        delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')')),
         Box::new,
     )(input)
 }
@@ -309,7 +313,7 @@ fn func_call(input: Span) -> IResult<Span, (Vec<Spanned<Expression>>, bool)> {
         delimited(
             ws_terminated(char('(')),
             opt(pair(
-                separated_list1(ws_delimited(char(',')), expr),
+                separated_list1(delimited(ws, char(','), ws), expr),
                 ws_terminated(opt_sep(alt((tag(","), tag("..."))))),
             )),
             char_or_cut(')'),
@@ -362,15 +366,15 @@ fn expr_term(input: Span) -> IResult<Span, Spanned<Expression>> {
 }
 
 pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
-    let unary_op = ws_terminated(spanned(unary_operator));
+    let unary_op = suffix_decorated(spanned(unary_operator), ws);
 
-    let traversal = many1(ws_preceded(spanned(traversal_operator)));
+    let traversal = many1(prefix_decorated(ws, spanned(traversal_operator)));
 
-    let binary_op = pair(ws_delimited(spanned(binary_operator)), cut(expr));
+    let binary_op = pair(decorated(ws, spanned(binary_operator), ws), cut(expr));
 
     let conditional = pair(
-        preceded(sp_delimited(char('?')), cut(expr)),
-        preceded(sp_delimited(char_or_cut(':')), cut(expr)),
+        preceded(pair(sp, char('?')), prefix_decorated(sp, cut(expr))),
+        preceded(pair(sp, char_or_cut(':')), prefix_decorated(sp, cut(expr))),
     );
 
     map(

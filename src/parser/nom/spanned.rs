@@ -21,9 +21,10 @@ use nom::{
     combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value},
     error::context,
     multi::{fold_many0, many0_count, many1_count},
-    sequence::{delimited, pair, preceded, terminated, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     Compare, CompareResult, Finish, InputLength, InputTake, Parser, Slice,
 };
+use std::ops::Range;
 use std::str::FromStr;
 
 fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<T>>
@@ -31,10 +32,17 @@ where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
     map(tuple((position, inner, position)), |(start, value, end)| {
-        Spanned {
-            value,
-            span: (start.location()..end.location()),
-        }
+        let span = start.location()..end.location();
+        Spanned::new(value, span)
+    })
+}
+
+fn span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Range<usize>>
+where
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
+{
+    map(separated_pair(position, inner, position), |(start, end)| {
+        start.location()..end.location()
     })
 }
 
@@ -145,34 +153,6 @@ fn ws(input: Span) -> IResult<Span, ()> {
     )(input)
 }
 
-fn sp_delimited<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
-{
-    delimited(sp, inner, sp)
-}
-
-fn sp_preceded<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
-{
-    preceded(sp, inner)
-}
-
-fn sp_terminated<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
-{
-    terminated(inner, sp)
-}
-
-fn ws_delimited<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
-{
-    delimited(ws, inner, ws)
-}
-
 fn ws_preceded<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
@@ -185,6 +165,50 @@ where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
 {
     terminated(inner, ws)
+}
+
+fn prefix_decorated<'a, F, G, O1, O2>(
+    prefix: F,
+    inner: G,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>
+where
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
+    G: FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>,
+{
+    map(pair(span(prefix), inner), |(prefix_span, spanned)| {
+        spanned.decorate_prefix(prefix_span)
+    })
+}
+
+fn suffix_decorated<'a, F, G, O1, O2>(
+    inner: F,
+    suffix: G,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O1>>
+where
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O1>>,
+    G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
+{
+    map(pair(inner, span(suffix)), |(spanned, suffix_span)| {
+        spanned.decorate_suffix(suffix_span)
+    })
+}
+
+fn decorated<'a, F, G, H, O1, O2, O3>(
+    prefix: F,
+    inner: G,
+    suffix: H,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>
+where
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
+    G: FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>,
+    H: FnMut(Span<'a>) -> IResult<Span<'a>, O3>,
+{
+    map(
+        tuple((span(prefix), inner, span(suffix))),
+        |(prefix_span, spanned, suffix_span)| {
+            spanned.decorate(Decor::new(prefix_span, suffix_span))
+        },
+    )
 }
 
 fn opt_sep<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Option<O>>

@@ -1,16 +1,13 @@
 use super::ast::{Attribute, Block, Body, Structure};
-use super::{
-    char_or_cut, expr::expr, ident, line_comment, sp_delimited, sp_preceded, sp_terminated, string,
-    ws_preceded, ws_terminated, IResult,
-};
-use super::{spanned, Span, Spanned};
+use super::{char_or_cut, expr::expr, ident, line_comment, sp, string, ws, IResult};
+use super::{decorated, prefix_decorated, spanned, suffix_decorated, Span, Spanned};
 use crate::structure::BlockLabel;
 use nom::{
     branch::alt,
     character::complete::{char, line_ending},
     combinator::{cut, eof, map, opt, value},
     multi::many0,
-    sequence::{delimited, separated_pair, terminated, tuple},
+    sequence::{delimited, preceded, separated_pair, terminated, tuple},
 };
 
 fn line_ending_terminated<'a, F, O>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, O>
@@ -19,13 +16,20 @@ where
 {
     terminated(
         inner,
-        sp_preceded(alt((value((), line_ending), value((), eof), line_comment))),
+        preceded(
+            sp,
+            alt((value((), line_ending), value((), eof), line_comment)),
+        ),
     )
 }
 
 fn attribute(input: Span) -> IResult<Span, Attribute> {
     map(
-        separated_pair(spanned(ident), sp_delimited(char('=')), cut(expr)),
+        separated_pair(
+            suffix_decorated(spanned(ident), sp),
+            char('='),
+            cut(prefix_decorated(sp, expr)),
+        ),
         |(key, expr)| Attribute { key, expr },
     )(input)
 }
@@ -33,8 +37,8 @@ fn attribute(input: Span) -> IResult<Span, Attribute> {
 fn block(input: Span) -> IResult<Span, Block> {
     map(
         tuple((
-            sp_terminated(spanned(ident)),
-            many0(sp_terminated(block_label)),
+            suffix_decorated(spanned(ident), sp),
+            many0(suffix_decorated(spanned(block_label), sp)),
             alt((
                 // Multiline block.
                 delimited(
@@ -46,7 +50,7 @@ fn block(input: Span) -> IResult<Span, Block> {
                 spanned(map(
                     delimited(
                         char_or_cut('{'),
-                        sp_delimited(opt(cut(spanned(attribute)))),
+                        opt(cut(decorated(sp, spanned(attribute), sp))),
                         char_or_cut('}'),
                     ),
                     |attr| {
@@ -66,23 +70,29 @@ fn block(input: Span) -> IResult<Span, Block> {
     )(input)
 }
 
-fn block_label(input: Span) -> IResult<Span, Spanned<BlockLabel>> {
-    spanned(alt((
+fn block_label(input: Span) -> IResult<Span, BlockLabel> {
+    alt((
         map(ident, BlockLabel::Identifier),
         map(string, BlockLabel::String),
-    )))(input)
+    ))(input)
 }
 
-fn structure(input: Span) -> IResult<Span, Spanned<Structure>> {
-    spanned(alt((
+fn structure(input: Span) -> IResult<Span, Structure> {
+    alt((
         map(attribute, Structure::Attribute),
         map(block, Structure::Block),
-    )))(input)
+    ))(input)
 }
 
 pub fn body(input: Span) -> IResult<Span, Spanned<Body>> {
-    spanned(ws_terminated(map(
-        many0(ws_preceded(line_ending_terminated(structure))),
-        |structures| Body { structures },
-    )))(input)
+    suffix_decorated(
+        spanned(map(
+            many0(prefix_decorated(
+                ws,
+                line_ending_terminated(spanned(structure)),
+            )),
+            |structures| Body { structures },
+        )),
+        ws,
+    )(input)
 }

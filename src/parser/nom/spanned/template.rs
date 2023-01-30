@@ -2,8 +2,8 @@ use super::ast::{
     Directive, Element, Expression, ForDirective, IfDirective, Interpolation, Template,
 };
 use super::{
-    char_or_cut, expr::expr, ident, literal, string_fragment, string_literal, tag_or_cut,
-    ws_delimited, ws_preceded, IResult, StringFragment,
+    char_or_cut, decorated, expr::expr, ident, literal, string_fragment, string_literal,
+    tag_or_cut, ws, IResult, StringFragment,
 };
 use super::{spanned, Span, Spanned};
 use crate::template::StripMode;
@@ -35,9 +35,10 @@ where
 }
 
 fn interpolation(input: Span) -> IResult<Span, Interpolation> {
-    map(template_tag("${", cut(expr)), |(expr, strip)| {
-        Interpolation { expr, strip }
-    })(input)
+    map(
+        template_tag("${", decorated(ws, cut(expr), ws)),
+        |(expr, strip)| Interpolation { expr, strip },
+    )(input)
 }
 
 fn template_tag<'a, F, O>(
@@ -50,7 +51,7 @@ where
     map(
         tuple((
             preceded(tag(start_tag), opt(char('~'))),
-            ws_delimited(inner),
+            inner,
             terminated(opt(char('~')), char_or_cut('}')),
         )),
         |(strip_start, output, strip_end)| {
@@ -74,7 +75,10 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
 
     let if_expr = map(
         pair(
-            template_tag("%{", preceded(tag("if"), ws_preceded(cut(expr)))),
+            template_tag(
+                "%{",
+                preceded(pair(ws, tag("if")), decorated(ws, cut(expr), ws)),
+            ),
             template,
         ),
         |((cond_expr, strip), template)| IfExpr {
@@ -85,14 +89,17 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
     );
 
     let else_expr = map(
-        pair(template_tag("%{", tag("else")), template),
+        pair(template_tag("%{", delimited(ws, tag("else"), ws)), template),
         |((_, strip), template)| ElseExpr {
             template: Some(template),
             strip,
         },
     );
 
-    let endif_expr = map(template_tag("%{", tag_or_cut("endif")), |(_, strip)| strip);
+    let endif_expr = map(
+        template_tag("%{", delimited(ws, tag_or_cut("endif"), ws)),
+        |(_, strip)| strip,
+    );
 
     map(
         tuple((if_expr, opt(else_expr), endif_expr)),
@@ -125,9 +132,9 @@ fn for_directive(input: Span) -> IResult<Span, ForDirective> {
             template_tag(
                 "%{",
                 tuple((
-                    preceded(tag("for"), ws_delimited(cut(spanned(ident)))),
-                    opt(preceded(char(','), ws_delimited(cut(spanned(ident))))),
-                    preceded(tag_or_cut("in"), ws_preceded(cut(expr))),
+                    preceded(pair(ws, tag("for")), decorated(ws, cut(spanned(ident)), ws)),
+                    opt(preceded(char(','), decorated(ws, cut(spanned(ident)), ws))),
+                    preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
                 )),
             ),
             template,
@@ -147,7 +154,10 @@ fn for_directive(input: Span) -> IResult<Span, ForDirective> {
         },
     );
 
-    let endfor_expr = map(template_tag("%{", tag_or_cut("endfor")), |(_, strip)| strip);
+    let endfor_expr = map(
+        template_tag("%{", delimited(ws, tag_or_cut("endfor"), ws)),
+        |(_, strip)| strip,
+    );
 
     map(pair(for_expr, endfor_expr), |(for_expr, endfor_strip)| {
         ForDirective {

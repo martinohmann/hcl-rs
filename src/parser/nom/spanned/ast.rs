@@ -5,25 +5,123 @@ use crate::expr::{self, BinaryOperator, HeredocStripMode, Object, UnaryOperator,
 use crate::structure::BlockLabel;
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
+use kstring::KString;
 use std::ops::Range;
 
 pub type Span<'a> = LocatedSpan<&'a str>;
 
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InternalString(pub(crate) KString);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawString(RawStringInner);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RawStringInner {
+    Empty,
+    Spanned(Range<usize>),
+    Explicit(InternalString),
+}
+
+impl RawString {
+    pub(crate) fn from_span(span: Range<usize>) -> Self {
+        if span.start == span.end {
+            RawString(RawStringInner::Empty)
+        } else {
+            RawString(RawStringInner::Spanned(span))
+        }
+    }
+
+    pub fn as_str(&self) -> Option<&str> {
+        match &self.0 {
+            RawStringInner::Empty => Some(""),
+            RawStringInner::Explicit(s) => Some(s.0.as_str()),
+            RawStringInner::Spanned(_) => None,
+        }
+    }
+}
+
+impl Default for RawString {
+    fn default() -> Self {
+        RawString(RawStringInner::Empty)
+    }
+}
+
+impl From<Range<usize>> for RawString {
+    fn from(span: Range<usize>) -> Self {
+        RawString::from_span(span)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Decor {
-    pub prefix: Option<String>,
-    pub suffix: Option<String>,
+    pub prefix: Option<RawString>,
+    pub suffix: Option<RawString>,
+}
+
+impl Decor {
+    pub fn new(prefix: impl Into<RawString>, suffix: impl Into<RawString>) -> Decor {
+        Decor {
+            prefix: Some(prefix.into()),
+            suffix: Some(suffix.into()),
+        }
+    }
+
+    pub fn from_prefix(prefix: impl Into<RawString>) -> Decor {
+        Decor {
+            prefix: Some(prefix.into()),
+            suffix: None,
+        }
+    }
+
+    pub fn from_suffix(suffix: impl Into<RawString>) -> Decor {
+        Decor {
+            prefix: None,
+            suffix: Some(suffix.into()),
+        }
+    }
+
+    pub fn set_prefix(&mut self, prefix: impl Into<RawString>) {
+        self.prefix = Some(prefix.into());
+    }
+
+    pub fn set_suffix(&mut self, suffix: impl Into<RawString>) {
+        self.suffix = Some(suffix.into());
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spanned<T> {
     pub value: T,
     pub span: Range<usize>,
+    pub decor: Decor,
 }
 
 impl<T> Spanned<T> {
     pub fn new(value: T, span: Range<usize>) -> Spanned<T> {
-        Spanned { value, span }
+        Spanned {
+            value,
+            span,
+            decor: Decor::default(),
+        }
+    }
+
+    pub fn decorate(self, decor: Decor) -> Spanned<T> {
+        Spanned {
+            value: self.value,
+            span: self.span,
+            decor,
+        }
+    }
+
+    pub fn decorate_prefix(mut self, prefix: impl Into<RawString>) -> Spanned<T> {
+        self.decor.set_prefix(prefix);
+        self
+    }
+
+    pub fn decorate_suffix(mut self, suffix: impl Into<RawString>) -> Spanned<T> {
+        self.decor.set_suffix(suffix);
+        self
     }
 
     pub fn map_value<F, U>(self, f: F) -> Spanned<U>
@@ -33,6 +131,7 @@ impl<T> Spanned<T> {
         Spanned {
             value: f(self.value),
             span: self.span,
+            decor: self.decor,
         }
     }
 }
