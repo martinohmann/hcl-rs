@@ -39,6 +39,7 @@ itoa = "1.0.5"
 nom = { version = "7", optional = true }
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
+kstring = { version = "2.0.0", features = ["serde"] }
 
 [dependencies.indexmap]
 features = ["serde"]

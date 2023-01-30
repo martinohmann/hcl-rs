@@ -1,6 +1,7 @@
 use crate::expr::Variable;
 use crate::util::{is_id_continue, is_id_start, is_ident};
 use crate::{Error, Result};
+use kstring::KString;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
@@ -9,7 +10,7 @@ use std::ops;
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-pub struct Identifier(String);
+pub struct Identifier(KString);
 
 impl Identifier {
     /// Create a new `Identifier` after validating that it only contains characters that are
@@ -34,15 +35,15 @@ impl Identifier {
     /// error will be returned.
     pub fn new<T>(ident: T) -> Result<Self>
     where
-        T: Into<String>,
+        T: AsRef<str>,
     {
-        let ident = ident.into();
+        let ident = ident.as_ref();
 
-        if !is_ident(&ident) {
-            return Err(Error::InvalidIdentifier(ident));
+        if !is_ident(ident) {
+            return Err(Error::InvalidIdentifier(ident.to_string()));
         }
 
-        Ok(Identifier(ident))
+        Ok(Identifier(KString::from_ref(ident)))
     }
 
     /// Create a new `Identifier` after sanitizing the input if necessary.
@@ -74,7 +75,7 @@ impl Identifier {
         let input = ident.as_ref();
 
         if input.is_empty() {
-            return Identifier(String::from('_'));
+            return Identifier(KString::from_static("_"));
         }
 
         let mut ident = String::with_capacity(input.len());
@@ -92,7 +93,7 @@ impl Identifier {
             }
         }
 
-        Identifier(ident)
+        Identifier(KString::from(ident))
     }
 
     /// Create a new `Identifier` without checking if it is valid.
@@ -108,14 +109,14 @@ impl Identifier {
     /// However, attempting to serialize an invalid identifier to HCL will produce invalid output.
     pub fn unchecked<T>(ident: T) -> Self
     where
-        T: Into<String>,
+        T: AsRef<str>,
     {
-        Identifier(ident.into())
+        Identifier(KString::from_ref(ident.as_ref()))
     }
 
     /// Consume `self` and return the wrapped `String`.
     pub fn into_inner(self) -> String {
-        self.0
+        self.0.to_string()
     }
 
     /// Return a reference to the wrapped `str`.

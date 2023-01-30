@@ -25,7 +25,7 @@ impl Variable {
     /// error will be returned.
     pub fn new<T>(ident: T) -> Result<Self>
     where
-        T: Into<String>,
+        T: AsRef<str>,
     {
         Identifier::new(ident).map(Variable)
     }
@@ -53,7 +53,7 @@ impl Variable {
     /// output.
     pub fn unchecked<T>(ident: T) -> Self
     where
-        T: Into<String>,
+        T: AsRef<str>,
     {
         Variable(Identifier::unchecked(ident))
     }
