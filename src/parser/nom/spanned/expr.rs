@@ -9,7 +9,7 @@ use super::{
     template::{heredoc_template, quoted_string_template},
     ws, ErrorKind, IResult,
 };
-use super::{spanned, suffix_decorated, Node, Span};
+use super::{spanned, with_span, Node, Span};
 use crate::template;
 use crate::Identifier;
 use crate::{
@@ -288,14 +288,14 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
 
 fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
     map(
-        pair(spanned(str_ident), opt(preceded(ws, func_call))),
-        |(ident, func_call)| match func_call {
+        pair(with_span(str_ident), opt(preceded(ws, func_call))),
+        |((ident, span), func_call)| match func_call {
             Some((args, expand_final)) => Expression::FuncCall(Box::new(FuncCall {
-                name: ident.map_value(Identifier::unchecked),
+                name: Node::new(Identifier::unchecked(ident), span),
                 args,
                 expand_final,
             })),
-            None => match *ident.value() {
+            None => match ident {
                 "null" => Expression::Null,
                 "true" => Expression::Bool(true),
                 "false" => Expression::Bool(false),
@@ -363,14 +363,14 @@ fn expr_term(input: Span) -> IResult<Span, Expression> {
 }
 
 pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
-    let unary_op = suffix_decorated(unary_operator, ws);
+    let unary_op = with_span(terminated(unary_operator, ws));
 
-    let traversal = many1(prefix_decorated(ws, traversal_operator));
+    let traversal = with_span(many1(prefix_decorated(ws, traversal_operator)));
 
-    let binary_op = pair(
+    let binary_op = with_span(pair(
         prefix_decorated(ws, binary_operator),
         prefix_decorated(ws, cut(expr)),
-    );
+    ));
 
     let conditional = pair(
         preceded(pair(sp, char('?')), prefix_decorated(sp, cut(expr))),
@@ -380,57 +380,67 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
     map(
         tuple((
             opt(unary_op),
-            spanned(expr_term),
+            with_span(expr_term),
             opt(traversal),
             opt(binary_op),
             opt(conditional),
         )),
-        |(unary_op, expr, traversal, binary_op, conditional)| {
-            let span = expr.span();
-            let expr = if let Some(operator) = unary_op {
-                // Negative numbers are implemented as unary negation operations in the HCL
-                // spec. We'll convert these to negative numbers to make them more
-                // convenient to use.
-                let op_span = operator.span();
-                match (operator.into_value(), expr.into_value()) {
-                    (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
-                    (operator, expr) => {
-                        Expression::Operation(Box::new(Operation::Unary(UnaryOp {
-                            operator: Node::new(operator, op_span),
-                            expr: Node::new(expr, span.clone()),
-                        })))
+        |(unary_op, (expr, span), traversal, binary_op, conditional)| {
+            let start = span.start;
+            let end = span.end;
+
+            let (expr, start) = match unary_op {
+                Some((operator, span)) => match (&operator, &expr) {
+                    (UnaryOperator::Neg, Expression::Number(_)) => match (operator, expr) {
+                        (UnaryOperator::Neg, Expression::Number(num)) => {
+                            (Expression::Number(-num), span.start)
+                        }
+                        _ => unreachable!(),
+                    },
+                    _ => {
+                        let expr = Expression::Operation(Box::new(Operation::Unary(UnaryOp {
+                            operator: Node::new(operator, span.start..span.end),
+                            expr: Node::new(expr, start..end),
+                        })));
+
+                        (expr, span.start)
                     }
+                },
+                None => (expr, start),
+            };
+
+            let (expr, end) = match traversal {
+                Some((operators, span)) => {
+                    let expr = Expression::Traversal(Box::new(Traversal {
+                        expr: Node::new(expr, start..end),
+                        operators,
+                    }));
+
+                    (expr, span.end)
                 }
-            } else {
-                expr.into_value()
+                None => (expr, end),
             };
 
-            let expr = match traversal {
-                Some(operators) => Expression::Traversal(Box::new(Traversal {
-                    expr: Node::new(expr, span.clone()),
-                    operators,
-                })),
-                None => expr,
+            let (expr, end) = match binary_op {
+                Some(((operator, rhs_expr), span)) => {
+                    let expr = Expression::Operation(Box::new(Operation::Binary(BinaryOp {
+                        lhs_expr: Node::new(expr, start..end),
+                        operator,
+                        rhs_expr,
+                    })));
+
+                    (expr, span.end)
+                }
+                None => (expr, end),
             };
 
-            let expr = if let Some((operator, rhs_expr)) = binary_op {
-                Expression::Operation(Box::new(Operation::Binary(BinaryOp {
-                    lhs_expr: Node::new(expr, span.clone()),
-                    operator,
-                    rhs_expr,
-                })))
-            } else {
-                expr
-            };
-
-            if let Some((true_expr, false_expr)) = conditional {
-                Expression::Conditional(Box::new(Conditional {
-                    cond_expr: Node::new(expr, span),
+            match conditional {
+                Some((true_expr, false_expr)) => Expression::Conditional(Box::new(Conditional {
+                    cond_expr: Node::new(expr, start..end),
                     true_expr,
                     false_expr,
-                }))
-            } else {
-                expr
+                })),
+                None => expr,
             }
         },
     )(input)

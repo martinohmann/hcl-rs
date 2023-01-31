@@ -319,8 +319,8 @@ impl From<Operation> for expr::Operation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnaryOp {
-    pub expr: Node<Expression>,
     pub operator: Node<UnaryOperator>,
+    pub expr: Node<Expression>,
 }
 
 impl From<UnaryOp> for expr::UnaryOp {
