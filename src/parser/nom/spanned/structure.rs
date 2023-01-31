@@ -1,6 +1,6 @@
 use super::ast::{Attribute, Block, Body, Structure};
 use super::{char_or_cut, expr::expr, ident, line_comment, sp, string, ws, IResult};
-use super::{decorated, prefix_decorated, spanned, suffix_decorated, Span, Spanned};
+use super::{decorated, prefix_decorated, spanned, suffix_decorated, Node, Span};
 use crate::structure::BlockLabel;
 use nom::{
     branch::alt,
@@ -81,7 +81,7 @@ fn structure(input: Span) -> IResult<Span, Structure> {
     ))(input)
 }
 
-pub fn body(input: Span) -> IResult<Span, Spanned<Body>> {
+pub fn body(input: Span) -> IResult<Span, Node<Body>> {
     suffix_decorated(
         map(
             many0(prefix_decorated(ws, line_ending_terminated(structure))),

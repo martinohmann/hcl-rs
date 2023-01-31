@@ -66,7 +66,7 @@ use std::str::FromStr;
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse(input: &str) -> ParseResult<Spanned<Body>> {
+pub fn parse(input: &str) -> ParseResult<Node<Body>> {
     parse_to_end(input, body)
 }
 
@@ -134,11 +134,11 @@ fn ws(input: Span) -> IResult<Span, ()> {
     )(input)
 }
 
-fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<T>>
+fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<T>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
-    map(with_span(inner), |(value, span)| Spanned::new(value, span))
+    map(with_span(inner), |(value, span)| Node::new(value, span))
 }
 
 fn with_span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, (T, Range<usize>)>
@@ -163,7 +163,7 @@ where
 fn prefix_decorated<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<O2>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
     G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
@@ -172,7 +172,7 @@ where
         pair(span(prefix), with_span(inner)),
         |(prefix_span, (value, span))| {
             let decor = Decor::from_prefix(prefix_span);
-            Spanned::new_with_decor(value, span, decor)
+            Node::new_with_decor(value, span, decor)
         },
     )
 }
@@ -180,7 +180,7 @@ where
 fn suffix_decorated<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O1>>
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<O1>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
     G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
@@ -189,7 +189,7 @@ where
         pair(with_span(inner), span(suffix)),
         |((value, span), suffix_span)| {
             let decor = Decor::from_suffix(suffix_span);
-            Spanned::new_with_decor(value, span, decor)
+            Node::new_with_decor(value, span, decor)
         },
     )
 }
@@ -198,7 +198,7 @@ fn decorated<'a, F, G, H, O1, O2, O3>(
     prefix: F,
     inner: G,
     suffix: H,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Spanned<O2>>
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<O2>>
 where
     F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
     G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
@@ -208,7 +208,7 @@ where
         tuple((span(prefix), with_span(inner), span(suffix))),
         |(prefix_span, (value, span), suffix_span)| {
             let decor = Decor::new(prefix_span, suffix_span);
-            Spanned::new_with_decor(value, span, decor)
+            Node::new_with_decor(value, span, decor)
         },
     )
 }

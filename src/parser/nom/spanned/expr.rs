@@ -9,7 +9,7 @@ use super::{
     template::{heredoc_template, quoted_string_template},
     ws, ErrorKind, IResult,
 };
-use super::{spanned, suffix_decorated, Span, Spanned};
+use super::{spanned, suffix_decorated, Node, Span};
 use crate::template;
 use crate::Identifier;
 use crate::{
@@ -38,7 +38,7 @@ fn array(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn array_items(input: Span) -> IResult<Span, Vec<Spanned<Expression>>> {
+fn array_items(input: Span) -> IResult<Span, Vec<Node<Expression>>> {
     alt((
         terminated(
             separated_list1(char(','), decorated(ws, expr, ws)),
@@ -78,7 +78,7 @@ fn object(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn object_items(input: Span) -> IResult<Span, Object<Spanned<ObjectKey>, Spanned<Expression>>> {
+fn object_items(input: Span) -> IResult<Span, Object<Node<ObjectKey>, Node<Expression>>> {
     alt((
         map(
             many1(terminated(object_item, opt(pair(one_of(",\n"), ws)))),
@@ -88,7 +88,7 @@ fn object_items(input: Span) -> IResult<Span, Object<Spanned<ObjectKey>, Spanned
     ))(input)
 }
 
-fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expression>)> {
+fn object_item(input: Span) -> IResult<Span, (Node<ObjectKey>, Node<Expression>)> {
     separated_pair(
         decorated(
             ws,
@@ -136,9 +136,9 @@ fn for_object_expr(input: Span) -> IResult<Span, ForExpr> {
 }
 
 struct ForIntro {
-    key_var: Option<Spanned<Identifier>>,
-    value_var: Spanned<Identifier>,
-    collection_expr: Spanned<Expression>,
+    key_var: Option<Node<Identifier>>,
+    value_var: Node<Identifier>,
+    collection_expr: Node<Expression>,
 }
 
 fn for_intro(input: Span) -> IResult<Span, ForIntro> {
@@ -167,18 +167,18 @@ fn for_intro(input: Span) -> IResult<Span, ForIntro> {
     )(input)
 }
 
-fn for_cond_expr(input: Span) -> IResult<Span, Spanned<Expression>> {
+fn for_cond_expr(input: Span) -> IResult<Span, Node<Expression>> {
     preceded(tag("if"), decorated(ws, cut(expr), ws))(input)
 }
 
-fn parenthesis(input: Span) -> IResult<Span, Box<Spanned<Expression>>> {
+fn parenthesis(input: Span) -> IResult<Span, Box<Node<Expression>>> {
     map(
         delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')')),
         Box::new,
     )(input)
 }
 
-fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Spanned<&str>)> {
+fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Node<&str>)> {
     terminated(
         pair(
             alt((
@@ -225,8 +225,8 @@ fn heredoc_content_template<'a>(
 fn heredoc(input: Span) -> IResult<Span, Heredoc> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
-    let nonempty_heredoc = heredoc_content_template(strip, delim.value);
-    let empty_heredoc = terminated(space0, tag_or_cut(delim.value));
+    let nonempty_heredoc = heredoc_content_template(strip, delim.value());
+    let empty_heredoc = terminated(space0, tag_or_cut(delim.value()));
 
     let (input, template) = spanned(alt((
         map(nonempty_heredoc, |mut content| {
@@ -295,7 +295,7 @@ fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
                 args,
                 expand_final,
             })),
-            None => match ident.value {
+            None => match *ident.value() {
                 "null" => Expression::Null,
                 "true" => Expression::Bool(true),
                 "false" => Expression::Bool(false),
@@ -305,7 +305,7 @@ fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn func_call(input: Span) -> IResult<Span, (Vec<Spanned<Expression>>, bool)> {
+fn func_call(input: Span) -> IResult<Span, (Vec<Node<Expression>>, bool)> {
     delimited(
         char('('),
         alt((
@@ -386,28 +386,28 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
             opt(conditional),
         )),
         |(unary_op, expr, traversal, binary_op, conditional)| {
-            let span = expr.span;
+            let span = expr.span();
             let expr = if let Some(operator) = unary_op {
                 // Negative numbers are implemented as unary negation operations in the HCL
                 // spec. We'll convert these to negative numbers to make them more
                 // convenient to use.
-                let op_span = operator.span;
-                match (operator.value, expr.value) {
+                let op_span = operator.span();
+                match (operator.into_value(), expr.into_value()) {
                     (UnaryOperator::Neg, Expression::Number(num)) => Expression::Number(-num),
                     (operator, expr) => {
                         Expression::Operation(Box::new(Operation::Unary(UnaryOp {
-                            operator: Spanned::new(operator, op_span),
-                            expr: Spanned::new(expr, span.clone()),
+                            operator: Node::new(operator, op_span),
+                            expr: Node::new(expr, span.clone()),
                         })))
                     }
                 }
             } else {
-                expr.value
+                expr.into_value()
             };
 
             let expr = match traversal {
                 Some(operators) => Expression::Traversal(Box::new(Traversal {
-                    expr: Spanned::new(expr, span.clone()),
+                    expr: Node::new(expr, span.clone()),
                     operators,
                 })),
                 None => expr,
@@ -415,7 +415,7 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
 
             let expr = if let Some((operator, rhs_expr)) = binary_op {
                 Expression::Operation(Box::new(Operation::Binary(BinaryOp {
-                    lhs_expr: Spanned::new(expr, span.clone()),
+                    lhs_expr: Node::new(expr, span.clone()),
                     operator,
                     rhs_expr,
                 })))
@@ -425,7 +425,7 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
 
             if let Some((true_expr, false_expr)) = conditional {
                 Expression::Conditional(Box::new(Conditional {
-                    cond_expr: Spanned::new(expr, span),
+                    cond_expr: Node::new(expr, span),
                     true_expr,
                     false_expr,
                 }))
