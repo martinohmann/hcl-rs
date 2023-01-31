@@ -79,7 +79,7 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
                 "%{",
                 preceded(pair(ws, tag("if")), decorated(ws, cut(expr), ws)),
             ),
-            template,
+            spanned(template),
         ),
         |((cond_expr, strip), template)| IfExpr {
             cond_expr,
@@ -89,7 +89,10 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
     );
 
     let else_expr = map(
-        pair(template_tag("%{", delimited(ws, tag("else"), ws)), template),
+        pair(
+            template_tag("%{", delimited(ws, tag("else"), ws)),
+            spanned(template),
+        ),
         |((_, strip), template)| ElseExpr {
             template: Some(template),
             strip,
@@ -137,7 +140,7 @@ fn for_directive(input: Span) -> IResult<Span, ForDirective> {
                     preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
                 )),
             ),
-            template,
+            spanned(template),
         ),
         |(((key_var, value_var, collection_expr), strip), template)| {
             let (key_var, value_var) = match value_var {
@@ -192,12 +195,12 @@ where
     )
 }
 
-pub fn quoted_string_template(input: Span) -> IResult<Span, Spanned<Template>> {
-    spanned(delimited(
+pub fn quoted_string_template(input: Span) -> IResult<Span, Template> {
+    delimited(
         char('"'),
         build_template(build_literal(string_literal)),
         char('"'),
-    ))(input)
+    )(input)
 }
 
 pub fn heredoc_template<'a, F>(heredoc_end: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, String>
@@ -213,10 +216,10 @@ where
     )
 }
 
-pub fn template(input: Span) -> IResult<Span, Spanned<Template>> {
-    spanned(build_template(build_literal(literal(alt((
+pub fn template(input: Span) -> IResult<Span, Template> {
+    build_template(build_literal(literal(alt((
         tag("\\"),
         tag("${"),
         tag("%{"),
-    ))))))(input)
+    )))))(input)
 }

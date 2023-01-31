@@ -90,20 +90,22 @@ fn object_items(input: Span) -> IResult<Span, Object<Spanned<ObjectKey>, Spanned
 
 fn object_item(input: Span) -> IResult<Span, (Spanned<ObjectKey>, Spanned<Expression>)> {
     separated_pair(
-        map(decorated(ws, expr, sp), |spanned| {
-            // Variable identifiers without traversal are treated as identifier object keys.
-            //
-            // Handle this case here by converting the variable into an identifier. This
-            // avoids re-parsing the whole key-value pair when an identifier followed by a
-            // traversal operator is encountered.
-            spanned.map_value(|expr| {
+        decorated(
+            ws,
+            map(expr, |expr| {
+                // Variable identifiers without traversal are treated as identifier object keys.
+                //
+                // Handle this case here by converting the variable into an identifier. This
+                // avoids re-parsing the whole key-value pair when an identifier followed by a
+                // traversal operator is encountered.
                 if let Expression::Variable(variable) = expr {
                     ObjectKey::Identifier(variable.into_inner())
                 } else {
                     ObjectKey::Expression(expr)
                 }
-            })
-        }),
+            }),
+            sp,
+        ),
         cut(one_of("=:")),
         cut(decorated(sp, expr, ws)),
     )(input)
@@ -223,21 +225,17 @@ fn heredoc_content_template<'a>(
 fn heredoc(input: Span) -> IResult<Span, Heredoc> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
-    let nonempty_heredoc = spanned(heredoc_content_template(strip, delim.value));
-    let empty_heredoc = terminated(spanned(space0), tag_or_cut(delim.value));
+    let nonempty_heredoc = heredoc_content_template(strip, delim.value);
+    let empty_heredoc = terminated(space0, tag_or_cut(delim.value));
 
-    let (input, template) = alt((
-        map(nonempty_heredoc, |spanned| {
-            spanned.map_value(|mut content| {
-                // Append the trailing newline here. This is easier than doing this via the parser combinators.
-                content.push('\n');
-                content
-            })
+    let (input, template) = spanned(alt((
+        map(nonempty_heredoc, |mut content| {
+            // Append the trailing newline here. This is easier than doing this via the parser combinators.
+            content.push('\n');
+            content
         }),
-        map(empty_heredoc, |spanned| {
-            spanned.map_value(|_| String::new())
-        }),
-    ))(input)?;
+        map(empty_heredoc, |_| String::new()),
+    )))(input)?;
 
     Ok((
         input,
@@ -251,8 +249,9 @@ fn heredoc(input: Span) -> IResult<Span, Heredoc> {
 
 fn template_expr(input: Span) -> IResult<Span, TemplateExpr> {
     alt((
-        map(quoted_string_template, |spanned| {
-            TemplateExpr::QuotedString(template::Template::from(spanned.value).to_string())
+        map(quoted_string_template, |template| {
+            let template = template::Template::from(template);
+            TemplateExpr::QuotedString(template.to_string())
         }),
         map(heredoc, TemplateExpr::Heredoc),
     ))(input)
@@ -368,7 +367,10 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
 
     let traversal = many1(prefix_decorated(ws, traversal_operator));
 
-    let binary_op = pair(decorated(ws, binary_operator, ws), spanned(cut(expr)));
+    let binary_op = pair(
+        prefix_decorated(ws, binary_operator),
+        prefix_decorated(ws, cut(expr)),
+    );
 
     let conditional = pair(
         preceded(pair(sp, char('?')), prefix_decorated(sp, cut(expr))),

@@ -50,14 +50,11 @@ fn block(input: Span) -> IResult<Span, Block> {
                 spanned(map(
                     delimited(
                         char_or_cut('{'),
-                        opt(cut(decorated(sp, attribute, sp))),
+                        opt(cut(decorated(sp, map(attribute, Structure::Attribute), sp))),
                         char_or_cut('}'),
                     ),
-                    |attr| {
-                        attr.map(|spanned| Body {
-                            structures: vec![spanned.map_value(Structure::Attribute)],
-                        })
-                        .unwrap_or_default()
+                    |attr| Body {
+                        structures: attr.map(|attr| vec![attr]).unwrap_or_default(),
                     },
                 )),
             )),
