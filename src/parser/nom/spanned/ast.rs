@@ -25,7 +25,7 @@ pub enum RawStringInner {
 
 impl RawString {
     pub(crate) fn from_span(span: Range<usize>) -> Self {
-        if span.start == span.end {
+        if span.is_empty() {
             RawString(RawStringInner::Empty)
         } else {
             RawString(RawStringInner::Spanned(span))

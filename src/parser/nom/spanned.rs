@@ -4,6 +4,8 @@ mod expr;
 mod span;
 mod structure;
 mod template;
+#[cfg(test)]
+mod tests;
 
 pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
@@ -187,7 +189,12 @@ where
     map(
         pair(span(prefix), with_span(inner)),
         |(prefix_span, (value, span))| {
-            let decor = Decor::from_prefix(prefix_span);
+            let decor = if prefix_span.is_empty() {
+                Decor::default()
+            } else {
+                Decor::from_prefix(prefix_span)
+            };
+
             Node::new_with_decor(value, span, decor)
         },
     )
@@ -204,7 +211,12 @@ where
     map(
         pair(with_span(inner), span(suffix)),
         |((value, span), suffix_span)| {
-            let decor = Decor::from_suffix(suffix_span);
+            let decor = if suffix_span.is_empty() {
+                Decor::default()
+            } else {
+                Decor::from_suffix(suffix_span)
+            };
+
             Node::new_with_decor(value, span, decor)
         },
     )
@@ -223,7 +235,13 @@ where
     map(
         tuple((span(prefix), with_span(inner), span(suffix))),
         |(prefix_span, (value, span), suffix_span)| {
-            let decor = Decor::new(prefix_span, suffix_span);
+            let decor = match (prefix_span.is_empty(), suffix_span.is_empty()) {
+                (false, false) => Decor::new(prefix_span, suffix_span),
+                (false, true) => Decor::from_prefix(prefix_span),
+                (true, false) => Decor::from_suffix(suffix_span),
+                (true, true) => Decor::default(),
+            };
+
             Node::new_with_decor(value, span, decor)
         },
     )
