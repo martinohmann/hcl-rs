@@ -19,8 +19,8 @@ use crate::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{char, line_ending, one_of, space0, u64},
-    combinator::{all_consuming, cut, fail, map, map_res, not, opt, recognize, value},
+    character::complete::{anychar, char, line_ending, one_of, space0, u64},
+    combinator::{all_consuming, cut, fail, map, map_res, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
@@ -247,16 +247,6 @@ fn heredoc(input: Span) -> IResult<Span, Heredoc> {
     ))
 }
 
-fn template_expr(input: Span) -> IResult<Span, TemplateExpr> {
-    alt((
-        map(quoted_string_template, |template| {
-            let template = template::Template::from(template);
-            TemplateExpr::QuotedString(template.to_string())
-        }),
-        map(heredoc, TemplateExpr::Heredoc),
-    ))(input)
-}
-
 fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
     context(
         "TraversalOperator",
@@ -347,19 +337,28 @@ fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
     ))(input)
 }
 
-fn expr_term(input: Span) -> IResult<Span, Expression> {
-    alt((
-        map(number, Expression::Number),
-        map(string, Expression::String),
-        ident_or_func_call,
-        array,
-        object,
-        map(template_expr, |expr| {
+fn expr_term<'a>(input: Span<'a>) -> IResult<Span<'a>, Expression> {
+    let (input, ch) = peek(anychar)(input)?;
+
+    match ch {
+        '"' => alt((
+            map(string, Expression::String),
+            map(quoted_string_template, |template| {
+                let template = template::Template::from(template);
+                let expr = TemplateExpr::QuotedString(template.to_string());
+                Expression::TemplateExpr(Box::new(expr))
+            }),
+        ))(input),
+        '[' => array(input),
+        '{' => object(input),
+        '0'..='9' => map(number, Expression::Number)(input),
+        '<' => map(heredoc, |heredoc| {
+            let expr = TemplateExpr::Heredoc(heredoc);
             Expression::TemplateExpr(Box::new(expr))
-        }),
-        map(parenthesis, |expr| Expression::Parenthesis(expr)),
-        fail,
-    ))(input)
+        })(input),
+        '(' => map(parenthesis, Expression::Parenthesis)(input),
+        _ => alt((ident_or_func_call, fail))(input),
+    }
 }
 
 pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
