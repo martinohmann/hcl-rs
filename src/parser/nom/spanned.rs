@@ -8,7 +8,6 @@ mod template;
 pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
-use self::span::position;
 use self::structure::body;
 use crate::{Identifier, Number};
 use nom::{
@@ -21,7 +20,7 @@ use nom::{
     combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value},
     error::context,
     multi::{fold_many0, many0_count, many1_count},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, pair, preceded, terminated, tuple},
     Compare, CompareResult, Finish, InputLength, InputTake, Parser, Slice,
 };
 use std::ops::Range;
@@ -141,23 +140,40 @@ where
     map(with_span(inner), |(value, span)| Node::new(value, span))
 }
 
-fn with_span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, (T, Range<usize>)>
+fn with_span<'a, F, O>(
+    mut parser: F,
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, (O, Range<usize>)>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
 {
-    map(tuple((position, inner, position)), |(start, value, end)| {
-        let span = start.location()..end.location();
-        (value, span)
-    })
+    move |input: Span<'a>| {
+        let start = input.location();
+
+        match parser.parse(input) {
+            Ok((rest, result)) => {
+                let end = rest.location();
+                Ok((rest, (result, start..end)))
+            }
+            Err(e) => Err(e),
+        }
+    }
 }
 
-fn span<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Range<usize>>
+fn span<'a, F, O>(mut parser: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Range<usize>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
 {
-    map(separated_pair(position, inner, position), |(start, end)| {
-        start.location()..end.location()
-    })
+    move |input: Span<'a>| {
+        let start = input.location();
+
+        match parser.parse(input) {
+            Ok((rest, _)) => {
+                let end = rest.location();
+                Ok((rest, start..end))
+            }
+            Err(e) => Err(e),
+        }
+    }
 }
 
 fn prefix_decorated<'a, F, G, O1, O2>(

@@ -42,12 +42,18 @@ where
             initial,
         }
     }
-    pub fn location(&self) -> usize {
-        self.initial.offset(&self.input)
-    }
 
     pub fn input(&self) -> &T {
         &self.input
+    }
+}
+
+impl<T> LocatedSpan<T>
+where
+    T: Offset,
+{
+    pub fn location(&self) -> usize {
+        self.initial.offset(&self.input)
     }
 }
 
@@ -264,13 +270,4 @@ where
     fn extend_into(&self, acc: &mut Self::Extender) {
         self.input.extend_into(acc)
     }
-}
-
-/// Capture the position of the current fragment
-pub fn position<T, E>(s: T) -> IResult<T, T, E>
-where
-    E: ParseError<T>,
-    T: InputIter + InputTake,
-{
-    nom::bytes::complete::take(0usize)(s)
 }
