@@ -69,8 +69,8 @@ fn block(input: Span) -> IResult<Span, Block> {
 
 fn block_label(input: Span) -> IResult<Span, BlockLabel> {
     alt((
-        map(ident, BlockLabel::Identifier),
         map(string, BlockLabel::String),
+        map(ident, BlockLabel::Identifier),
     ))(input)
 }
 
