@@ -19,7 +19,7 @@ use nom::{
         alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, not_line_ending,
         one_of, space0,
     },
-    combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value},
+    combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value, verify},
     error::context,
     multi::{fold_many0, many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
@@ -247,14 +247,13 @@ where
     )
 }
 
-/// Parse a unicode sequence, of the form `uXXXX`, where XXXX is 1 to 6
-/// hexadecimal numerals.
-fn unicode(input: Span) -> IResult<Span, char> {
-    let parse_hex = take_while_m_n(1, 6, |c: char| c.is_ascii_hexdigit());
-    let parse_delimited_hex = preceded(char('u'), parse_hex);
-    let parse_u32 = map_res(parse_delimited_hex, move |hex: Span| {
-        u32::from_str_radix(hex.input(), 16)
-    });
+fn hexescape<const N: usize>(input: Span) -> IResult<Span, char> {
+    let parse_hex = verify(
+        take_while_m_n(1, N, |c: char| c.is_ascii_hexdigit()),
+        |hex: &Span| hex.len() == N,
+    );
+    let parse_u32 = map_res(parse_hex, |hex: Span| u32::from_str_radix(hex.input(), 16));
+
     map_opt(parse_u32, std::char::from_u32)(input)
 }
 
@@ -263,15 +262,16 @@ fn escaped_char(input: Span) -> IResult<Span, char> {
     preceded(
         char('\\'),
         alt((
-            unicode,
             value('\n', char('n')),
             value('\r', char('r')),
             value('\t', char('t')),
+            value('\\', char('\\')),
+            value('"', char('"')),
+            value('/', char('/')),
             value('\u{08}', char('b')),
             value('\u{0C}', char('f')),
-            value('\\', char('\\')),
-            value('/', char('/')),
-            value('"', char('"')),
+            preceded(char('u'), hexescape::<4>),
+            preceded(char('U'), hexescape::<8>),
         )),
     )(input)
 }
