@@ -1,8 +1,10 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use crate::expr::Variable;
+use crate::expr::{HeredocStripMode, Variable};
+use crate::template::StripMode;
 use crate::{Identifier, Number};
+use indoc::indoc;
 use pretty_assertions::assert_eq;
 use vecmap::vecmap;
 
@@ -97,33 +99,49 @@ fn parse_object() {
     );
 }
 
-// #[test]
-// fn parse_heredoc() {
-//     assert_eq!(
-//         expr("<<HEREDOC\nHEREDOC\n"),
-//         Ok((
-//             "\n",
-//             Expression::from(Heredoc::new(Identifier::unchecked("HEREDOC"), "")),
-//         ))
-//     );
+#[test]
+fn parse_heredoc() {
+    assert_eq!(
+        parse_to_end("<<HEREDOC\nHEREDOC", expr),
+        Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate {
+            delimiter: Node::new(Identifier::unchecked("HEREDOC"), 2..9),
+            template: Node::new(Template::default(), 10..10),
+            strip: HeredocStripMode::None,
+        })))
+    );
 
-//     assert_eq!(
-//         expr(indoc! {r#"
-//             <<HEREDOC
-//             ${foo}
-//             %{if asdf}qux%{endif}
-//             heredoc
-//             HEREDOC
-//         "#}),
-//         Ok((
-//             "\n",
-//             Expression::from(Heredoc::new(
-//                 Identifier::unchecked("HEREDOC"),
-//                 "${foo}\n%{ if asdf }qux%{ endif }\nheredoc\n"
-//             )),
-//         ))
-//     );
-// }
+    assert_eq!(
+        parse_to_end(
+            indoc! {r#"
+                <<HEREDOC
+                ${foo}bar
+                HEREDOC"#},
+            expr
+        ),
+        Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate {
+            delimiter: Node::new(Identifier::unchecked("HEREDOC"), 2..9),
+            template: Node::new(
+                Template {
+                    elements: vec![
+                        Node::new(
+                            Element::Interpolation(Interpolation {
+                                expr: Node::new(
+                                    Expression::Variable(Variable::unchecked("foo")),
+                                    2..5
+                                ),
+                                strip: StripMode::None
+                            }),
+                            0..6
+                        ),
+                        Node::new(Element::Literal("bar\n".into()), 6..10),
+                    ]
+                },
+                10..20
+            ),
+            strip: HeredocStripMode::None,
+        })))
+    );
+}
 
 // #[test]
 // fn parse_template_expr() {

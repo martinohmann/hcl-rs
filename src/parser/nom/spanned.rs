@@ -289,7 +289,7 @@ where
     recognize(many1_count(alt((
         tag("$${"),
         tag("%%{"),
-        anything_except(literal_end),
+        anychar_except(literal_end),
     ))))
 }
 
@@ -374,9 +374,9 @@ fn number(input: Span) -> IResult<Span, Number> {
     )(input)
 }
 
-fn anything_except<'a, F>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>
+fn anychar_except<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>,
+    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
 {
     recognize(preceded(not(inner), anychar))
 }

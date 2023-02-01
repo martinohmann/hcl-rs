@@ -1,9 +1,9 @@
 use super::ast::{
     BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, ObjectKey, Operation,
-    Traversal, TraversalOperator, UnaryOp,
+    Template, Traversal, TraversalOperator, UnaryOp,
 };
 use super::{
-    anything_except, char_or_cut, decorated,
+    anychar_except, char_or_cut, decorated,
     error::InternalError,
     ident, number, prefix_decorated, sp, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
@@ -19,7 +19,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char, line_ending, one_of, space0, u64},
-    combinator::{all_consuming, cut, fail, map, map_res, not, opt, peek, recognize, value},
+    combinator::{cut, fail, map, map_res, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
@@ -187,51 +187,48 @@ fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Node<&str>)> {
     )(input)
 }
 
-fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>> {
-    recognize(tuple((line_ending, space0, tag(delim))))
+fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, ()> {
+    value((), pair(space0, tag(delim)))
 }
 
-fn heredoc_content_template<'a>(
+fn heredoc_content<'a>(
     strip: HeredocStripMode,
     delim: &'a str,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, String> {
-    let raw_content = map(
-        terminated(
-            recognize(many1_count(anything_except(heredoc_end(delim)))),
-            heredoc_end(delim),
-        ),
-        |span: Span| *span,
-    );
+) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Template> {
+    map_res(
+        recognize(pair(
+            many1_count(anychar_except(pair(line_ending, heredoc_end(delim)))),
+            line_ending,
+        )),
+        move |span| {
+            let content = match strip {
+                HeredocStripMode::None => Cow::Borrowed(*span),
+                HeredocStripMode::Indent => dedent(*span),
+            };
 
-    map_res(raw_content, move |raw_content| {
-        let content = match strip {
-            HeredocStripMode::None => Cow::Borrowed(raw_content),
-            HeredocStripMode::Indent => dedent(raw_content),
-        };
+            let input = Span::new(content.as_ref());
 
-        let input = Span::new(content.as_ref());
-        let result = all_consuming(heredoc_template(heredoc_end(delim)))(input);
-
-        result
-            .map(|(_, template)| template)
-            .map_err(|_| InternalError::new(raw_content, ErrorKind::Context("HeredocTemplate")))
-    })
+            match heredoc_template(input) {
+                Ok((_, template)) => Ok(template),
+                Err(_) => Err(InternalError::new(
+                    content,
+                    ErrorKind::Context("HeredocTemplate"),
+                )),
+            }
+        },
+    )
 }
 
 fn heredoc(input: Span) -> IResult<Span, HeredocTemplate> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
-    let nonempty_heredoc = heredoc_content_template(strip, delim.value());
-    let empty_heredoc = terminated(space0, tag_or_cut(delim.value()));
-
-    let (input, template) = spanned(alt((
-        map(nonempty_heredoc, |mut content| {
-            // Append the trailing newline here. This is easier than doing this via the parser combinators.
-            content.push('\n');
-            content
-        }),
-        map(empty_heredoc, |_| String::new()),
-    )))(input)?;
+    let (input, template) = terminated(
+        spanned(map(
+            opt(heredoc_content(strip, delim.value())),
+            Option::unwrap_or_default,
+        )),
+        cut(heredoc_end(delim.value())),
+    )(input)?;
 
     Ok((
         input,

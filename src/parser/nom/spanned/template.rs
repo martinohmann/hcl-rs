@@ -203,17 +203,10 @@ pub fn quoted_string_template(input: Span) -> IResult<Span, Template> {
     )(input)
 }
 
-pub fn heredoc_template<'a, F>(heredoc_end: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, String>
-where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>,
-{
-    map(
-        build_template(map(
-            literal(alt((tag("${"), tag("%{"), heredoc_end))),
-            |s: Span| s.input().to_string(),
-        )),
-        |t| crate::template::Template::from(t).to_string(),
-    )
+pub fn heredoc_template(input: Span) -> IResult<Span, Template> {
+    build_template(map(literal(alt((tag("${"), tag("%{")))), |s: Span| {
+        s.input().to_string()
+    }))(input)
 }
 
 pub fn template(input: Span) -> IResult<Span, Template> {

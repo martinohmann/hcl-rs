@@ -199,15 +199,15 @@ impl From<ObjectKey> for expr::ObjectKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
     pub delimiter: Node<Identifier>,
-    pub template: Node<String>,
+    pub template: Node<Template>,
     pub strip: HeredocStripMode,
 }
 
 impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
-            delimiter: heredoc.delimiter.value,
-            template: heredoc.template.value,
+            delimiter: heredoc.delimiter.into_value(),
+            template: heredoc.template.into_value().into(),
             strip: heredoc.strip,
         }
     }
@@ -421,7 +421,7 @@ impl From<Block> for structure::Block {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
     pub elements: Vec<Node<Element>>,
 }
