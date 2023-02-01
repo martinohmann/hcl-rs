@@ -1,6 +1,6 @@
 use super::ast::{
-    BinaryOp, Conditional, Expression, ForExpr, FuncCall, Heredoc, ObjectKey, Operation,
-    TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, ObjectKey, Operation,
+    Traversal, TraversalOperator, UnaryOp,
 };
 use super::{
     anything_except, char_or_cut, decorated,
@@ -10,7 +10,6 @@ use super::{
     ws, ErrorKind, IResult,
 };
 use super::{spanned, with_span, Node, Span};
-use crate::template;
 use crate::Identifier;
 use crate::{
     expr::{BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable},
@@ -171,11 +170,8 @@ fn for_cond_expr(input: Span) -> IResult<Span, Node<Expression>> {
     preceded(tag("if"), decorated(ws, cut(expr), ws))(input)
 }
 
-fn parenthesis(input: Span) -> IResult<Span, Box<Node<Expression>>> {
-    map(
-        delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')')),
-        Box::new,
-    )(input)
+fn parenthesis(input: Span) -> IResult<Span, Node<Expression>> {
+    delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')'))(input)
 }
 
 fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Node<&str>)> {
@@ -222,7 +218,7 @@ fn heredoc_content_template<'a>(
     })
 }
 
-fn heredoc(input: Span) -> IResult<Span, Heredoc> {
+fn heredoc(input: Span) -> IResult<Span, HeredocTemplate> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
     let nonempty_heredoc = heredoc_content_template(strip, delim.value());
@@ -239,7 +235,7 @@ fn heredoc(input: Span) -> IResult<Span, Heredoc> {
 
     Ok((
         input,
-        Heredoc {
+        HeredocTemplate {
             delimiter: delim.map_value(Identifier::unchecked),
             template,
             strip,
@@ -343,20 +339,15 @@ fn expr_term<'a>(input: Span<'a>) -> IResult<Span<'a>, Expression> {
     match ch {
         '"' => alt((
             map(string, Expression::String),
-            map(quoted_string_template, |template| {
-                let template = template::Template::from(template);
-                let expr = TemplateExpr::QuotedString(template.to_string());
-                Expression::TemplateExpr(Box::new(expr))
-            }),
+            map(quoted_string_template, Expression::Template),
         ))(input),
         '[' => array(input),
         '{' => object(input),
         '0'..='9' => map(number, Expression::Number)(input),
         '<' => map(heredoc, |heredoc| {
-            let expr = TemplateExpr::Heredoc(heredoc);
-            Expression::TemplateExpr(Box::new(expr))
+            Expression::HeredocTemplate(Box::new(heredoc))
         })(input),
-        '(' => map(parenthesis, Expression::Parenthesis)(input),
+        '(' => map(parenthesis, |expr| Expression::Parenthesis(Box::new(expr)))(input),
         _ => alt((ident_or_func_call, fail))(input),
     }
 }

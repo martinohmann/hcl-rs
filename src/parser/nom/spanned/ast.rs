@@ -2,7 +2,7 @@
 
 use super::span::LocatedSpan;
 use crate::expr::{self, BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable};
-use crate::structure::BlockLabel;
+use crate::structure::{self, BlockLabel};
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
 use kstring::KString;
@@ -138,7 +138,8 @@ pub enum Expression {
     String(String),
     Array(Vec<Node<Expression>>),
     Object(Object<Node<ObjectKey>, Node<Expression>>),
-    TemplateExpr(Box<TemplateExpr>),
+    Template(Template),
+    HeredocTemplate(Box<HeredocTemplate>),
     Parenthesis(Box<Node<Expression>>),
     Variable(Variable),
     Conditional(Box<Conditional>),
@@ -163,9 +164,12 @@ impl From<Expression> for expr::Expression {
                 .into_iter()
                 .map(|(k, v)| (ObjectKey::from(k.value), Expression::from(v.value)))
                 .collect(),
-            Expression::TemplateExpr(expr) => expr::TemplateExpr::from(*expr).into(),
+            Expression::Template(template) => {
+                expr::TemplateExpr::QuotedString(template.into()).into()
+            }
+            Expression::HeredocTemplate(heredoc) => expr::Heredoc::from(*heredoc).into(),
             Expression::Parenthesis(expr) => {
-                expr::Expression::Parenthesis(Box::new(expr::Expression::from((*expr).value)))
+                expr::Expression::Parenthesis(Box::new(expr.value.into()))
             }
             Expression::Variable(var) => expr::Expression::Variable(var),
             Expression::ForExpr(expr) => expr::ForExpr::from(*expr).into(),
@@ -193,29 +197,14 @@ impl From<ObjectKey> for expr::ObjectKey {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TemplateExpr {
-    QuotedString(String),
-    Heredoc(Heredoc),
-}
-
-impl From<TemplateExpr> for expr::TemplateExpr {
-    fn from(expr: TemplateExpr) -> Self {
-        match expr {
-            TemplateExpr::QuotedString(s) => expr::TemplateExpr::QuotedString(s),
-            TemplateExpr::Heredoc(hd) => expr::TemplateExpr::Heredoc(hd.into()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Heredoc {
+pub struct HeredocTemplate {
     pub delimiter: Node<Identifier>,
     pub template: Node<String>,
     pub strip: HeredocStripMode,
 }
 
-impl From<Heredoc> for expr::Heredoc {
-    fn from(heredoc: Heredoc) -> Self {
+impl From<HeredocTemplate> for expr::Heredoc {
+    fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
             delimiter: heredoc.delimiter.value,
             template: heredoc.template.value,
@@ -379,10 +368,25 @@ pub struct Body {
     pub structures: Vec<Node<Structure>>,
 }
 
+impl From<Body> for structure::Body {
+    fn from(body: Body) -> Self {
+        structure::Body::from_iter(body.structures.into_iter().map(Node::into_value))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Structure {
     Attribute(Attribute),
     Block(Block),
+}
+
+impl From<Structure> for structure::Structure {
+    fn from(structure: Structure) -> Self {
+        match structure {
+            Structure::Attribute(attr) => structure::Structure::Attribute(attr.into()),
+            Structure::Block(block) => structure::Structure::Block(block.into()),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -391,11 +395,30 @@ pub struct Attribute {
     pub expr: Node<Expression>,
 }
 
+impl From<Attribute> for structure::Attribute {
+    fn from(attr: Attribute) -> Self {
+        structure::Attribute {
+            key: attr.key.into_value(),
+            expr: attr.expr.into_value().into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Block {
     pub identifier: Node<Identifier>,
     pub labels: Vec<Node<BlockLabel>>,
     pub body: Node<Body>,
+}
+
+impl From<Block> for structure::Block {
+    fn from(block: Block) -> Self {
+        structure::Block {
+            identifier: block.identifier.into_value(),
+            labels: block.labels.into_iter().map(Node::into_value).collect(),
+            body: block.body.into_value().into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -411,6 +434,12 @@ impl From<Template> for template::Template {
                 .into_iter()
                 .map(|spanned| template::Element::from(spanned.value)),
         )
+    }
+}
+
+impl From<Template> for String {
+    fn from(template: Template) -> Self {
+        template::Template::from(template).to_string()
     }
 }
 

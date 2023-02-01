@@ -64,7 +64,11 @@ fn benchmark(c: &mut Criterion) {
 
     #[cfg(feature = "nom")]
     c.bench_function("hcl::parser::parse_spanned(deeply_nested)", |b| {
-        b.iter(|| hcl::parser::parse_spanned(deeply_nested))
+        b.iter(|| {
+            hcl::parser::parse_spanned(deeply_nested)
+                .map(|node| Body::from(node.into_value()))
+                .unwrap()
+        })
     });
 }
 
