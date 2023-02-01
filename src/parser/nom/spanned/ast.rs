@@ -158,18 +158,23 @@ impl From<Expression> for expr::Expression {
             Expression::String(s) => expr::Expression::String(s),
             Expression::Array(array) => array
                 .into_iter()
-                .map(|v| Expression::from(v.value))
+                .map(|v| Expression::from(v.into_value()))
                 .collect(),
             Expression::Object(object) => object
                 .into_iter()
-                .map(|(k, v)| (ObjectKey::from(k.value), Expression::from(v.value)))
+                .map(|(k, v)| {
+                    (
+                        ObjectKey::from(k.into_value()),
+                        Expression::from(v.into_value()),
+                    )
+                })
                 .collect(),
             Expression::Template(template) => {
                 expr::TemplateExpr::QuotedString(template.into()).into()
             }
             Expression::HeredocTemplate(heredoc) => expr::Heredoc::from(*heredoc).into(),
             Expression::Parenthesis(expr) => {
-                expr::Expression::Parenthesis(Box::new(expr.value.into()))
+                expr::Expression::Parenthesis(Box::new(expr.into_value().into()))
             }
             Expression::Variable(var) => expr::Expression::Variable(var),
             Expression::ForExpr(expr) => expr::ForExpr::from(*expr).into(),
@@ -223,9 +228,9 @@ pub struct Conditional {
 impl From<Conditional> for expr::Conditional {
     fn from(cond: Conditional) -> Self {
         expr::Conditional {
-            cond_expr: cond.cond_expr.value.into(),
-            true_expr: cond.true_expr.value.into(),
-            false_expr: cond.false_expr.value.into(),
+            cond_expr: cond.cond_expr.into_value().into(),
+            true_expr: cond.true_expr.into_value().into(),
+            false_expr: cond.false_expr.into_value().into(),
         }
     }
 }
@@ -240,11 +245,11 @@ pub struct FuncCall {
 impl From<FuncCall> for expr::FuncCall {
     fn from(call: FuncCall) -> Self {
         expr::FuncCall {
-            name: call.name.value,
+            name: call.name.into_value(),
             args: call
                 .args
                 .into_iter()
-                .map(|spanned| spanned.value.into())
+                .map(|spanned| spanned.into_value().into())
                 .collect(),
             expand_final: call.expand_final,
         }
@@ -260,11 +265,11 @@ pub struct Traversal {
 impl From<Traversal> for expr::Traversal {
     fn from(traversal: Traversal) -> Self {
         expr::Traversal {
-            expr: traversal.expr.value.into(),
+            expr: traversal.expr.into_value().into(),
             operators: traversal
                 .operators
                 .into_iter()
-                .map(|spanned| spanned.value.into())
+                .map(|spanned| spanned.into_value().into())
                 .collect(),
         }
     }
@@ -315,8 +320,8 @@ pub struct UnaryOp {
 impl From<UnaryOp> for expr::UnaryOp {
     fn from(op: UnaryOp) -> Self {
         expr::UnaryOp {
-            operator: op.operator.value,
-            expr: op.expr.value.into(),
+            operator: op.operator.into_value(),
+            expr: op.expr.into_value().into(),
         }
     }
 }
@@ -331,9 +336,9 @@ pub struct BinaryOp {
 impl From<BinaryOp> for expr::BinaryOp {
     fn from(op: BinaryOp) -> Self {
         expr::BinaryOp {
-            lhs_expr: op.lhs_expr.value.into(),
-            operator: op.operator.value,
-            rhs_expr: op.rhs_expr.value.into(),
+            lhs_expr: op.lhs_expr.into_value().into(),
+            operator: op.operator.into_value(),
+            rhs_expr: op.rhs_expr.into_value().into(),
         }
     }
 }
@@ -352,13 +357,13 @@ pub struct ForExpr {
 impl From<ForExpr> for expr::ForExpr {
     fn from(expr: ForExpr) -> Self {
         expr::ForExpr {
-            key_var: expr.key_var.map(|spanned| spanned.value),
-            value_var: expr.value_var.value,
-            collection_expr: expr.collection_expr.value.into(),
-            key_expr: expr.key_expr.map(|spanned| spanned.value.into()),
-            value_expr: expr.value_expr.value.into(),
+            key_var: expr.key_var.map(|spanned| spanned.into_value()),
+            value_var: expr.value_var.into_value(),
+            collection_expr: expr.collection_expr.into_value().into(),
+            key_expr: expr.key_expr.map(|spanned| spanned.into_value().into()),
+            value_expr: expr.value_expr.into_value().into(),
             grouping: expr.grouping,
-            cond_expr: expr.cond_expr.map(|spanned| spanned.value.into()),
+            cond_expr: expr.cond_expr.map(|spanned| spanned.into_value().into()),
         }
     }
 }
@@ -432,7 +437,7 @@ impl From<Template> for template::Template {
             template
                 .elements
                 .into_iter()
-                .map(|spanned| template::Element::from(spanned.value)),
+                .map(|spanned| template::Element::from(spanned.into_value())),
         )
     }
 }
@@ -469,7 +474,7 @@ pub struct Interpolation {
 impl From<Interpolation> for template::Interpolation {
     fn from(interp: Interpolation) -> Self {
         template::Interpolation {
-            expr: interp.expr.value.into(),
+            expr: interp.expr.into_value().into(),
             strip: interp.strip,
         }
     }
@@ -503,9 +508,11 @@ pub struct IfDirective {
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
         template::IfDirective {
-            cond_expr: dir.cond_expr.value.into(),
-            true_template: dir.true_template.value.into(),
-            false_template: dir.false_template.map(|spanned| spanned.value.into()),
+            cond_expr: dir.cond_expr.into_value().into(),
+            true_template: dir.true_template.into_value().into(),
+            false_template: dir
+                .false_template
+                .map(|spanned| spanned.into_value().into()),
             if_strip: dir.if_strip,
             else_strip: dir.else_strip,
             endif_strip: dir.endif_strip,
@@ -526,10 +533,10 @@ pub struct ForDirective {
 impl From<ForDirective> for template::ForDirective {
     fn from(dir: ForDirective) -> Self {
         template::ForDirective {
-            key_var: dir.key_var.map(|spanned| spanned.value),
-            value_var: dir.value_var.value,
-            collection_expr: dir.collection_expr.value.into(),
-            template: dir.template.value.into(),
+            key_var: dir.key_var.map(|spanned| spanned.into_value()),
+            value_var: dir.value_var.into_value(),
+            collection_expr: dir.collection_expr.into_value().into(),
+            template: dir.template.into_value().into(),
             for_strip: dir.for_strip,
             endfor_strip: dir.endfor_strip,
         }
