@@ -1,6 +1,5 @@
 mod error;
 mod expr;
-pub mod spanned;
 mod structure;
 mod template;
 #[cfg(test)]

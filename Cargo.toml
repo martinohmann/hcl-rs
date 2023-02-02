@@ -28,7 +28,8 @@ path = "specsuite/main.rs"
 harness = false
 
 [features]
-default = ["nom"]
+default = ["nom-spanned"]
+nom-spanned = ["dep:nom"]
 nom = ["dep:nom"]
 pest = ["dep:pest", "dep:pest_derive"]
 

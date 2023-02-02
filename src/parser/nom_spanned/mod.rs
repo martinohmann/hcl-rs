@@ -11,6 +11,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::structure::body;
+use self::template::template;
 use crate::{Identifier, Number};
 use nom::{
     branch::alt,
@@ -67,8 +68,17 @@ use std::str::FromStr;
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse(input: &str) -> ParseResult<Node<Body>> {
+pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
+    parse_raw(input).map(|node| node.into_value().into())
+}
+
+#[allow(missing_docs)]
+pub fn parse_raw(input: &str) -> ParseResult<Node<Body>> {
     parse_to_end(input, body)
+}
+
+pub(crate) fn parse_template(input: &str) -> ParseResult<crate::template::Template> {
+    parse_to_end(input, template).map(Into::into)
 }
 
 fn parse_to_end<'a, F, O>(input: &'a str, parser: F) -> ParseResult<O>
