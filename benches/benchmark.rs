@@ -2,16 +2,64 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use hcl::{Body, Value};
 
 fn benchmark(c: &mut Criterion) {
-    let input = std::fs::read_to_string("benches/terraform.hcl").unwrap();
+    let input = std::fs::read_to_string("benches/terraform.tf").unwrap();
+    let input_large = std::fs::read_to_string("benches/network.tf").unwrap();
+    let deeply_nested = std::fs::read_to_string("benches/deeply_nested.tf").unwrap();
     let body: Body = hcl::from_str(&input).unwrap();
     let value: Value = hcl::from_str(&input).unwrap();
 
-    c.bench_function("hcl::parse", |b| b.iter(|| hcl::parse(&input)));
+    #[cfg(not(feature = "nom"))]
+    {
+        c.bench_function("parse", |b| b.iter(|| hcl::parse(&input).unwrap()));
+        c.bench_function("parse_large", |b| {
+            b.iter(|| hcl::parse(&input_large).unwrap())
+        });
+        c.bench_function("parse_deeply_nested", |b| {
+            b.iter(|| hcl::parse(&deeply_nested).unwrap())
+        });
+    }
 
     #[cfg(feature = "nom")]
-    c.bench_function("hcl::parser::parse_spanned", |b| {
-        b.iter(|| hcl::parser::parse_spanned(&input))
-    });
+    {
+        c.bench_function("parse", |b| {
+            b.iter(|| hcl::parser::parse_spanned(&input).unwrap())
+        });
+
+        c.bench_function("parse_large", |b| {
+            b.iter(|| hcl::parser::parse_spanned(&input_large).unwrap())
+        });
+
+        c.bench_function("parse_deeply_nested", |b| {
+            b.iter(|| hcl::parser::parse_spanned(&deeply_nested).unwrap())
+        });
+
+        c.bench_function("parse_large_convert", |b| {
+            b.iter(|| {
+                hcl::parser::parse_spanned(&input_large)
+                    .map(|node| Body::from(node.into_value()))
+                    .unwrap()
+            })
+        });
+
+        c.bench_function("parse_deeply_nested_convert", |b| {
+            b.iter(|| {
+                hcl::parser::parse_spanned(&deeply_nested)
+                    .map(|node| Body::from(node.into_value()))
+                    .unwrap()
+            })
+        });
+
+        c.bench_function("parse_unspanned", |b| {
+            b.iter(|| hcl::parse(&input).unwrap())
+        });
+        c.bench_function("parse_unspanned_large", |b| {
+            b.iter(|| hcl::parse(&input_large).unwrap())
+        });
+
+        c.bench_function("parse_unspanned_deeply_nested", |b| {
+            b.iter(|| hcl::parser::parse(&deeply_nested).unwrap())
+        });
+    }
 
     c.bench_function("hcl::from_str::<Body>", |b| {
         b.iter(|| hcl::from_str::<Body>(&input))
@@ -27,48 +75,6 @@ fn benchmark(c: &mut Criterion) {
 
     c.bench_function("hcl::to_string(&Value)", |b| {
         b.iter(|| hcl::to_string(&value))
-    });
-
-    let deeply_nested = r#"
-        variable "network_integration" {
-          description = "Map of networking integrations between accounts"
-          type = map(object({
-            friendly_name = string,
-            vpcs = map(object({
-              id           = string
-              cidr         = string
-              region       = string
-              description  = string
-              subnets      = map(string)
-              route_tables = map(string)
-              security_groups = map(object({
-                id = string
-                rules = map(object({
-                  direction   = string
-                  protocol    = string
-                  from_port   = string
-                  to_port     = string
-                  description = string
-                }))
-              }))
-            }))
-            additional_propagated_vpcs   = list(string)
-            additional_static_vpc_routes = list(string)
-          }))
-          default = {}
-        }"#;
-
-    c.bench_function("hcl::parse(&deeply_nested)", |b| {
-        b.iter(|| hcl::parse(deeply_nested))
-    });
-
-    #[cfg(feature = "nom")]
-    c.bench_function("hcl::parser::parse_spanned(deeply_nested)", |b| {
-        b.iter(|| {
-            hcl::parser::parse_spanned(deeply_nested)
-                .map(|node| Body::from(node.into_value()))
-                .unwrap()
-        })
     });
 }
 
