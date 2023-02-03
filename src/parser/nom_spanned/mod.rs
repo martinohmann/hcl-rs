@@ -2,6 +2,7 @@ pub mod ast;
 mod error;
 mod expr;
 mod input;
+pub mod repr;
 mod structure;
 mod template;
 #[cfg(test)]
@@ -11,6 +12,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::Input;
+use self::repr::{Decor, Spanned};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};

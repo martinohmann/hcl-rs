@@ -2,6 +2,7 @@ use super::ast::{
     BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, ObjectKey, Operation,
     Template, Traversal, TraversalOperator, UnaryOp,
 };
+use super::repr::Spanned;
 use super::{
     anychar_except, char_or_cut, decorated,
     error::InternalError,
@@ -9,7 +10,7 @@ use super::{
     template::{heredoc_template, quoted_string_template},
     ws, ErrorKind, IResult,
 };
-use super::{spanned, with_span, Input, Spanned};
+use super::{spanned, with_span, Input};
 use crate::Identifier;
 use crate::{
     expr::{BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable},
