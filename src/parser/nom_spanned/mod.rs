@@ -1,7 +1,7 @@
 pub mod ast;
 mod error;
 mod expr;
-mod span;
+mod input;
 mod structure;
 mod template;
 #[cfg(test)]
@@ -10,6 +10,7 @@ mod tests;
 pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
+use self::input::Input;
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
@@ -82,9 +83,9 @@ pub(crate) fn parse_template(input: &str) -> ParseResult<crate::template::Templa
 
 fn parse_to_end<'a, F, O>(input: &'a str, parser: F) -> ParseResult<O>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
 {
-    let input = Span::new(input);
+    let input = Input::new(input);
     all_consuming(parser)
         .parse(input)
         .finish()
@@ -92,8 +93,8 @@ where
         .map_err(|err| Error::from_internal_error(input, err))
 }
 
-fn char_or_cut<'a>(ch: char) -> impl Fn(Span<'a>) -> IResult<Span<'a>, char> {
-    move |input: Span<'a>| match input.chars().next().map(|t| t == ch) {
+fn char_or_cut<'a>(ch: char) -> impl Fn(Input<'a>) -> IResult<Input<'a>, char> {
+    move |input: Input<'a>| match input.chars().next().map(|t| t == ch) {
         Some(true) => Ok((input.slice(ch.len_utf8()..), ch)),
         _ => Err(nom::Err::Failure(InternalError::new(
             input,
@@ -102,8 +103,8 @@ fn char_or_cut<'a>(ch: char) -> impl Fn(Span<'a>) -> IResult<Span<'a>, char> {
     }
 }
 
-fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Span<'a>) -> IResult<Span<'a>, &'a str> {
-    move |input: Span<'a>| {
+fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Input<'a>) -> IResult<Input<'a>, &'a str> {
+    move |input: Input<'a>| {
         let tag_len = tag.input_len();
         match input.compare(tag) {
             CompareResult::Ok => {
@@ -112,53 +113,53 @@ fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Span<'a>) -> IResult<Span<'a>, &'a st
             }
             _ => Err(nom::Err::Failure(InternalError::new(
                 input,
-                ErrorKind::Tag(Span::new(tag)),
+                ErrorKind::Tag(Input::new(tag)),
             ))),
         }
     }
 }
 
-fn line_comment(input: Span) -> IResult<Span, ()> {
+fn line_comment(input: Input) -> IResult<Input, ()> {
     value((), pair(alt((tag("#"), tag("//"))), not_line_ending))(input)
 }
 
-fn inline_comment(input: Span) -> IResult<Span, ()> {
+fn inline_comment(input: Input) -> IResult<Input, ()> {
     value((), tuple((tag("/*"), take_until("*/"), tag("*/"))))(input)
 }
 
-fn comment(input: Span) -> IResult<Span, ()> {
+fn comment(input: Input) -> IResult<Input, ()> {
     alt((line_comment, inline_comment))(input)
 }
 
-fn sp(input: Span) -> IResult<Span, ()> {
+fn sp(input: Input) -> IResult<Input, ()> {
     value((), pair(space0, many0_count(pair(inline_comment, space0))))(input)
 }
 
-fn spc(input: Span) -> IResult<Span, ()> {
+fn spc(input: Input) -> IResult<Input, ()> {
     value((), pair(space0, many0_count(pair(comment, space0))))(input)
 }
 
-fn ws(input: Span) -> IResult<Span, ()> {
+fn ws(input: Input) -> IResult<Input, ()> {
     value(
         (),
         pair(multispace0, many0_count(pair(comment, multispace0))),
     )(input)
 }
 
-fn spanned<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<T>>
+fn spanned<'a, F, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<T>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, T>,
 {
     map(with_span(inner), |(value, span)| Node::new(value, span))
 }
 
 fn with_span<'a, F, O>(
     mut parser: F,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, (O, Range<usize>)>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O, Range<usize>)>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
 {
-    move |input: Span<'a>| {
+    move |input: Input<'a>| {
         let start = input.location();
 
         match parser.parse(input) {
@@ -171,11 +172,11 @@ where
     }
 }
 
-fn span<'a, F, O>(mut parser: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Range<usize>>
+fn span<'a, F, O>(mut parser: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Range<usize>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
 {
-    move |input: Span<'a>| {
+    move |input: Input<'a>| {
         let start = input.location();
 
         match parser.parse(input) {
@@ -191,10 +192,10 @@ where
 fn prefix_decorated<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<O2>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<O2>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
-    G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
 {
     map(
         pair(span(prefix), with_span(inner)),
@@ -213,10 +214,10 @@ where
 fn suffix_decorated<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<O1>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<O1>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
-    G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
 {
     map(
         pair(with_span(inner), span(suffix)),
@@ -236,11 +237,11 @@ fn decorated<'a, F, G, H, O1, O2, O3>(
     prefix: F,
     inner: G,
     suffix: H,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Node<O2>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<O2>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O1>,
-    G: FnMut(Span<'a>) -> IResult<Span<'a>, O2>,
-    H: FnMut(Span<'a>) -> IResult<Span<'a>, O3>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+    H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
 {
     map(
         tuple((span(prefix), with_span(inner), span(suffix))),
@@ -257,18 +258,18 @@ where
     )
 }
 
-fn hexescape<const N: usize>(input: Span) -> IResult<Span, char> {
+fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
     let parse_hex = verify(
         take_while_m_n(1, N, |c: char| c.is_ascii_hexdigit()),
-        |hex: &Span| hex.len() == N,
+        |hex: &Input| hex.len() == N,
     );
-    let parse_u32 = map_res(parse_hex, |hex: Span| u32::from_str_radix(hex.input(), 16));
+    let parse_u32 = map_res(parse_hex, |hex: Input| u32::from_str_radix(hex.input(), 16));
 
     map_opt(parse_u32, std::char::from_u32)(input)
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
-fn escaped_char(input: Span) -> IResult<Span, char> {
+fn escaped_char(input: Input) -> IResult<Input, char> {
     preceded(
         char('\\'),
         alt((
@@ -288,13 +289,13 @@ fn escaped_char(input: Span) -> IResult<Span, char> {
 
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
-fn string_literal(input: Span) -> IResult<Span, Span> {
+fn string_literal(input: Input) -> IResult<Input, Input> {
     literal(alt((recognize(one_of("\"\\")), tag("${"), tag("%{"))))(input)
 }
 
-fn literal<'a, F>(literal_end: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>
+fn literal<'a, F>(literal_end: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>,
 {
     recognize(many1_count(alt((
         tag("$${"),
@@ -314,9 +315,9 @@ enum StringFragment<'a> {
 
 fn string_fragment<'a, F>(
     literal: F,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, StringFragment<'a>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>,
 {
     alt((
         map(literal, |s| StringFragment::Literal(*s)),
@@ -324,7 +325,7 @@ where
     ))
 }
 
-fn string(input: Span) -> IResult<Span, String> {
+fn string(input: Input) -> IResult<Input, String> {
     let build_string = fold_many0(
         string_fragment(string_literal),
         String::new,
@@ -340,7 +341,7 @@ fn string(input: Span) -> IResult<Span, String> {
     delimited(char('"'), build_string, char('"'))(input)
 }
 
-fn str_ident(input: Span) -> IResult<Span, &str> {
+fn str_ident(input: Input) -> IResult<Input, &str> {
     context(
         "Identifier",
         map(
@@ -348,20 +349,20 @@ fn str_ident(input: Span) -> IResult<Span, &str> {
                 alt((alpha1, tag("_"))),
                 many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
             )),
-            |span: Span| *span,
+            |s: Input| *s,
         ),
     )(input)
 }
 
-fn ident(input: Span) -> IResult<Span, Identifier> {
+fn ident(input: Input) -> IResult<Input, Identifier> {
     map(str_ident, Identifier::unchecked)(input)
 }
 
-fn exponent(input: Span) -> IResult<Span, Span> {
+fn exponent(input: Input) -> IResult<Input, Input> {
     recognize(tuple((one_of("eE"), opt(one_of("+-")), cut(digit1))))(input)
 }
 
-fn float(input: Span) -> IResult<Span, f64> {
+fn float(input: Input) -> IResult<Input, f64> {
     let fraction = preceded(char('.'), digit1);
 
     map_res(
@@ -369,24 +370,24 @@ fn float(input: Span) -> IResult<Span, f64> {
             digit1,
             alt((terminated(fraction, opt(exponent)), exponent)),
         )),
-        |s: Span| f64::from_str(s.input()),
+        |s: Input| f64::from_str(s.input()),
     )(input)
 }
 
-fn integer(input: Span) -> IResult<Span, u64> {
-    map_res(digit1, |s: Span| u64::from_str(s.input()))(input)
+fn integer(input: Input) -> IResult<Input, u64> {
+    map_res(digit1, |s: Input| u64::from_str(s.input()))(input)
 }
 
-fn number(input: Span) -> IResult<Span, Number> {
+fn number(input: Input) -> IResult<Input, Number> {
     context(
         "Number",
         alt((map_opt(float, Number::from_f64), map(integer, Number::from))),
     )(input)
 }
 
-fn anychar_except<'a, F, T>(inner: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>
+fn anychar_except<'a, F, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, T>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, T>,
 {
     recognize(preceded(not(inner), anychar))
 }

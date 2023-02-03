@@ -1,7 +1,7 @@
 use super::ast::{Attribute, Block, Body, Expression, Structure};
 use super::{
     char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, spanned, spc, string,
-    suffix_decorated, ws, IResult, Node, Span,
+    suffix_decorated, ws, IResult, Input, Node,
 };
 use crate::structure::BlockLabel;
 use nom::{
@@ -12,15 +12,15 @@ use nom::{
     sequence::{delimited, pair, preceded, terminated},
 };
 
-fn line_trailing(input: Span) -> IResult<Span, ()> {
+fn line_trailing(input: Input) -> IResult<Input, ()> {
     value((), alt((line_ending, eof)))(input)
 }
 
-fn attribute_expr(input: Span) -> IResult<Span, Node<Expression>> {
+fn attribute_expr(input: Input) -> IResult<Input, Node<Expression>> {
     preceded(char('='), prefix_decorated(sp, cut(expr)))(input)
 }
 
-fn block_body(input: Span) -> IResult<Span, Node<Body>> {
+fn block_body(input: Input) -> IResult<Input, Node<Body>> {
     let single_attribute = map(
         pair(suffix_decorated(ident, sp), attribute_expr),
         |(key, expr)| Structure::Attribute(Attribute { key, expr }),
@@ -43,22 +43,22 @@ fn block_body(input: Span) -> IResult<Span, Node<Body>> {
     )(input)
 }
 
-fn block_labels(input: Span) -> IResult<Span, Vec<Node<BlockLabel>>> {
+fn block_labels(input: Input) -> IResult<Input, Vec<Node<BlockLabel>>> {
     many0(suffix_decorated(block_label, sp))(input)
 }
 
-fn block_parts(input: Span) -> IResult<Span, (Vec<Node<BlockLabel>>, Node<Body>)> {
+fn block_parts(input: Input) -> IResult<Input, (Vec<Node<BlockLabel>>, Node<Body>)> {
     pair(block_labels, block_body)(input)
 }
 
-fn block_label(input: Span) -> IResult<Span, BlockLabel> {
+fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
         map(string, BlockLabel::String),
         map(ident, BlockLabel::Identifier),
     ))(input)
 }
 
-fn structure(input: Span) -> IResult<Span, Structure> {
+fn structure(input: Input) -> IResult<Input, Structure> {
     let (input, ident) = suffix_decorated(ident, sp)(input)?;
     let (input, ch) = peek(anychar)(input)?;
 
@@ -78,7 +78,7 @@ fn structure(input: Span) -> IResult<Span, Structure> {
     }
 }
 
-pub fn body(input: Span) -> IResult<Span, Node<Body>> {
+pub fn body(input: Input) -> IResult<Input, Node<Body>> {
     suffix_decorated(
         map(
             many0(terminated(decorated(ws, structure, spc), line_trailing)),

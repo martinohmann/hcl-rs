@@ -9,7 +9,7 @@ use super::{
     template::{heredoc_template, quoted_string_template},
     ws, ErrorKind, IResult,
 };
-use super::{spanned, with_span, Node, Span};
+use super::{spanned, with_span, Input, Node};
 use crate::Identifier;
 use crate::{
     expr::{BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable},
@@ -26,7 +26,7 @@ use nom::{
 };
 use std::borrow::Cow;
 
-fn array(input: Span) -> IResult<Span, Expression> {
+fn array(input: Input) -> IResult<Input, Expression> {
     delimited(
         char('['),
         alt((
@@ -37,7 +37,7 @@ fn array(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn array_items(input: Span) -> IResult<Span, Vec<Node<Expression>>> {
+fn array_items(input: Input) -> IResult<Input, Vec<Node<Expression>>> {
     alt((
         terminated(
             separated_list1(char(','), decorated(ws, expr, ws)),
@@ -47,7 +47,7 @@ fn array_items(input: Span) -> IResult<Span, Vec<Node<Expression>>> {
     ))(input)
 }
 
-fn for_list_expr(input: Span) -> IResult<Span, ForExpr> {
+fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
             preceded(ws, for_intro),
@@ -66,7 +66,7 @@ fn for_list_expr(input: Span) -> IResult<Span, ForExpr> {
     )(input)
 }
 
-fn object(input: Span) -> IResult<Span, Expression> {
+fn object(input: Input) -> IResult<Input, Expression> {
     delimited(
         char('{'),
         alt((
@@ -77,7 +77,7 @@ fn object(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn object_items(input: Span) -> IResult<Span, Object<Node<ObjectKey>, Node<Expression>>> {
+fn object_items(input: Input) -> IResult<Input, Object<Node<ObjectKey>, Node<Expression>>> {
     alt((
         map(
             many1(terminated(object_item, opt(pair(one_of(",\n"), ws)))),
@@ -87,7 +87,7 @@ fn object_items(input: Span) -> IResult<Span, Object<Node<ObjectKey>, Node<Expre
     ))(input)
 }
 
-fn object_item(input: Span) -> IResult<Span, (Node<ObjectKey>, Node<Expression>)> {
+fn object_item(input: Input) -> IResult<Input, (Node<ObjectKey>, Node<Expression>)> {
     separated_pair(
         decorated(
             ws,
@@ -110,7 +110,7 @@ fn object_item(input: Span) -> IResult<Span, (Node<ObjectKey>, Node<Expression>)
     )(input)
 }
 
-fn for_object_expr(input: Span) -> IResult<Span, ForExpr> {
+fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
             preceded(ws, for_intro),
@@ -140,7 +140,7 @@ struct ForIntro {
     collection_expr: Node<Expression>,
 }
 
-fn for_intro(input: Span) -> IResult<Span, ForIntro> {
+fn for_intro(input: Input) -> IResult<Input, ForIntro> {
     map(
         delimited(
             tag("for"),
@@ -166,15 +166,15 @@ fn for_intro(input: Span) -> IResult<Span, ForIntro> {
     )(input)
 }
 
-fn for_cond_expr(input: Span) -> IResult<Span, Node<Expression>> {
+fn for_cond_expr(input: Input) -> IResult<Input, Node<Expression>> {
     preceded(tag("if"), decorated(ws, cut(expr), ws))(input)
 }
 
-fn parenthesis(input: Span) -> IResult<Span, Node<Expression>> {
+fn parenthesis(input: Input) -> IResult<Input, Node<Expression>> {
     delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')'))(input)
 }
 
-fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Node<&str>)> {
+fn heredoc_start(input: Input) -> IResult<Input, (HeredocStripMode, Node<&str>)> {
     terminated(
         pair(
             alt((
@@ -187,14 +187,14 @@ fn heredoc_start(input: Span) -> IResult<Span, (HeredocStripMode, Node<&str>)> {
     )(input)
 }
 
-fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, ()> {
+fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, ()> {
     value((), pair(space0, tag(delim)))
 }
 
 fn heredoc_content<'a>(
     strip: HeredocStripMode,
     delim: &'a str,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Template> {
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template> {
     map_res(
         recognize(pair(
             many1_count(anychar_except(pair(line_ending, heredoc_end(delim)))),
@@ -206,7 +206,7 @@ fn heredoc_content<'a>(
                 HeredocStripMode::Indent => dedent(*span),
             };
 
-            let input = Span::new(content.as_ref());
+            let input = Input::new(content.as_ref());
 
             match heredoc_template(input) {
                 Ok((_, template)) => Ok(template),
@@ -219,7 +219,7 @@ fn heredoc_content<'a>(
     )
 }
 
-fn heredoc(input: Span) -> IResult<Span, HeredocTemplate> {
+fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     let (input, (strip, delim)) = heredoc_start(input)?;
 
     let (input, template) = terminated(
@@ -240,7 +240,7 @@ fn heredoc(input: Span) -> IResult<Span, HeredocTemplate> {
     ))
 }
 
-fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
+fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
     context(
         "TraversalOperator",
         alt((
@@ -269,7 +269,7 @@ fn traversal_operator(input: Span) -> IResult<Span, TraversalOperator> {
     )(input)
 }
 
-fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
+fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
     map(
         pair(with_span(str_ident), opt(preceded(ws, func_call))),
         |((ident, span), func_call)| match func_call {
@@ -288,7 +288,7 @@ fn ident_or_func_call(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn func_call(input: Span) -> IResult<Span, (Vec<Node<Expression>>, bool)> {
+fn func_call(input: Input) -> IResult<Input, (Vec<Node<Expression>>, bool)> {
     delimited(
         char('('),
         alt((
@@ -305,14 +305,14 @@ fn func_call(input: Span) -> IResult<Span, (Vec<Node<Expression>>, bool)> {
     )(input)
 }
 
-fn unary_operator(input: Span) -> IResult<Span, UnaryOperator> {
+fn unary_operator(input: Input) -> IResult<Input, UnaryOperator> {
     alt((
         value(UnaryOperator::Neg, char('-')),
         value(UnaryOperator::Not, char('!')),
     ))(input)
 }
 
-fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
+fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
     alt((
         value(BinaryOperator::Eq, tag("==")),
         value(BinaryOperator::NotEq, tag("!=")),
@@ -330,7 +330,7 @@ fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
     ))(input)
 }
 
-fn unary_op(input: Span) -> IResult<Span, Expression> {
+fn unary_op(input: Input) -> IResult<Input, Expression> {
     map(
         pair(spanned(unary_operator), prefix_decorated(sp, expr_term)),
         |(operator, expr)| {
@@ -340,7 +340,7 @@ fn unary_op(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-fn expr_term<'a>(input: Span<'a>) -> IResult<Span<'a>, Expression> {
+fn expr_term<'a>(input: Input<'a>) -> IResult<Input<'a>, Expression> {
     let (input, ch) = peek(anychar)(input)?;
 
     match ch {
@@ -366,7 +366,7 @@ fn expr_term<'a>(input: Span<'a>) -> IResult<Span<'a>, Expression> {
     }
 }
 
-pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
+pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
     let traversal = with_span(many1(prefix_decorated(sp, traversal_operator)));
 
     let binary_op = with_span(pair(
@@ -427,6 +427,6 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
     )(input)
 }
 
-pub fn expr(input: Span) -> IResult<Span, Expression> {
+pub fn expr(input: Input) -> IResult<Input, Expression> {
     context("Expression", expr_inner)(input)
 }

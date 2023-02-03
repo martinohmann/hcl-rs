@@ -1,4 +1,4 @@
-use super::Span;
+use super::Input;
 use crate::parser::Location;
 use nom::error::{ContextError, FromExternalError, ParseError};
 use nom::Offset;
@@ -18,7 +18,7 @@ pub enum ErrorKind<T = String> {
     Tag(T),
 }
 
-impl<'a> ErrorKind<Span<'a>> {
+impl<'a> ErrorKind<Input<'a>> {
     fn into_owned(self) -> ErrorKind<String> {
         match self {
             ErrorKind::Nom(kind) => ErrorKind::Nom(kind),
@@ -111,7 +111,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_internal_error<'a>(input: Span<'a>, err: InternalError<Span<'a>>) -> Error {
+    pub(super) fn from_internal_error<'a>(
+        input: Input<'a>,
+        err: InternalError<Input<'a>>,
+    ) -> Error {
         Error::new(ErrorInner::from_internal_error(input, err))
     }
 
@@ -157,7 +160,7 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_internal_error<'a>(input: Span<'a>, err: InternalError<Span<'a>>) -> ErrorInner {
+    fn from_internal_error<'a>(input: Input<'a>, err: InternalError<Input<'a>>) -> ErrorInner {
         let substring = err.input;
         let offset = input.offset(&substring);
         let prefix = &input.as_bytes()[..offset];

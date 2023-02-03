@@ -8,20 +8,22 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Deref, RangeFrom, RangeTo};
 use std::str::FromStr;
 
+pub type Input<'a> = Located<&'a str>;
+
 #[derive(Debug, Clone, Copy)]
-pub struct LocatedSpan<T> {
+pub struct Located<T> {
     initial: T,
     input: T,
 }
 
-impl<T> Deref for LocatedSpan<T> {
+impl<T> Deref for Located<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.input
     }
 }
 
-impl<T, U> AsRef<U> for LocatedSpan<&T>
+impl<T, U> AsRef<U> for Located<&T>
 where
     T: ?Sized + AsRef<U>,
     U: ?Sized,
@@ -31,13 +33,13 @@ where
     }
 }
 
-impl<T> LocatedSpan<T>
+impl<T> Located<T>
 where
     T: Clone + Offset,
 {
-    pub fn new(program: T) -> LocatedSpan<T> {
+    pub fn new(program: T) -> Located<T> {
         let initial = program.clone();
-        LocatedSpan {
+        Located {
             input: program,
             initial,
         }
@@ -48,7 +50,7 @@ where
     }
 }
 
-impl<T> LocatedSpan<T>
+impl<T> Located<T>
 where
     T: Offset,
 {
@@ -57,40 +59,40 @@ where
     }
 }
 
-impl<T: Hash> Hash for LocatedSpan<T> {
+impl<T: Hash> Hash for Located<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.initial.hash(state);
         self.input.hash(state);
     }
 }
 
-impl<T: AsBytes + Clone + Offset> From<T> for LocatedSpan<T> {
+impl<T: AsBytes + Clone + Offset> From<T> for Located<T> {
     fn from(i: T) -> Self {
-        LocatedSpan::new(i)
+        Located::new(i)
     }
 }
 
-impl<T: AsBytes + PartialEq> PartialEq for LocatedSpan<T> {
+impl<T: AsBytes + PartialEq> PartialEq for Located<T> {
     fn eq(&self, other: &Self) -> bool {
         self.initial == other.initial && self.input == other.input
     }
 }
 
-impl<T: AsBytes + Eq> Eq for LocatedSpan<T> {}
+impl<T: AsBytes + Eq> Eq for Located<T> {}
 
-impl<T: AsBytes> AsBytes for LocatedSpan<T> {
+impl<T: AsBytes> AsBytes for Located<T> {
     fn as_bytes(&self) -> &[u8] {
         self.input.as_bytes()
     }
 }
 
-impl<T: InputLength> InputLength for LocatedSpan<T> {
+impl<T: InputLength> InputLength for Located<T> {
     fn input_len(&self) -> usize {
         self.input.input_len()
     }
 }
 
-impl<T> InputTake for LocatedSpan<T>
+impl<T> InputTake for Located<T>
 where
     Self: Slice<RangeFrom<usize>> + Slice<RangeTo<usize>>,
 {
@@ -103,7 +105,7 @@ where
     }
 }
 
-impl<T> InputTakeAtPosition for LocatedSpan<T>
+impl<T> InputTakeAtPosition for Located<T>
 where
     T: InputTakeAtPosition + InputLength + InputIter,
     Self: Slice<RangeFrom<usize>> + Slice<RangeTo<usize>> + Clone,
@@ -170,7 +172,7 @@ where
     }
 }
 
-impl<'a, T> InputIter for LocatedSpan<T>
+impl<'a, T> InputIter for Located<T>
 where
     T: InputIter,
 {
@@ -198,7 +200,7 @@ where
     }
 }
 
-impl<A: Compare<B>, B: Into<LocatedSpan<B>>> Compare<B> for LocatedSpan<A> {
+impl<A: Compare<B>, B: Into<Located<B>>> Compare<B> for Located<A> {
     fn compare(&self, t: B) -> CompareResult {
         self.input.compare(t.into().input)
     }
@@ -208,25 +210,25 @@ impl<A: Compare<B>, B: Into<LocatedSpan<B>>> Compare<B> for LocatedSpan<A> {
     }
 }
 
-impl<'a, T, R> Slice<R> for LocatedSpan<T>
+impl<'a, T, R> Slice<R> for Located<T>
 where
     T: Slice<R> + Offset + Clone,
 {
     fn slice(&self, range: R) -> Self {
-        LocatedSpan {
+        Located {
             initial: self.initial.clone(),
             input: self.input.slice(range),
         }
     }
 }
 
-impl<T: FindToken<Token>, Token> FindToken<Token> for LocatedSpan<T> {
+impl<T: FindToken<Token>, Token> FindToken<Token> for Located<T> {
     fn find_token(&self, token: Token) -> bool {
         self.input.find_token(token)
     }
 }
 
-impl<T, U> FindSubstring<U> for LocatedSpan<T>
+impl<T, U> FindSubstring<U> for Located<T>
 where
     T: FindSubstring<U>,
 {
@@ -235,7 +237,7 @@ where
     }
 }
 
-impl<R: FromStr, T> ParseTo<R> for LocatedSpan<T>
+impl<R: FromStr, T> ParseTo<R> for Located<T>
 where
     T: ParseTo<R>,
 {
@@ -244,19 +246,19 @@ where
     }
 }
 
-impl<T: Offset> Offset for LocatedSpan<T> {
+impl<T: Offset> Offset for Located<T> {
     fn offset(&self, second: &Self) -> usize {
         self.input.offset(&second.input)
     }
 }
 
-impl<T: ToString> fmt::Display for LocatedSpan<T> {
+impl<T: ToString> fmt::Display for Located<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.write_str(&self.input.to_string())
     }
 }
 
-impl<'a, T> ExtendInto for LocatedSpan<T>
+impl<'a, T> ExtendInto for Located<T>
 where
     T: ExtendInto,
 {

@@ -1,14 +1,11 @@
 #![allow(missing_docs)]
 
-use super::span::LocatedSpan;
 use crate::expr::{self, BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable};
 use crate::structure::{self, BlockLabel};
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
 use kstring::KString;
 use std::ops::Range;
-
-pub type Span<'a> = LocatedSpan<&'a str>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InternalString(pub(crate) KString);

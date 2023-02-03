@@ -5,7 +5,7 @@ use super::{
     char_or_cut, decorated, expr::expr, ident, literal, string_fragment, string_literal,
     tag_or_cut, ws, IResult, StringFragment,
 };
-use super::{spanned, Node, Span};
+use super::{spanned, Input, Node};
 use crate::template::StripMode;
 use crate::Identifier;
 use nom::{
@@ -17,9 +17,9 @@ use nom::{
     sequence::{delimited, pair, preceded, terminated, tuple},
 };
 
-fn build_literal<'a, F>(literal: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, String>
+fn build_literal<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, String>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, Span<'a>>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>,
 {
     fold_many1(
         string_fragment(literal),
@@ -34,7 +34,7 @@ where
     )
 }
 
-fn interpolation(input: Span) -> IResult<Span, Interpolation> {
+fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     map(
         template_tag("${", decorated(ws, cut(expr), ws)),
         |(expr, strip)| Interpolation { expr, strip },
@@ -44,9 +44,9 @@ fn interpolation(input: Span) -> IResult<Span, Interpolation> {
 fn template_tag<'a, F, O>(
     start_tag: &'a str,
     inner: F,
-) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, (O, StripMode)>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O, StripMode)>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, O>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
 {
     map(
         tuple((
@@ -60,7 +60,7 @@ where
     )
 }
 
-fn if_directive(input: Span) -> IResult<Span, IfDirective> {
+fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     struct IfExpr {
         cond_expr: Node<Expression>,
         template: Node<Template>,
@@ -121,7 +121,7 @@ fn if_directive(input: Span) -> IResult<Span, IfDirective> {
     )(input)
 }
 
-fn for_directive(input: Span) -> IResult<Span, ForDirective> {
+fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     struct ForExpr {
         key_var: Option<Node<Identifier>>,
         value_var: Node<Identifier>,
@@ -174,16 +174,16 @@ fn for_directive(input: Span) -> IResult<Span, ForDirective> {
     })(input)
 }
 
-fn directive(input: Span) -> IResult<Span, Directive> {
+fn directive(input: Input) -> IResult<Input, Directive> {
     alt((
         map(if_directive, Directive::If),
         map(for_directive, Directive::For),
     ))(input)
 }
 
-fn build_template<'a, F>(literal: F) -> impl FnMut(Span<'a>) -> IResult<Span<'a>, Template>
+fn build_template<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template>
 where
-    F: FnMut(Span<'a>) -> IResult<Span<'a>, String>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, String>,
 {
     map(
         many0(spanned(alt((
@@ -195,7 +195,7 @@ where
     )
 }
 
-pub fn quoted_string_template(input: Span) -> IResult<Span, Template> {
+pub fn quoted_string_template(input: Input) -> IResult<Input, Template> {
     delimited(
         char('"'),
         build_template(build_literal(string_literal)),
@@ -203,13 +203,13 @@ pub fn quoted_string_template(input: Span) -> IResult<Span, Template> {
     )(input)
 }
 
-pub fn heredoc_template(input: Span) -> IResult<Span, Template> {
-    build_template(map(literal(alt((tag("${"), tag("%{")))), |s: Span| {
+pub fn heredoc_template(input: Input) -> IResult<Input, Template> {
+    build_template(map(literal(alt((tag("${"), tag("%{")))), |s: Input| {
         s.input().to_string()
     }))(input)
 }
 
-pub fn template(input: Span) -> IResult<Span, Template> {
+pub fn template(input: Input) -> IResult<Input, Template> {
     build_template(build_literal(literal(alt((
         tag("\\"),
         tag("${"),
