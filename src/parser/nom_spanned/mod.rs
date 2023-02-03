@@ -17,8 +17,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while_m_n},
     character::complete::{
-        alpha1, alphanumeric1, anychar, char, digit1, line_ending, multispace0, not_line_ending,
-        one_of, space0,
+        alpha1, alphanumeric1, anychar, char, digit1, multispace0, not_line_ending, one_of, space0,
     },
     combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value, verify},
     error::context,
@@ -120,10 +119,7 @@ fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Span<'a>) -> IResult<Span<'a>, &'a st
 }
 
 fn line_comment(input: Span) -> IResult<Span, ()> {
-    value(
-        (),
-        tuple((alt((tag("#"), tag("//"))), not_line_ending, line_ending)),
-    )(input)
+    value((), pair(alt((tag("#"), tag("//"))), not_line_ending))(input)
 }
 
 fn inline_comment(input: Span) -> IResult<Span, ()> {
@@ -136,6 +132,10 @@ fn comment(input: Span) -> IResult<Span, ()> {
 
 fn sp(input: Span) -> IResult<Span, ()> {
     value((), pair(space0, many0_count(pair(inline_comment, space0))))(input)
+}
+
+fn spc(input: Span) -> IResult<Span, ()> {
+    value((), pair(space0, many0_count(pair(comment, space0))))(input)
 }
 
 fn ws(input: Span) -> IResult<Span, ()> {

@@ -1,6 +1,6 @@
 use super::ast::{Attribute, Block, Body, Expression, Structure};
 use super::{
-    char_or_cut, decorated, expr::expr, ident, line_comment, prefix_decorated, sp, spanned, string,
+    char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, spanned, spc, string,
     suffix_decorated, ws, IResult, Node, Span,
 };
 use crate::structure::BlockLabel;
@@ -13,10 +13,7 @@ use nom::{
 };
 
 fn line_trailing(input: Span) -> IResult<Span, ()> {
-    preceded(
-        sp,
-        alt((value((), line_ending), value((), eof), line_comment)),
-    )(input)
+    value((), alt((line_ending, eof)))(input)
 }
 
 fn attribute_expr(input: Span) -> IResult<Span, Node<Expression>> {
@@ -33,7 +30,7 @@ fn block_body(input: Span) -> IResult<Span, Node<Body>> {
         char_or_cut('{'),
         alt((
             // Multiline block.
-            preceded(line_trailing, body),
+            preceded(pair(sp, line_trailing), body),
             // One-line block.
             spanned(map(
                 opt(decorated(sp, cut(single_attribute), sp)),
@@ -84,7 +81,7 @@ fn structure(input: Span) -> IResult<Span, Structure> {
 pub fn body(input: Span) -> IResult<Span, Node<Body>> {
     suffix_decorated(
         map(
-            many0(prefix_decorated(ws, terminated(structure, line_trailing))),
+            many0(terminated(decorated(ws, structure, spc), line_trailing)),
             |structures| Body { structures },
         ),
         ws,
