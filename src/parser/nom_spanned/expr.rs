@@ -330,6 +330,16 @@ fn binary_operator(input: Span) -> IResult<Span, BinaryOperator> {
     ))(input)
 }
 
+fn unary_op(input: Span) -> IResult<Span, Expression> {
+    map(
+        pair(spanned(unary_operator), prefix_decorated(sp, expr_term)),
+        |(operator, expr)| {
+            let op = UnaryOp { operator, expr };
+            Expression::Operation(Box::new(Operation::Unary(op)))
+        },
+    )(input)
+}
+
 fn expr_term<'a>(input: Span<'a>) -> IResult<Span<'a>, Expression> {
     let (input, ch) = peek(anychar)(input)?;
 
@@ -344,19 +354,24 @@ fn expr_term<'a>(input: Span<'a>) -> IResult<Span<'a>, Expression> {
         '<' => map(heredoc, |heredoc| {
             Expression::HeredocTemplate(Box::new(heredoc))
         })(input),
+        '-' => alt((
+            map(preceded(pair(char('-'), sp), number), |n| {
+                Expression::Number(-n)
+            }),
+            unary_op,
+        ))(input),
+        '!' => unary_op(input),
         '(' => map(parenthesis, |expr| Expression::Parenthesis(Box::new(expr)))(input),
         _ => alt((ident_or_func_call, fail))(input),
     }
 }
 
 pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
-    let unary_op = with_span(terminated(unary_operator, ws));
-
-    let traversal = with_span(many1(prefix_decorated(ws, traversal_operator)));
+    let traversal = with_span(many1(prefix_decorated(sp, traversal_operator)));
 
     let binary_op = with_span(pair(
-        prefix_decorated(ws, binary_operator),
-        prefix_decorated(ws, cut(expr)),
+        prefix_decorated(sp, binary_operator),
+        prefix_decorated(sp, cut(expr)),
     ));
 
     let conditional = pair(
@@ -366,35 +381,14 @@ pub fn expr_inner(input: Span) -> IResult<Span, Expression> {
 
     map(
         tuple((
-            opt(unary_op),
             with_span(expr_term),
             opt(traversal),
             opt(binary_op),
             opt(conditional),
         )),
-        |(unary_op, (expr, span), traversal, binary_op, conditional)| {
+        |((expr, span), traversal, binary_op, conditional)| {
             let start = span.start;
             let end = span.end;
-
-            let (expr, start) = match unary_op {
-                Some((operator, span)) => match (&operator, &expr) {
-                    (UnaryOperator::Neg, Expression::Number(_)) => match (operator, expr) {
-                        (UnaryOperator::Neg, Expression::Number(num)) => {
-                            (Expression::Number(-num), span.start)
-                        }
-                        _ => unreachable!(),
-                    },
-                    _ => {
-                        let expr = Expression::Operation(Box::new(Operation::Unary(UnaryOp {
-                            operator: Node::new(operator, span.start..span.end),
-                            expr: Node::new(expr, start..end),
-                        })));
-
-                        (expr, span.start)
-                    }
-                },
-                None => (expr, start),
-            };
 
             let (expr, end) = match traversal {
                 Some((operators, span)) => {
