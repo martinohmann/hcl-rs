@@ -196,17 +196,20 @@ fn heredoc_content<'a>(
     delim: &'a str,
 ) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template> {
     map_res(
-        recognize(pair(
-            many1_count(anychar_except(pair(line_ending, heredoc_end(delim)))),
-            line_ending,
-        )),
-        move |span| {
+        map_res(
+            recognize(pair(
+                many1_count(anychar_except(pair(line_ending, heredoc_end(delim)))),
+                line_ending,
+            )),
+            |s| std::str::from_utf8(s.input()),
+        ),
+        move |input| {
             let content = match strip {
-                HeredocStripMode::None => Cow::Borrowed(*span),
-                HeredocStripMode::Indent => dedent(*span),
+                HeredocStripMode::None => Cow::Borrowed(input),
+                HeredocStripMode::Indent => dedent(input),
             };
 
-            let input = Input::new(content.as_ref());
+            let input = Input::new(content.as_bytes());
 
             match heredoc_template(input) {
                 Ok((_, template)) => Ok(template),
@@ -297,7 +300,7 @@ fn func_call(input: Input) -> IResult<Input, (Vec<Node<Expression>>, bool)> {
                     separated_list1(char(','), decorated(ws, expr, ws)),
                     opt(terminated(alt((tag(","), tag("..."))), ws)),
                 ),
-                |(args, trailer)| (args, trailer.as_deref() == Some(&"...")),
+                |(args, trailer)| (args, trailer.as_deref() == Some(&&b"..."[..])),
             ),
             map(ws, |_| (Vec::new(), false)),
         )),

@@ -24,7 +24,7 @@ use nom::{
     error::context,
     multi::{fold_many0, many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
-    Compare, CompareResult, Finish, InputLength, InputTake, Parser, Slice,
+    AsChar, Compare, CompareResult, Finish, InputIter, InputLength, InputTake, Parser, Slice,
 };
 use std::ops::Range;
 use std::str::FromStr;
@@ -85,7 +85,7 @@ fn parse_to_end<'a, F, O>(input: &'a str, parser: F) -> ParseResult<O>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
 {
-    let input = Input::new(input);
+    let input = Input::new(input.as_bytes());
     all_consuming(parser)
         .parse(input)
         .finish()
@@ -93,27 +93,41 @@ where
         .map_err(|err| Error::from_internal_error(input, err))
 }
 
-fn char_or_cut<'a>(ch: char) -> impl Fn(Input<'a>) -> IResult<Input<'a>, char> {
-    move |input: Input<'a>| match input.chars().next().map(|t| t == ch) {
-        Some(true) => Ok((input.slice(ch.len_utf8()..), ch)),
+pub(crate) unsafe fn from_utf8_unchecked<'b>(
+    bytes: &'b [u8],
+    safety_justification: &'static str,
+) -> &'b str {
+    if cfg!(debug_assertions) {
+        std::str::from_utf8(bytes).expect(safety_justification)
+    } else {
+        std::str::from_utf8_unchecked(bytes)
+    }
+}
+
+fn char_or_cut(c: char) -> impl Fn(Input) -> IResult<Input, char> {
+    move |input: Input| match input.iter_elements().next().map(|t| {
+        let b = t.as_char() == c;
+        (&c, b)
+    }) {
+        Some((c, true)) => Ok((input.slice(c.len()..), c.as_char())),
         _ => Err(nom::Err::Failure(InternalError::new(
             input,
-            ErrorKind::Char(ch),
+            ErrorKind::Char(c),
         ))),
     }
 }
 
-fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Input<'a>) -> IResult<Input<'a>, &'a str> {
+fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Input<'a>) -> IResult<Input<'a>, Input<'a>> {
     move |input: Input<'a>| {
         let tag_len = tag.input_len();
         match input.compare(tag) {
             CompareResult::Ok => {
                 let (input, tag) = input.take_split(tag_len);
-                Ok((input, *tag))
+                Ok((input, tag))
             }
             _ => Err(nom::Err::Failure(InternalError::new(
                 input,
-                ErrorKind::Tag(Input::new(tag)),
+                ErrorKind::Tag(Input::new(tag.as_bytes())),
             ))),
         }
     }
@@ -260,10 +274,17 @@ where
 
 fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
     let parse_hex = verify(
-        take_while_m_n(1, N, |c: char| c.is_ascii_hexdigit()),
+        take_while_m_n(1, N, |c: u8| c.is_ascii_hexdigit()),
         |hex: &Input| hex.len() == N,
     );
-    let parse_u32 = map_res(parse_hex, |hex: Input| u32::from_str_radix(hex.input(), 16));
+    let parse_u32 = map_res(parse_hex, |hex: Input| {
+        u32::from_str_radix(
+            unsafe {
+                from_utf8_unchecked(hex.input(), "`is_ascii_hexdigit` filters out non-ascii")
+            },
+            16,
+        )
+    });
 
     map_opt(parse_u32, std::char::from_u32)(input)
 }
@@ -289,19 +310,22 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
 
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
-fn string_literal(input: Input) -> IResult<Input, Input> {
+fn string_literal<'a>(input: Input<'a>) -> IResult<Input<'a>, &'a str> {
     literal(alt((recognize(one_of("\"\\")), tag("${"), tag("%{"))))(input)
 }
 
-fn literal<'a, F>(literal_end: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>
+fn literal<'a, F>(literal_end: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, &'a str>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>,
 {
-    recognize(many1_count(alt((
-        tag("$${"),
-        tag("%%{"),
-        anychar_except(literal_end),
-    ))))
+    map_res(
+        recognize(many1_count(alt((
+            tag("$${"),
+            tag("%%{"),
+            anychar_except(literal_end),
+        )))),
+        |s| std::str::from_utf8(s.input()),
+    )
 }
 
 /// A string fragment contains a fragment of a string being parsed: either
@@ -317,10 +341,10 @@ fn string_fragment<'a, F>(
     literal: F,
 ) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>
 where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, &'a str>,
 {
     alt((
-        map(literal, |s| StringFragment::Literal(*s)),
+        map(literal, StringFragment::Literal),
         map(escaped_char, StringFragment::EscapedChar),
     ))
 }
@@ -349,7 +373,12 @@ fn str_ident(input: Input) -> IResult<Input, &str> {
                 alt((alpha1, tag("_"))),
                 many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
             )),
-            |s: Input| *s,
+            |s: Input| unsafe {
+                from_utf8_unchecked(
+                    s.input(),
+                    "`alpha1` and `alphanumeric1` filter out non-ascii",
+                )
+            },
         ),
     )(input)
 }
@@ -370,12 +399,18 @@ fn float(input: Input) -> IResult<Input, f64> {
             digit1,
             alt((terminated(fraction, opt(exponent)), exponent)),
         )),
-        |s: Input| f64::from_str(s.input()),
+        |s: Input| {
+            f64::from_str(unsafe {
+                from_utf8_unchecked(s.input(), "`digit1` and `exponent` filter out non-ascii")
+            })
+        },
     )(input)
 }
 
 fn integer(input: Input) -> IResult<Input, u64> {
-    map_res(digit1, |s: Input| u64::from_str(s.input()))(input)
+    map_res(digit1, |s: Input| {
+        u64::from_str(unsafe { from_utf8_unchecked(s.input(), "`digit1` filters out non-ascii") })
+    })(input)
 }
 
 fn number(input: Input) -> IResult<Input, Number> {

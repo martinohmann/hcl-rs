@@ -8,7 +8,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::{Deref, RangeFrom, RangeTo};
 use std::str::FromStr;
 
-pub type Input<'a> = Located<&'a str>;
+pub type Input<'a> = Located<&'a [u8]>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Located<T> {

@@ -19,7 +19,7 @@ use nom::{
 
 fn build_literal<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, String>
 where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, &'a str>,
 {
     fold_many1(
         string_fragment(literal),
@@ -204,9 +204,7 @@ pub fn quoted_string_template(input: Input) -> IResult<Input, Template> {
 }
 
 pub fn heredoc_template(input: Input) -> IResult<Input, Template> {
-    build_template(map(literal(alt((tag("${"), tag("%{")))), |s: Input| {
-        s.input().to_string()
-    }))(input)
+    build_template(map(literal(alt((tag("${"), tag("%{")))), |s| s.to_string()))(input)
 }
 
 pub fn template(input: Input) -> IResult<Input, Template> {

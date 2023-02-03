@@ -24,7 +24,7 @@ impl<'a> ErrorKind<Input<'a>> {
             ErrorKind::Nom(kind) => ErrorKind::Nom(kind),
             ErrorKind::Context(ctx) => ErrorKind::Context(ctx),
             ErrorKind::Char(ch) => ErrorKind::Char(ch),
-            ErrorKind::Tag(tag) => ErrorKind::Tag(tag.input().to_string()),
+            ErrorKind::Tag(tag) => ErrorKind::Tag(String::from_utf8_lossy(tag.input()).to_string()),
         }
     }
 }
@@ -163,7 +163,7 @@ impl ErrorInner {
     fn from_internal_error<'a>(input: Input<'a>, err: InternalError<Input<'a>>) -> ErrorInner {
         let substring = err.input;
         let offset = input.offset(&substring);
-        let prefix = &input.as_bytes()[..offset];
+        let prefix = &input[..offset];
 
         // Find the line that includes the subslice:
         // Find the *last* newline before the substring starts
@@ -175,10 +175,11 @@ impl ErrorInner {
 
         // Find the full line after that newline
         let line = input[line_begin..]
-            .lines()
-            .next()
-            .unwrap_or(&input[line_begin..])
-            .trim_end();
+            .iter()
+            .position(|&b| b == b'\n')
+            .map_or(&input[line_begin..], |pos| {
+                &input[line_begin..line_begin + pos]
+            });
 
         // Count the number of newlines in the first `offset` bytes of input
         let line_number = prefix.iter().filter(|&&b| b == b'\n').count() + 1;
@@ -187,7 +188,7 @@ impl ErrorInner {
         let column_number = line.offset(&substring) + 1;
 
         ErrorInner {
-            line: line.to_owned(),
+            line: String::from_utf8_lossy(line).to_string(),
             kind: err.kind.into_owned(),
             offset,
             location: Location {
