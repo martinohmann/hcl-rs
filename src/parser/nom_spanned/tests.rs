@@ -49,22 +49,22 @@ fn parse_conditional() {
     assert_eq!(
         parse_to_end("var.enabled ? 1 : 0", expr),
         Ok(Expression::Conditional(Box::new(Conditional {
-            cond_expr: Node::new(
+            cond_expr: Spanned::new(
                 Expression::Traversal(Box::new(Traversal {
-                    expr: Node::new(Expression::Variable(Variable::unchecked("var")), 0..3),
-                    operators: vec![Node::new(
+                    expr: Spanned::new(Expression::Variable(Variable::unchecked("var")), 0..3),
+                    operators: vec![Spanned::new(
                         TraversalOperator::GetAttr(Identifier::unchecked("enabled")),
                         3..11,
                     )]
                 })),
                 0..11
             ),
-            true_expr: Node::new_with_decor(
+            true_expr: Spanned::new_with_decor(
                 Expression::Number(1.into()),
                 14..15,
                 Decor::from_prefix(13..14)
             ),
-            false_expr: Node::new_with_decor(
+            false_expr: Spanned::new_with_decor(
                 Expression::Number(0.into()),
                 18..19,
                 Decor::from_prefix(17..18)
@@ -78,9 +78,9 @@ fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
         Ok(Expression::Array(vec![
-            Node::new(Expression::String("bar".into()), 1..6),
-            Node::new_with_decor(
-                Expression::Array(vec![Node::new(Expression::String("baz".into()), 9..14)]),
+            Spanned::new(Expression::String("bar".into()), 1..6),
+            Spanned::new_with_decor(
+                Expression::Array(vec![Spanned::new(Expression::String("baz".into()), 9..14)]),
                 8..15,
                 Decor::from_prefix(7..8),
             ),
@@ -93,8 +93,8 @@ fn parse_object() {
     assert_eq!(
         parse_to_end(r#"{"bar" = "baz","qux" = ident }"#, expr),
         Ok(Expression::Object(vecmap! {
-            Node::new_with_decor(ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)) => Node::new_with_decor(Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)),
-            Node::new_with_decor(ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)) => Node::new_with_decor(Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)),
+            Spanned::new_with_decor(ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)) => Spanned::new_with_decor(Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)),
+            Spanned::new_with_decor(ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)) => Spanned::new_with_decor(Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)),
         }),)
     );
 }
@@ -104,8 +104,8 @@ fn parse_heredoc() {
     assert_eq!(
         parse_to_end("<<HEREDOC\nHEREDOC", expr),
         Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate {
-            delimiter: Node::new(Identifier::unchecked("HEREDOC"), 2..9),
-            template: Node::new(Template::default(), 10..10),
+            delimiter: Spanned::new(Identifier::unchecked("HEREDOC"), 2..9),
+            template: Spanned::new(Template::default(), 10..10),
             strip: HeredocStripMode::None,
         })))
     );
@@ -119,13 +119,13 @@ fn parse_heredoc() {
             expr
         ),
         Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate {
-            delimiter: Node::new(Identifier::unchecked("HEREDOC"), 2..9),
-            template: Node::new(
+            delimiter: Spanned::new(Identifier::unchecked("HEREDOC"), 2..9),
+            template: Spanned::new(
                 Template {
                     elements: vec![
-                        Node::new(
+                        Spanned::new(
                             Element::Interpolation(Interpolation {
-                                expr: Node::new(
+                                expr: Spanned::new(
                                     Expression::Variable(Variable::unchecked("foo")),
                                     2..5
                                 ),
@@ -133,7 +133,7 @@ fn parse_heredoc() {
                             }),
                             0..6
                         ),
-                        Node::new(Element::Literal("bar\n".into()), 6..10),
+                        Spanned::new(Element::Literal("bar\n".into()), 6..10),
                     ]
                 },
                 10..20

@@ -73,7 +73,7 @@ pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
 }
 
 #[allow(missing_docs)]
-pub fn parse_raw(input: &str) -> ParseResult<Node<Body>> {
+pub fn parse_raw(input: &str) -> ParseResult<Spanned<Body>> {
     parse_to_end(input, body)
 }
 
@@ -160,11 +160,11 @@ fn ws(input: Input) -> IResult<Input, ()> {
     )(input)
 }
 
-fn spanned<'a, F, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<T>>
+fn spanned<'a, F, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Spanned<T>>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, T>,
 {
-    map(with_span(inner), |(value, span)| Node::new(value, span))
+    map(with_span(inner), |(value, span)| Spanned::new(value, span))
 }
 
 fn with_span<'a, F, O>(
@@ -206,7 +206,7 @@ where
 fn prefix_decorated<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<O2>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Spanned<O2>>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
@@ -220,7 +220,7 @@ where
                 Decor::from_prefix(prefix_span)
             };
 
-            Node::new_with_decor(value, span, decor)
+            Spanned::new_with_decor(value, span, decor)
         },
     )
 }
@@ -228,7 +228,7 @@ where
 fn suffix_decorated<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<O1>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Spanned<O1>>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
@@ -242,7 +242,7 @@ where
                 Decor::from_suffix(suffix_span)
             };
 
-            Node::new_with_decor(value, span, decor)
+            Spanned::new_with_decor(value, span, decor)
         },
     )
 }
@@ -251,7 +251,7 @@ fn decorated<'a, F, G, H, O1, O2, O3>(
     prefix: F,
     inner: G,
     suffix: H,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Node<O2>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Spanned<O2>>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
@@ -267,7 +267,7 @@ where
                 (true, true) => Decor::default(),
             };
 
-            Node::new_with_decor(value, span, decor)
+            Spanned::new_with_decor(value, span, decor)
         },
     )
 }

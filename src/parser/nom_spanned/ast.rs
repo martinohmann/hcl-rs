@@ -88,26 +88,26 @@ impl Decor {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Node<T> {
+pub struct Spanned<T> {
     value: T,
     span: Range<usize>,
     decor: Decor,
 }
 
-impl<T> Node<T> {
-    pub fn new(value: T, span: Range<usize>) -> Node<T> {
-        Node::new_with_decor(value, span, Decor::default())
+impl<T> Spanned<T> {
+    pub fn new(value: T, span: Range<usize>) -> Spanned<T> {
+        Spanned::new_with_decor(value, span, Decor::default())
     }
 
-    pub fn new_with_decor(value: T, span: Range<usize>, decor: Decor) -> Node<T> {
-        Node { value, span, decor }
+    pub fn new_with_decor(value: T, span: Range<usize>, decor: Decor) -> Spanned<T> {
+        Spanned { value, span, decor }
     }
 
-    pub fn map_value<F, U>(self, f: F) -> Node<U>
+    pub fn map_value<F, U>(self, f: F) -> Spanned<U>
     where
         F: FnOnce(T) -> U,
     {
-        Node {
+        Spanned {
             value: f(self.value),
             span: self.span,
             decor: self.decor,
@@ -133,11 +133,11 @@ pub enum Expression {
     Bool(bool),
     Number(Number),
     String(String),
-    Array(Vec<Node<Expression>>),
-    Object(Object<Node<ObjectKey>, Node<Expression>>),
+    Array(Vec<Spanned<Expression>>),
+    Object(Object<Spanned<ObjectKey>, Spanned<Expression>>),
     Template(Template),
     HeredocTemplate(Box<HeredocTemplate>),
-    Parenthesis(Box<Node<Expression>>),
+    Parenthesis(Box<Spanned<Expression>>),
     Variable(Variable),
     Conditional(Box<Conditional>),
     FuncCall(Box<FuncCall>),
@@ -200,8 +200,8 @@ impl From<ObjectKey> for expr::ObjectKey {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
-    pub delimiter: Node<Identifier>,
-    pub template: Node<Template>,
+    pub delimiter: Spanned<Identifier>,
+    pub template: Spanned<Template>,
     pub strip: HeredocStripMode,
 }
 
@@ -217,9 +217,9 @@ impl From<HeredocTemplate> for expr::Heredoc {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Conditional {
-    pub cond_expr: Node<Expression>,
-    pub true_expr: Node<Expression>,
-    pub false_expr: Node<Expression>,
+    pub cond_expr: Spanned<Expression>,
+    pub true_expr: Spanned<Expression>,
+    pub false_expr: Spanned<Expression>,
 }
 
 impl From<Conditional> for expr::Conditional {
@@ -234,8 +234,8 @@ impl From<Conditional> for expr::Conditional {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
-    pub name: Node<Identifier>,
-    pub args: Vec<Node<Expression>>,
+    pub name: Spanned<Identifier>,
+    pub args: Vec<Spanned<Expression>>,
     pub expand_final: bool,
 }
 
@@ -255,8 +255,8 @@ impl From<FuncCall> for expr::FuncCall {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Traversal {
-    pub expr: Node<Expression>,
-    pub operators: Vec<Node<TraversalOperator>>,
+    pub expr: Spanned<Expression>,
+    pub operators: Vec<Spanned<TraversalOperator>>,
 }
 
 impl From<Traversal> for expr::Traversal {
@@ -310,8 +310,8 @@ impl From<Operation> for expr::Operation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnaryOp {
-    pub operator: Node<UnaryOperator>,
-    pub expr: Node<Expression>,
+    pub operator: Spanned<UnaryOperator>,
+    pub expr: Spanned<Expression>,
 }
 
 impl From<UnaryOp> for expr::UnaryOp {
@@ -325,9 +325,9 @@ impl From<UnaryOp> for expr::UnaryOp {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryOp {
-    pub lhs_expr: Node<Expression>,
-    pub operator: Node<BinaryOperator>,
-    pub rhs_expr: Node<Expression>,
+    pub lhs_expr: Spanned<Expression>,
+    pub operator: Spanned<BinaryOperator>,
+    pub rhs_expr: Spanned<Expression>,
 }
 
 impl From<BinaryOp> for expr::BinaryOp {
@@ -342,13 +342,13 @@ impl From<BinaryOp> for expr::BinaryOp {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForExpr {
-    pub key_var: Option<Node<Identifier>>,
-    pub value_var: Node<Identifier>,
-    pub collection_expr: Node<Expression>,
-    pub key_expr: Option<Node<Expression>>,
-    pub value_expr: Node<Expression>,
+    pub key_var: Option<Spanned<Identifier>>,
+    pub value_var: Spanned<Identifier>,
+    pub collection_expr: Spanned<Expression>,
+    pub key_expr: Option<Spanned<Expression>>,
+    pub value_expr: Spanned<Expression>,
     pub grouping: bool,
-    pub cond_expr: Option<Node<Expression>>,
+    pub cond_expr: Option<Spanned<Expression>>,
 }
 
 impl From<ForExpr> for expr::ForExpr {
@@ -367,12 +367,12 @@ impl From<ForExpr> for expr::ForExpr {
 
 #[derive(Debug, Clone, Default)]
 pub struct Body {
-    pub structures: Vec<Node<Structure>>,
+    pub structures: Vec<Spanned<Structure>>,
 }
 
 impl From<Body> for structure::Body {
     fn from(body: Body) -> Self {
-        structure::Body::from_iter(body.structures.into_iter().map(Node::into_value))
+        structure::Body::from_iter(body.structures.into_iter().map(Spanned::into_value))
     }
 }
 
@@ -393,8 +393,8 @@ impl From<Structure> for structure::Structure {
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
-    pub key: Node<Identifier>,
-    pub expr: Node<Expression>,
+    pub key: Spanned<Identifier>,
+    pub expr: Spanned<Expression>,
 }
 
 impl From<Attribute> for structure::Attribute {
@@ -408,16 +408,16 @@ impl From<Attribute> for structure::Attribute {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub identifier: Node<Identifier>,
-    pub labels: Vec<Node<BlockLabel>>,
-    pub body: Node<Body>,
+    pub identifier: Spanned<Identifier>,
+    pub labels: Vec<Spanned<BlockLabel>>,
+    pub body: Spanned<Body>,
 }
 
 impl From<Block> for structure::Block {
     fn from(block: Block) -> Self {
         structure::Block {
             identifier: block.identifier.into_value(),
-            labels: block.labels.into_iter().map(Node::into_value).collect(),
+            labels: block.labels.into_iter().map(Spanned::into_value).collect(),
             body: block.body.into_value().into(),
         }
     }
@@ -425,7 +425,7 @@ impl From<Block> for structure::Block {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
-    pub elements: Vec<Node<Element>>,
+    pub elements: Vec<Spanned<Element>>,
 }
 
 impl From<Template> for template::Template {
@@ -464,7 +464,7 @@ impl From<Element> for template::Element {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Interpolation {
-    pub expr: Node<Expression>,
+    pub expr: Spanned<Expression>,
     pub strip: StripMode,
 }
 
@@ -494,9 +494,9 @@ impl From<Directive> for template::Directive {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
-    pub cond_expr: Node<Expression>,
-    pub true_template: Node<Template>,
-    pub false_template: Option<Node<Template>>,
+    pub cond_expr: Spanned<Expression>,
+    pub true_template: Spanned<Template>,
+    pub false_template: Option<Spanned<Template>>,
     pub if_strip: StripMode,
     pub else_strip: StripMode,
     pub endif_strip: StripMode,
@@ -519,10 +519,10 @@ impl From<IfDirective> for template::IfDirective {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForDirective {
-    pub key_var: Option<Node<Identifier>>,
-    pub value_var: Node<Identifier>,
-    pub collection_expr: Node<Expression>,
-    pub template: Node<Template>,
+    pub key_var: Option<Spanned<Identifier>>,
+    pub value_var: Spanned<Identifier>,
+    pub collection_expr: Spanned<Expression>,
+    pub template: Spanned<Template>,
     pub for_strip: StripMode,
     pub endfor_strip: StripMode,
 }

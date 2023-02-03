@@ -1,7 +1,7 @@
 use super::ast::{Attribute, Block, Body, Expression, Structure};
 use super::{
     char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, spanned, spc, string,
-    suffix_decorated, ws, IResult, Input, Node,
+    suffix_decorated, ws, IResult, Input, Spanned,
 };
 use crate::structure::BlockLabel;
 use nom::{
@@ -16,11 +16,11 @@ fn line_trailing(input: Input) -> IResult<Input, ()> {
     value((), alt((line_ending, eof)))(input)
 }
 
-fn attribute_expr(input: Input) -> IResult<Input, Node<Expression>> {
+fn attribute_expr(input: Input) -> IResult<Input, Spanned<Expression>> {
     preceded(char('='), prefix_decorated(sp, cut(expr)))(input)
 }
 
-fn block_body(input: Input) -> IResult<Input, Node<Body>> {
+fn block_body(input: Input) -> IResult<Input, Spanned<Body>> {
     let single_attribute = map(
         pair(suffix_decorated(ident, sp), attribute_expr),
         |(key, expr)| Structure::Attribute(Attribute { key, expr }),
@@ -43,11 +43,11 @@ fn block_body(input: Input) -> IResult<Input, Node<Body>> {
     )(input)
 }
 
-fn block_labels(input: Input) -> IResult<Input, Vec<Node<BlockLabel>>> {
+fn block_labels(input: Input) -> IResult<Input, Vec<Spanned<BlockLabel>>> {
     many0(suffix_decorated(block_label, sp))(input)
 }
 
-fn block_parts(input: Input) -> IResult<Input, (Vec<Node<BlockLabel>>, Node<Body>)> {
+fn block_parts(input: Input) -> IResult<Input, (Vec<Spanned<BlockLabel>>, Spanned<Body>)> {
     pair(block_labels, block_body)(input)
 }
 
@@ -78,7 +78,7 @@ fn structure(input: Input) -> IResult<Input, Structure> {
     }
 }
 
-pub fn body(input: Input) -> IResult<Input, Node<Body>> {
+pub fn body(input: Input) -> IResult<Input, Spanned<Body>> {
     suffix_decorated(
         map(
             many0(terminated(decorated(ws, structure, spc), line_trailing)),

@@ -5,7 +5,7 @@ use super::{
     char_or_cut, decorated, expr::expr, ident, literal, string_fragment, string_literal,
     tag_or_cut, ws, IResult, StringFragment,
 };
-use super::{spanned, Input, Node};
+use super::{spanned, Input, Spanned};
 use crate::template::StripMode;
 use crate::Identifier;
 use nom::{
@@ -62,14 +62,14 @@ where
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     struct IfExpr {
-        cond_expr: Node<Expression>,
-        template: Node<Template>,
+        cond_expr: Spanned<Expression>,
+        template: Spanned<Template>,
         strip: StripMode,
     }
 
     #[derive(Default)]
     struct ElseExpr {
-        template: Option<Node<Template>>,
+        template: Option<Spanned<Template>>,
         strip: StripMode,
     }
 
@@ -123,10 +123,10 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
 
 fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     struct ForExpr {
-        key_var: Option<Node<Identifier>>,
-        value_var: Node<Identifier>,
-        collection_expr: Node<Expression>,
-        template: Node<Template>,
+        key_var: Option<Spanned<Identifier>>,
+        value_var: Spanned<Identifier>,
+        collection_expr: Spanned<Expression>,
+        template: Spanned<Template>,
         strip: StripMode,
     }
 
