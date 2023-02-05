@@ -1,6 +1,6 @@
 use super::ast::{Attribute, Block, Body, Expression, Structure};
 use super::{
-    char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, spanned, spc, string,
+    char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, span, spanned, spc, string,
     suffix_decorated, ws, Formatted, IResult, Input,
 };
 use crate::structure::BlockLabel;
@@ -30,7 +30,13 @@ fn block_body(input: Input) -> IResult<Input, Formatted<Body>> {
         char_or_cut('{'),
         alt((
             // Multiline block.
-            preceded(pair(sp, line_trailing), body),
+            map(
+                pair(terminated(span(spc), line_trailing), body),
+                |(prefix_span, mut body)| {
+                    body.decor_mut().set_prefix(prefix_span);
+                    body
+                },
+            ),
             // One-line block.
             spanned(map(
                 opt(decorated(sp, cut(single_attribute), sp)),

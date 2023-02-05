@@ -190,6 +190,14 @@ impl<T> Formatted<T> {
         self.value
     }
 
+    pub fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+
     pub fn value(&self) -> &T {
         &self.value
     }
