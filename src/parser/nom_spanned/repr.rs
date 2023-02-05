@@ -1,10 +1,97 @@
 #![allow(missing_docs)]
 
 use kstring::KString;
-use std::ops::Range;
+use std::borrow::Borrow;
+use std::fmt;
+use std::ops::{Deref, Range};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InternalString(pub(crate) KString);
+#[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InternalString(KString);
+
+impl InternalString {
+    /// Create an empty string
+    pub fn new() -> Self {
+        InternalString(KString::new())
+    }
+
+    /// Access the underlying string
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl fmt::Debug for InternalString {
+    #[inline]
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+impl Deref for InternalString {
+    type Target = str;
+
+    #[inline]
+    fn deref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Borrow<str> for InternalString {
+    #[inline]
+    fn borrow(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for InternalString {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl From<&str> for InternalString {
+    #[inline]
+    fn from(s: &str) -> Self {
+        InternalString(KString::from_ref(s))
+    }
+}
+
+impl From<String> for InternalString {
+    #[inline]
+    fn from(s: String) -> Self {
+        InternalString(s.into())
+    }
+}
+
+impl From<&String> for InternalString {
+    #[inline]
+    fn from(s: &String) -> Self {
+        InternalString(s.into())
+    }
+}
+
+impl From<&InternalString> for InternalString {
+    #[inline]
+    fn from(s: &InternalString) -> Self {
+        s.clone()
+    }
+}
+
+impl From<Box<str>> for InternalString {
+    #[inline]
+    fn from(s: Box<str>) -> Self {
+        InternalString(s.into())
+    }
+}
+
+impl fmt::Display for InternalString {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_str().fmt(f)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawString(RawStringInner);
