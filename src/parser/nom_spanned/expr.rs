@@ -2,7 +2,7 @@ use super::ast::{
     BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, ObjectKey, Operation,
     Template, Traversal, TraversalOperator, UnaryOp,
 };
-use super::repr::Spanned;
+use super::repr::Formatted;
 use super::{
     anychar_except, char_or_cut, decorated,
     error::InternalError,
@@ -39,7 +39,7 @@ fn array(input: Input) -> IResult<Input, Expression> {
     )(input)
 }
 
-fn array_items(input: Input) -> IResult<Input, Vec<Spanned<Expression>>> {
+fn array_items(input: Input) -> IResult<Input, Vec<Formatted<Expression>>> {
     alt((
         terminated(
             separated_list1(char(','), decorated(ws, expr, ws)),
@@ -79,7 +79,9 @@ fn object(input: Input) -> IResult<Input, Expression> {
     )(input)
 }
 
-fn object_items(input: Input) -> IResult<Input, Object<Spanned<ObjectKey>, Spanned<Expression>>> {
+fn object_items(
+    input: Input,
+) -> IResult<Input, Object<Formatted<ObjectKey>, Formatted<Expression>>> {
     alt((
         map(
             many1(terminated(object_item, opt(pair(one_of(",\n"), ws)))),
@@ -89,7 +91,7 @@ fn object_items(input: Input) -> IResult<Input, Object<Spanned<ObjectKey>, Spann
     ))(input)
 }
 
-fn object_item(input: Input) -> IResult<Input, (Spanned<ObjectKey>, Spanned<Expression>)> {
+fn object_item(input: Input) -> IResult<Input, (Formatted<ObjectKey>, Formatted<Expression>)> {
     separated_pair(
         decorated(
             ws,
@@ -137,9 +139,9 @@ fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
 }
 
 struct ForIntro {
-    key_var: Option<Spanned<Identifier>>,
-    value_var: Spanned<Identifier>,
-    collection_expr: Spanned<Expression>,
+    key_var: Option<Formatted<Identifier>>,
+    value_var: Formatted<Identifier>,
+    collection_expr: Formatted<Expression>,
 }
 
 fn for_intro(input: Input) -> IResult<Input, ForIntro> {
@@ -168,11 +170,11 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
     )(input)
 }
 
-fn for_cond_expr(input: Input) -> IResult<Input, Spanned<Expression>> {
+fn for_cond_expr(input: Input) -> IResult<Input, Formatted<Expression>> {
     preceded(tag("if"), decorated(ws, cut(expr), ws))(input)
 }
 
-fn parenthesis(input: Input) -> IResult<Input, Spanned<Expression>> {
+fn parenthesis(input: Input) -> IResult<Input, Formatted<Expression>> {
     delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')'))(input)
 }
 
@@ -238,7 +240,7 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     Ok((
         input,
         HeredocTemplate {
-            delimiter: Spanned::new(Identifier::unchecked(delim), span),
+            delimiter: Formatted::new(Identifier::unchecked(delim), span),
             template,
             strip,
         },
@@ -279,7 +281,7 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
         pair(with_span(str_ident), opt(preceded(ws, func_call))),
         |((ident, span), func_call)| match func_call {
             Some((args, expand_final)) => Expression::FuncCall(Box::new(FuncCall {
-                name: Spanned::new(Identifier::unchecked(ident), span),
+                name: Formatted::new(Identifier::unchecked(ident), span),
                 args,
                 expand_final,
             })),
@@ -293,7 +295,7 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
     )(input)
 }
 
-fn func_call(input: Input) -> IResult<Input, (Vec<Spanned<Expression>>, bool)> {
+fn func_call(input: Input) -> IResult<Input, (Vec<Formatted<Expression>>, bool)> {
     delimited(
         char('('),
         alt((
@@ -398,7 +400,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
             let (expr, end) = match traversal {
                 Some((operators, span)) => {
                     let expr = Expression::Traversal(Box::new(Traversal {
-                        expr: Spanned::new(expr, start..end),
+                        expr: Formatted::new(expr, start..end),
                         operators,
                     }));
 
@@ -410,7 +412,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
             let (expr, end) = match binary_op {
                 Some(((operator, rhs_expr), span)) => {
                     let expr = Expression::Operation(Box::new(Operation::Binary(BinaryOp {
-                        lhs_expr: Spanned::new(expr, start..end),
+                        lhs_expr: Formatted::new(expr, start..end),
                         operator,
                         rhs_expr,
                     })));
@@ -422,7 +424,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
 
             match conditional {
                 Some((true_expr, false_expr)) => Expression::Conditional(Box::new(Conditional {
-                    cond_expr: Spanned::new(expr, start..end),
+                    cond_expr: Formatted::new(expr, start..end),
                     true_expr,
                     false_expr,
                 })),

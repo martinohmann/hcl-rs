@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Spanned};
+use super::repr::{Decor, Formatted, Spanned};
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
 use crate::{Identifier, Number};
@@ -50,22 +50,22 @@ fn parse_conditional() {
     assert_eq!(
         parse_to_end("var.enabled ? 1 : 0", expr),
         Ok(Expression::Conditional(Box::new(Conditional {
-            cond_expr: Spanned::new(
+            cond_expr: Formatted::new(
                 Expression::Traversal(Box::new(Traversal {
-                    expr: Spanned::new(Expression::Variable(Variable::unchecked("var")), 0..3),
-                    operators: vec![Spanned::new(
+                    expr: Formatted::new(Expression::Variable(Variable::unchecked("var")), 0..3),
+                    operators: vec![Formatted::new(
                         TraversalOperator::GetAttr(Identifier::unchecked("enabled")),
                         3..11,
                     )]
                 })),
                 0..11
             ),
-            true_expr: Spanned::new_with_decor(
+            true_expr: Formatted::new_with_decor(
                 Expression::Number(1.into()),
                 14..15,
                 Decor::from_prefix(13..14)
             ),
-            false_expr: Spanned::new_with_decor(
+            false_expr: Formatted::new_with_decor(
                 Expression::Number(0.into()),
                 18..19,
                 Decor::from_prefix(17..18)
@@ -79,9 +79,12 @@ fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
         Ok(Expression::Array(vec![
-            Spanned::new(Expression::String("bar".into()), 1..6),
-            Spanned::new_with_decor(
-                Expression::Array(vec![Spanned::new(Expression::String("baz".into()), 9..14)]),
+            Formatted::new(Expression::String("bar".into()), 1..6),
+            Formatted::new_with_decor(
+                Expression::Array(vec![Formatted::new(
+                    Expression::String("baz".into()),
+                    9..14
+                )]),
                 8..15,
                 Decor::from_prefix(7..8),
             ),
@@ -94,8 +97,8 @@ fn parse_object() {
     assert_eq!(
         parse_to_end(r#"{"bar" = "baz","qux" = ident }"#, expr),
         Ok(Expression::Object(vecmap! {
-            Spanned::new_with_decor(ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)) => Spanned::new_with_decor(Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)),
-            Spanned::new_with_decor(ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)) => Spanned::new_with_decor(Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)),
+            Formatted::new_with_decor(ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)) => Formatted::new_with_decor(Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)),
+            Formatted::new_with_decor(ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)) => Formatted::new_with_decor(Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)),
         }),)
     );
 }
@@ -105,7 +108,7 @@ fn parse_heredoc() {
     assert_eq!(
         parse_to_end("<<HEREDOC\nHEREDOC", expr),
         Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate {
-            delimiter: Spanned::new(Identifier::unchecked("HEREDOC"), 2..9),
+            delimiter: Formatted::new(Identifier::unchecked("HEREDOC"), 2..9),
             template: Spanned::new(Template::default(), 10..10),
             strip: HeredocStripMode::None,
         })))
@@ -120,13 +123,13 @@ fn parse_heredoc() {
             expr
         ),
         Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate {
-            delimiter: Spanned::new(Identifier::unchecked("HEREDOC"), 2..9),
+            delimiter: Formatted::new(Identifier::unchecked("HEREDOC"), 2..9),
             template: Spanned::new(
                 Template {
                     elements: vec![
                         Spanned::new(
                             Element::Interpolation(Interpolation {
-                                expr: Spanned::new(
+                                expr: Formatted::new(
                                     Expression::Variable(Variable::unchecked("foo")),
                                     2..5
                                 ),

@@ -84,19 +84,19 @@ impl Decor {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Spanned<T> {
+pub struct Formatted<T> {
     value: T,
     span: Range<usize>,
     decor: Decor,
 }
 
-impl<T> Spanned<T> {
-    pub fn new(value: T, span: Range<usize>) -> Spanned<T> {
-        Spanned::new_with_decor(value, span, Decor::default())
+impl<T> Formatted<T> {
+    pub fn new(value: T, span: Range<usize>) -> Formatted<T> {
+        Formatted::new_with_decor(value, span, Decor::default())
     }
 
-    pub fn new_with_decor(value: T, span: Range<usize>, decor: Decor) -> Spanned<T> {
-        Spanned { value, span, decor }
+    pub fn new_with_decor(value: T, span: Range<usize>, decor: Decor) -> Formatted<T> {
+        Formatted { value, span, decor }
     }
 
     pub fn into_value(self) -> T {
@@ -109,5 +109,41 @@ impl<T> Spanned<T> {
 
     pub fn span(&self) -> Range<usize> {
         self.span.clone()
+    }
+}
+
+impl<T> From<(T, Range<usize>)> for Formatted<T> {
+    fn from((value, span): (T, Range<usize>)) -> Self {
+        Formatted::new(value, span)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Spanned<T> {
+    value: T,
+    span: Range<usize>,
+}
+
+impl<T> Spanned<T> {
+    pub fn new(value: T, span: Range<usize>) -> Spanned<T> {
+        Spanned { value, span }
+    }
+
+    pub fn into_value(self) -> T {
+        self.value
+    }
+
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    pub fn span(&self) -> Range<usize> {
+        self.span.clone()
+    }
+}
+
+impl<T> From<(T, Range<usize>)> for Spanned<T> {
+    fn from((value, span): (T, Range<usize>)) -> Self {
+        Spanned::new(value, span)
     }
 }
