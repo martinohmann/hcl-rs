@@ -289,7 +289,7 @@ impl From<Attribute> for structure::Attribute {
 pub struct Block {
     pub identifier: Formatted<Identifier>,
     pub labels: Vec<Formatted<BlockLabel>>,
-    pub body: Formatted<Body>,
+    pub body: BlockBody,
 }
 
 impl From<Block> for structure::Block {
@@ -301,7 +301,25 @@ impl From<Block> for structure::Block {
                 .into_iter()
                 .map(Formatted::into_value)
                 .collect(),
-            body: block.body.into_value().into(),
+            body: block.body.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum BlockBody {
+    Multiline(Formatted<Body>),
+    Oneline(Formatted<Box<Option<Attribute>>>),
+}
+
+impl From<BlockBody> for structure::Body {
+    fn from(body: BlockBody) -> Self {
+        match body {
+            BlockBody::Multiline(body) => body.into_value().into(),
+            BlockBody::Oneline(attr) => attr
+                .into_value()
+                .map(|attr| structure::Attribute::from(attr).into())
+                .unwrap_or_default(),
         }
     }
 }

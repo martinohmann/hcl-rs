@@ -1,6 +1,6 @@
-use super::ast::{Attribute, Block, Body, Expression, Structure};
+use super::ast::{Attribute, Block, BlockBody, Body, Expression, Structure};
 use super::{
-    char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, span, spanned, spc, string,
+    char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, span, spc, string,
     suffix_decorated, ws, Formatted, IResult, Input,
 };
 use crate::structure::BlockLabel;
@@ -20,10 +20,10 @@ fn attribute_expr(input: Input) -> IResult<Input, Formatted<Expression>> {
     preceded(char('='), prefix_decorated(sp, cut(expr)))(input)
 }
 
-fn block_body(input: Input) -> IResult<Input, Formatted<Body>> {
+fn block_body(input: Input) -> IResult<Input, BlockBody> {
     let single_attribute = map(
         pair(suffix_decorated(ident, sp), attribute_expr),
-        |(key, expr)| Structure::Attribute(Attribute { key, expr }),
+        |(key, expr)| Attribute { key, expr },
     );
 
     delimited(
@@ -34,16 +34,14 @@ fn block_body(input: Input) -> IResult<Input, Formatted<Body>> {
                 pair(terminated(span(spc), line_trailing), body),
                 |(prefix_span, mut body)| {
                     body.decor_mut().set_prefix(prefix_span);
-                    body
+                    BlockBody::Multiline(body)
                 },
             ),
             // One-line block.
-            spanned(map(
-                opt(decorated(sp, cut(single_attribute), sp)),
-                |structure| Body {
-                    structures: structure.map(|s| vec![s]).unwrap_or_default(),
-                },
-            )),
+            map(
+                decorated(sp, map(opt(cut(single_attribute)), Box::new), sp),
+                BlockBody::Oneline,
+            ),
         )),
         char_or_cut('}'),
     )(input)
@@ -53,7 +51,7 @@ fn block_labels(input: Input) -> IResult<Input, Vec<Formatted<BlockLabel>>> {
     many0(suffix_decorated(block_label, sp))(input)
 }
 
-fn block_parts(input: Input) -> IResult<Input, (Vec<Formatted<BlockLabel>>, Formatted<Body>)> {
+fn block_parts(input: Input) -> IResult<Input, (Vec<Formatted<BlockLabel>>, BlockBody)> {
     pair(block_labels, block_body)(input)
 }
 
