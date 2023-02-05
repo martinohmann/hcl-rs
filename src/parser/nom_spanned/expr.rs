@@ -26,6 +26,7 @@ use nom::{
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
 use std::borrow::Cow;
+use std::ops::Range;
 
 fn array(input: Input) -> IResult<Input, Expression> {
     delimited(
@@ -175,14 +176,14 @@ fn parenthesis(input: Input) -> IResult<Input, Spanned<Expression>> {
     delimited(char('('), decorated(ws, cut(expr), ws), char_or_cut(')'))(input)
 }
 
-fn heredoc_start(input: Input) -> IResult<Input, (HeredocStripMode, Spanned<&str>)> {
+fn heredoc_start(input: Input) -> IResult<Input, (HeredocStripMode, (&str, Range<usize>))> {
     terminated(
         pair(
             alt((
                 value(HeredocStripMode::Indent, tag("<<-")),
                 value(HeredocStripMode::None, tag("<<")),
             )),
-            spanned(cut(str_ident)),
+            with_span(cut(str_ident)),
         ),
         pair(space0, cut(line_ending)),
     )(input)
@@ -224,20 +225,20 @@ fn heredoc_content<'a>(
 }
 
 fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
-    let (input, (strip, delim)) = heredoc_start(input)?;
+    let (input, (strip, (delim, span))) = heredoc_start(input)?;
 
     let (input, template) = terminated(
         spanned(map(
-            opt(heredoc_content(strip, delim.value())),
+            opt(heredoc_content(strip, delim)),
             Option::unwrap_or_default,
         )),
-        cut(heredoc_end(delim.value())),
+        cut(heredoc_end(delim)),
     )(input)?;
 
     Ok((
         input,
         HeredocTemplate {
-            delimiter: delim.map_value(Identifier::unchecked),
+            delimiter: Spanned::new(Identifier::unchecked(delim), span),
             template,
             strip,
         },

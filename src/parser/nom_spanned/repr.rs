@@ -99,17 +99,6 @@ impl<T> Spanned<T> {
         Spanned { value, span, decor }
     }
 
-    pub fn map_value<F, U>(self, f: F) -> Spanned<U>
-    where
-        F: FnOnce(T) -> U,
-    {
-        Spanned {
-            value: f(self.value),
-            span: self.span,
-            decor: self.decor,
-        }
-    }
-
     pub fn into_value(self) -> T {
         self.value
     }
