@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use super::repr::{Formatted, Spanned};
-use crate::expr::{self, BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable};
+use super::repr::{Formatted, RawString, Spanned};
+use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure::{self, BlockLabel};
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
@@ -13,7 +13,7 @@ pub enum Expression {
     Number(Number),
     String(String),
     Array(Vec<Formatted<Expression>>),
-    Object(Object<Formatted<ObjectKey>, Formatted<Expression>>),
+    Object(Box<Object>),
     Template(Template),
     HeredocTemplate(Box<HeredocTemplate>),
     Parenthesis(Box<Formatted<Expression>>),
@@ -36,21 +36,13 @@ impl From<Expression> for expr::Expression {
                 .into_iter()
                 .map(|v| Expression::from(v.into_value()))
                 .collect(),
-            Expression::Object(object) => object
-                .into_iter()
-                .map(|(k, v)| {
-                    (
-                        ObjectKey::from(k.into_value()),
-                        Expression::from(v.into_value()),
-                    )
-                })
-                .collect(),
+            Expression::Object(object) => expr::Expression::Object((*object).into()),
             Expression::Template(template) => {
                 expr::TemplateExpr::QuotedString(template.into()).into()
             }
             Expression::HeredocTemplate(heredoc) => expr::Heredoc::from(*heredoc).into(),
             Expression::Parenthesis(expr) => {
-                expr::Expression::Parenthesis(Box::new(expr.into_value().into()))
+                expr::Expression::Parenthesis(Box::new(expr.value_into()))
             }
             Expression::Variable(var) => expr::Expression::Variable(var),
             Expression::ForExpr(expr) => expr::ForExpr::from(*expr).into(),
@@ -63,9 +55,126 @@ impl From<Expression> for expr::Expression {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Object {
+    items: Vec<ObjectItem>,
+    trailing: RawString,
+}
+
+impl Object {
+    pub fn new(items: Vec<ObjectItem>) -> Object {
+        Object {
+            items,
+            trailing: RawString::default(),
+        }
+    }
+
+    pub fn items(&self) -> &[ObjectItem] {
+        &self.items
+    }
+
+    pub fn items_mut(&mut self) -> &mut [ObjectItem] {
+        &mut self.items
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into()
+    }
+}
+
+impl From<Object> for expr::Object<expr::ObjectKey, expr::Expression> {
+    fn from(object: Object) -> Self {
+        object
+            .items
+            .into_iter()
+            .map(|item| (item.key.value_into(), item.value.value_into()))
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectItem {
+    pub(crate) key: Formatted<ObjectKey>,
+    pub(crate) key_value_separator: ObjectKeyValueSeparator,
+    pub(crate) value: Formatted<Expression>,
+    pub(crate) value_terminator: ObjectValueTerminator,
+}
+
+impl ObjectItem {
+    pub fn new(key: Formatted<ObjectKey>, value: Formatted<Expression>) -> ObjectItem {
+        ObjectItem {
+            key,
+            key_value_separator: ObjectKeyValueSeparator::Equals,
+            value,
+            value_terminator: ObjectValueTerminator::Newline,
+        }
+    }
+
+    pub fn key(&self) -> &Formatted<ObjectKey> {
+        &self.key
+    }
+
+    pub fn key_mut(&mut self) -> &mut Formatted<ObjectKey> {
+        &mut self.key
+    }
+
+    pub fn value(&self) -> &Formatted<Expression> {
+        &self.value
+    }
+
+    pub fn value_mut(&mut self) -> &mut Formatted<Expression> {
+        &mut self.value
+    }
+
+    pub fn into_key(self) -> Formatted<ObjectKey> {
+        self.key
+    }
+
+    pub fn into_value(self) -> Formatted<Expression> {
+        self.value
+    }
+
+    pub fn into_key_value(self) -> (Formatted<ObjectKey>, Formatted<Expression>) {
+        (self.key, self.value)
+    }
+
+    pub fn key_value_separator(&self) -> ObjectKeyValueSeparator {
+        self.key_value_separator
+    }
+
+    pub fn value_terminator(&self) -> ObjectValueTerminator {
+        self.value_terminator
+    }
+
+    pub fn set_key_value_separator(&mut self, sep: ObjectKeyValueSeparator) {
+        self.key_value_separator = sep;
+    }
+
+    pub fn set_value_terminator(&mut self, terminator: ObjectValueTerminator) {
+        self.value_terminator = terminator;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
     Identifier(Identifier),
     Expression(Expression),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectKeyValueSeparator {
+    Colon,
+    Equals,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectValueTerminator {
+    None,
+    Newline,
+    Comma,
 }
 
 impl From<ObjectKey> for expr::ObjectKey {
@@ -88,7 +197,7 @@ impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
             delimiter: heredoc.delimiter.into_value(),
-            template: heredoc.template.into_value().into(),
+            template: heredoc.template.value_into(),
             strip: heredoc.strip,
         }
     }
@@ -104,9 +213,9 @@ pub struct Conditional {
 impl From<Conditional> for expr::Conditional {
     fn from(cond: Conditional) -> Self {
         expr::Conditional {
-            cond_expr: cond.cond_expr.into_value().into(),
-            true_expr: cond.true_expr.into_value().into(),
-            false_expr: cond.false_expr.into_value().into(),
+            cond_expr: cond.cond_expr.value_into(),
+            true_expr: cond.true_expr.value_into(),
+            false_expr: cond.false_expr.value_into(),
         }
     }
 }
@@ -122,11 +231,7 @@ impl From<FuncCall> for expr::FuncCall {
     fn from(call: FuncCall) -> Self {
         expr::FuncCall {
             name: call.name.into_value(),
-            args: call
-                .args
-                .into_iter()
-                .map(|spanned| spanned.into_value().into())
-                .collect(),
+            args: call.args.into_iter().map(Formatted::value_into).collect(),
             expand_final: call.expand_final,
         }
     }
@@ -141,11 +246,11 @@ pub struct Traversal {
 impl From<Traversal> for expr::Traversal {
     fn from(traversal: Traversal) -> Self {
         expr::Traversal {
-            expr: traversal.expr.into_value().into(),
+            expr: traversal.expr.value_into(),
             operators: traversal
                 .operators
                 .into_iter()
-                .map(|spanned| spanned.into_value().into())
+                .map(Formatted::value_into)
                 .collect(),
         }
     }
@@ -197,7 +302,7 @@ impl From<UnaryOp> for expr::UnaryOp {
     fn from(op: UnaryOp) -> Self {
         expr::UnaryOp {
             operator: op.operator.into_value(),
-            expr: op.expr.into_value().into(),
+            expr: op.expr.value_into(),
         }
     }
 }
@@ -212,9 +317,9 @@ pub struct BinaryOp {
 impl From<BinaryOp> for expr::BinaryOp {
     fn from(op: BinaryOp) -> Self {
         expr::BinaryOp {
-            lhs_expr: op.lhs_expr.into_value().into(),
+            lhs_expr: op.lhs_expr.value_into(),
             operator: op.operator.into_value(),
-            rhs_expr: op.rhs_expr.into_value().into(),
+            rhs_expr: op.rhs_expr.value_into(),
         }
     }
 }
@@ -235,11 +340,11 @@ impl From<ForExpr> for expr::ForExpr {
         expr::ForExpr {
             key_var: expr.key_var.map(|spanned| spanned.into_value()),
             value_var: expr.value_var.into_value(),
-            collection_expr: expr.collection_expr.into_value().into(),
-            key_expr: expr.key_expr.map(|spanned| spanned.into_value().into()),
-            value_expr: expr.value_expr.into_value().into(),
+            collection_expr: expr.collection_expr.value_into(),
+            key_expr: expr.key_expr.map(Formatted::value_into),
+            value_expr: expr.value_expr.value_into(),
             grouping: expr.grouping,
-            cond_expr: expr.cond_expr.map(|spanned| spanned.into_value().into()),
+            cond_expr: expr.cond_expr.map(Formatted::value_into),
         }
     }
 }
@@ -280,7 +385,7 @@ impl From<Attribute> for structure::Attribute {
     fn from(attr: Attribute) -> Self {
         structure::Attribute {
             key: attr.key.into_value(),
-            expr: attr.expr.into_value().into(),
+            expr: attr.expr.value_into(),
         }
     }
 }
@@ -315,7 +420,7 @@ pub enum BlockBody {
 impl From<BlockBody> for structure::Body {
     fn from(body: BlockBody) -> Self {
         match body {
-            BlockBody::Multiline(body) => body.into_value().into(),
+            BlockBody::Multiline(body) => body.value_into(),
             BlockBody::Oneline(attr) => attr
                 .into_value()
                 .map(|attr| structure::Attribute::from(attr).into())
@@ -372,7 +477,7 @@ pub struct Interpolation {
 impl From<Interpolation> for template::Interpolation {
     fn from(interp: Interpolation) -> Self {
         template::Interpolation {
-            expr: interp.expr.into_value().into(),
+            expr: interp.expr.value_into(),
             strip: interp.strip,
         }
     }
@@ -406,11 +511,9 @@ pub struct IfDirective {
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
         template::IfDirective {
-            cond_expr: dir.cond_expr.into_value().into(),
-            true_template: dir.true_template.into_value().into(),
-            false_template: dir
-                .false_template
-                .map(|spanned| spanned.into_value().into()),
+            cond_expr: dir.cond_expr.value_into(),
+            true_template: dir.true_template.value_into(),
+            false_template: dir.false_template.map(Spanned::value_into),
             if_strip: dir.if_strip,
             else_strip: dir.else_strip,
             endif_strip: dir.endif_strip,
@@ -431,10 +534,10 @@ pub struct ForDirective {
 impl From<ForDirective> for template::ForDirective {
     fn from(dir: ForDirective) -> Self {
         template::ForDirective {
-            key_var: dir.key_var.map(|spanned| spanned.into_value()),
+            key_var: dir.key_var.map(Formatted::into_value),
             value_var: dir.value_var.into_value(),
-            collection_expr: dir.collection_expr.into_value().into(),
-            template: dir.template.into_value().into(),
+            collection_expr: dir.collection_expr.value_into(),
+            template: dir.template.value_into(),
             for_strip: dir.for_strip,
             endfor_strip: dir.endfor_strip,
         }

@@ -1,6 +1,7 @@
 use super::ast::{
-    BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, ObjectKey, Operation,
-    Template, Traversal, TraversalOperator, UnaryOp,
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, Object, ObjectItem,
+    ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Operation, Template, Traversal,
+    TraversalOperator, UnaryOp,
 };
 use super::{
     anychar_except, char_or_cut, decorated,
@@ -13,13 +14,13 @@ use super::{
 };
 use crate::Identifier;
 use crate::{
-    expr::{BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable},
+    expr::{BinaryOperator, HeredocStripMode, UnaryOperator, Variable},
     util::dedent,
 };
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, char, crlf, line_ending, newline, one_of, space0, u64},
+    character::complete::{anychar, char, crlf, line_ending, newline, space0, u64},
     combinator::{cut, fail, map, map_res, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
@@ -73,62 +74,62 @@ fn object(input: Input) -> IResult<Input, Expression> {
         char('{'),
         alt((
             map(for_object_expr, |expr| Expression::ForExpr(Box::new(expr))),
-            map(object_items, Expression::Object),
+            map(object_items, |object| Expression::Object(Box::new(object))),
         )),
         char_or_cut('}'),
     )(input)
 }
 
-fn object_items(
-    input: Input,
-) -> IResult<Input, Object<Formatted<ObjectKey>, Formatted<Expression>>> {
+fn object_items(input: Input) -> IResult<Input, Object> {
     let mut remaining_input = input;
-    let mut items = Object::new();
+    let mut items = Vec::new();
 
     loop {
-        let (input, (key, mut expr)) = match object_item(remaining_input) {
+        let (input, mut item) = match object_item(remaining_input) {
             Ok(res) => res,
             Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
             Err(err) => {
                 // Consume all trailing whitespace and look for the closing brace, otherwise
                 // propagate the error that occurred while parsing the object item.
-                //
-                // @TODO(mohmann): the trailing whitespace needs to be tracked as decor of the
-                // object item itself. This will require changes to the way object items are
-                // represented, so we cannot do this yet.
-                return pair(ws, peek(char('}')))(remaining_input)
-                    .map(|(input, _)| (input, items))
-                    .map_err(|_| err);
+                match terminated(span(ws), peek(char('}')))(remaining_input) {
+                    Ok((input, suffix_span)) => {
+                        let mut object = Object::new(items);
+                        object.set_trailing(suffix_span);
+                        return Ok((input, object));
+                    }
+                    Err(_) => return Err(err),
+                }
             }
         };
 
-        // Consume trailing space after object item expression and add it as decor.
+        // Consume trailing space after object item value and add it as decor.
         let (input, suffix_span) = span(sp)(input)?;
 
         if !suffix_span.is_empty() {
-            expr.decor_mut()
+            item.value
+                .decor_mut()
                 .set_suffix(suffix_span.start..suffix_span.end);
         }
 
         // Look for the closing brace and return or consume the object item separator and proceed
         // with the next object item, if any.
-        //
-        // @TODO(mohmann): the object item separator needs to be tracked in the object item. This
-        // will require changes to the way object items are represented, so we cannot do this yet.
-        remaining_input = match peek(anychar)(input)?.1 {
+        let (input, ch) = peek(anychar)(input)?;
+
+        let (input, value_terminator) = match ch {
             '}' => {
-                items.insert(key, expr);
-                return Ok((input, items));
+                items.push(item);
+                return Ok((input, Object::new(items)));
             }
-            '\r' => crlf(input)?.0,
-            '\n' => newline(input)?.0,
-            ',' => char(',')(input)?.0,
+            '\r' => value(ObjectValueTerminator::Newline, crlf)(input)?,
+            '\n' => value(ObjectValueTerminator::Newline, newline)(input)?,
+            ',' => value(ObjectValueTerminator::Comma, char(','))(input)?,
             '#' | '/' => {
-                // Trailing line comments are part of the object items' expression decor.
+                // Trailing line comments are part of the object item values' decor.
                 let (input, comment_span) = span(line_comment)(input)?;
-                expr.decor_mut()
+                item.value
+                    .decor_mut()
                     .set_suffix(suffix_span.start..comment_span.end);
-                line_ending(input)?.0
+                value(ObjectValueTerminator::Newline, line_ending)(input)?
             }
             _ => {
                 return Err(nom::Err::Failure(InternalError::new(
@@ -138,30 +139,47 @@ fn object_items(
             }
         };
 
-        items.insert(key, expr);
+        item.set_value_terminator(value_terminator);
+        items.push(item);
+        remaining_input = input;
     }
 }
 
-fn object_item(input: Input) -> IResult<Input, (Formatted<ObjectKey>, Formatted<Expression>)> {
-    separated_pair(
-        decorated(
-            ws,
-            map(expr, |expr| {
-                // Variable identifiers without traversal are treated as identifier object keys.
-                //
-                // Handle this case here by converting the variable into an identifier. This
-                // avoids re-parsing the whole key-value pair when an identifier followed by a
-                // traversal operator is encountered.
-                if let Expression::Variable(variable) = expr {
-                    ObjectKey::Identifier(variable.into_inner())
-                } else {
-                    ObjectKey::Expression(expr)
-                }
-            }),
-            sp,
-        ),
-        cut(one_of("=:")),
-        cut(prefix_decorated(sp, expr)),
+fn object_key(input: Input) -> IResult<Input, ObjectKey> {
+    map(expr, |expr| {
+        // Variable identifiers without traversal are treated as identifier object keys.
+        //
+        // Handle this case here by converting the variable into an identifier. This
+        // avoids re-parsing the whole key-value pair when an identifier followed by a
+        // traversal operator is encountered.
+        if let Expression::Variable(variable) = expr {
+            ObjectKey::Identifier(variable.into_inner())
+        } else {
+            ObjectKey::Expression(expr)
+        }
+    })(input)
+}
+
+fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSeparator> {
+    alt((
+        value(ObjectKeyValueSeparator::Equals, char('=')),
+        value(ObjectKeyValueSeparator::Colon, char(':')),
+    ))(input)
+}
+
+fn object_item(input: Input) -> IResult<Input, ObjectItem> {
+    map(
+        tuple((
+            decorated(ws, object_key, sp),
+            cut(object_key_value_separator),
+            cut(prefix_decorated(sp, expr)),
+        )),
+        |(key, key_value_separator, value)| ObjectItem {
+            key,
+            key_value_separator,
+            value,
+            value_terminator: ObjectValueTerminator::None,
+        },
     )(input)
 }
 

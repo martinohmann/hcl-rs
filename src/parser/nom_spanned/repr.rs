@@ -112,6 +112,14 @@ impl RawString {
         }
     }
 
+    pub fn span(&self) -> Option<Range<usize>> {
+        match &self.0 {
+            RawStringInner::Empty => None,
+            RawStringInner::Explicit(_) => None,
+            RawStringInner::Spanned(span) => Some(span.clone()),
+        }
+    }
+
     pub fn as_str(&self) -> Option<&str> {
         match &self.0 {
             RawStringInner::Empty => Some(""),
@@ -168,6 +176,14 @@ impl Decor {
     pub fn set_suffix(&mut self, suffix: impl Into<RawString>) {
         self.suffix = Some(suffix.into());
     }
+
+    pub fn prefix(&self) -> Option<&RawString> {
+        self.prefix.as_ref()
+    }
+
+    pub fn suffix(&self) -> Option<&RawString> {
+        self.suffix.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -205,6 +221,13 @@ impl<T> Formatted<T> {
     pub fn span(&self) -> Range<usize> {
         self.span.clone()
     }
+
+    pub fn value_into<U>(self) -> U
+    where
+        T: Into<U>,
+    {
+        self.value.into()
+    }
 }
 
 impl<T> From<(T, Range<usize>)> for Formatted<T> {
@@ -240,6 +263,13 @@ impl<T> Spanned<T> {
 
     pub fn span(&self) -> Range<usize> {
         self.span.clone()
+    }
+
+    pub fn value_into<U>(self) -> U
+    where
+        T: Into<U>,
+    {
+        self.value.into()
     }
 }
 

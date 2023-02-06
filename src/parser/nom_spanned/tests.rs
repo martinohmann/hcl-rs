@@ -7,7 +7,6 @@ use crate::template::StripMode;
 use crate::{Identifier, Number};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
-use vecmap::vecmap;
 
 #[test]
 fn parse_variable() {
@@ -95,11 +94,55 @@ fn parse_array() {
 #[test]
 fn parse_object() {
     assert_eq!(
-        parse_to_end(r#"{"bar" = "baz","qux" = ident }"#, expr),
-        Ok(Expression::Object(vecmap! {
-            (ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)).into() => (Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)).into(),
-            (ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)).into() => (Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)).into(),
-        }),)
+        parse_to_end(r#"{"bar" : "baz", "qux"= ident }"#, expr),
+        Ok(Expression::Object(Box::new(Object::new(vec![
+            {
+                let mut item = ObjectItem::new(
+                    (
+                        ObjectKey::Expression(Expression::String("bar".into())),
+                        1..6,
+                        Decor::from_suffix(6..7),
+                    )
+                        .into(),
+                    (
+                        Expression::String("baz".into()),
+                        9..14,
+                        Decor::from_prefix(8..9),
+                    )
+                        .into(),
+                );
+                item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
+                item.set_value_terminator(ObjectValueTerminator::Comma);
+                item
+            },
+            {
+                let mut item = ObjectItem::new(
+                    (
+                        ObjectKey::Expression(Expression::String("qux".into())),
+                        16..21,
+                        Decor::from_prefix(15..16),
+                    )
+                        .into(),
+                    (
+                        Expression::Variable(Variable::unchecked("ident")),
+                        23..28,
+                        Decor::new(22..23, 28..29),
+                    )
+                        .into(),
+                );
+                item.set_value_terminator(ObjectValueTerminator::None);
+                item
+            },
+        ]))))
+    );
+
+    assert_eq!(
+        parse_to_end("{ #comment\n }", expr),
+        Ok(Expression::Object(Box::new({
+            let mut object = Object::new(vec![]);
+            object.set_trailing(1..12);
+            object
+        })))
     );
 
     assert!(parse_to_end("{  }", expr).is_ok());
