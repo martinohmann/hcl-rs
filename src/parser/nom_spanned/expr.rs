@@ -2,15 +2,15 @@ use super::ast::{
     BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, ObjectKey, Operation,
     Template, Traversal, TraversalOperator, UnaryOp,
 };
-use super::repr::Formatted;
 use super::{
     anychar_except, char_or_cut, decorated,
     error::InternalError,
-    ident, number, prefix_decorated, sp, str_ident, string, tag_or_cut,
+    ident, line_comment, number, prefix_decorated,
+    repr::Formatted,
+    sp, span, spanned, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
-    ws, ErrorKind, IResult,
+    with_span, ws, ErrorKind, IResult, Input,
 };
-use super::{spanned, with_span, Input};
 use crate::Identifier;
 use crate::{
     expr::{BinaryOperator, HeredocStripMode, Object, UnaryOperator, Variable},
@@ -19,7 +19,7 @@ use crate::{
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, char, line_ending, one_of, space0, u64},
+    character::complete::{anychar, char, crlf, line_ending, newline, one_of, space0, u64},
     combinator::{cut, fail, map, map_res, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
@@ -82,13 +82,64 @@ fn object(input: Input) -> IResult<Input, Expression> {
 fn object_items(
     input: Input,
 ) -> IResult<Input, Object<Formatted<ObjectKey>, Formatted<Expression>>> {
-    alt((
-        map(
-            many1(terminated(object_item, opt(pair(one_of(",\n"), ws)))),
-            Object::from,
-        ),
-        map(ws, |_| Object::new()),
-    ))(input)
+    let mut remaining_input = input;
+    let mut items = Object::new();
+
+    loop {
+        let (input, (key, mut expr)) = match object_item(remaining_input) {
+            Ok(res) => res,
+            Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
+            Err(err) => {
+                // Consume all trailing whitespace and look for the closing brace, otherwise
+                // propagate the error that occurred while parsing the object item.
+                //
+                // @TODO(mohmann): the trailing whitespace needs to be tracked as decor of the
+                // object item itself. This will require changes to the way object items are
+                // represented, so we cannot do this yet.
+                return pair(ws, peek(char('}')))(remaining_input)
+                    .map(|(input, _)| (input, items))
+                    .map_err(|_| err);
+            }
+        };
+
+        // Consume trailing space after object item expression and add it as decor.
+        let (input, suffix_span) = span(sp)(input)?;
+
+        if !suffix_span.is_empty() {
+            expr.decor_mut()
+                .set_suffix(suffix_span.start..suffix_span.end);
+        }
+
+        // Look for the closing brace and return or consume the object item separator and proceed
+        // with the next object item, if any.
+        //
+        // @TODO(mohmann): the object item separator needs to be tracked in the object item. This
+        // will require changes to the way object items are represented, so we cannot do this yet.
+        remaining_input = match peek(anychar)(input)?.1 {
+            '}' => {
+                items.insert(key, expr);
+                return Ok((input, items));
+            }
+            '\r' => crlf(input)?.0,
+            '\n' => newline(input)?.0,
+            ',' => char(',')(input)?.0,
+            '#' | '/' => {
+                // Trailing line comments are part of the object items' expression decor.
+                let (input, comment_span) = span(line_comment)(input)?;
+                expr.decor_mut()
+                    .set_suffix(suffix_span.start..comment_span.end);
+                line_ending(input)?.0
+            }
+            _ => {
+                return Err(nom::Err::Failure(InternalError::new(
+                    input,
+                    ErrorKind::Context("closing brace, comma or newline"),
+                )))
+            }
+        };
+
+        items.insert(key, expr);
+    }
 }
 
 fn object_item(input: Input) -> IResult<Input, (Formatted<ObjectKey>, Formatted<Expression>)> {
@@ -110,7 +161,7 @@ fn object_item(input: Input) -> IResult<Input, (Formatted<ObjectKey>, Formatted<
             sp,
         ),
         cut(one_of("=:")),
-        cut(decorated(sp, expr, ws)),
+        cut(prefix_decorated(sp, expr)),
     )(input)
 }
 

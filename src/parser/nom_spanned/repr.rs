@@ -213,6 +213,12 @@ impl<T> From<(T, Range<usize>)> for Formatted<T> {
     }
 }
 
+impl<T> From<(T, Range<usize>, Decor)> for Formatted<T> {
+    fn from((value, span, decor): (T, Range<usize>, Decor)) -> Self {
+        Formatted::new_with_decor(value, span, decor)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spanned<T> {
     value: T,

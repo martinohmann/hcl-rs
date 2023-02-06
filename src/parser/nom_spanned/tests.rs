@@ -97,10 +97,21 @@ fn parse_object() {
     assert_eq!(
         parse_to_end(r#"{"bar" = "baz","qux" = ident }"#, expr),
         Ok(Expression::Object(vecmap! {
-            Formatted::new_with_decor(ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)) => Formatted::new_with_decor(Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)),
-            Formatted::new_with_decor(ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)) => Formatted::new_with_decor(Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)),
+            (ObjectKey::Expression(Expression::String("bar".into())), 1..6, Decor::from_suffix(6..7)).into() => (Expression::String("baz".into()), 9..14, Decor::from_prefix(8..9)).into(),
+            (ObjectKey::Expression(Expression::String("qux".into())), 15..20, Decor::from_suffix(20..21)).into() => (Expression::Variable(Variable::unchecked("ident")), 23..28, Decor::new(22..23, 28..29)).into(),
         }),)
     );
+
+    assert!(parse_to_end("{  }", expr).is_ok());
+    assert!(parse_to_end("{ /*comment*/ }", expr).is_ok());
+    assert!(parse_to_end("{ #comment\n }", expr).is_ok());
+    assert!(parse_to_end("{ , }", expr).is_err());
+    assert!(parse_to_end("{ foo = 1, }", expr).is_ok());
+    assert!(parse_to_end("{ foo = 1 bar = 1 }", expr).is_err());
+    assert!(parse_to_end("{ foo = 1, bar = 1 }", expr).is_ok());
+    assert!(parse_to_end("{ foo = 1 /*comment*/ }", expr).is_ok());
+    assert!(parse_to_end("{ foo = 1 #comment\n }", expr).is_ok());
+    assert!(parse_to_end("{ foo = 1, #comment\n bar = 1 }", expr).is_ok());
 }
 
 #[test]
