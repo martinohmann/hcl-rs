@@ -3,7 +3,7 @@ use super::ast::{
 };
 use super::repr::{Formatted, Spanned};
 use super::{
-    char_or_cut, decorated, expr::expr, ident, literal, spanned, string_fragment, string_literal,
+    char_or_cut, decor, expr::expr, ident, literal, spanned, string_fragment, string_literal,
     tag_or_cut, ws, IResult, Input, StringFragment,
 };
 use crate::template::StripMode;
@@ -36,7 +36,7 @@ where
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     map(
-        template_tag("${", decorated(ws, cut(expr), ws)),
+        template_tag("${", decor(ws, cut(expr), ws)),
         |(expr, strip)| Interpolation {
             expr,
             strip,
@@ -66,7 +66,7 @@ where
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     struct IfExpr {
-        cond_expr: Formatted<Expression>,
+        cond_expr: Expression,
         template: Template,
         strip: StripMode,
     }
@@ -81,7 +81,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         pair(
             template_tag(
                 "%{",
-                preceded(pair(ws, tag("if")), decorated(ws, cut(expr), ws)),
+                preceded(pair(ws, tag("if")), decor(ws, cut(expr), ws)),
             ),
             template,
         ),
@@ -127,7 +127,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     struct ForExpr {
         key_var: Option<Formatted<Identifier>>,
         value_var: Formatted<Identifier>,
-        collection_expr: Formatted<Expression>,
+        collection_expr: Expression,
         template: Template,
         strip: StripMode,
     }
@@ -137,9 +137,9 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             template_tag(
                 "%{",
                 tuple((
-                    preceded(pair(ws, tag("for")), decorated(ws, cut(ident), ws)),
-                    opt(preceded(char(','), decorated(ws, cut(ident), ws))),
-                    preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
+                    preceded(pair(ws, tag("for")), decor(ws, cut(ident), ws)),
+                    opt(preceded(char(','), decor(ws, cut(ident), ws))),
+                    preceded(tag_or_cut("in"), decor(ws, cut(expr), ws)),
                 )),
             ),
             template,

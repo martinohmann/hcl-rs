@@ -1,8 +1,8 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::repr::{Decorated, Formatted};
 use super::{
-    char_or_cut, decor, decorated, expr::expr, ident, prefix_decorated, sp, span, spanned, spc,
-    string, suffix_decor, suffix_decorated, ws, IResult, Input,
+    char_or_cut, decor, expr::expr, formatted, ident, prefix_decor, sp, span, spanned, spc, string,
+    suffix_decor, ws, IResult, Input,
 };
 use nom::{
     branch::alt,
@@ -16,13 +16,13 @@ fn line_trailing(input: Input) -> IResult<Input, ()> {
     value((), alt((line_ending, eof)))(input)
 }
 
-fn attribute_expr(input: Input) -> IResult<Input, Formatted<Expression>> {
-    preceded(char('='), prefix_decorated(sp, cut(expr)))(input)
+fn attribute_expr(input: Input) -> IResult<Input, Expression> {
+    preceded(char('='), prefix_decor(sp, cut(expr)))(input)
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
     let single_attribute = spanned(map(
-        pair(suffix_decorated(ident, sp), attribute_expr),
+        pair(suffix_decor(ident, sp), attribute_expr),
         |(key, expr)| Attribute::new(key, expr),
     ));
 
@@ -39,7 +39,7 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
             ),
             // One-line block.
             map(
-                decorated(sp, map(opt(cut(single_attribute)), Box::new), sp),
+                decor(sp, formatted(map(opt(cut(single_attribute)), Box::new)), sp),
                 BlockBody::Oneline,
             ),
         )),
@@ -58,12 +58,12 @@ fn block_parts(input: Input) -> IResult<Input, (Vec<BlockLabel>, BlockBody)> {
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
         map(string, |string| BlockLabel::String(Formatted::new(string))),
-        map(ident, |ident| BlockLabel::Identifier(Formatted::new(ident))),
+        map(ident, |ident| BlockLabel::Identifier(ident)),
     ))(input)
 }
 
 fn structure(input: Input) -> IResult<Input, Structure> {
-    let (input, ident) = suffix_decorated(ident, sp)(input)?;
+    let (input, ident) = suffix_decor(ident, sp)(input)?;
     let (input, ch) = peek(anychar)(input)?;
 
     if ch == '=' {
@@ -79,10 +79,10 @@ fn structure(input: Input) -> IResult<Input, Structure> {
 }
 
 pub fn body(input: Input) -> IResult<Input, Formatted<Body>> {
-    suffix_decorated(
+    suffix_decor(
         map(
             many0(terminated(decor(ws, structure, spc), line_trailing)),
-            |structures| Body { structures },
+            |structures| Formatted::new(Body { structures }),
         ),
         ws,
     )(input)

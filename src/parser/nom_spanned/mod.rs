@@ -12,7 +12,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::Input;
-use self::repr::{Decor, Decorated, Formatted, Spannable};
+use self::repr::{Decorated, Formatted, Spannable};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
@@ -173,6 +173,13 @@ where
     })
 }
 
+fn formatted<'a, F, O>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Formatted<O>>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
+{
+    map(inner, Formatted::new)
+}
+
 fn with_span<'a, F, O>(
     mut parser: F,
 ) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O, Range<usize>)>
@@ -231,28 +238,6 @@ where
     )
 }
 
-fn prefix_decorated<'a, F, G, O1, O2>(
-    prefix: F,
-    inner: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Formatted<O2>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
-    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-{
-    map(
-        pair(span(prefix), with_span(inner)),
-        |(prefix_span, (value, span))| {
-            let decor = if prefix_span.is_empty() {
-                Decor::default()
-            } else {
-                Decor::from_prefix(prefix_span)
-            };
-
-            Formatted::new_with_decor(value, span, decor)
-        },
-    )
-}
-
 fn suffix_decor<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
@@ -271,28 +256,6 @@ where
 
             value.set_span(span);
             value
-        },
-    )
-}
-
-fn suffix_decorated<'a, F, G, O1, O2>(
-    inner: F,
-    suffix: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Formatted<O1>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
-    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-{
-    map(
-        pair(with_span(inner), span(suffix)),
-        |((value, span), suffix_span)| {
-            let decor = if suffix_span.is_empty() {
-                Decor::default()
-            } else {
-                Decor::from_suffix(suffix_span)
-            };
-
-            Formatted::new_with_decor(value, span, decor)
         },
     )
 }
@@ -323,31 +286,6 @@ where
 
             value.set_span(span);
             value
-        },
-    )
-}
-
-fn decorated<'a, F, G, H, O1, O2, O3>(
-    prefix: F,
-    inner: G,
-    suffix: H,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Formatted<O2>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
-    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-    H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
-{
-    map(
-        tuple((span(prefix), with_span(inner), span(suffix))),
-        |(prefix_span, (value, span), suffix_span)| {
-            let decor = match (prefix_span.is_empty(), suffix_span.is_empty()) {
-                (false, false) => Decor::new(prefix_span, suffix_span),
-                (false, true) => Decor::from_prefix(prefix_span),
-                (true, false) => Decor::from_suffix(suffix_span),
-                (true, true) => Decor::default(),
-            };
-
-            Formatted::new_with_decor(value, span, decor)
         },
     )
 }
@@ -463,8 +401,10 @@ fn str_ident(input: Input) -> IResult<Input, &str> {
     )(input)
 }
 
-fn ident(input: Input) -> IResult<Input, Identifier> {
-    map(str_ident, Identifier::unchecked)(input)
+fn ident(input: Input) -> IResult<Input, Formatted<Identifier>> {
+    map(str_ident, |ident| {
+        Formatted::new(Identifier::unchecked(ident))
+    })(input)
 }
 
 fn exponent(input: Input) -> IResult<Input, Input> {
