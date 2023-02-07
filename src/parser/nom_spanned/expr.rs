@@ -10,7 +10,7 @@ use super::{
     repr::{Decor, Formatted},
     sp, span, spanned, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
-    with_span, ws, ErrorKind, IResult, Input,
+    with_decor, with_span, ws, ErrorKind, IResult, Input,
 };
 use crate::Identifier;
 use crate::{
@@ -153,18 +153,25 @@ fn object_items(input: Input) -> IResult<Input, Object> {
 }
 
 fn object_key(input: Input) -> IResult<Input, ObjectKey> {
-    map(expr, |expr| {
-        // Variable identifiers without traversal are treated as identifier object keys.
-        //
-        // Handle this case here by converting the variable into an identifier. This
-        // avoids re-parsing the whole key-value pair when an identifier followed by a
-        // traversal operator is encountered.
-        if let Expression::Variable(variable) = expr {
-            ObjectKey::Identifier(variable.into_inner())
-        } else {
-            ObjectKey::Expression(expr)
-        }
-    })(input)
+    map(
+        with_decor(ws, with_span(expr), sp),
+        |((value, span), decor)| {
+            // Variable identifiers without traversal are treated as identifier object keys.
+            //
+            // Handle this case here by converting the variable into an identifier. This
+            // avoids re-parsing the whole key-value pair when an identifier followed by a
+            // traversal operator is encountered.
+            if let Expression::Variable(variable) = value {
+                ObjectKey::Identifier(Formatted::new_with_decor(
+                    variable.into_inner(),
+                    span,
+                    decor,
+                ))
+            } else {
+                ObjectKey::Expression(Formatted::new_with_decor(value, span, decor))
+            }
+        },
+    )(input)
 }
 
 fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSeparator> {
@@ -177,7 +184,7 @@ fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSepa
 fn object_item(input: Input) -> IResult<Input, ObjectItem> {
     map(
         tuple((
-            decorated(ws, object_key, sp),
+            object_key,
             cut(object_key_value_separator),
             cut(decorated(sp, expr, sp)),
         )),

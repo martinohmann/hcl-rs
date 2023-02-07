@@ -102,11 +102,11 @@ fn parse_object() {
             let mut object = Object::new(vec![
                 {
                     let mut item = ObjectItem::new(
-                        Formatted::new_with_decor(
-                            ObjectKey::Expression(Expression::String("bar".into())),
+                        ObjectKey::Expression(Formatted::new_with_decor(
+                            Expression::String("bar".into()),
                             1..6,
                             Decor::from_suffix(6..7),
-                        ),
+                        )),
                         Formatted::new_with_decor(
                             Expression::String("baz".into()),
                             9..14,
@@ -120,11 +120,11 @@ fn parse_object() {
                 },
                 {
                     let mut item = ObjectItem::new(
-                        Formatted::new_with_decor(
-                            ObjectKey::Expression(Expression::String("qux".into())),
+                        ObjectKey::Expression(Formatted::new_with_decor(
+                            Expression::String("qux".into()),
                             16..21,
                             Decor::from_prefix(15..16),
-                        ),
+                        )),
                         Formatted::new_with_decor(
                             Expression::Variable(Variable::unchecked("ident")),
                             23..28,

@@ -139,14 +139,14 @@ impl From<Object> for expr::Object<expr::ObjectKey, expr::Expression> {
         object
             .items
             .into_iter()
-            .map(|item| (item.key.value_into(), item.value.value_into()))
+            .map(|item| (item.key.into(), item.value.value_into()))
             .collect()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObjectItem {
-    pub(crate) key: Formatted<ObjectKey>,
+    pub(crate) key: ObjectKey,
     pub(crate) key_value_separator: ObjectKeyValueSeparator,
     pub(crate) value: Formatted<Expression>,
     pub(crate) value_terminator: ObjectValueTerminator,
@@ -155,7 +155,7 @@ pub struct ObjectItem {
 }
 
 impl ObjectItem {
-    pub fn new(key: Formatted<ObjectKey>, value: Formatted<Expression>) -> ObjectItem {
+    pub fn new(key: ObjectKey, value: Formatted<Expression>) -> ObjectItem {
         ObjectItem {
             key,
             key_value_separator: ObjectKeyValueSeparator::Equals,
@@ -166,11 +166,11 @@ impl ObjectItem {
         }
     }
 
-    pub fn key(&self) -> &Formatted<ObjectKey> {
+    pub fn key(&self) -> &ObjectKey {
         &self.key
     }
 
-    pub fn key_mut(&mut self) -> &mut Formatted<ObjectKey> {
+    pub fn key_mut(&mut self) -> &mut ObjectKey {
         &mut self.key
     }
 
@@ -182,7 +182,7 @@ impl ObjectItem {
         &mut self.value
     }
 
-    pub fn into_key(self) -> Formatted<ObjectKey> {
+    pub fn into_key(self) -> ObjectKey {
         self.key
     }
 
@@ -190,7 +190,7 @@ impl ObjectItem {
         self.value
     }
 
-    pub fn into_key_value(self) -> (Formatted<ObjectKey>, Formatted<Expression>) {
+    pub fn into_key_value(self) -> (ObjectKey, Formatted<Expression>) {
         (self.key, self.value)
     }
 
@@ -229,8 +229,38 @@ impl ObjectItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
-    Identifier(Identifier),
-    Expression(Expression),
+    Identifier(Formatted<Identifier>),
+    Expression(Formatted<Expression>),
+}
+
+impl ObjectKey {
+    pub fn decor(&self) -> &Decor {
+        match self {
+            ObjectKey::Identifier(ident) => ident.decor(),
+            ObjectKey::Expression(expr) => expr.decor(),
+        }
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        match self {
+            ObjectKey::Identifier(ident) => ident.decor_mut(),
+            ObjectKey::Expression(expr) => expr.decor_mut(),
+        }
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        match self {
+            ObjectKey::Identifier(ident) => ident.set_span(span),
+            ObjectKey::Expression(expr) => expr.set_span(span),
+        }
+    }
+
+    pub fn span(&self) -> Option<Range<usize>> {
+        match self {
+            ObjectKey::Identifier(ident) => ident.span(),
+            ObjectKey::Expression(expr) => expr.span(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -249,8 +279,8 @@ pub enum ObjectValueTerminator {
 impl From<ObjectKey> for expr::ObjectKey {
     fn from(key: ObjectKey) -> Self {
         match key {
-            ObjectKey::Identifier(ident) => expr::ObjectKey::Identifier(ident),
-            ObjectKey::Expression(expr) => expr::ObjectKey::Expression(expr.into()),
+            ObjectKey::Identifier(ident) => expr::ObjectKey::Identifier(ident.into_value()),
+            ObjectKey::Expression(expr) => expr::ObjectKey::Expression(expr.value_into()),
         }
     }
 }
