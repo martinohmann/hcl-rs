@@ -185,6 +185,10 @@ impl Decor {
     pub fn suffix(&self) -> Option<&RawString> {
         self.suffix.as_ref()
     }
+
+    pub fn replace(&mut self, other: Decor) -> Decor {
+        std::mem::replace(self, other)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -2,7 +2,7 @@
 
 use super::repr::{Decor, Formatted, RawString, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
-use crate::structure::{self, BlockLabel};
+use crate::structure;
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
 use std::ops::Range;
@@ -492,7 +492,7 @@ impl From<Attribute> for structure::Attribute {
 #[derive(Debug, Clone)]
 pub struct Block {
     pub identifier: Formatted<Identifier>,
-    pub labels: Vec<Formatted<BlockLabel>>,
+    pub labels: Vec<BlockLabel>,
     pub body: BlockBody,
 }
 
@@ -503,9 +503,54 @@ impl From<Block> for structure::Block {
             labels: block
                 .labels
                 .into_iter()
-                .map(Formatted::into_value)
+                .map(Into::into)
                 .collect(),
             body: block.body.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum BlockLabel {
+    Identifier(Formatted<Identifier>),
+    String(Formatted<String>),
+}
+
+impl BlockLabel {
+    pub fn decor(&self) -> &Decor {
+        match self {
+            BlockLabel::Identifier(ident) => ident.decor(),
+            BlockLabel::String(expr) => expr.decor(),
+        }
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        match self {
+            BlockLabel::Identifier(ident) => ident.decor_mut(),
+            BlockLabel::String(expr) => expr.decor_mut(),
+        }
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        match self {
+            BlockLabel::Identifier(ident) => ident.set_span(span),
+            BlockLabel::String(expr) => expr.set_span(span),
+        }
+    }
+
+    pub fn span(&self) -> Option<Range<usize>> {
+        match self {
+            BlockLabel::Identifier(ident) => ident.span(),
+            BlockLabel::String(expr) => expr.span(),
+        }
+    }
+}
+
+impl From<BlockLabel> for structure::BlockLabel {
+    fn from(label: BlockLabel) -> Self {
+        match label {
+            BlockLabel::Identifier(ident) => structure::BlockLabel::Identifier(ident.into_value()),
+            BlockLabel::String(expr) => structure::BlockLabel::String(expr.into_value()),
         }
     }
 }

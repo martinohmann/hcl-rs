@@ -1,9 +1,9 @@
-use super::ast::{Attribute, Block, BlockBody, Body, Expression, Structure};
+use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::{
     char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, span, spc, string,
     suffix_decorated, ws, Formatted, IResult, Input,
 };
-use crate::structure::BlockLabel;
+use super::{with_decor_suffix, with_span};
 use nom::{
     branch::alt,
     character::complete::{anychar, char, line_ending},
@@ -47,18 +47,25 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
     )(input)
 }
 
-fn block_labels(input: Input) -> IResult<Input, Vec<Formatted<BlockLabel>>> {
-    many0(suffix_decorated(block_label, sp))(input)
+fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
+    many0(map(
+        with_decor_suffix(with_span(block_label), sp),
+        |((mut label, span), decor)| {
+            label.set_span(span);
+            label.decor_mut().replace(decor);
+            label
+        },
+    ))(input)
 }
 
-fn block_parts(input: Input) -> IResult<Input, (Vec<Formatted<BlockLabel>>, BlockBody)> {
+fn block_parts(input: Input) -> IResult<Input, (Vec<BlockLabel>, BlockBody)> {
     pair(block_labels, block_body)(input)
 }
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
-        map(string, BlockLabel::String),
-        map(ident, BlockLabel::Identifier),
+        map(string, |string| BlockLabel::String(Formatted::new(string))),
+        map(ident, |ident| BlockLabel::Identifier(Formatted::new(ident))),
     ))(input)
 }
 
