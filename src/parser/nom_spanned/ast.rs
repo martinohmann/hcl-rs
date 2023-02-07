@@ -5,6 +5,7 @@ use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variabl
 use crate::structure::{self, BlockLabel};
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
+use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
@@ -237,7 +238,7 @@ impl From<ObjectKey> for expr::ObjectKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
     pub delimiter: Formatted<Identifier>,
-    pub template: Spanned<Template>,
+    pub template: Template,
     pub strip: HeredocStripMode,
 }
 
@@ -245,7 +246,7 @@ impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
             delimiter: heredoc.delimiter.into_value(),
-            template: heredoc.template.value_into(),
+            template: heredoc.template.into(),
             strip: heredoc.strip,
         }
     }
@@ -479,17 +480,30 @@ impl From<BlockBody> for structure::Body {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
-    pub elements: Vec<Spanned<Element>>,
+    pub elements: Vec<Element>,
+    pub(crate) span: Option<Range<usize>>,
+}
+
+impl Template {
+    pub fn new(elements: Vec<Element>) -> Template {
+        Template {
+            elements,
+            span: None,
+        }
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
 }
 
 impl From<Template> for template::Template {
     fn from(template: Template) -> Self {
-        template::Template::from_iter(
-            template
-                .elements
-                .into_iter()
-                .map(|spanned| template::Element::from(spanned.into_value())),
-        )
+        template
+            .elements
+            .into_iter()
+            .map(template::Element::from)
+            .collect()
     }
 }
 
@@ -501,15 +515,25 @@ impl From<Template> for String {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
-    Literal(String),
+    Literal(Spanned<String>),
     Interpolation(Interpolation),
     Directive(Directive),
+}
+
+impl Element {
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        match self {
+            Element::Literal(lit) => lit.set_span(span),
+            Element::Interpolation(interp) => interp.set_span(span),
+            Element::Directive(dir) => dir.set_span(span),
+        }
+    }
 }
 
 impl From<Element> for template::Element {
     fn from(element: Element) -> Self {
         match element {
-            Element::Literal(lit) => template::Element::Literal(lit),
+            Element::Literal(lit) => template::Element::Literal(lit.into_value()),
             Element::Interpolation(interp) => template::Element::Interpolation(interp.into()),
             Element::Directive(dir) => template::Element::Directive(dir.into()),
         }
@@ -520,6 +544,13 @@ impl From<Element> for template::Element {
 pub struct Interpolation {
     pub expr: Formatted<Expression>,
     pub strip: StripMode,
+    pub(crate) span: Option<Range<usize>>,
+}
+
+impl Interpolation {
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
 }
 
 impl From<Interpolation> for template::Interpolation {
@@ -537,6 +568,15 @@ pub enum Directive {
     For(ForDirective),
 }
 
+impl Directive {
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        match self {
+            Directive::If(dir) => dir.set_span(span),
+            Directive::For(dir) => dir.set_span(span),
+        }
+    }
+}
+
 impl From<Directive> for template::Directive {
     fn from(dir: Directive) -> Self {
         match dir {
@@ -549,19 +589,26 @@ impl From<Directive> for template::Directive {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
     pub cond_expr: Formatted<Expression>,
-    pub true_template: Spanned<Template>,
-    pub false_template: Option<Spanned<Template>>,
+    pub true_template: Template,
+    pub false_template: Option<Template>,
     pub if_strip: StripMode,
     pub else_strip: StripMode,
     pub endif_strip: StripMode,
+    pub(crate) span: Option<Range<usize>>,
+}
+
+impl IfDirective {
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
 }
 
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
         template::IfDirective {
             cond_expr: dir.cond_expr.value_into(),
-            true_template: dir.true_template.value_into(),
-            false_template: dir.false_template.map(Spanned::value_into),
+            true_template: dir.true_template.into(),
+            false_template: dir.false_template.map(Into::into),
             if_strip: dir.if_strip,
             else_strip: dir.else_strip,
             endif_strip: dir.endif_strip,
@@ -574,9 +621,16 @@ pub struct ForDirective {
     pub key_var: Option<Formatted<Identifier>>,
     pub value_var: Formatted<Identifier>,
     pub collection_expr: Formatted<Expression>,
-    pub template: Spanned<Template>,
+    pub template: Template,
     pub for_strip: StripMode,
     pub endfor_strip: StripMode,
+    pub(crate) span: Option<Range<usize>>,
+}
+
+impl ForDirective {
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
 }
 
 impl From<ForDirective> for template::ForDirective {
@@ -585,7 +639,7 @@ impl From<ForDirective> for template::ForDirective {
             key_var: dir.key_var.map(Formatted::into_value),
             value_var: dir.value_var.into_value(),
             collection_expr: dir.collection_expr.value_into(),
-            template: dir.template.value_into(),
+            template: dir.template.into(),
             for_strip: dir.for_strip,
             endfor_strip: dir.endfor_strip,
         }

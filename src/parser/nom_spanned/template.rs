@@ -3,9 +3,9 @@ use super::ast::{
 };
 use super::{
     char_or_cut, decorated, expr::expr, ident, literal, string_fragment, string_literal,
-    tag_or_cut, ws, IResult, StringFragment,
+    tag_or_cut, with_span, ws, IResult, StringFragment,
 };
-use super::{spanned, Formatted, Input, Spanned};
+use super::{Formatted, Input, Spanned};
 use crate::template::StripMode;
 use crate::Identifier;
 use nom::{
@@ -37,7 +37,11 @@ where
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     map(
         template_tag("${", decorated(ws, cut(expr), ws)),
-        |(expr, strip)| Interpolation { expr, strip },
+        |(expr, strip)| Interpolation {
+            expr,
+            strip,
+            span: None,
+        },
     )(input)
 }
 
@@ -63,13 +67,13 @@ where
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     struct IfExpr {
         cond_expr: Formatted<Expression>,
-        template: Spanned<Template>,
+        template: Template,
         strip: StripMode,
     }
 
     #[derive(Default)]
     struct ElseExpr {
-        template: Option<Spanned<Template>>,
+        template: Option<Template>,
         strip: StripMode,
     }
 
@@ -79,7 +83,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
                 "%{",
                 preceded(pair(ws, tag("if")), decorated(ws, cut(expr), ws)),
             ),
-            spanned(template),
+            template,
         ),
         |((cond_expr, strip), template)| IfExpr {
             cond_expr,
@@ -89,10 +93,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     );
 
     let else_expr = map(
-        pair(
-            template_tag("%{", delimited(ws, tag("else"), ws)),
-            spanned(template),
-        ),
+        pair(template_tag("%{", delimited(ws, tag("else"), ws)), template),
         |((_, strip), template)| ElseExpr {
             template: Some(template),
             strip,
@@ -116,6 +117,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
                 if_strip: if_expr.strip,
                 else_strip: else_expr.strip,
                 endif_strip,
+                span: None,
             }
         },
     )(input)
@@ -126,7 +128,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
         key_var: Option<Formatted<Identifier>>,
         value_var: Formatted<Identifier>,
         collection_expr: Formatted<Expression>,
-        template: Spanned<Template>,
+        template: Template,
         strip: StripMode,
     }
 
@@ -140,7 +142,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
                     preceded(tag_or_cut("in"), decorated(ws, cut(expr), ws)),
                 )),
             ),
-            spanned(template),
+            template,
         ),
         |(((key_var, value_var, collection_expr), strip), template)| {
             let (key_var, value_var) = match value_var {
@@ -170,6 +172,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             template: for_expr.template,
             for_strip: for_expr.strip,
             endfor_strip,
+            span: None,
         }
     })(input)
 }
@@ -186,12 +189,21 @@ where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, String>,
 {
     map(
-        many0(spanned(alt((
-            map(literal, Element::Literal),
-            map(interpolation, Element::Interpolation),
-            map(directive, Element::Directive),
-        )))),
-        |elements| Template { elements },
+        with_span(many0(map(
+            with_span(alt((
+                map(literal, |s| Element::Literal(Spanned::new(s))),
+                map(interpolation, Element::Interpolation),
+                map(directive, Element::Directive),
+            ))),
+            |(mut element, span)| {
+                element.set_span(span);
+                element
+            },
+        ))),
+        |(elements, span)| Template {
+            elements,
+            span: Some(span),
+        },
     )
 }
 

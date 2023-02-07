@@ -313,17 +313,21 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     let (input, (strip, (delim, span))) = heredoc_start(input)?;
 
     let (input, template) = terminated(
-        spanned(map(
-            opt(heredoc_content(strip, delim)),
-            Option::unwrap_or_default,
-        )),
+        map(
+            with_span(opt(heredoc_content(strip, delim))),
+            |(template, span)| {
+                let mut template = template.unwrap_or_default();
+                template.set_span(span);
+                template
+            },
+        ),
         cut(heredoc_end(delim)),
     )(input)?;
 
     Ok((
         input,
         HeredocTemplate {
-            delimiter: Formatted::new(Identifier::unchecked(delim), span),
+            delimiter: Formatted::new_with_span(Identifier::unchecked(delim), span),
             template,
             strip,
         },
@@ -364,7 +368,7 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
         pair(with_span(str_ident), opt(preceded(ws, func_call))),
         |((ident, span), func_call)| match func_call {
             Some((args, expand_final)) => Expression::FuncCall(Box::new(FuncCall {
-                name: Formatted::new(Identifier::unchecked(ident), span),
+                name: Formatted::new_with_span(Identifier::unchecked(ident), span),
                 args,
                 expand_final,
             })),
@@ -483,7 +487,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
             let (expr, end) = match traversal {
                 Some((operators, span)) => {
                     let expr = Expression::Traversal(Box::new(Traversal {
-                        expr: Formatted::new(expr, start..end),
+                        expr: Formatted::new_with_span(expr, start..end),
                         operators,
                     }));
 
@@ -495,7 +499,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
             let (expr, end) = match binary_op {
                 Some(((operator, rhs_expr), span)) => {
                     let expr = Expression::Operation(Box::new(Operation::Binary(BinaryOp {
-                        lhs_expr: Formatted::new(expr, start..end),
+                        lhs_expr: Formatted::new_with_span(expr, start..end),
                         operator,
                         rhs_expr,
                     })));
@@ -507,7 +511,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
 
             match conditional {
                 Some((true_expr, false_expr)) => Expression::Conditional(Box::new(Conditional {
-                    cond_expr: Formatted::new(expr, start..end),
+                    cond_expr: Formatted::new_with_span(expr, start..end),
                     true_expr,
                     false_expr,
                 })),

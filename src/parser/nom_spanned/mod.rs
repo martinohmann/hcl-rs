@@ -206,6 +206,25 @@ where
     }
 }
 
+fn with_decor_prefix<'a, F, G, O1, O2>(
+    prefix: F,
+    inner: G,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (Decor, O2)>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+{
+    map(pair(span(prefix), inner), |(prefix_span, value)| {
+        let decor = if prefix_span.is_empty() {
+            Decor::default()
+        } else {
+            Decor::from_prefix(prefix_span)
+        };
+
+        (decor, value)
+    })
+}
+
 fn prefix_decorated<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
@@ -228,6 +247,25 @@ where
     )
 }
 
+fn with_decor_suffix<'a, F, G, O1, O2>(
+    inner: F,
+    suffix: G,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O1, Decor)>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+{
+    map(pair(inner, span(suffix)), |(value, suffix_span)| {
+        let decor = if suffix_span.is_empty() {
+            Decor::default()
+        } else {
+            Decor::from_suffix(suffix_span)
+        };
+
+        (value, decor)
+    })
+}
+
 fn suffix_decorated<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
@@ -246,6 +284,31 @@ where
             };
 
             Formatted::new_with_decor(value, span, decor)
+        },
+    )
+}
+
+fn with_decor<'a, F, G, H, O1, O2, O3>(
+    prefix: F,
+    inner: G,
+    suffix: H,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O2, Decor)>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+    H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
+{
+    map(
+        tuple((span(prefix), inner, span(suffix))),
+        |(prefix_span, value, suffix_span)| {
+            let decor = match (prefix_span.is_empty(), suffix_span.is_empty()) {
+                (false, false) => Decor::new(prefix_span, suffix_span),
+                (false, true) => Decor::from_prefix(prefix_span),
+                (true, false) => Decor::from_suffix(suffix_span),
+                (true, true) => Decor::default(),
+            };
+
+            (value, decor)
         },
     )
 }
