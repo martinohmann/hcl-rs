@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Formatted, Spanned};
+use super::repr::{Decor, Decorated, Formatted, Spannable, Spanned};
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
 use crate::{Identifier, Number};

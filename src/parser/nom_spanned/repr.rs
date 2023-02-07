@@ -223,24 +223,8 @@ impl<T> Formatted<T> {
         self.value
     }
 
-    pub fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    pub fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-
     pub fn value(&self) -> &T {
         &self.value
-    }
-
-    pub fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    pub(crate) fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
     }
 
     pub fn value_into<U>(self) -> U
@@ -251,9 +235,25 @@ impl<T> Formatted<T> {
     }
 }
 
-impl<T> From<(T, Range<usize>)> for Formatted<T> {
-    fn from((value, span): (T, Range<usize>)) -> Self {
-        Formatted::new_with_span(value, span)
+impl<T> Decorated for Formatted<T> {
+    fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+}
+
+impl<T> Located for Formatted<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+}
+
+impl<T> Spannable for Formatted<T> {
+    fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
     }
 }
 
@@ -290,4 +290,29 @@ impl<T> Spanned<T> {
     {
         self.value.into()
     }
+}
+
+impl<T> Located for Spanned<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+}
+
+impl<T> Spannable for Spanned<T> {
+    fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
+}
+
+pub trait Decorated {
+    fn decor(&self) -> &Decor;
+    fn decor_mut(&mut self) -> &mut Decor;
+}
+
+pub trait Located {
+    fn span(&self) -> Option<Range<usize>>;
+}
+
+pub(crate) trait Spannable {
+    fn set_span(&mut self, span: Range<usize>);
 }

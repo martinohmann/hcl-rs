@@ -1,11 +1,11 @@
 use super::ast::{
     Directive, Element, Expression, ForDirective, IfDirective, Interpolation, Template,
 };
+use super::repr::{Formatted, Spanned};
 use super::{
-    char_or_cut, decorated, expr::expr, ident, literal, string_fragment, string_literal,
-    tag_or_cut, with_span, ws, IResult, StringFragment,
+    char_or_cut, decorated, expr::expr, ident, literal, spanned, string_fragment, string_literal,
+    tag_or_cut, ws, IResult, Input, StringFragment,
 };
-use super::{Formatted, Input, Spanned};
 use crate::template::StripMode;
 use crate::Identifier;
 use nom::{
@@ -188,23 +188,14 @@ fn build_template<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, String>,
 {
-    map(
-        with_span(many0(map(
-            with_span(alt((
-                map(literal, |s| Element::Literal(Spanned::new(s))),
-                map(interpolation, Element::Interpolation),
-                map(directive, Element::Directive),
-            ))),
-            |(mut element, span)| {
-                element.set_span(span);
-                element
-            },
-        ))),
-        |(elements, span)| Template {
-            elements,
-            span: Some(span),
-        },
-    )
+    spanned(map(
+        many0(spanned(alt((
+            map(literal, |s| Element::Literal(Spanned::new(s))),
+            map(interpolation, Element::Interpolation),
+            map(directive, Element::Directive),
+        )))),
+        Template::new,
+    ))
 }
 
 pub fn quoted_string_template(input: Input) -> IResult<Input, Template> {

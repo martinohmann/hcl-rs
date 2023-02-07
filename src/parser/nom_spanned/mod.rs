@@ -12,7 +12,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::Input;
-use self::repr::{Decor, Formatted, Spanned};
+use self::repr::{Decor, Decorated, Formatted, Spannable};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
@@ -162,12 +162,15 @@ fn ws(input: Input) -> IResult<Input, ()> {
     )(input)
 }
 
-fn spanned<'a, F, T, O>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O>
+fn spanned<'a, F, O>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O>
 where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, T>,
-    O: From<(T, Range<usize>)>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
+    O: Spannable,
 {
-    map(with_span(inner), Into::into)
+    map(with_span(inner), |(mut value, span)| {
+        value.set_span(span);
+        value
+    })
 }
 
 fn with_span<'a, F, O>(
@@ -206,23 +209,26 @@ where
     }
 }
 
-fn with_decor_prefix<'a, F, G, O1, O2>(
+fn prefix_decor<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (Decor, O2)>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O2>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+    O2: Decorated + Spannable,
 {
-    map(pair(span(prefix), inner), |(prefix_span, value)| {
-        let decor = if prefix_span.is_empty() {
-            Decor::default()
-        } else {
-            Decor::from_prefix(prefix_span)
-        };
+    map(
+        pair(span(prefix), with_span(inner)),
+        |(prefix_span, (mut value, span))| {
+            if !prefix_span.is_empty() {
+                value.decor_mut().set_prefix(prefix_span);
+            }
 
-        (decor, value)
-    })
+            value.set_span(span);
+            value
+        },
+    )
 }
 
 fn prefix_decorated<'a, F, G, O1, O2>(
@@ -247,23 +253,26 @@ where
     )
 }
 
-fn with_decor_suffix<'a, F, G, O1, O2>(
+fn suffix_decor<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O1, Decor)>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O1>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+    O1: Decorated + Spannable,
 {
-    map(pair(inner, span(suffix)), |(value, suffix_span)| {
-        let decor = if suffix_span.is_empty() {
-            Decor::default()
-        } else {
-            Decor::from_suffix(suffix_span)
-        };
+    map(
+        pair(with_span(inner), span(suffix)),
+        |((mut value, span), suffix_span)| {
+            if !suffix_span.is_empty() {
+                value.decor_mut().set_suffix(suffix_span);
+            }
 
-        (value, decor)
-    })
+            value.set_span(span);
+            value
+        },
+    )
 }
 
 fn suffix_decorated<'a, F, G, O1, O2>(
@@ -288,27 +297,32 @@ where
     )
 }
 
-fn with_decor<'a, F, G, H, O1, O2, O3>(
+fn decor<'a, F, G, H, O1, O2, O3>(
     prefix: F,
     inner: G,
     suffix: H,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, (O2, Decor)>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O2>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
     H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
+    O2: Decorated + Spannable,
 {
     map(
-        tuple((span(prefix), inner, span(suffix))),
-        |(prefix_span, value, suffix_span)| {
-            let decor = match (prefix_span.is_empty(), suffix_span.is_empty()) {
-                (false, false) => Decor::new(prefix_span, suffix_span),
-                (false, true) => Decor::from_prefix(prefix_span),
-                (true, false) => Decor::from_suffix(suffix_span),
-                (true, true) => Decor::default(),
-            };
+        tuple((span(prefix), with_span(inner), span(suffix))),
+        |(prefix_span, (mut value, span), suffix_span)| {
+            let decor = value.decor_mut();
 
-            (value, decor)
+            if !prefix_span.is_empty() {
+                decor.set_prefix(prefix_span);
+            }
+
+            if !suffix_span.is_empty() {
+                decor.set_suffix(suffix_span);
+            }
+
+            value.set_span(span);
+            value
         },
     )
 }

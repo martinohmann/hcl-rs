@@ -3,14 +3,14 @@ use super::ast::{
     ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Operation, Template,
     Traversal, TraversalOperator, UnaryOp,
 };
+use super::repr::{Decor, Decorated, Formatted, Spannable, Spanned};
 use super::{
-    anychar_except, char_or_cut, decorated,
+    anychar_except, char_or_cut, decor, decorated,
     error::InternalError,
-    ident, line_comment, number, prefix_decorated,
-    repr::{Decor, Formatted},
-    sp, span, spanned, str_ident, string, tag_or_cut,
+    ident, line_comment, number, prefix_decorated, sp, span, spanned, str_ident, string,
+    tag_or_cut,
     template::{heredoc_template, quoted_string_template},
-    with_decor, with_span, ws, ErrorKind, IResult, Input,
+    with_span, ws, ErrorKind, IResult, Input,
 };
 use crate::Identifier;
 use crate::{
@@ -153,24 +153,21 @@ fn object_items(input: Input) -> IResult<Input, Object> {
 }
 
 fn object_key(input: Input) -> IResult<Input, ObjectKey> {
-    map(
-        with_decor(ws, with_span(expr), sp),
-        |((value, span), decor)| {
+    decor(
+        ws,
+        map(expr, |expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
             //
             // Handle this case here by converting the variable into an identifier. This
             // avoids re-parsing the whole key-value pair when an identifier followed by a
             // traversal operator is encountered.
-            if let Expression::Variable(variable) = value {
-                ObjectKey::Identifier(Formatted::new_with_decor(
-                    variable.into_inner(),
-                    span,
-                    decor,
-                ))
+            if let Expression::Variable(variable) = expr {
+                ObjectKey::Identifier(Formatted::new(variable.into_inner()))
             } else {
-                ObjectKey::Expression(Formatted::new_with_decor(value, span, decor))
+                ObjectKey::Expression(Formatted::new(expr))
             }
-        },
+        }),
+        sp,
     )(input)
 }
 
@@ -401,11 +398,14 @@ fn func_call(input: Input) -> IResult<Input, (Vec<Formatted<Expression>>, bool)>
     )(input)
 }
 
-fn unary_operator(input: Input) -> IResult<Input, UnaryOperator> {
-    alt((
-        value(UnaryOperator::Neg, char('-')),
-        value(UnaryOperator::Not, char('!')),
-    ))(input)
+fn unary_operator(input: Input) -> IResult<Input, Spanned<UnaryOperator>> {
+    map(
+        alt((
+            value(UnaryOperator::Neg, char('-')),
+            value(UnaryOperator::Not, char('!')),
+        )),
+        Spanned::new,
+    )(input)
 }
 
 fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {

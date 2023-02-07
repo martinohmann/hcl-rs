@@ -1,7 +1,8 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
+use super::repr::{Decorated, Formatted};
 use super::{
-    char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, span, spc, string,
-    suffix_decorated, with_decor, with_decor_suffix, with_span, ws, Formatted, IResult, Input,
+    char_or_cut, decor, decorated, expr::expr, ident, prefix_decorated, sp, span, spanned, spc,
+    string, suffix_decor, suffix_decorated, ws, IResult, Input,
 };
 use nom::{
     branch::alt,
@@ -20,14 +21,10 @@ fn attribute_expr(input: Input) -> IResult<Input, Formatted<Expression>> {
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
-    let single_attribute = map(
-        with_span(pair(suffix_decorated(ident, sp), attribute_expr)),
-        |((key, expr), span)| {
-            let mut attr = Attribute::new(key, expr);
-            attr.set_span(span);
-            attr
-        },
-    );
+    let single_attribute = spanned(map(
+        pair(suffix_decorated(ident, sp), attribute_expr),
+        |(key, expr)| Attribute::new(key, expr),
+    ));
 
     delimited(
         char_or_cut('{'),
@@ -51,14 +48,7 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
 }
 
 fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
-    many0(map(
-        with_decor_suffix(with_span(block_label), sp),
-        |((mut label, span), decor)| {
-            label.set_span(span);
-            label.decor_mut().replace(decor);
-            label
-        },
-    ))(input)
+    many0(suffix_decor(block_label, sp))(input)
 }
 
 fn block_parts(input: Input) -> IResult<Input, (Vec<BlockLabel>, BlockBody)> {
@@ -91,17 +81,7 @@ fn structure(input: Input) -> IResult<Input, Structure> {
 pub fn body(input: Input) -> IResult<Input, Formatted<Body>> {
     suffix_decorated(
         map(
-            many0(terminated(
-                map(
-                    with_decor(ws, with_span(structure), spc),
-                    |((mut structure, span), decor)| {
-                        structure.decor_mut().replace(decor);
-                        structure.set_span(span);
-                        structure
-                    },
-                ),
-                line_trailing,
-            )),
+            many0(terminated(decor(ws, structure, spc), line_trailing)),
             |structures| Body { structures },
         ),
         ws,
