@@ -1,9 +1,8 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::{
     char_or_cut, decorated, expr::expr, ident, prefix_decorated, sp, span, spc, string,
-    suffix_decorated, ws, Formatted, IResult, Input,
+    suffix_decorated, with_decor, with_decor_suffix, with_span, ws, Formatted, IResult, Input,
 };
-use super::{with_decor_suffix, with_span};
 use nom::{
     branch::alt,
     character::complete::{anychar, char, line_ending},
@@ -22,8 +21,12 @@ fn attribute_expr(input: Input) -> IResult<Input, Formatted<Expression>> {
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
     let single_attribute = map(
-        pair(suffix_decorated(ident, sp), attribute_expr),
-        |(key, expr)| Attribute { key, expr },
+        with_span(pair(suffix_decorated(ident, sp), attribute_expr)),
+        |((key, expr), span)| {
+            let mut attr = Attribute::new(key, expr);
+            attr.set_span(span);
+            attr
+        },
     );
 
     delimited(
@@ -75,16 +78,12 @@ fn structure(input: Input) -> IResult<Input, Structure> {
 
     if ch == '=' {
         let (input, expr) = attribute_expr(input)?;
-        Ok((input, Structure::Attribute(Attribute { key: ident, expr })))
+        Ok((input, Structure::Attribute(Attribute::new(ident, expr))))
     } else {
         let (input, (labels, body)) = block_parts(input)?;
         Ok((
             input,
-            Structure::Block(Block {
-                identifier: ident,
-                labels,
-                body,
-            }),
+            Structure::Block(Block::new_with_labels(ident, labels, body)),
         ))
     }
 }
@@ -92,7 +91,17 @@ fn structure(input: Input) -> IResult<Input, Structure> {
 pub fn body(input: Input) -> IResult<Input, Formatted<Body>> {
     suffix_decorated(
         map(
-            many0(terminated(decorated(ws, structure, spc), line_trailing)),
+            many0(terminated(
+                map(
+                    with_decor(ws, with_span(structure), spc),
+                    |((mut structure, span), decor)| {
+                        structure.decor_mut().replace(decor);
+                        structure.set_span(span);
+                        structure
+                    },
+                ),
+                line_trailing,
+            )),
             |structures| Body { structures },
         ),
         ws,

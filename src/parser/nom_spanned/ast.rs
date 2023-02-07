@@ -81,7 +81,7 @@ impl Array {
     }
 
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
-        self.trailing = trailing.into()
+        self.trailing = trailing.into();
     }
 
     pub fn trailing_comma(&self) -> bool {
@@ -130,7 +130,7 @@ impl Object {
     }
 
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
-        self.trailing = trailing.into()
+        self.trailing = trailing.into();
     }
 }
 
@@ -437,7 +437,7 @@ pub struct ForExpr {
 impl From<ForExpr> for expr::ForExpr {
     fn from(expr: ForExpr) -> Self {
         expr::ForExpr {
-            key_var: expr.key_var.map(|spanned| spanned.into_value()),
+            key_var: expr.key_var.map(Formatted::into_value),
             value_var: expr.value_var.into_value(),
             collection_expr: expr.collection_expr.value_into(),
             key_expr: expr.key_expr.map(Formatted::value_into),
@@ -450,12 +450,12 @@ impl From<ForExpr> for expr::ForExpr {
 
 #[derive(Debug, Clone, Default)]
 pub struct Body {
-    pub structures: Vec<Formatted<Structure>>,
+    pub structures: Vec<Structure>,
 }
 
 impl From<Body> for structure::Body {
     fn from(body: Body) -> Self {
-        structure::Body::from_iter(body.structures.into_iter().map(Formatted::into_value))
+        structure::Body::from_iter(body.structures)
     }
 }
 
@@ -463,6 +463,36 @@ impl From<Body> for structure::Body {
 pub enum Structure {
     Attribute(Attribute),
     Block(Block),
+}
+
+impl Structure {
+    pub fn decor(&self) -> &Decor {
+        match self {
+            Structure::Attribute(attr) => attr.decor(),
+            Structure::Block(block) => block.decor(),
+        }
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        match self {
+            Structure::Attribute(attr) => attr.decor_mut(),
+            Structure::Block(block) => block.decor_mut(),
+        }
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        match self {
+            Structure::Attribute(attr) => attr.set_span(span),
+            Structure::Block(block) => block.set_span(span),
+        }
+    }
+
+    pub fn span(&self) -> Option<Range<usize>> {
+        match self {
+            Structure::Attribute(attr) => attr.span(),
+            Structure::Block(block) => block.span(),
+        }
+    }
 }
 
 impl From<Structure> for structure::Structure {
@@ -478,6 +508,35 @@ impl From<Structure> for structure::Structure {
 pub struct Attribute {
     pub key: Formatted<Identifier>,
     pub expr: Formatted<Expression>,
+    pub(crate) decor: Decor,
+    pub(crate) span: Option<Range<usize>>,
+}
+
+impl Attribute {
+    pub fn new(key: Formatted<Identifier>, expr: Formatted<Expression>) -> Attribute {
+        Attribute {
+            key,
+            expr,
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+
+    pub fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
+
+    pub fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
 }
 
 impl From<Attribute> for structure::Attribute {
@@ -494,17 +553,51 @@ pub struct Block {
     pub identifier: Formatted<Identifier>,
     pub labels: Vec<BlockLabel>,
     pub body: BlockBody,
+    pub(crate) decor: Decor,
+    pub(crate) span: Option<Range<usize>>,
+}
+
+impl Block {
+    pub fn new(ident: Formatted<Identifier>, body: BlockBody) -> Block {
+        Block::new_with_labels(ident, Vec::new(), body)
+    }
+
+    pub fn new_with_labels(
+        ident: Formatted<Identifier>,
+        labels: Vec<BlockLabel>,
+        body: BlockBody,
+    ) -> Block {
+        Block {
+            identifier: ident,
+            labels,
+            body,
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+
+    pub fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
+
+    pub fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
 }
 
 impl From<Block> for structure::Block {
     fn from(block: Block) -> Self {
         structure::Block {
             identifier: block.identifier.into_value(),
-            labels: block
-                .labels
-                .into_iter()
-                .map(Into::into)
-                .collect(),
+            labels: block.labels.into_iter().map(Into::into).collect(),
             body: block.body.into(),
         }
     }
