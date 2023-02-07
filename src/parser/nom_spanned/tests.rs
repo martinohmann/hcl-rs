@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorate, Decorated, Locate, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Span, Spanned};
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
 use crate::{Identifier, Number};
@@ -86,18 +86,19 @@ fn parse_conditional() {
 fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
-        Ok(Expression::Array(Box::new(Array::new(vec![
-            Expression::String(Decorated::with_span("bar".into(), 1..6)),
-            Expression::Array(Box::new({
-                let mut array = Array::new(vec![Expression::String(Decorated::with_span(
-                    "baz".into(),
-                    9..14,
-                ))]);
-                array.set_span(8..15);
-                array.decor_mut().set_prefix(7..8);
-                array
-            })),
-        ]))))
+        Ok(Expression::Array(Box::new(Decorated::new(Array::new(
+            vec![
+                Expression::String(Decorated::with_span("bar".into(), 1..6)),
+                Expression::Array(Box::new({
+                    let mut array = Decorated::new(Array::new(vec![Expression::String(
+                        Decorated::with_span("baz".into(), 9..14),
+                    )]));
+                    array.set_span(8..15);
+                    array.decor_mut().set_prefix(7..8);
+                    array
+                })),
+            ]
+        )))))
     );
 }
 
@@ -108,7 +109,7 @@ fn parse_object() {
         Ok(Expression::Object(Box::new({
             let mut object = Object::new(vec![
                 {
-                    let mut item = ObjectItem::new(
+                    let mut item = Decorated::new(ObjectItem::new(
                         ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "bar".into(),
                             1..6,
@@ -119,14 +120,14 @@ fn parse_object() {
                             9..14,
                             Decor::from_prefix(8..9),
                         )),
-                    );
+                    ));
                     item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
                     item.set_value_terminator(ObjectValueTerminator::Comma);
                     item.set_span(1..15);
                     item
                 },
                 {
-                    let mut item = ObjectItem::new(
+                    let mut item = Decorated::new(ObjectItem::new(
                         ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "qux".into(),
                             16..21,
@@ -137,7 +138,7 @@ fn parse_object() {
                             23..28,
                             Decor::new(22..23, 28..29),
                         )),
-                    );
+                    ));
                     item.set_value_terminator(ObjectValueTerminator::Newline);
                     item.set_span(15..41);
                     item.decor_mut().set_suffix(29..40);
@@ -145,7 +146,7 @@ fn parse_object() {
                 },
             ]);
             object.set_trailing(41..42);
-            object
+            object.into()
         })))
     );
 
@@ -154,7 +155,7 @@ fn parse_object() {
         Ok(Expression::Object(Box::new({
             let mut object = Object::new(vec![]);
             object.set_trailing(1..12);
-            object
+            object.into()
         })))
     );
 
@@ -177,11 +178,7 @@ fn parse_heredoc() {
         Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
             HeredocTemplate {
                 delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
-                template: Template {
-                    elements: Vec::new(),
-                    span: Some(10..10),
-                    decor: Decor::default(),
-                },
+                template: Spanned::with_span(Template::default(), 10..10),
                 strip: HeredocStripMode::None,
             }
         ))))
@@ -198,25 +195,24 @@ fn parse_heredoc() {
         Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
             HeredocTemplate {
                 delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
-                template: Template {
-                    elements: vec![
-                        Element::Interpolation(Interpolation {
-                            expr: Expression::Variable(Decorated::with_span(
-                                Variable::unchecked("foo"),
-                                2..5
+                template: Spanned::with_span(
+                    Template {
+                        elements: vec![
+                            Element::Interpolation(Spanned::with_span(
+                                Interpolation {
+                                    expr: Expression::Variable(Decorated::with_span(
+                                        Variable::unchecked("foo"),
+                                        2..5,
+                                    )),
+                                    strip: StripMode::None,
+                                },
+                                0..6
                             )),
-                            strip: StripMode::None,
-                            span: Some(0..6),
-                        }),
-                        Element::Literal({
-                            let mut spanned = Spanned::new("bar\n".into());
-                            spanned.set_span(6..10);
-                            spanned
-                        }),
-                    ],
-                    span: Some(10..20),
-                    decor: Decor::default(),
-                },
+                            Element::Literal(Spanned::with_span(String::from("bar\n"), 6..10)),
+                        ],
+                    },
+                    10..20,
+                ),
                 strip: HeredocStripMode::None,
             }
         ))))
@@ -328,4 +324,3 @@ fn parse_heredoc() {
 //                 .build()
 //         )),
 //     );
-// }

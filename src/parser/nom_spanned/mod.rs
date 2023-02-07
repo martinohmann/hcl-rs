@@ -12,7 +12,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::Input;
-use self::repr::{Decorate, Decorated, Locate};
+use self::repr::{Decorate, Decorated, Span};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
@@ -165,7 +165,7 @@ fn ws(input: Input) -> IResult<Input, ()> {
 fn spanned<'a, F, O, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, T>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
-    T: From<O> + Locate,
+    T: From<O> + Span,
 {
     map(with_span(inner), |(value, span)| {
         let mut value = T::from(value);
@@ -217,7 +217,7 @@ fn prefix_decor<'a, F, G, O1, O2, T>(
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-    T: From<O2> + Decorate + Locate,
+    T: From<O2> + Decorate + Span,
 {
     map(
         pair(span(prefix), with_span(inner)),
@@ -240,7 +240,7 @@ fn suffix_decor<'a, F, G, O1, O2, T>(
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-    T: From<O1> + Decorate + Locate,
+    T: From<O1> + Decorate + Span,
 {
     map(
         pair(with_span(inner), span(suffix)),
@@ -265,7 +265,7 @@ where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
     H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
-    T: From<O2> + Decorate + Locate,
+    T: From<O2> + Decorate + Span,
 {
     map(
         tuple((span(prefix), with_span(inner), span(suffix))),

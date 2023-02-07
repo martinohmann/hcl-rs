@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::repr::{Decor, Decorate, Decorated, Locate, RawString, Spanned};
+use super::repr::{Decor, Decorate, Decorated, RawString, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
@@ -16,9 +16,9 @@ pub enum Expression {
     Bool(Decorated<bool>),
     Number(Decorated<Number>),
     String(Decorated<String>),
-    Array(Box<Array>),
-    Object(Box<Object>),
-    Template(Template),
+    Array(Box<Decorated<Array>>),
+    Object(Box<Decorated<Object>>),
+    Template(Decorated<Template>),
     HeredocTemplate(Box<Decorated<HeredocTemplate>>),
     Parenthesis(Box<Decorated<Expression>>),
     Variable(Decorated<Variable>),
@@ -71,7 +71,7 @@ impl Decorate for Expression {
     }
 }
 
-impl Locate for Expression {
+impl Span for Expression {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Expression::Null(n) => n.span(),
@@ -120,10 +120,10 @@ impl From<Expression> for expr::Expression {
             Expression::Bool(b) => expr::Expression::Bool(b.into_value()),
             Expression::Number(n) => expr::Expression::Number(n.into_value()),
             Expression::String(s) => expr::Expression::String(s.into_value()),
-            Expression::Array(array) => expr::Expression::Array((*array).into()),
-            Expression::Object(object) => expr::Expression::Object((*object).into()),
+            Expression::Array(array) => expr::Expression::Array(array.value_into()),
+            Expression::Object(object) => expr::Expression::Object(object.value_into()),
             Expression::Template(template) => {
-                expr::TemplateExpr::QuotedString(template.into()).into()
+                expr::TemplateExpr::QuotedString(template.value_into()).into()
             }
             Expression::HeredocTemplate(heredoc) => {
                 expr::Heredoc::from(heredoc.into_value()).into()
@@ -148,8 +148,6 @@ pub struct Array {
     values: Vec<Expression>,
     trailing: RawString,
     trailing_comma: bool,
-    pub(crate) decor: Decor,
-    pub(crate) span: Option<Range<usize>>,
 }
 
 impl Array {
@@ -158,8 +156,6 @@ impl Array {
             values,
             trailing: RawString::default(),
             trailing_comma: false,
-            decor: Decor::default(),
-            span: None,
         }
     }
 
@@ -188,26 +184,6 @@ impl Array {
     }
 }
 
-impl Decorate for Array {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl Locate for Array {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
-    }
-}
-
 impl From<Array> for Vec<expr::Expression> {
     fn from(array: Array) -> Self {
         array.values.into_iter().map(Into::into).collect()
@@ -216,27 +192,23 @@ impl From<Array> for Vec<expr::Expression> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Object {
-    items: Vec<ObjectItem>,
+    items: Vec<Decorated<ObjectItem>>,
     trailing: RawString,
-    pub(crate) decor: Decor,
-    pub(crate) span: Option<Range<usize>>,
 }
 
 impl Object {
-    pub fn new(items: Vec<ObjectItem>) -> Object {
+    pub fn new(items: Vec<Decorated<ObjectItem>>) -> Object {
         Object {
             items,
             trailing: RawString::default(),
-            decor: Decor::default(),
-            span: None,
         }
     }
 
-    pub fn items(&self) -> &[ObjectItem] {
+    pub fn items(&self) -> &[Decorated<ObjectItem>] {
         &self.items
     }
 
-    pub fn items_mut(&mut self) -> &mut [ObjectItem] {
+    pub fn items_mut(&mut self) -> &mut [Decorated<ObjectItem>] {
         &mut self.items
     }
 
@@ -249,31 +221,12 @@ impl Object {
     }
 }
 
-impl Decorate for Object {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl Locate for Object {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
-    }
-}
-
 impl From<Object> for expr::Object<expr::ObjectKey, expr::Expression> {
     fn from(object: Object) -> Self {
         object
             .items
             .into_iter()
+            .map(Decorated::into_value)
             .map(|item| (item.key.into(), item.value.into()))
             .collect()
     }
@@ -285,8 +238,6 @@ pub struct ObjectItem {
     pub(crate) key_value_separator: ObjectKeyValueSeparator,
     pub(crate) value: Expression,
     pub(crate) value_terminator: ObjectValueTerminator,
-    pub(crate) decor: Decor,
-    pub(crate) span: Option<Range<usize>>,
 }
 
 impl ObjectItem {
@@ -296,8 +247,6 @@ impl ObjectItem {
             key_value_separator: ObjectKeyValueSeparator::Equals,
             value,
             value_terminator: ObjectValueTerminator::Newline,
-            decor: Decor::default(),
-            span: None,
         }
     }
 
@@ -346,26 +295,6 @@ impl ObjectItem {
     }
 }
 
-impl Decorate for ObjectItem {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl Locate for ObjectItem {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
     Identifier(Decorated<Identifier>),
@@ -388,7 +317,7 @@ impl Decorate for ObjectKey {
     }
 }
 
-impl Locate for ObjectKey {
+impl Span for ObjectKey {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             ObjectKey::Identifier(ident) => ident.span(),
@@ -429,7 +358,7 @@ impl From<ObjectKey> for expr::ObjectKey {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
     pub delimiter: Decorated<Identifier>,
-    pub template: Template,
+    pub template: Spanned<Template>,
     pub strip: HeredocStripMode,
 }
 
@@ -437,7 +366,7 @@ impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
             delimiter: heredoc.delimiter.into_value(),
-            template: heredoc.template.into(),
+            template: heredoc.template.value_into(),
             strip: heredoc.strip,
         }
     }
@@ -607,8 +536,8 @@ impl From<Body> for structure::Body {
 
 #[derive(Debug, Clone)]
 pub enum Structure {
-    Attribute(Attribute),
-    Block(Block),
+    Attribute(Decorated<Attribute>),
+    Block(Decorated<Block>),
 }
 
 impl Decorate for Structure {
@@ -627,7 +556,7 @@ impl Decorate for Structure {
     }
 }
 
-impl Locate for Structure {
+impl Span for Structure {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Structure::Attribute(attr) => attr.span(),
@@ -646,8 +575,8 @@ impl Locate for Structure {
 impl From<Structure> for structure::Structure {
     fn from(structure: Structure) -> Self {
         match structure {
-            Structure::Attribute(attr) => structure::Structure::Attribute(attr.into()),
-            Structure::Block(block) => structure::Structure::Block(block.into()),
+            Structure::Attribute(attr) => structure::Structure::Attribute(attr.value_into()),
+            Structure::Block(block) => structure::Structure::Block(block.value_into()),
         }
     }
 }
@@ -656,38 +585,11 @@ impl From<Structure> for structure::Structure {
 pub struct Attribute {
     pub key: Decorated<Identifier>,
     pub expr: Expression,
-    pub(crate) decor: Decor,
-    pub(crate) span: Option<Range<usize>>,
 }
 
 impl Attribute {
     pub fn new(key: Decorated<Identifier>, expr: Expression) -> Attribute {
-        Attribute {
-            key,
-            expr,
-            decor: Decor::default(),
-            span: None,
-        }
-    }
-}
-
-impl Decorate for Attribute {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl Locate for Attribute {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
+        Attribute { key, expr }
     }
 }
 
@@ -705,8 +607,6 @@ pub struct Block {
     pub identifier: Decorated<Identifier>,
     pub labels: Vec<BlockLabel>,
     pub body: BlockBody,
-    pub(crate) decor: Decor,
-    pub(crate) span: Option<Range<usize>>,
 }
 
 impl Block {
@@ -723,29 +623,7 @@ impl Block {
             identifier: ident,
             labels,
             body,
-            decor: Decor::default(),
-            span: None,
         }
-    }
-}
-
-impl Decorate for Block {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl Locate for Block {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
     }
 }
 
@@ -781,7 +659,7 @@ impl Decorate for BlockLabel {
     }
 }
 
-impl Locate for BlockLabel {
+impl Span for BlockLabel {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             BlockLabel::Identifier(ident) => ident.span(),
@@ -809,7 +687,7 @@ impl From<BlockLabel> for structure::BlockLabel {
 #[derive(Debug, Clone)]
 pub enum BlockBody {
     Multiline(Decorated<Body>),
-    Oneline(Decorated<Box<Option<Attribute>>>),
+    Oneline(Decorated<Box<Option<Decorated<Attribute>>>>),
 }
 
 impl From<BlockBody> for structure::Body {
@@ -818,6 +696,7 @@ impl From<BlockBody> for structure::Body {
             BlockBody::Multiline(body) => body.value_into(),
             BlockBody::Oneline(attr) => attr
                 .into_value()
+                .map(Decorated::into_value)
                 .map(|attr| structure::Attribute::from(attr).into())
                 .unwrap_or_default(),
         }
@@ -827,37 +706,11 @@ impl From<BlockBody> for structure::Body {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
     pub elements: Vec<Element>,
-    pub(crate) decor: Decor,
-    pub(crate) span: Option<Range<usize>>,
 }
 
 impl Template {
     pub fn new(elements: Vec<Element>) -> Template {
-        Template {
-            elements,
-            span: None,
-            decor: Decor::default(),
-        }
-    }
-}
-
-impl Decorate for Template {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl Locate for Template {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
+        Template { elements }
     }
 }
 
@@ -880,11 +733,11 @@ impl From<Template> for String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
     Literal(Spanned<String>),
-    Interpolation(Interpolation),
+    Interpolation(Spanned<Interpolation>),
     Directive(Directive),
 }
 
-impl Locate for Element {
+impl Span for Element {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Element::Literal(lit) => lit.span(),
@@ -906,7 +759,7 @@ impl From<Element> for template::Element {
     fn from(element: Element) -> Self {
         match element {
             Element::Literal(lit) => template::Element::Literal(lit.into_value()),
-            Element::Interpolation(interp) => template::Element::Interpolation(interp.into()),
+            Element::Interpolation(interp) => template::Element::Interpolation(interp.value_into()),
             Element::Directive(dir) => template::Element::Directive(dir.into()),
         }
     }
@@ -916,17 +769,6 @@ impl From<Element> for template::Element {
 pub struct Interpolation {
     pub expr: Expression,
     pub strip: StripMode,
-    pub(crate) span: Option<Range<usize>>,
-}
-
-impl Locate for Interpolation {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
-    }
 }
 
 impl From<Interpolation> for template::Interpolation {
@@ -940,11 +782,11 @@ impl From<Interpolation> for template::Interpolation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Directive {
-    If(IfDirective),
-    For(ForDirective),
+    If(Spanned<IfDirective>),
+    For(Spanned<ForDirective>),
 }
 
-impl Locate for Directive {
+impl Span for Directive {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Directive::If(dir) => dir.span(),
@@ -963,8 +805,8 @@ impl Locate for Directive {
 impl From<Directive> for template::Directive {
     fn from(dir: Directive) -> Self {
         match dir {
-            Directive::If(dir) => template::Directive::If(dir.into()),
-            Directive::For(dir) => template::Directive::For(dir.into()),
+            Directive::If(dir) => template::Directive::If(dir.value_into()),
+            Directive::For(dir) => template::Directive::For(dir.value_into()),
         }
     }
 }
@@ -972,30 +814,19 @@ impl From<Directive> for template::Directive {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
     pub cond_expr: Expression,
-    pub true_template: Template,
-    pub false_template: Option<Template>,
+    pub true_template: Spanned<Template>,
+    pub false_template: Option<Spanned<Template>>,
     pub if_strip: StripMode,
     pub else_strip: StripMode,
     pub endif_strip: StripMode,
-    pub(crate) span: Option<Range<usize>>,
-}
-
-impl Locate for IfDirective {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
-    }
 }
 
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
         template::IfDirective {
             cond_expr: dir.cond_expr.into(),
-            true_template: dir.true_template.into(),
-            false_template: dir.false_template.map(Into::into),
+            true_template: dir.true_template.value_into(),
+            false_template: dir.false_template.map(Spanned::value_into),
             if_strip: dir.if_strip,
             else_strip: dir.else_strip,
             endif_strip: dir.endif_strip,
@@ -1008,20 +839,9 @@ pub struct ForDirective {
     pub key_var: Option<Decorated<Identifier>>,
     pub value_var: Decorated<Identifier>,
     pub collection_expr: Expression,
-    pub template: Template,
+    pub template: Spanned<Template>,
     pub for_strip: StripMode,
     pub endfor_strip: StripMode,
-    pub(crate) span: Option<Range<usize>>,
-}
-
-impl Locate for ForDirective {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
-    }
 }
 
 impl From<ForDirective> for template::ForDirective {
@@ -1030,7 +850,7 @@ impl From<ForDirective> for template::ForDirective {
             key_var: dir.key_var.map(Decorated::into_value),
             value_var: dir.value_var.into_value(),
             collection_expr: dir.collection_expr.into(),
-            template: dir.template.into(),
+            template: dir.template.value_into(),
             for_strip: dir.for_strip,
             endfor_strip: dir.endfor_strip,
         }

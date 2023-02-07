@@ -3,7 +3,7 @@ use super::ast::{
     ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Operation, Template,
     Traversal, TraversalOperator, UnaryOp,
 };
-use super::repr::{Decor, Decorate, Decorated, Locate, Spanned};
+use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
     anychar_except, char_or_cut, decor,
     error::InternalError,
@@ -32,8 +32,12 @@ fn array(input: Input) -> IResult<Input, Expression> {
     delimited(
         char('['),
         alt((
-            map(for_list_expr, |expr| Expression::ForExpr(Box::new(expr))),
-            map(array_items, |array| Expression::Array(Box::new(array))),
+            map(for_list_expr, |expr| {
+                Expression::ForExpr(Box::new(expr.into()))
+            }),
+            map(array_items, |array| {
+                Expression::Array(Box::new(array.into()))
+            }),
         )),
         char_or_cut(']'),
     )(input)
@@ -63,24 +67,22 @@ fn array_items(input: Input) -> IResult<Input, Array> {
     ))(input)
 }
 
-fn for_list_expr(input: Input) -> IResult<Input, Decorated<ForExpr>> {
+fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
             pair(span(ws), for_intro),
             decor(ws, cut(expr), ws),
             opt(for_cond_expr),
         )),
-        |((prefix_span, intro), value_expr, cond_expr)| {
-            Decorated::new(ForExpr {
-                prefix: prefix_span.into(),
-                key_var: intro.key_var,
-                value_var: intro.value_var,
-                collection_expr: intro.collection_expr,
-                key_expr: None,
-                value_expr,
-                cond_expr,
-                grouping: false,
-            })
+        |((prefix_span, intro), value_expr, cond_expr)| ForExpr {
+            prefix: prefix_span.into(),
+            key_var: intro.key_var,
+            value_var: intro.value_var,
+            collection_expr: intro.collection_expr,
+            key_expr: None,
+            value_expr,
+            cond_expr,
+            grouping: false,
         },
     )(input)
 }
@@ -89,8 +91,12 @@ fn object(input: Input) -> IResult<Input, Expression> {
     delimited(
         char('{'),
         alt((
-            map(for_object_expr, |expr| Expression::ForExpr(Box::new(expr))),
-            map(object_items, |object| Expression::Object(Box::new(object))),
+            map(for_object_expr, |expr| {
+                Expression::ForExpr(Box::new(expr.into()))
+            }),
+            map(object_items, |object| {
+                Expression::Object(Box::new(object.into()))
+            }),
         )),
         char_or_cut('}'),
     )(input)
@@ -104,7 +110,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
         let start = remaining_input.location();
 
         let (input, mut item) = match object_item(remaining_input) {
-            Ok(res) => res,
+            Ok((input, item)) => (input, Decorated::new(item)),
             Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
             Err(err) => {
                 // Consume all trailing whitespace and look for the closing brace, otherwise
@@ -192,13 +198,11 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
             key_value_separator,
             value,
             value_terminator: ObjectValueTerminator::None,
-            span: None,
-            decor: Decor::default(),
         },
     )(input)
 }
 
-fn for_object_expr(input: Input) -> IResult<Input, Decorated<ForExpr>> {
+fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
             pair(span(ws), for_intro),
@@ -210,17 +214,15 @@ fn for_object_expr(input: Input) -> IResult<Input, Decorated<ForExpr>> {
             opt(terminated(tag("..."), ws)),
             opt(for_cond_expr),
         )),
-        |((prefix_span, intro), (key_expr, value_expr), grouping, cond_expr)| {
-            Decorated::new(ForExpr {
-                prefix: prefix_span.into(),
-                key_var: intro.key_var,
-                value_var: intro.value_var,
-                collection_expr: intro.collection_expr,
-                key_expr: Some(key_expr),
-                value_expr,
-                cond_expr,
-                grouping: grouping.is_some(),
-            })
+        |((prefix_span, intro), (key_expr, value_expr), grouping, cond_expr)| ForExpr {
+            prefix: prefix_span.into(),
+            key_var: intro.key_var,
+            value_var: intro.value_var,
+            collection_expr: intro.collection_expr,
+            key_expr: Some(key_expr),
+            value_expr,
+            cond_expr,
+            grouping: grouping.is_some(),
         },
     )(input)
 }
@@ -319,11 +321,7 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     let (input, template) = terminated(
         map(
             with_span(opt(heredoc_content(strip, delim))),
-            |(template, span)| {
-                let mut template = template.unwrap_or_default();
-                template.set_span(span);
-                template
-            },
+            |(template, span)| Spanned::with_span(template.unwrap_or_default(), span),
         ),
         cut(heredoc_end(delim)),
     )(input)?;
@@ -448,8 +446,8 @@ fn expr_term<'a>(input: Input<'a>) -> IResult<Input<'a>, Expression> {
 
     match ch {
         '"' => alt((
-            map(string, |s| Expression::String(Decorated::new(s))),
-            map(quoted_string_template, Expression::Template),
+            map(string, |s| Expression::String(s.into())),
+            map(quoted_string_template, |t| Expression::Template(t.into())),
         ))(input),
         '[' => array(input),
         '{' => object(input),

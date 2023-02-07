@@ -4,7 +4,7 @@
 use kstring::KString;
 use std::borrow::Borrow;
 use std::fmt;
-use std::ops::{Deref, Range};
+use std::ops::{Deref, DerefMut, Range};
 
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InternalString(KString);
@@ -191,74 +191,15 @@ impl Decor {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Decorated<T> {
-    value: Spanned<T>,
-    decor: Decor,
+pub trait Span {
+    fn span(&self) -> Option<Range<usize>>;
+    #[doc(hidden)]
+    fn set_span(&mut self, span: Range<usize>);
 }
 
-impl<T> Decorated<T> {
-    pub fn new(value: T) -> Decorated<T> {
-        Decorated {
-            value: Spanned::new(value),
-            decor: Decor::default(),
-        }
-    }
-
-    pub(crate) fn with_span(value: T, span: Range<usize>) -> Decorated<T> {
-        Decorated {
-            value: Spanned::with_span(value, span),
-            decor: Decor::default(),
-        }
-    }
-
-    pub(crate) fn with_span_decor(value: T, span: Range<usize>, decor: Decor) -> Decorated<T> {
-        Decorated {
-            value: Spanned::with_span(value, span),
-            decor,
-        }
-    }
-
-    pub fn into_value(self) -> T {
-        self.value.into_value()
-    }
-
-    pub fn value(&self) -> &T {
-        self.value.value()
-    }
-
-    pub fn value_into<U>(self) -> U
-    where
-        T: Into<U>,
-    {
-        self.value.value_into()
-    }
-}
-
-impl<T> From<T> for Decorated<T> {
-    fn from(value: T) -> Self {
-        Decorated::new(value)
-    }
-}
-
-impl<T> Decorate for Decorated<T> {
-    fn decor(&self) -> &Decor {
-        &self.decor
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        &mut self.decor
-    }
-}
-
-impl<T> Locate for Decorated<T> {
-    fn span(&self) -> Option<Range<usize>> {
-        self.value.span()
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        self.value.set_span(span)
-    }
+pub trait Decorate {
+    fn decor(&self) -> &Decor;
+    fn decor_mut(&mut self) -> &mut Decor;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -295,13 +236,19 @@ impl<T> Spanned<T> {
     }
 }
 
-impl<T> Locate for Spanned<T> {
-    fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
+impl<T> Deref for Spanned<T> {
+    type Target = T;
 
-    fn set_span(&mut self, span: Range<usize>) {
-        self.span = Some(span);
+    #[inline]
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> DerefMut for Spanned<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }
 
@@ -311,13 +258,102 @@ impl<T> From<T> for Spanned<T> {
     }
 }
 
-pub trait Decorate {
-    fn decor(&self) -> &Decor;
-    fn decor_mut(&mut self) -> &mut Decor;
+impl<T> Span for Spanned<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+
+    fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
 }
 
-pub trait Locate {
-    fn span(&self) -> Option<Range<usize>>;
-    #[doc(hidden)]
-    fn set_span(&mut self, span: Range<usize>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Decorated<T> {
+    value: T,
+    decor: Decor,
+    span: Option<Range<usize>>,
+}
+
+impl<T> Decorated<T> {
+    pub fn new(value: T) -> Decorated<T> {
+        Decorated {
+            value,
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+
+    pub(crate) fn with_span(value: T, span: Range<usize>) -> Decorated<T> {
+        Decorated {
+            value,
+            decor: Decor::default(),
+            span: Some(span),
+        }
+    }
+
+    pub(crate) fn with_span_decor(value: T, span: Range<usize>, decor: Decor) -> Decorated<T> {
+        Decorated {
+            value,
+            decor,
+            span: Some(span),
+        }
+    }
+
+    pub fn into_value(self) -> T {
+        self.value
+    }
+
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    pub fn value_into<U>(self) -> U
+    where
+        T: Into<U>,
+    {
+        self.value.into()
+    }
+}
+
+impl<T> Deref for Decorated<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+
+impl<T> DerefMut for Decorated<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.value
+    }
+}
+
+impl<T> From<T> for Decorated<T> {
+    fn from(value: T) -> Self {
+        Decorated::new(value)
+    }
+}
+
+impl<T> Decorate for Decorated<T> {
+    fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+}
+
+impl<T> Span for Decorated<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+
+    fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
 }

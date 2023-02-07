@@ -68,12 +68,15 @@ fn structure(input: Input) -> IResult<Input, Structure> {
 
     if ch == '=' {
         let (input, expr) = attribute_expr(input)?;
-        Ok((input, Structure::Attribute(Attribute::new(ident, expr))))
+        Ok((
+            input,
+            Structure::Attribute(Attribute::new(ident, expr).into()),
+        ))
     } else {
         let (input, (labels, body)) = block_parts(input)?;
         Ok((
             input,
-            Structure::Block(Block::new_with_labels(ident, labels, body)),
+            Structure::Block(Block::new_with_labels(ident, labels, body).into()),
         ))
     }
 }
@@ -82,7 +85,7 @@ pub fn body(input: Input) -> IResult<Input, Decorated<Body>> {
     suffix_decor(
         map(
             many0(terminated(decor(ws, structure, spc), line_trailing)),
-            |structures| Decorated::new(Body { structures }),
+            |structures| Body { structures },
         ),
         ws,
     )(input)
