@@ -7,7 +7,7 @@ use super::{
     anychar_except, char_or_cut, decorated,
     error::InternalError,
     ident, line_comment, number, prefix_decorated,
-    repr::Formatted,
+    repr::{Decor, Formatted},
     sp, span, spanned, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
     with_span, ws, ErrorKind, IResult, Input,
@@ -99,6 +99,8 @@ fn object_items(input: Input) -> IResult<Input, Object> {
     let mut items = Vec::new();
 
     loop {
+        let start = remaining_input.location();
+
         let (input, mut item) = match object_item(remaining_input) {
             Ok(res) => res,
             Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
@@ -116,21 +118,13 @@ fn object_items(input: Input) -> IResult<Input, Object> {
             }
         };
 
-        // Consume trailing space after object item value and add it as decor.
-        let (input, suffix_span) = span(sp)(input)?;
-
-        if !suffix_span.is_empty() {
-            item.value
-                .decor_mut()
-                .set_suffix(suffix_span.start..suffix_span.end);
-        }
-
         // Look for the closing brace and return or consume the object item separator and proceed
         // with the next object item, if any.
         let (input, ch) = peek(anychar)(input)?;
 
         let (input, value_terminator) = match ch {
             '}' => {
+                item.set_span(start..input.location());
                 items.push(item);
                 return Ok((input, Object::new(items)));
             }
@@ -138,11 +132,9 @@ fn object_items(input: Input) -> IResult<Input, Object> {
             '\n' => value(ObjectValueTerminator::Newline, newline)(input)?,
             ',' => value(ObjectValueTerminator::Comma, char(','))(input)?,
             '#' | '/' => {
-                // Trailing line comments are part of the object item values' decor.
                 let (input, comment_span) = span(line_comment)(input)?;
-                item.value
-                    .decor_mut()
-                    .set_suffix(suffix_span.start..comment_span.end);
+                item.decor_mut()
+                    .set_suffix(comment_span.start..comment_span.end);
                 value(ObjectValueTerminator::Newline, line_ending)(input)?
             }
             _ => {
@@ -153,6 +145,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
             }
         };
 
+        item.set_span(start..input.location());
         item.set_value_terminator(value_terminator);
         items.push(item);
         remaining_input = input;
@@ -186,13 +179,15 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
         tuple((
             decorated(ws, object_key, sp),
             cut(object_key_value_separator),
-            cut(prefix_decorated(sp, expr)),
+            cut(decorated(sp, expr, sp)),
         )),
         |(key, key_value_separator, value)| ObjectItem {
             key,
             key_value_separator,
             value,
             value_terminator: ObjectValueTerminator::None,
+            span: None,
+            decor: Decor::default(),
         },
     )(input)
 }

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::repr::{Formatted, RawString, Spanned};
+use super::repr::{Decor, Formatted, RawString, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure::{self, BlockLabel};
 use crate::template::{self, StripMode};
@@ -150,6 +150,8 @@ pub struct ObjectItem {
     pub(crate) key_value_separator: ObjectKeyValueSeparator,
     pub(crate) value: Formatted<Expression>,
     pub(crate) value_terminator: ObjectValueTerminator,
+    pub(crate) decor: Decor,
+    pub(crate) span: Option<Range<usize>>,
 }
 
 impl ObjectItem {
@@ -159,6 +161,8 @@ impl ObjectItem {
             key_value_separator: ObjectKeyValueSeparator::Equals,
             value,
             value_terminator: ObjectValueTerminator::Newline,
+            decor: Decor::default(),
+            span: None,
         }
     }
 
@@ -204,6 +208,22 @@ impl ObjectItem {
 
     pub fn set_value_terminator(&mut self, terminator: ObjectValueTerminator) {
         self.value_terminator = terminator;
+    }
+
+    pub fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    pub fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+
+    pub(crate) fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
+
+    pub fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
     }
 }
 

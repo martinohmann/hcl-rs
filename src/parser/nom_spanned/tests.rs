@@ -97,42 +97,49 @@ fn parse_array() {
 #[test]
 fn parse_object() {
     assert_eq!(
-        parse_to_end(r#"{"bar" : "baz", "qux"= ident }"#, expr),
-        Ok(Expression::Object(Box::new(Object::new(vec![
-            {
-                let mut item = ObjectItem::new(
-                    Formatted::new_with_decor(
-                        ObjectKey::Expression(Expression::String("bar".into())),
-                        1..6,
-                        Decor::from_suffix(6..7),
-                    ),
-                    Formatted::new_with_decor(
-                        Expression::String("baz".into()),
-                        9..14,
-                        Decor::from_prefix(8..9),
-                    ),
-                );
-                item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
-                item.set_value_terminator(ObjectValueTerminator::Comma);
-                item
-            },
-            {
-                let mut item = ObjectItem::new(
-                    Formatted::new_with_decor(
-                        ObjectKey::Expression(Expression::String("qux".into())),
-                        16..21,
-                        Decor::from_prefix(15..16),
-                    ),
-                    Formatted::new_with_decor(
-                        Expression::Variable(Variable::unchecked("ident")),
-                        23..28,
-                        Decor::new(22..23, 28..29),
-                    ),
-                );
-                item.set_value_terminator(ObjectValueTerminator::None);
-                item
-            },
-        ]))))
+        parse_to_end("{\"bar\" : \"baz\", \"qux\"= ident # a comment\n }", expr),
+        Ok(Expression::Object(Box::new({
+            let mut object = Object::new(vec![
+                {
+                    let mut item = ObjectItem::new(
+                        Formatted::new_with_decor(
+                            ObjectKey::Expression(Expression::String("bar".into())),
+                            1..6,
+                            Decor::from_suffix(6..7),
+                        ),
+                        Formatted::new_with_decor(
+                            Expression::String("baz".into()),
+                            9..14,
+                            Decor::from_prefix(8..9),
+                        ),
+                    );
+                    item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
+                    item.set_value_terminator(ObjectValueTerminator::Comma);
+                    item.set_span(1..15);
+                    item
+                },
+                {
+                    let mut item = ObjectItem::new(
+                        Formatted::new_with_decor(
+                            ObjectKey::Expression(Expression::String("qux".into())),
+                            16..21,
+                            Decor::from_prefix(15..16),
+                        ),
+                        Formatted::new_with_decor(
+                            Expression::Variable(Variable::unchecked("ident")),
+                            23..28,
+                            Decor::new(22..23, 28..29),
+                        ),
+                    );
+                    item.set_value_terminator(ObjectValueTerminator::Newline);
+                    item.set_span(15..41);
+                    item.decor_mut().set_suffix(29..40);
+                    item
+                },
+            ]);
+            object.set_trailing(41..42);
+            object
+        })))
     );
 
     assert_eq!(
