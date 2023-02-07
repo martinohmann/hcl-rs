@@ -1,7 +1,7 @@
 use super::ast::{
-    BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, Object, ObjectItem,
-    ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Operation, Template, Traversal,
-    TraversalOperator, UnaryOp,
+    Array, BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, Object,
+    ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Operation, Template,
+    Traversal, TraversalOperator, UnaryOp,
 };
 use super::{
     anychar_except, char_or_cut, decorated,
@@ -34,19 +34,33 @@ fn array(input: Input) -> IResult<Input, Expression> {
         char('['),
         alt((
             map(for_list_expr, |expr| Expression::ForExpr(Box::new(expr))),
-            map(array_items, Expression::Array),
+            map(array_items, |array| Expression::Array(Box::new(array))),
         )),
         char_or_cut(']'),
     )(input)
 }
 
-fn array_items(input: Input) -> IResult<Input, Vec<Formatted<Expression>>> {
+fn array_items(input: Input) -> IResult<Input, Array> {
     alt((
-        terminated(
-            separated_list1(char(','), decorated(ws, expr, ws)),
-            opt(terminated(char(','), ws)),
+        map(
+            pair(
+                separated_list1(char(','), decorated(ws, expr, ws)),
+                opt(preceded(char(','), span(ws))),
+            ),
+            |(values, suffix_span)| {
+                let mut array = Array::new(values);
+                if let Some(suffix_span) = suffix_span {
+                    array.set_trailing_comma(true);
+                    array.set_trailing(suffix_span);
+                }
+                array
+            },
         ),
-        map(ws, |_| Vec::new()),
+        map(span(ws), |suffix_span| {
+            let mut array = Array::default();
+            array.set_trailing(suffix_span);
+            array
+        }),
     ))(input)
 }
 

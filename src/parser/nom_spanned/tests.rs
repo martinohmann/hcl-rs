@@ -77,17 +77,17 @@ fn parse_conditional() {
 fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
-        Ok(Expression::Array(vec![
+        Ok(Expression::Array(Box::new(Array::new(vec![
             Formatted::new(Expression::String("bar".into()), 1..6),
             Formatted::new_with_decor(
-                Expression::Array(vec![Formatted::new(
+                Expression::Array(Box::new(Array::new(vec![Formatted::new(
                     Expression::String("baz".into()),
                     9..14
-                )]),
+                )]))),
                 8..15,
                 Decor::from_prefix(7..8),
             ),
-        ]))
+        ]))))
     );
 }
 

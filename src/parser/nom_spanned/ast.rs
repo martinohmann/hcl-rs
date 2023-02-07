@@ -12,7 +12,7 @@ pub enum Expression {
     Bool(bool),
     Number(Number),
     String(String),
-    Array(Vec<Formatted<Expression>>),
+    Array(Box<Array>),
     Object(Box<Object>),
     Template(Template),
     HeredocTemplate(Box<HeredocTemplate>),
@@ -32,10 +32,7 @@ impl From<Expression> for expr::Expression {
             Expression::Bool(b) => expr::Expression::Bool(b),
             Expression::Number(n) => expr::Expression::Number(n),
             Expression::String(s) => expr::Expression::String(s),
-            Expression::Array(array) => array
-                .into_iter()
-                .map(|v| Expression::from(v.into_value()))
-                .collect(),
+            Expression::Array(array) => expr::Expression::Array((*array).into()),
             Expression::Object(object) => expr::Expression::Object((*object).into()),
             Expression::Template(template) => {
                 expr::TemplateExpr::QuotedString(template.into()).into()
@@ -51,6 +48,57 @@ impl From<Expression> for expr::Expression {
             Expression::Operation(op) => expr::Operation::from(*op).into(),
             Expression::Traversal(traversal) => expr::Traversal::from(*traversal).into(),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Array {
+    values: Vec<Formatted<Expression>>,
+    trailing: RawString,
+    trailing_comma: bool,
+}
+
+impl Array {
+    pub fn new(values: Vec<Formatted<Expression>>) -> Array {
+        Array {
+            values,
+            trailing: RawString::default(),
+            trailing_comma: false,
+        }
+    }
+
+    pub fn values(&self) -> &[Formatted<Expression>] {
+        &self.values
+    }
+
+    pub fn items_mut(&mut self) -> &mut [Formatted<Expression>] {
+        &mut self.values
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into()
+    }
+
+    pub fn trailing_comma(&self) -> bool {
+        self.trailing_comma
+    }
+
+    pub fn set_trailing_comma(&mut self, yes: bool) {
+        self.trailing_comma = yes;
+    }
+}
+
+impl From<Array> for Vec<expr::Expression> {
+    fn from(array: Array) -> Self {
+        array
+            .values
+            .into_iter()
+            .map(Formatted::value_into)
+            .collect()
     }
 }
 

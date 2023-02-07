@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+#![allow(dead_code)]
 
 use kstring::KString;
 use std::borrow::Borrow;
