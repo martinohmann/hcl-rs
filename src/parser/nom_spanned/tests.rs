@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorated, Formatted, Spannable, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Locate, Spanned};
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
 use crate::{Identifier, Number};
@@ -12,7 +12,7 @@ use pretty_assertions::assert_eq;
 fn parse_variable() {
     assert_eq!(
         parse_to_end("_an-id3nt1fieR", expr),
-        Ok(Expression::Variable(Formatted::new(Variable::unchecked(
+        Ok(Expression::Variable(Decorated::new(Variable::unchecked(
             "_an-id3nt1fieR"
         ))))
     );
@@ -22,12 +22,12 @@ fn parse_variable() {
 fn parse_string() {
     assert_eq!(
         parse_to_end("\"a string\"", expr),
-        Ok(Expression::String(Formatted::new("a string".into())))
+        Ok(Expression::String(Decorated::new("a string".into())))
     );
 
     assert_eq!(
         parse_to_end(r#""\\""#, expr),
-        Ok(Expression::String(Formatted::new("\\".into())))
+        Ok(Expression::String(Decorated::new("\\".into())))
     );
 }
 
@@ -35,14 +35,14 @@ fn parse_string() {
 fn parse_number() {
     assert_eq!(
         parse_to_end("12e+10", expr),
-        Ok(Expression::Number(Formatted::new(
+        Ok(Expression::Number(Decorated::new(
             Number::from_f64(120000000000.0).unwrap()
         )))
     );
 
     assert_eq!(
         parse_to_end("42", expr),
-        Ok(Expression::Number(Formatted::new(Number::from(42u64))))
+        Ok(Expression::Number(Decorated::new(Number::from(42u64))))
     );
 }
 
@@ -50,16 +50,16 @@ fn parse_number() {
 fn parse_conditional() {
     assert_eq!(
         parse_to_end("var.enabled ? 1 : 0", expr),
-        Ok(Expression::Conditional(Box::new(Formatted::new(
+        Ok(Expression::Conditional(Box::new(Decorated::new(
             Conditional {
-                cond_expr: Expression::Traversal(Box::new(Formatted::new_with_span(
+                cond_expr: Expression::Traversal(Box::new(Decorated::with_span(
                     Traversal {
-                        expr: Expression::Variable(Formatted::new_with_span(
+                        expr: Expression::Variable(Decorated::with_span(
                             Variable::unchecked("var"),
                             0..3
                         )),
-                        operators: vec![Formatted::new_with_span(
-                            TraversalOperator::GetAttr(Formatted::new(Identifier::unchecked(
+                        operators: vec![Decorated::with_span(
+                            TraversalOperator::GetAttr(Decorated::new(Identifier::unchecked(
                                 "enabled"
                             ))),
                             3..11,
@@ -67,12 +67,12 @@ fn parse_conditional() {
                     },
                     0..11
                 ))),
-                true_expr: Expression::Number(Formatted::new_with_decor(
+                true_expr: Expression::Number(Decorated::with_span_decor(
                     1.into(),
                     14..15,
                     Decor::from_prefix(13..14)
                 )),
-                false_expr: Expression::Number(Formatted::new_with_decor(
+                false_expr: Expression::Number(Decorated::with_span_decor(
                     0.into(),
                     18..19,
                     Decor::from_prefix(17..18)
@@ -87,9 +87,9 @@ fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
         Ok(Expression::Array(Box::new(Array::new(vec![
-            Expression::String(Formatted::new_with_span("bar".into(), 1..6)),
+            Expression::String(Decorated::with_span("bar".into(), 1..6)),
             Expression::Array(Box::new({
-                let mut array = Array::new(vec![Expression::String(Formatted::new_with_span(
+                let mut array = Array::new(vec![Expression::String(Decorated::with_span(
                     "baz".into(),
                     9..14,
                 ))]);
@@ -109,12 +109,12 @@ fn parse_object() {
             let mut object = Object::new(vec![
                 {
                     let mut item = ObjectItem::new(
-                        ObjectKey::Expression(Expression::String(Formatted::new_with_decor(
+                        ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "bar".into(),
                             1..6,
                             Decor::from_suffix(6..7),
                         ))),
-                        Expression::String(Formatted::new_with_decor(
+                        Expression::String(Decorated::with_span_decor(
                             "baz".into(),
                             9..14,
                             Decor::from_prefix(8..9),
@@ -127,12 +127,12 @@ fn parse_object() {
                 },
                 {
                     let mut item = ObjectItem::new(
-                        ObjectKey::Expression(Expression::String(Formatted::new_with_decor(
+                        ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "qux".into(),
                             16..21,
                             Decor::from_prefix(15..16),
                         ))),
-                        Expression::Variable(Formatted::new_with_decor(
+                        Expression::Variable(Decorated::with_span_decor(
                             Variable::unchecked("ident"),
                             23..28,
                             Decor::new(22..23, 28..29),
@@ -174,9 +174,9 @@ fn parse_object() {
 fn parse_heredoc() {
     assert_eq!(
         parse_to_end("<<HEREDOC\nHEREDOC", expr),
-        Ok(Expression::HeredocTemplate(Box::new(Formatted::new(
+        Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
             HeredocTemplate {
-                delimiter: Formatted::new_with_span(Identifier::unchecked("HEREDOC"), 2..9),
+                delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
                 template: Template {
                     elements: Vec::new(),
                     span: Some(10..10),
@@ -195,22 +195,23 @@ fn parse_heredoc() {
                 HEREDOC"#},
             expr,
         ),
-        Ok(Expression::HeredocTemplate(Box::new(Formatted::new(
+        Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
             HeredocTemplate {
-                delimiter: Formatted::new_with_span(Identifier::unchecked("HEREDOC"), 2..9),
+                delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
                 template: Template {
                     elements: vec![
                         Element::Interpolation(Interpolation {
-                            expr: Expression::Variable(Formatted::new_with_span(
+                            expr: Expression::Variable(Decorated::with_span(
                                 Variable::unchecked("foo"),
                                 2..5
                             )),
                             strip: StripMode::None,
                             span: Some(0..6),
                         }),
-                        Element::Literal(Spanned {
-                            value: "bar\n".into(),
-                            span: Some(6..10)
+                        Element::Literal({
+                            let mut spanned = Spanned::new("bar\n".into());
+                            spanned.set_span(6..10);
+                            spanned
                         }),
                     ],
                     span: Some(10..20),

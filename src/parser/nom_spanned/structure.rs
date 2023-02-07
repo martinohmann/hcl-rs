@@ -1,7 +1,7 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
-use super::repr::{Decorated, Formatted};
+use super::repr::{Decorate, Decorated};
 use super::{
-    char_or_cut, decor, expr::expr, formatted, ident, prefix_decor, sp, span, spanned, spc, string,
+    char_or_cut, decor, expr::expr, ident, prefix_decor, sp, span, spanned, spc, string,
     suffix_decor, ws, IResult, Input,
 };
 use nom::{
@@ -39,7 +39,7 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
             ),
             // One-line block.
             map(
-                decor(sp, formatted(map(opt(cut(single_attribute)), Box::new)), sp),
+                decor(sp, map(opt(cut(single_attribute)), Box::new), sp),
                 BlockBody::Oneline,
             ),
         )),
@@ -57,8 +57,8 @@ fn block_parts(input: Input) -> IResult<Input, (Vec<BlockLabel>, BlockBody)> {
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
-        map(string, |string| BlockLabel::String(Formatted::new(string))),
-        map(ident, |ident| BlockLabel::Identifier(ident)),
+        map(string, |string| BlockLabel::String(string.into())),
+        map(ident, |ident| BlockLabel::Identifier(ident.into())),
     ))(input)
 }
 
@@ -78,11 +78,11 @@ fn structure(input: Input) -> IResult<Input, Structure> {
     }
 }
 
-pub fn body(input: Input) -> IResult<Input, Formatted<Body>> {
+pub fn body(input: Input) -> IResult<Input, Decorated<Body>> {
     suffix_decor(
         map(
             many0(terminated(decor(ws, structure, spc), line_trailing)),
-            |structures| Formatted::new(Body { structures }),
+            |structures| Decorated::new(Body { structures }),
         ),
         ws,
     )(input)

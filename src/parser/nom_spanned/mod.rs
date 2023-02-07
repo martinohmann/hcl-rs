@@ -12,7 +12,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::Input;
-use self::repr::{Decorated, Formatted, Spannable};
+use self::repr::{Decorate, Decorated, Locate};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
@@ -75,7 +75,7 @@ pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
 }
 
 #[allow(missing_docs)]
-pub fn parse_raw(input: &str) -> ParseResult<Formatted<Body>> {
+pub fn parse_raw(input: &str) -> ParseResult<Decorated<Body>> {
     parse_to_end(input, body)
 }
 
@@ -162,22 +162,16 @@ fn ws(input: Input) -> IResult<Input, ()> {
     )(input)
 }
 
-fn spanned<'a, F, O>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O>
+fn spanned<'a, F, O, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, T>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
-    O: Spannable,
+    T: From<O> + Locate,
 {
-    map(with_span(inner), |(mut value, span)| {
+    map(with_span(inner), |(value, span)| {
+        let mut value = T::from(value);
         value.set_span(span);
         value
     })
-}
-
-fn formatted<'a, F, O>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Formatted<O>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
-{
-    map(inner, Formatted::new)
 }
 
 fn with_span<'a, F, O>(
@@ -216,18 +210,19 @@ where
     }
 }
 
-fn prefix_decor<'a, F, G, O1, O2>(
+fn prefix_decor<'a, F, G, O1, O2, T>(
     prefix: F,
     inner: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O2>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, T>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-    O2: Decorated + Spannable,
+    T: From<O2> + Decorate + Locate,
 {
     map(
         pair(span(prefix), with_span(inner)),
-        |(prefix_span, (mut value, span))| {
+        |(prefix_span, (value, span))| {
+            let mut value = T::from(value);
             if !prefix_span.is_empty() {
                 value.decor_mut().set_prefix(prefix_span);
             }
@@ -238,18 +233,19 @@ where
     )
 }
 
-fn suffix_decor<'a, F, G, O1, O2>(
+fn suffix_decor<'a, F, G, O1, O2, T>(
     inner: F,
     suffix: G,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O1>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, T>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-    O1: Decorated + Spannable,
+    T: From<O1> + Decorate + Locate,
 {
     map(
         pair(with_span(inner), span(suffix)),
-        |((mut value, span), suffix_span)| {
+        |((value, span), suffix_span)| {
+            let mut value = T::from(value);
             if !suffix_span.is_empty() {
                 value.decor_mut().set_suffix(suffix_span);
             }
@@ -260,20 +256,21 @@ where
     )
 }
 
-fn decor<'a, F, G, H, O1, O2, O3>(
+fn decor<'a, F, G, H, O1, O2, O3, T>(
     prefix: F,
     inner: G,
     suffix: H,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, O2>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, T>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
     G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
     H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
-    O2: Decorated + Spannable,
+    T: From<O2> + Decorate + Locate,
 {
     map(
         tuple((span(prefix), with_span(inner), span(suffix))),
-        |(prefix_span, (mut value, span), suffix_span)| {
+        |(prefix_span, (value, span), suffix_span)| {
+            let mut value = T::from(value);
             let decor = value.decor_mut();
 
             if !prefix_span.is_empty() {
@@ -401,10 +398,8 @@ fn str_ident(input: Input) -> IResult<Input, &str> {
     )(input)
 }
 
-fn ident(input: Input) -> IResult<Input, Formatted<Identifier>> {
-    map(str_ident, |ident| {
-        Formatted::new(Identifier::unchecked(ident))
-    })(input)
+fn ident(input: Input) -> IResult<Input, Identifier> {
+    map(str_ident, Identifier::unchecked)(input)
 }
 
 fn exponent(input: Input) -> IResult<Input, Input> {

@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::repr::{Decor, Decorated, Formatted, Located, RawString, Spannable, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Locate, RawString, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
@@ -12,24 +12,24 @@ pub struct Null;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
-    Null(Formatted<Null>),
-    Bool(Formatted<bool>),
-    Number(Formatted<Number>),
-    String(Formatted<String>),
+    Null(Decorated<Null>),
+    Bool(Decorated<bool>),
+    Number(Decorated<Number>),
+    String(Decorated<String>),
     Array(Box<Array>),
     Object(Box<Object>),
     Template(Template),
-    HeredocTemplate(Box<Formatted<HeredocTemplate>>),
-    Parenthesis(Box<Formatted<Expression>>),
-    Variable(Formatted<Variable>),
-    Conditional(Box<Formatted<Conditional>>),
-    FuncCall(Box<Formatted<FuncCall>>),
-    Traversal(Box<Formatted<Traversal>>),
-    Operation(Box<Formatted<Operation>>),
-    ForExpr(Box<Formatted<ForExpr>>),
+    HeredocTemplate(Box<Decorated<HeredocTemplate>>),
+    Parenthesis(Box<Decorated<Expression>>),
+    Variable(Decorated<Variable>),
+    Conditional(Box<Decorated<Conditional>>),
+    FuncCall(Box<Decorated<FuncCall>>),
+    Traversal(Box<Decorated<Traversal>>),
+    Operation(Box<Decorated<Operation>>),
+    ForExpr(Box<Decorated<ForExpr>>),
 }
 
-impl Decorated for Expression {
+impl Decorate for Expression {
     fn decor(&self) -> &Decor {
         match self {
             Expression::Null(n) => n.decor(),
@@ -71,7 +71,7 @@ impl Decorated for Expression {
     }
 }
 
-impl Located for Expression {
+impl Locate for Expression {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Expression::Null(n) => n.span(),
@@ -91,9 +91,7 @@ impl Located for Expression {
             Expression::Traversal(traversal) => traversal.span(),
         }
     }
-}
 
-impl Spannable for Expression {
     fn set_span(&mut self, span: Range<usize>) {
         match self {
             Expression::Null(n) => n.set_span(span),
@@ -190,7 +188,7 @@ impl Array {
     }
 }
 
-impl Decorated for Array {
+impl Decorate for Array {
     fn decor(&self) -> &Decor {
         &self.decor
     }
@@ -200,13 +198,11 @@ impl Decorated for Array {
     }
 }
 
-impl Located for Array {
+impl Locate for Array {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for Array {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -253,7 +249,7 @@ impl Object {
     }
 }
 
-impl Decorated for Object {
+impl Decorate for Object {
     fn decor(&self) -> &Decor {
         &self.decor
     }
@@ -263,13 +259,11 @@ impl Decorated for Object {
     }
 }
 
-impl Located for Object {
+impl Locate for Object {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for Object {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -352,7 +346,7 @@ impl ObjectItem {
     }
 }
 
-impl Decorated for ObjectItem {
+impl Decorate for ObjectItem {
     fn decor(&self) -> &Decor {
         &self.decor
     }
@@ -362,13 +356,11 @@ impl Decorated for ObjectItem {
     }
 }
 
-impl Located for ObjectItem {
+impl Locate for ObjectItem {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for ObjectItem {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -376,11 +368,11 @@ impl Spannable for ObjectItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
-    Identifier(Formatted<Identifier>),
+    Identifier(Decorated<Identifier>),
     Expression(Expression),
 }
 
-impl Decorated for ObjectKey {
+impl Decorate for ObjectKey {
     fn decor(&self) -> &Decor {
         match self {
             ObjectKey::Identifier(ident) => ident.decor(),
@@ -396,16 +388,14 @@ impl Decorated for ObjectKey {
     }
 }
 
-impl Located for ObjectKey {
+impl Locate for ObjectKey {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             ObjectKey::Identifier(ident) => ident.span(),
             ObjectKey::Expression(expr) => expr.span(),
         }
     }
-}
 
-impl Spannable for ObjectKey {
     fn set_span(&mut self, span: Range<usize>) {
         match self {
             ObjectKey::Identifier(ident) => ident.set_span(span),
@@ -438,7 +428,7 @@ impl From<ObjectKey> for expr::ObjectKey {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
-    pub delimiter: Formatted<Identifier>,
+    pub delimiter: Decorated<Identifier>,
     pub template: Template,
     pub strip: HeredocStripMode,
 }
@@ -472,7 +462,7 @@ impl From<Conditional> for expr::Conditional {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
-    pub name: Formatted<Identifier>,
+    pub name: Decorated<Identifier>,
     pub args: Vec<Expression>,
     pub expand_final: bool,
 }
@@ -490,7 +480,7 @@ impl From<FuncCall> for expr::FuncCall {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Traversal {
     pub expr: Expression,
-    pub operators: Vec<Formatted<TraversalOperator>>,
+    pub operators: Vec<Decorated<TraversalOperator>>,
 }
 
 impl From<Traversal> for expr::Traversal {
@@ -500,7 +490,7 @@ impl From<Traversal> for expr::Traversal {
             operators: traversal
                 .operators
                 .into_iter()
-                .map(Formatted::value_into)
+                .map(Decorated::value_into)
                 .collect(),
         }
     }
@@ -510,9 +500,9 @@ impl From<Traversal> for expr::Traversal {
 pub enum TraversalOperator {
     AttrSplat,
     FullSplat,
-    GetAttr(Formatted<Identifier>),
+    GetAttr(Decorated<Identifier>),
     Index(Expression),
-    LegacyIndex(Formatted<u64>),
+    LegacyIndex(Decorated<u64>),
 }
 
 impl From<TraversalOperator> for expr::TraversalOperator {
@@ -564,7 +554,7 @@ impl From<UnaryOp> for expr::UnaryOp {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryOp {
     pub lhs_expr: Expression,
-    pub operator: Formatted<BinaryOperator>,
+    pub operator: Decorated<BinaryOperator>,
     pub rhs_expr: Expression,
 }
 
@@ -581,8 +571,8 @@ impl From<BinaryOp> for expr::BinaryOp {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForExpr {
     pub(crate) prefix: RawString,
-    pub key_var: Option<Formatted<Identifier>>,
-    pub value_var: Formatted<Identifier>,
+    pub key_var: Option<Decorated<Identifier>>,
+    pub value_var: Decorated<Identifier>,
     pub collection_expr: Expression,
     pub key_expr: Option<Expression>,
     pub value_expr: Expression,
@@ -593,7 +583,7 @@ pub struct ForExpr {
 impl From<ForExpr> for expr::ForExpr {
     fn from(expr: ForExpr) -> Self {
         expr::ForExpr {
-            key_var: expr.key_var.map(Formatted::into_value),
+            key_var: expr.key_var.map(Decorated::into_value),
             value_var: expr.value_var.into_value(),
             collection_expr: expr.collection_expr.into(),
             key_expr: expr.key_expr.map(Into::into),
@@ -621,7 +611,7 @@ pub enum Structure {
     Block(Block),
 }
 
-impl Decorated for Structure {
+impl Decorate for Structure {
     fn decor(&self) -> &Decor {
         match self {
             Structure::Attribute(attr) => attr.decor(),
@@ -637,16 +627,14 @@ impl Decorated for Structure {
     }
 }
 
-impl Located for Structure {
+impl Locate for Structure {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Structure::Attribute(attr) => attr.span(),
             Structure::Block(block) => block.span(),
         }
     }
-}
 
-impl Spannable for Structure {
     fn set_span(&mut self, span: Range<usize>) {
         match self {
             Structure::Attribute(attr) => attr.set_span(span),
@@ -666,14 +654,14 @@ impl From<Structure> for structure::Structure {
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
-    pub key: Formatted<Identifier>,
+    pub key: Decorated<Identifier>,
     pub expr: Expression,
     pub(crate) decor: Decor,
     pub(crate) span: Option<Range<usize>>,
 }
 
 impl Attribute {
-    pub fn new(key: Formatted<Identifier>, expr: Expression) -> Attribute {
+    pub fn new(key: Decorated<Identifier>, expr: Expression) -> Attribute {
         Attribute {
             key,
             expr,
@@ -683,7 +671,7 @@ impl Attribute {
     }
 }
 
-impl Decorated for Attribute {
+impl Decorate for Attribute {
     fn decor(&self) -> &Decor {
         &self.decor
     }
@@ -693,13 +681,11 @@ impl Decorated for Attribute {
     }
 }
 
-impl Located for Attribute {
+impl Locate for Attribute {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for Attribute {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -716,7 +702,7 @@ impl From<Attribute> for structure::Attribute {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub identifier: Formatted<Identifier>,
+    pub identifier: Decorated<Identifier>,
     pub labels: Vec<BlockLabel>,
     pub body: BlockBody,
     pub(crate) decor: Decor,
@@ -724,12 +710,12 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn new(ident: Formatted<Identifier>, body: BlockBody) -> Block {
+    pub fn new(ident: Decorated<Identifier>, body: BlockBody) -> Block {
         Block::new_with_labels(ident, Vec::new(), body)
     }
 
     pub fn new_with_labels(
-        ident: Formatted<Identifier>,
+        ident: Decorated<Identifier>,
         labels: Vec<BlockLabel>,
         body: BlockBody,
     ) -> Block {
@@ -743,7 +729,7 @@ impl Block {
     }
 }
 
-impl Decorated for Block {
+impl Decorate for Block {
     fn decor(&self) -> &Decor {
         &self.decor
     }
@@ -753,13 +739,11 @@ impl Decorated for Block {
     }
 }
 
-impl Located for Block {
+impl Locate for Block {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for Block {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -777,11 +761,11 @@ impl From<Block> for structure::Block {
 
 #[derive(Debug, Clone)]
 pub enum BlockLabel {
-    Identifier(Formatted<Identifier>),
-    String(Formatted<String>),
+    Identifier(Decorated<Identifier>),
+    String(Decorated<String>),
 }
 
-impl Decorated for BlockLabel {
+impl Decorate for BlockLabel {
     fn decor(&self) -> &Decor {
         match self {
             BlockLabel::Identifier(ident) => ident.decor(),
@@ -797,16 +781,14 @@ impl Decorated for BlockLabel {
     }
 }
 
-impl Located for BlockLabel {
+impl Locate for BlockLabel {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             BlockLabel::Identifier(ident) => ident.span(),
             BlockLabel::String(expr) => expr.span(),
         }
     }
-}
 
-impl Spannable for BlockLabel {
     fn set_span(&mut self, span: Range<usize>) {
         match self {
             BlockLabel::Identifier(ident) => ident.set_span(span),
@@ -826,8 +808,8 @@ impl From<BlockLabel> for structure::BlockLabel {
 
 #[derive(Debug, Clone)]
 pub enum BlockBody {
-    Multiline(Formatted<Body>),
-    Oneline(Formatted<Box<Option<Attribute>>>),
+    Multiline(Decorated<Body>),
+    Oneline(Decorated<Box<Option<Attribute>>>),
 }
 
 impl From<BlockBody> for structure::Body {
@@ -859,7 +841,7 @@ impl Template {
     }
 }
 
-impl Decorated for Template {
+impl Decorate for Template {
     fn decor(&self) -> &Decor {
         &self.decor
     }
@@ -869,13 +851,11 @@ impl Decorated for Template {
     }
 }
 
-impl Located for Template {
+impl Locate for Template {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for Template {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -904,7 +884,7 @@ pub enum Element {
     Directive(Directive),
 }
 
-impl Located for Element {
+impl Locate for Element {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Element::Literal(lit) => lit.span(),
@@ -912,9 +892,7 @@ impl Located for Element {
             Element::Directive(dir) => dir.span(),
         }
     }
-}
 
-impl Spannable for Element {
     fn set_span(&mut self, span: Range<usize>) {
         match self {
             Element::Literal(lit) => lit.set_span(span),
@@ -941,13 +919,11 @@ pub struct Interpolation {
     pub(crate) span: Option<Range<usize>>,
 }
 
-impl Located for Interpolation {
+impl Locate for Interpolation {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for Interpolation {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -968,16 +944,14 @@ pub enum Directive {
     For(ForDirective),
 }
 
-impl Located for Directive {
+impl Locate for Directive {
     fn span(&self) -> Option<Range<usize>> {
         match self {
             Directive::If(dir) => dir.span(),
             Directive::For(dir) => dir.span(),
         }
     }
-}
 
-impl Spannable for Directive {
     fn set_span(&mut self, span: Range<usize>) {
         match self {
             Directive::If(dir) => dir.set_span(span),
@@ -1006,13 +980,11 @@ pub struct IfDirective {
     pub(crate) span: Option<Range<usize>>,
 }
 
-impl Located for IfDirective {
+impl Locate for IfDirective {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for IfDirective {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -1033,8 +1005,8 @@ impl From<IfDirective> for template::IfDirective {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForDirective {
-    pub key_var: Option<Formatted<Identifier>>,
-    pub value_var: Formatted<Identifier>,
+    pub key_var: Option<Decorated<Identifier>>,
+    pub value_var: Decorated<Identifier>,
     pub collection_expr: Expression,
     pub template: Template,
     pub for_strip: StripMode,
@@ -1042,13 +1014,11 @@ pub struct ForDirective {
     pub(crate) span: Option<Range<usize>>,
 }
 
-impl Located for ForDirective {
+impl Locate for ForDirective {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
-}
 
-impl Spannable for ForDirective {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -1057,7 +1027,7 @@ impl Spannable for ForDirective {
 impl From<ForDirective> for template::ForDirective {
     fn from(dir: ForDirective) -> Self {
         template::ForDirective {
-            key_var: dir.key_var.map(Formatted::into_value),
+            key_var: dir.key_var.map(Decorated::into_value),
             value_var: dir.value_var.into_value(),
             collection_expr: dir.collection_expr.into(),
             template: dir.template.into(),

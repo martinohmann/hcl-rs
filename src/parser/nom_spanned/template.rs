@@ -1,7 +1,7 @@
 use super::ast::{
     Directive, Element, Expression, ForDirective, IfDirective, Interpolation, Template,
 };
-use super::repr::{Formatted, Spanned};
+use super::repr::{Decorated, Spanned};
 use super::{
     char_or_cut, decor, expr::expr, ident, literal, spanned, string_fragment, string_literal,
     tag_or_cut, ws, IResult, Input, StringFragment,
@@ -125,8 +125,8 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
 
 fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     struct ForExpr {
-        key_var: Option<Formatted<Identifier>>,
-        value_var: Formatted<Identifier>,
+        key_var: Option<Decorated<Identifier>>,
+        value_var: Decorated<Identifier>,
         collection_expr: Expression,
         template: Template,
         strip: StripMode,
