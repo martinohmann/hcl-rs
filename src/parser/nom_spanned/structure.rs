@@ -1,13 +1,13 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::repr::{Decorate, Decorated};
 use super::{
-    char_or_cut, decor, expr::expr, ident, prefix_decor, sp, span, spanned, spc, string,
-    suffix_decor, ws, IResult, Input,
+    char_or_cut, decor, expr::expr, ident, prefix_decor, sp, span, spc, string, suffix_decor, ws,
+    IResult, Input,
 };
 use nom::{
     branch::alt,
     character::complete::{anychar, char, line_ending},
-    combinator::{cut, eof, map, opt, peek, value},
+    combinator::{cut, eof, map, peek, value},
     multi::many0,
     sequence::{delimited, pair, preceded, terminated},
 };
@@ -21,10 +21,10 @@ fn attribute_expr(input: Input) -> IResult<Input, Expression> {
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
-    let single_attribute = spanned(map(
+    let single_attribute = map(
         pair(suffix_decor(ident, sp), attribute_expr),
         |(key, expr)| Attribute::new(key, expr),
-    ));
+    );
 
     delimited(
         char_or_cut('{'),
@@ -38,10 +38,11 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
                 },
             ),
             // One-line block.
-            map(
-                decor(sp, map(opt(cut(single_attribute)), Box::new), sp),
-                BlockBody::Oneline,
-            ),
+            map(decor(sp, cut(single_attribute), sp), |attr| {
+                BlockBody::Oneline(Box::new(attr))
+            }),
+            // Empty block.
+            map(span(sp), |span| BlockBody::Empty(span.into())),
         )),
         char_or_cut('}'),
     )(input)

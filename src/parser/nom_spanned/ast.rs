@@ -687,18 +687,16 @@ impl From<BlockLabel> for structure::BlockLabel {
 #[derive(Debug, Clone)]
 pub enum BlockBody {
     Multiline(Decorated<Body>),
-    Oneline(Decorated<Box<Option<Decorated<Attribute>>>>),
+    Oneline(Box<Decorated<Attribute>>),
+    Empty(RawString),
 }
 
 impl From<BlockBody> for structure::Body {
     fn from(body: BlockBody) -> Self {
         match body {
             BlockBody::Multiline(body) => body.value_into(),
-            BlockBody::Oneline(attr) => attr
-                .into_value()
-                .map(Decorated::into_value)
-                .map(|attr| structure::Attribute::from(attr).into())
-                .unwrap_or_default(),
+            BlockBody::Oneline(attr) => structure::Attribute::from(attr.into_value()).into(),
+            BlockBody::Empty(_) => structure::Body::default(),
         }
     }
 }
