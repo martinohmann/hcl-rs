@@ -117,27 +117,27 @@ impl From<Expression> for expr::Expression {
     fn from(expr: Expression) -> Self {
         match expr {
             Expression::Null(_) => expr::Expression::Null,
-            Expression::Bool(b) => expr::Expression::Bool(b.into_value()),
-            Expression::Number(n) => expr::Expression::Number(n.into_value()),
-            Expression::String(s) => expr::Expression::String(s.into_value()),
-            Expression::Array(array) => expr::Expression::Array(array.value_into()),
-            Expression::Object(object) => expr::Expression::Object(object.value_into()),
+            Expression::Bool(b) => expr::Expression::Bool(b.into_inner()),
+            Expression::Number(n) => expr::Expression::Number(n.into_inner()),
+            Expression::String(s) => expr::Expression::String(s.into_inner()),
+            Expression::Array(array) => expr::Expression::Array(array.inner_into()),
+            Expression::Object(object) => expr::Expression::Object(object.inner_into()),
             Expression::Template(template) => {
-                expr::TemplateExpr::QuotedString(template.value_into()).into()
+                expr::TemplateExpr::QuotedString(template.inner_into()).into()
             }
             Expression::HeredocTemplate(heredoc) => {
-                expr::Heredoc::from(heredoc.into_value()).into()
+                expr::Heredoc::from(heredoc.into_inner()).into()
             }
             Expression::Parenthesis(expr) => {
-                expr::Expression::Parenthesis(Box::new(expr.value_into()))
+                expr::Expression::Parenthesis(Box::new(expr.inner_into()))
             }
-            Expression::Variable(var) => expr::Expression::Variable(var.into_value()),
-            Expression::ForExpr(expr) => expr::ForExpr::from(expr.into_value()).into(),
-            Expression::Conditional(cond) => expr::Conditional::from(cond.into_value()).into(),
-            Expression::FuncCall(call) => expr::FuncCall::from(call.into_value()).into(),
-            Expression::Operation(op) => expr::Operation::from(op.into_value()).into(),
+            Expression::Variable(var) => expr::Expression::Variable(var.into_inner()),
+            Expression::ForExpr(expr) => expr::ForExpr::from(expr.into_inner()).into(),
+            Expression::Conditional(cond) => expr::Conditional::from(cond.into_inner()).into(),
+            Expression::FuncCall(call) => expr::FuncCall::from(call.into_inner()).into(),
+            Expression::Operation(op) => expr::Operation::from(op.into_inner()).into(),
             Expression::Traversal(traversal) => {
-                expr::Traversal::from(traversal.into_value()).into()
+                expr::Traversal::from(traversal.into_inner()).into()
             }
         }
     }
@@ -226,7 +226,7 @@ impl From<Object> for expr::Object<expr::ObjectKey, expr::Expression> {
         object
             .items
             .into_iter()
-            .map(Decorated::into_value)
+            .map(Decorated::into_inner)
             .map(|item| (item.key.into(), item.value.into()))
             .collect()
     }
@@ -244,9 +244,9 @@ impl ObjectItem {
     pub fn new(key: ObjectKey, value: Expression) -> ObjectItem {
         ObjectItem {
             key,
-            key_value_separator: ObjectKeyValueSeparator::Equals,
+            key_value_separator: ObjectKeyValueSeparator::default(),
             value,
-            value_terminator: ObjectValueTerminator::Newline,
+            value_terminator: ObjectValueTerminator::default(),
         }
     }
 
@@ -339,6 +339,12 @@ pub enum ObjectKeyValueSeparator {
     Equals,
 }
 
+impl Default for ObjectKeyValueSeparator {
+    fn default() -> Self {
+        ObjectKeyValueSeparator::Equals
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectValueTerminator {
     None,
@@ -346,10 +352,16 @@ pub enum ObjectValueTerminator {
     Comma,
 }
 
+impl Default for ObjectValueTerminator {
+    fn default() -> Self {
+        ObjectValueTerminator::Newline
+    }
+}
+
 impl From<ObjectKey> for expr::ObjectKey {
     fn from(key: ObjectKey) -> Self {
         match key {
-            ObjectKey::Identifier(ident) => expr::ObjectKey::Identifier(ident.into_value()),
+            ObjectKey::Identifier(ident) => expr::ObjectKey::Identifier(ident.into_inner()),
             ObjectKey::Expression(expr) => expr::ObjectKey::Expression(expr.into()),
         }
     }
@@ -357,16 +369,16 @@ impl From<ObjectKey> for expr::ObjectKey {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
-    pub delimiter: Decorated<Identifier>,
-    pub template: Spanned<Template>,
-    pub strip: HeredocStripMode,
+    pub(crate) delimiter: Decorated<Identifier>,
+    pub(crate) template: Spanned<Template>,
+    pub(crate) strip: HeredocStripMode,
 }
 
 impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
-            delimiter: heredoc.delimiter.into_value(),
-            template: heredoc.template.value_into(),
+            delimiter: heredoc.delimiter.into_inner(),
+            template: heredoc.template.inner_into(),
             strip: heredoc.strip,
         }
     }
@@ -374,9 +386,23 @@ impl From<HeredocTemplate> for expr::Heredoc {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Conditional {
-    pub cond_expr: Expression,
-    pub true_expr: Expression,
-    pub false_expr: Expression,
+    cond_expr: Expression,
+    true_expr: Expression,
+    false_expr: Expression,
+}
+
+impl Conditional {
+    pub fn new(
+        cond_expr: Expression,
+        true_expr: Expression,
+        false_expr: Expression,
+    ) -> Conditional {
+        Conditional {
+            cond_expr,
+            true_expr,
+            false_expr,
+        }
+    }
 }
 
 impl From<Conditional> for expr::Conditional {
@@ -391,15 +417,15 @@ impl From<Conditional> for expr::Conditional {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
-    pub name: Decorated<Identifier>,
-    pub args: Vec<Expression>,
-    pub expand_final: bool,
+    pub(crate) name: Decorated<Identifier>,
+    pub(crate) args: Vec<Expression>,
+    pub(crate) expand_final: bool,
 }
 
 impl From<FuncCall> for expr::FuncCall {
     fn from(call: FuncCall) -> Self {
         expr::FuncCall {
-            name: call.name.into_value(),
+            name: call.name.into_inner(),
             args: call.args.into_iter().map(Into::into).collect(),
             expand_final: call.expand_final,
         }
@@ -408,8 +434,14 @@ impl From<FuncCall> for expr::FuncCall {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Traversal {
-    pub expr: Expression,
-    pub operators: Vec<Decorated<TraversalOperator>>,
+    expr: Expression,
+    operators: Vec<Decorated<TraversalOperator>>,
+}
+
+impl Traversal {
+    pub fn new(expr: Expression, operators: Vec<Decorated<TraversalOperator>>) -> Traversal {
+        Traversal { expr, operators }
+    }
 }
 
 impl From<Traversal> for expr::Traversal {
@@ -419,7 +451,7 @@ impl From<Traversal> for expr::Traversal {
             operators: traversal
                 .operators
                 .into_iter()
-                .map(Decorated::value_into)
+                .map(Decorated::inner_into)
                 .collect(),
         }
     }
@@ -440,11 +472,11 @@ impl From<TraversalOperator> for expr::TraversalOperator {
             TraversalOperator::AttrSplat => expr::TraversalOperator::AttrSplat,
             TraversalOperator::FullSplat => expr::TraversalOperator::FullSplat,
             TraversalOperator::GetAttr(ident) => {
-                expr::TraversalOperator::GetAttr(ident.into_value())
+                expr::TraversalOperator::GetAttr(ident.into_inner())
             }
             TraversalOperator::Index(expr) => expr::TraversalOperator::Index(expr.into()),
             TraversalOperator::LegacyIndex(index) => {
-                expr::TraversalOperator::LegacyIndex(index.into_value())
+                expr::TraversalOperator::LegacyIndex(index.into_inner())
             }
         }
     }
@@ -467,14 +499,20 @@ impl From<Operation> for expr::Operation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnaryOp {
-    pub operator: Spanned<UnaryOperator>,
-    pub expr: Expression,
+    operator: Spanned<UnaryOperator>,
+    expr: Expression,
+}
+
+impl UnaryOp {
+    pub fn new(operator: Spanned<UnaryOperator>, expr: Expression) -> UnaryOp {
+        UnaryOp { operator, expr }
+    }
 }
 
 impl From<UnaryOp> for expr::UnaryOp {
     fn from(op: UnaryOp) -> Self {
         expr::UnaryOp {
-            operator: op.operator.into_value(),
+            operator: op.operator.into_inner(),
             expr: op.expr.into(),
         }
     }
@@ -482,16 +520,30 @@ impl From<UnaryOp> for expr::UnaryOp {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryOp {
-    pub lhs_expr: Expression,
-    pub operator: Decorated<BinaryOperator>,
-    pub rhs_expr: Expression,
+    lhs_expr: Expression,
+    operator: Decorated<BinaryOperator>,
+    rhs_expr: Expression,
+}
+
+impl BinaryOp {
+    pub fn new(
+        lhs_expr: Expression,
+        operator: Decorated<BinaryOperator>,
+        rhs_expr: Expression,
+    ) -> BinaryOp {
+        BinaryOp {
+            lhs_expr,
+            operator,
+            rhs_expr,
+        }
+    }
 }
 
 impl From<BinaryOp> for expr::BinaryOp {
     fn from(op: BinaryOp) -> Self {
         expr::BinaryOp {
             lhs_expr: op.lhs_expr.into(),
-            operator: op.operator.into_value(),
+            operator: op.operator.into_inner(),
             rhs_expr: op.rhs_expr.into(),
         }
     }
@@ -500,20 +552,20 @@ impl From<BinaryOp> for expr::BinaryOp {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForExpr {
     pub(crate) prefix: RawString,
-    pub key_var: Option<Decorated<Identifier>>,
-    pub value_var: Decorated<Identifier>,
-    pub collection_expr: Expression,
-    pub key_expr: Option<Expression>,
-    pub value_expr: Expression,
-    pub grouping: bool,
-    pub cond_expr: Option<Expression>,
+    pub(crate) key_var: Option<Decorated<Identifier>>,
+    pub(crate) value_var: Decorated<Identifier>,
+    pub(crate) collection_expr: Expression,
+    pub(crate) key_expr: Option<Expression>,
+    pub(crate) value_expr: Expression,
+    pub(crate) grouping: bool,
+    pub(crate) cond_expr: Option<Expression>,
 }
 
 impl From<ForExpr> for expr::ForExpr {
     fn from(expr: ForExpr) -> Self {
         expr::ForExpr {
-            key_var: expr.key_var.map(Decorated::into_value),
-            value_var: expr.value_var.into_value(),
+            key_var: expr.key_var.map(Decorated::into_inner),
+            value_var: expr.value_var.into_inner(),
             collection_expr: expr.collection_expr.into(),
             key_expr: expr.key_expr.map(Into::into),
             value_expr: expr.value_expr.into(),
@@ -525,7 +577,7 @@ impl From<ForExpr> for expr::ForExpr {
 
 #[derive(Debug, Clone, Default)]
 pub struct Body {
-    pub structures: Vec<Structure>,
+    pub(crate) structures: Vec<Structure>,
 }
 
 impl From<Body> for structure::Body {
@@ -575,16 +627,16 @@ impl Span for Structure {
 impl From<Structure> for structure::Structure {
     fn from(structure: Structure) -> Self {
         match structure {
-            Structure::Attribute(attr) => structure::Structure::Attribute(attr.value_into()),
-            Structure::Block(block) => structure::Structure::Block(block.value_into()),
+            Structure::Attribute(attr) => structure::Structure::Attribute(attr.inner_into()),
+            Structure::Block(block) => structure::Structure::Block(block.inner_into()),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Attribute {
-    pub key: Decorated<Identifier>,
-    pub expr: Expression,
+    key: Decorated<Identifier>,
+    expr: Expression,
 }
 
 impl Attribute {
@@ -596,7 +648,7 @@ impl Attribute {
 impl From<Attribute> for structure::Attribute {
     fn from(attr: Attribute) -> Self {
         structure::Attribute {
-            key: attr.key.into_value(),
+            key: attr.key.into_inner(),
             expr: attr.expr.into(),
         }
     }
@@ -604,9 +656,9 @@ impl From<Attribute> for structure::Attribute {
 
 #[derive(Debug, Clone)]
 pub struct Block {
-    pub identifier: Decorated<Identifier>,
-    pub labels: Vec<BlockLabel>,
-    pub body: BlockBody,
+    identifier: Decorated<Identifier>,
+    labels: Vec<BlockLabel>,
+    body: BlockBody,
 }
 
 impl Block {
@@ -630,7 +682,7 @@ impl Block {
 impl From<Block> for structure::Block {
     fn from(block: Block) -> Self {
         structure::Block {
-            identifier: block.identifier.into_value(),
+            identifier: block.identifier.into_inner(),
             labels: block.labels.into_iter().map(Into::into).collect(),
             body: block.body.into(),
         }
@@ -678,8 +730,8 @@ impl Span for BlockLabel {
 impl From<BlockLabel> for structure::BlockLabel {
     fn from(label: BlockLabel) -> Self {
         match label {
-            BlockLabel::Identifier(ident) => structure::BlockLabel::Identifier(ident.into_value()),
-            BlockLabel::String(expr) => structure::BlockLabel::String(expr.into_value()),
+            BlockLabel::Identifier(ident) => structure::BlockLabel::Identifier(ident.into_inner()),
+            BlockLabel::String(expr) => structure::BlockLabel::String(expr.into_inner()),
         }
     }
 }
@@ -694,8 +746,8 @@ pub enum BlockBody {
 impl From<BlockBody> for structure::Body {
     fn from(body: BlockBody) -> Self {
         match body {
-            BlockBody::Multiline(body) => body.value_into(),
-            BlockBody::Oneline(attr) => structure::Attribute::from(attr.into_value()).into(),
+            BlockBody::Multiline(body) => body.inner_into(),
+            BlockBody::Oneline(attr) => structure::Attribute::from(attr.into_inner()).into(),
             BlockBody::Empty(_) => structure::Body::default(),
         }
     }
@@ -703,7 +755,7 @@ impl From<BlockBody> for structure::Body {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
-    pub elements: Vec<Element>,
+    elements: Vec<Element>,
 }
 
 impl Template {
@@ -756,8 +808,8 @@ impl Span for Element {
 impl From<Element> for template::Element {
     fn from(element: Element) -> Self {
         match element {
-            Element::Literal(lit) => template::Element::Literal(lit.into_value()),
-            Element::Interpolation(interp) => template::Element::Interpolation(interp.value_into()),
+            Element::Literal(lit) => template::Element::Literal(lit.into_inner()),
+            Element::Interpolation(interp) => template::Element::Interpolation(interp.inner_into()),
             Element::Directive(dir) => template::Element::Directive(dir.into()),
         }
     }
@@ -765,8 +817,17 @@ impl From<Element> for template::Element {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Interpolation {
-    pub expr: Expression,
-    pub strip: StripMode,
+    pub(crate) expr: Expression,
+    pub(crate) strip: StripMode,
+}
+
+impl Interpolation {
+    pub fn new(expr: Expression) -> Interpolation {
+        Interpolation {
+            expr,
+            strip: StripMode::default(),
+        }
+    }
 }
 
 impl From<Interpolation> for template::Interpolation {
@@ -803,28 +864,28 @@ impl Span for Directive {
 impl From<Directive> for template::Directive {
     fn from(dir: Directive) -> Self {
         match dir {
-            Directive::If(dir) => template::Directive::If(dir.value_into()),
-            Directive::For(dir) => template::Directive::For(dir.value_into()),
+            Directive::If(dir) => template::Directive::If(dir.inner_into()),
+            Directive::For(dir) => template::Directive::For(dir.inner_into()),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
-    pub cond_expr: Expression,
-    pub true_template: Spanned<Template>,
-    pub false_template: Option<Spanned<Template>>,
-    pub if_strip: StripMode,
-    pub else_strip: StripMode,
-    pub endif_strip: StripMode,
+    pub(crate) cond_expr: Expression,
+    pub(crate) true_template: Spanned<Template>,
+    pub(crate) false_template: Option<Spanned<Template>>,
+    pub(crate) if_strip: StripMode,
+    pub(crate) else_strip: StripMode,
+    pub(crate) endif_strip: StripMode,
 }
 
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
         template::IfDirective {
             cond_expr: dir.cond_expr.into(),
-            true_template: dir.true_template.value_into(),
-            false_template: dir.false_template.map(Spanned::value_into),
+            true_template: dir.true_template.inner_into(),
+            false_template: dir.false_template.map(Spanned::inner_into),
             if_strip: dir.if_strip,
             else_strip: dir.else_strip,
             endif_strip: dir.endif_strip,
@@ -834,21 +895,21 @@ impl From<IfDirective> for template::IfDirective {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForDirective {
-    pub key_var: Option<Decorated<Identifier>>,
-    pub value_var: Decorated<Identifier>,
-    pub collection_expr: Expression,
-    pub template: Spanned<Template>,
-    pub for_strip: StripMode,
-    pub endfor_strip: StripMode,
+    pub(crate) key_var: Option<Decorated<Identifier>>,
+    pub(crate) value_var: Decorated<Identifier>,
+    pub(crate) collection_expr: Expression,
+    pub(crate) template: Spanned<Template>,
+    pub(crate) for_strip: StripMode,
+    pub(crate) endfor_strip: StripMode,
 }
 
 impl From<ForDirective> for template::ForDirective {
     fn from(dir: ForDirective) -> Self {
         template::ForDirective {
-            key_var: dir.key_var.map(Decorated::into_value),
-            value_var: dir.value_var.into_value(),
+            key_var: dir.key_var.map(Decorated::into_inner),
+            value_var: dir.value_var.into_inner(),
             collection_expr: dir.collection_expr.into(),
-            template: dir.template.value_into(),
+            template: dir.template.inner_into(),
             for_strip: dir.for_strip,
             endfor_strip: dir.endfor_strip,
         }

@@ -51,33 +51,33 @@ fn parse_conditional() {
     assert_eq!(
         parse_to_end("var.enabled ? 1 : 0", expr),
         Ok(Expression::Conditional(Box::new(Decorated::new(
-            Conditional {
-                cond_expr: Expression::Traversal(Box::new(Decorated::with_span(
-                    Traversal {
-                        expr: Expression::Variable(Decorated::with_span(
+            Conditional::new(
+                Expression::Traversal(Box::new(Decorated::with_span(
+                    Traversal::new(
+                        Expression::Variable(Decorated::with_span(
                             Variable::unchecked("var"),
                             0..3
                         )),
-                        operators: vec![Decorated::with_span(
+                        vec![Decorated::with_span(
                             TraversalOperator::GetAttr(Decorated::new(Identifier::unchecked(
                                 "enabled"
                             ))),
                             3..11,
                         )]
-                    },
+                    ),
                     0..11
                 ))),
-                true_expr: Expression::Number(Decorated::with_span_decor(
+                Expression::Number(Decorated::with_span_decor(
                     1.into(),
                     14..15,
                     Decor::from_prefix(13..14)
                 )),
-                false_expr: Expression::Number(Decorated::with_span_decor(
+                Expression::Number(Decorated::with_span_decor(
                     0.into(),
                     18..19,
                     Decor::from_prefix(17..18)
                 )),
-            }
+            )
         ))))
     );
 }
@@ -196,21 +196,16 @@ fn parse_heredoc() {
             HeredocTemplate {
                 delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
                 template: Spanned::with_span(
-                    Template {
-                        elements: vec![
-                            Element::Interpolation(Spanned::with_span(
-                                Interpolation {
-                                    expr: Expression::Variable(Decorated::with_span(
-                                        Variable::unchecked("foo"),
-                                        2..5,
-                                    )),
-                                    strip: StripMode::None,
-                                },
-                                0..6
-                            )),
-                            Element::Literal(Spanned::with_span(String::from("bar\n"), 6..10)),
-                        ],
-                    },
+                    Template::new(vec![
+                        Element::Interpolation(Spanned::with_span(
+                            Interpolation::new(Expression::Variable(Decorated::with_span(
+                                Variable::unchecked("foo"),
+                                2..5,
+                            )),),
+                            0..6
+                        )),
+                        Element::Literal(Spanned::with_span(String::from("bar\n"), 6..10)),
+                    ],),
                     10..20,
                 ),
                 strip: HeredocStripMode::None,

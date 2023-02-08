@@ -71,7 +71,7 @@ use std::str::FromStr;
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
-    parse_raw(input).map(|node| node.into_value().into())
+    parse_raw(input).map(|node| node.into_inner().into())
 }
 
 #[allow(missing_docs)]

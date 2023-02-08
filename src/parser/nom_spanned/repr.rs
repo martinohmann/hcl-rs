@@ -144,8 +144,8 @@ impl From<Range<usize>> for RawString {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Decor {
-    pub prefix: Option<RawString>,
-    pub suffix: Option<RawString>,
+    prefix: Option<RawString>,
+    suffix: Option<RawString>,
 }
 
 impl Decor {
@@ -204,35 +204,31 @@ pub trait Decorate {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Spanned<T> {
-    value: T,
+    inner: T,
     span: Option<Range<usize>>,
 }
 
 impl<T> Spanned<T> {
-    pub fn new(value: T) -> Spanned<T> {
-        Spanned { value, span: None }
+    pub fn new(inner: T) -> Spanned<T> {
+        Spanned { inner, span: None }
     }
 
-    pub(crate) fn with_span(value: T, span: Range<usize>) -> Spanned<T> {
+    pub(crate) fn with_span(inner: T, span: Range<usize>) -> Spanned<T> {
         Spanned {
-            value,
+            inner,
             span: Some(span),
         }
     }
 
-    pub fn into_value(self) -> T {
-        self.value
+    pub fn into_inner(self) -> T {
+        self.inner
     }
 
-    pub fn value(&self) -> &T {
-        &self.value
-    }
-
-    pub fn value_into<U>(self) -> U
+    pub fn inner_into<U>(self) -> U
     where
         T: Into<U>,
     {
-        self.value.into()
+        self.inner.into()
     }
 }
 
@@ -241,14 +237,14 @@ impl<T> Deref for Spanned<T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        &self.value
+        &self.inner
     }
 }
 
 impl<T> DerefMut for Spanned<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.value
+        &mut self.inner
     }
 }
 
@@ -270,49 +266,45 @@ impl<T> Span for Spanned<T> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decorated<T> {
-    value: T,
+    inner: T,
     decor: Decor,
     span: Option<Range<usize>>,
 }
 
 impl<T> Decorated<T> {
-    pub fn new(value: T) -> Decorated<T> {
+    pub fn new(inner: T) -> Decorated<T> {
         Decorated {
-            value,
+            inner,
             decor: Decor::default(),
             span: None,
         }
     }
 
-    pub(crate) fn with_span(value: T, span: Range<usize>) -> Decorated<T> {
+    pub(crate) fn with_span(inner: T, span: Range<usize>) -> Decorated<T> {
         Decorated {
-            value,
+            inner,
             decor: Decor::default(),
             span: Some(span),
         }
     }
 
-    pub(crate) fn with_span_decor(value: T, span: Range<usize>, decor: Decor) -> Decorated<T> {
+    pub(crate) fn with_span_decor(inner: T, span: Range<usize>, decor: Decor) -> Decorated<T> {
         Decorated {
-            value,
+            inner,
             decor,
             span: Some(span),
         }
     }
 
-    pub fn into_value(self) -> T {
-        self.value
+    pub fn into_inner(self) -> T {
+        self.inner
     }
 
-    pub fn value(&self) -> &T {
-        &self.value
-    }
-
-    pub fn value_into<U>(self) -> U
+    pub fn inner_into<U>(self) -> U
     where
         T: Into<U>,
     {
-        self.value.into()
+        self.inner.into()
     }
 }
 
@@ -321,14 +313,14 @@ impl<T> Deref for Decorated<T> {
 
     #[inline]
     fn deref(&self) -> &T {
-        &self.value
+        &self.inner
     }
 }
 
 impl<T> DerefMut for Decorated<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.value
+        &mut self.inner
     }
 }
 

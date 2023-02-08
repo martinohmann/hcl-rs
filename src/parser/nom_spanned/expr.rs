@@ -170,7 +170,7 @@ fn object_key(input: Input) -> IResult<Input, ObjectKey> {
             // avoids re-parsing the whole key-value pair when an identifier followed by a
             // traversal operator is encountered.
             if let Expression::Variable(variable) = expr {
-                ObjectKey::Identifier(Decorated::new(variable.value_into()))
+                ObjectKey::Identifier(Decorated::new(variable.inner_into()))
             } else {
                 ObjectKey::Expression(expr)
             }
@@ -369,18 +369,19 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
     map(
         pair(with_span(str_ident), opt(preceded(ws, func_call))),
         |((ident, span), func_call)| match func_call {
-            Some((args, expand_final)) => {
-                Expression::FuncCall(Box::new(Decorated::new(FuncCall {
+            Some((args, expand_final)) => Expression::FuncCall(Box::new(
+                FuncCall {
                     name: Decorated::with_span(Identifier::unchecked(ident), span),
                     args,
                     expand_final,
-                })))
-            }
+                }
+                .into(),
+            )),
             None => match ident {
-                "null" => Expression::Null(Decorated::new(Null)),
-                "true" => Expression::Bool(Decorated::new(true)),
-                "false" => Expression::Bool(Decorated::new(false)),
-                var => Expression::Variable(Decorated::new(Variable::unchecked(var))),
+                "null" => Expression::Null(Null.into()),
+                "true" => Expression::Bool(true.into()),
+                "false" => Expression::Bool(false.into()),
+                var => Expression::Variable(Variable::unchecked(var).into()),
             },
         },
     )(input)
@@ -435,8 +436,9 @@ fn unary_op(input: Input) -> IResult<Input, Expression> {
     map(
         pair(spanned(unary_operator), prefix_decor(sp, expr_term)),
         |(operator, expr)| {
-            let op = UnaryOp { operator, expr };
-            Expression::Operation(Box::new(Decorated::new(Operation::Unary(op))))
+            Expression::Operation(Box::new(
+                Operation::Unary(UnaryOp::new(operator, expr)).into(),
+            ))
         },
     )(input)
 }
@@ -451,19 +453,19 @@ fn expr_term<'a>(input: Input<'a>) -> IResult<Input<'a>, Expression> {
         ))(input),
         '[' => array(input),
         '{' => object(input),
-        '0'..='9' => map(number, |n| Expression::Number(Decorated::new(n)))(input),
+        '0'..='9' => map(number, |n| Expression::Number(n.into()))(input),
         '<' => map(heredoc, |heredoc| {
-            Expression::HeredocTemplate(Box::new(Decorated::new(heredoc)))
+            Expression::HeredocTemplate(Box::new(heredoc.into()))
         })(input),
         '-' => alt((
             map(preceded(pair(char('-'), sp), number), |n| {
-                Expression::Number(Decorated::new(-n))
+                Expression::Number((-n).into())
             }),
             unary_op,
         ))(input),
         '!' => unary_op(input),
         '(' => map(parenthesis, |expr| {
-            Expression::Parenthesis(Box::new(Decorated::new(expr)))
+            Expression::Parenthesis(Box::new(expr.into()))
         })(input),
         _ => alt((ident_or_func_call, fail))(input),
     }
@@ -495,13 +497,10 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
 
             let (mut expr, end) = match traversal {
                 Some((operators, span)) => {
-                    let expr = Expression::Traversal(Box::new(Decorated::new(Traversal {
-                        expr: {
-                            expr.set_span(start..end);
-                            expr
-                        },
-                        operators,
-                    })));
+                    expr.set_span(start..end);
+
+                    let expr =
+                        Expression::Traversal(Box::new(Traversal::new(expr, operators).into()));
 
                     (expr, span.end)
                 }
@@ -510,16 +509,11 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
 
             let (mut expr, end) = match binary_op {
                 Some(((operator, rhs_expr), span)) => {
-                    let expr = Expression::Operation(Box::new(Decorated::new(Operation::Binary(
-                        BinaryOp {
-                            lhs_expr: {
-                                expr.set_span(start..end);
-                                expr
-                            },
-                            operator,
-                            rhs_expr,
-                        },
-                    ))));
+                    expr.set_span(start..end);
+
+                    let expr = Expression::Operation(Box::new(
+                        Operation::Binary(BinaryOp::new(expr, operator, rhs_expr)).into(),
+                    ));
 
                     (expr, span.end)
                 }
@@ -528,14 +522,11 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
 
             match conditional {
                 Some((true_expr, false_expr)) => {
-                    Expression::Conditional(Box::new(Decorated::new(Conditional {
-                        cond_expr: {
-                            expr.set_span(start..end);
-                            expr
-                        },
-                        true_expr,
-                        false_expr,
-                    })))
+                    expr.set_span(start..end);
+
+                    Expression::Conditional(Box::new(
+                        Conditional::new(expr, true_expr, false_expr).into(),
+                    ))
                 }
                 None => expr,
             }
