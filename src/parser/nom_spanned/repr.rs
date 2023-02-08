@@ -115,8 +115,7 @@ impl RawString {
 
     pub fn span(&self) -> Option<Range<usize>> {
         match &self.0 {
-            RawStringInner::Empty => None,
-            RawStringInner::Explicit(_) => None,
+            RawStringInner::Empty | RawStringInner::Explicit(_) => None,
             RawStringInner::Spanned(span) => Some(span.clone()),
         }
     }
@@ -130,6 +129,19 @@ impl RawString {
     }
 }
 
+impl Despan for RawString {
+    fn despan(&mut self, input: &str) {
+        match &self.0 {
+            RawStringInner::Empty | RawStringInner::Explicit(_) => {}
+            RawStringInner::Spanned(span) => {
+                *self = RawString::from(input.get(span.clone()).unwrap_or_else(|| {
+                    panic!("span {:?} should be in input:\n```\n{}\n```", span, input)
+                }))
+            }
+        }
+    }
+}
+
 impl Default for RawString {
     fn default() -> Self {
         RawString(RawStringInner::Empty)
@@ -139,6 +151,68 @@ impl Default for RawString {
 impl From<Range<usize>> for RawString {
     fn from(span: Range<usize>) -> Self {
         RawString::from_span(span)
+    }
+}
+
+impl From<&str> for RawString {
+    #[inline]
+    fn from(s: &str) -> Self {
+        if s.is_empty() {
+            Self(RawStringInner::Empty)
+        } else {
+            InternalString::from(s).into()
+        }
+    }
+}
+
+impl From<String> for RawString {
+    #[inline]
+    fn from(s: String) -> Self {
+        if s.is_empty() {
+            Self(RawStringInner::Empty)
+        } else {
+            InternalString::from(s).into()
+        }
+    }
+}
+
+impl From<&String> for RawString {
+    #[inline]
+    fn from(s: &String) -> Self {
+        if s.is_empty() {
+            Self(RawStringInner::Empty)
+        } else {
+            InternalString::from(s).into()
+        }
+    }
+}
+
+impl From<InternalString> for RawString {
+    #[inline]
+    fn from(inner: InternalString) -> Self {
+        Self(RawStringInner::Explicit(inner))
+    }
+}
+
+impl From<&InternalString> for RawString {
+    #[inline]
+    fn from(s: &InternalString) -> Self {
+        if s.is_empty() {
+            Self(RawStringInner::Empty)
+        } else {
+            InternalString::from(s).into()
+        }
+    }
+}
+
+impl From<Box<str>> for RawString {
+    #[inline]
+    fn from(s: Box<str>) -> Self {
+        if s.is_empty() {
+            Self(RawStringInner::Empty)
+        } else {
+            InternalString::from(s).into()
+        }
     }
 }
 
@@ -191,10 +265,26 @@ impl Decor {
     }
 }
 
+impl Despan for Decor {
+    fn despan(&mut self, input: &str) {
+        if let Some(prefix) = &mut self.prefix {
+            prefix.despan(input);
+        }
+
+        if let Some(suffix) = &mut self.suffix {
+            suffix.despan(input);
+        }
+    }
+}
+
 pub trait Span {
     fn span(&self) -> Option<Range<usize>>;
     #[doc(hidden)]
     fn set_span(&mut self, span: Range<usize>);
+}
+
+pub(crate) trait Despan {
+    fn despan(&mut self, input: &str);
 }
 
 pub trait Decorate {

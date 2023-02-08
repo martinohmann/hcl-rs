@@ -3,7 +3,6 @@ use super::expr::expr;
 use super::parse_to_end;
 use super::repr::{Decor, Decorate, Decorated, Span, Spanned};
 use crate::expr::{HeredocStripMode, Variable};
-use crate::template::StripMode;
 use crate::{Identifier, Number};
 use indoc::indoc;
 use pretty_assertions::assert_eq;

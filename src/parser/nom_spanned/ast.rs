@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use super::repr::{Decor, Decorate, Decorated, RawString, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, RawString, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
@@ -28,6 +28,72 @@ pub enum Expression {
     UnaryOp(Box<Decorated<UnaryOp>>),
     BinaryOp(Box<Decorated<BinaryOp>>),
     ForExpr(Box<Decorated<ForExpr>>),
+}
+
+impl Despan for Expression {
+    fn despan(&mut self, input: &str) {
+        match self {
+            Expression::Null(n) => {
+                n.decor_mut().despan(input);
+            }
+            Expression::Bool(b) => {
+                b.decor_mut().despan(input);
+            }
+            Expression::Number(n) => {
+                n.decor_mut().despan(input);
+            }
+            Expression::String(s) => {
+                s.decor_mut().despan(input);
+            }
+            Expression::Array(array) => {
+                array.decor_mut().despan(input);
+                array.despan(input);
+            }
+            Expression::Object(object) => {
+                object.decor_mut().despan(input);
+                object.despan(input);
+            }
+            Expression::Template(template) => {
+                template.decor_mut().despan(input);
+                template.despan(input);
+            }
+            Expression::HeredocTemplate(heredoc) => {
+                heredoc.decor_mut().despan(input);
+                heredoc.despan(input);
+            }
+            Expression::Parenthesis(expr) => {
+                expr.decor_mut().despan(input);
+                expr.despan(input);
+            }
+            Expression::Variable(var) => {
+                var.decor_mut().despan(input);
+            }
+            Expression::ForExpr(expr) => {
+                expr.decor_mut().despan(input);
+                expr.despan(input);
+            }
+            Expression::Conditional(cond) => {
+                cond.decor_mut().despan(input);
+                cond.despan(input);
+            }
+            Expression::FuncCall(call) => {
+                call.decor_mut().despan(input);
+                call.despan(input);
+            }
+            Expression::UnaryOp(op) => {
+                op.decor_mut().despan(input);
+                op.despan(input);
+            }
+            Expression::BinaryOp(op) => {
+                op.decor_mut().despan(input);
+                op.despan(input);
+            }
+            Expression::Traversal(traversal) => {
+                traversal.decor_mut().despan(input);
+                traversal.despan(input);
+            }
+        }
+    }
 }
 
 impl Decorate for Expression {
@@ -190,6 +256,17 @@ impl Array {
     }
 }
 
+impl Despan for Array {
+    fn despan(&mut self, input: &str) {
+        self.trailing.despan(input);
+
+        for value in self.values.iter_mut() {
+            value.decor_mut().despan(input);
+            value.despan(input);
+        }
+    }
+}
+
 impl From<Array> for Vec<expr::Expression> {
     fn from(array: Array) -> Self {
         array.values.into_iter().map(Into::into).collect()
@@ -224,6 +301,17 @@ impl Object {
 
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
+    }
+}
+
+impl Despan for Object {
+    fn despan(&mut self, input: &str) {
+        self.trailing.despan(input);
+
+        for item in self.items.iter_mut() {
+            item.decor_mut().despan(input);
+            item.despan(input);
+        }
     }
 }
 
@@ -301,10 +389,31 @@ impl ObjectItem {
     }
 }
 
+impl Despan for ObjectItem {
+    fn despan(&mut self, input: &str) {
+        self.key.decor_mut().despan(input);
+        self.key.despan(input);
+        self.value.decor_mut().despan(input);
+        self.value.despan(input);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
     Identifier(Decorated<Identifier>),
     Expression(Expression),
+}
+
+impl Despan for ObjectKey {
+    fn despan(&mut self, input: &str) {
+        match self {
+            ObjectKey::Identifier(ident) => ident.decor_mut().despan(input),
+            ObjectKey::Expression(expr) => {
+                expr.decor_mut().despan(input);
+                expr.despan(input);
+            }
+        }
+    }
 }
 
 impl Decorate for ObjectKey {
@@ -380,6 +489,13 @@ pub struct HeredocTemplate {
     pub(crate) strip: HeredocStripMode,
 }
 
+impl Despan for HeredocTemplate {
+    fn despan(&mut self, input: &str) {
+        self.delimiter.decor_mut().despan(input);
+        self.template.despan(input);
+    }
+}
+
 impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         expr::Heredoc {
@@ -411,6 +527,17 @@ impl Conditional {
     }
 }
 
+impl Despan for Conditional {
+    fn despan(&mut self, input: &str) {
+        self.cond_expr.decor_mut().despan(input);
+        self.cond_expr.despan(input);
+        self.true_expr.decor_mut().despan(input);
+        self.true_expr.despan(input);
+        self.false_expr.decor_mut().despan(input);
+        self.false_expr.despan(input);
+    }
+}
+
 impl From<Conditional> for expr::Conditional {
     fn from(cond: Conditional) -> Self {
         expr::Conditional {
@@ -426,6 +553,17 @@ pub struct FuncCall {
     pub(crate) name: Decorated<Identifier>,
     pub(crate) args: Vec<Expression>,
     pub(crate) expand_final: bool,
+}
+
+impl Despan for FuncCall {
+    fn despan(&mut self, input: &str) {
+        self.name.decor_mut().despan(input);
+
+        for arg in self.args.iter_mut() {
+            arg.decor_mut().despan(input);
+            arg.despan(input);
+        }
+    }
 }
 
 impl From<FuncCall> for expr::FuncCall {
@@ -447,6 +585,18 @@ pub struct Traversal {
 impl Traversal {
     pub fn new(expr: Expression, operators: Vec<Decorated<TraversalOperator>>) -> Traversal {
         Traversal { expr, operators }
+    }
+}
+
+impl Despan for Traversal {
+    fn despan(&mut self, input: &str) {
+        self.expr.decor_mut().despan(input);
+        self.expr.despan(input);
+
+        for operator in self.operators.iter_mut() {
+            operator.decor_mut().despan(input);
+            operator.despan(input);
+        }
     }
 }
 
@@ -472,6 +622,20 @@ pub enum TraversalOperator {
     LegacyIndex(Decorated<u64>),
 }
 
+impl Despan for TraversalOperator {
+    fn despan(&mut self, input: &str) {
+        match self {
+            TraversalOperator::AttrSplat | TraversalOperator::FullSplat => {}
+            TraversalOperator::GetAttr(ident) => ident.decor_mut().despan(input),
+            TraversalOperator::Index(expr) => {
+                expr.decor_mut().despan(input);
+                expr.despan(input);
+            }
+            TraversalOperator::LegacyIndex(index) => index.decor_mut().despan(input),
+        }
+    }
+}
+
 impl From<TraversalOperator> for expr::TraversalOperator {
     fn from(operator: TraversalOperator) -> Self {
         match operator {
@@ -489,21 +653,6 @@ impl From<TraversalOperator> for expr::TraversalOperator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Operation {
-    Unary(UnaryOp),
-    Binary(BinaryOp),
-}
-
-impl From<Operation> for expr::Operation {
-    fn from(op: Operation) -> Self {
-        match op {
-            Operation::Unary(unary) => expr::Operation::Unary(unary.into()),
-            Operation::Binary(binary) => expr::Operation::Binary(binary.into()),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnaryOp {
     operator: Spanned<UnaryOperator>,
     expr: Expression,
@@ -512,6 +661,13 @@ pub struct UnaryOp {
 impl UnaryOp {
     pub fn new(operator: Spanned<UnaryOperator>, expr: Expression) -> UnaryOp {
         UnaryOp { operator, expr }
+    }
+}
+
+impl Despan for UnaryOp {
+    fn despan(&mut self, input: &str) {
+        self.expr.decor_mut().despan(input);
+        self.expr.despan(input);
     }
 }
 
@@ -551,6 +707,16 @@ impl BinaryOp {
     }
 }
 
+impl Despan for BinaryOp {
+    fn despan(&mut self, input: &str) {
+        self.lhs_expr.decor_mut().despan(input);
+        self.lhs_expr.despan(input);
+        self.operator.decor_mut().despan(input);
+        self.rhs_expr.decor_mut().despan(input);
+        self.rhs_expr.despan(input);
+    }
+}
+
 impl From<BinaryOp> for expr::BinaryOp {
     fn from(op: BinaryOp) -> Self {
         expr::BinaryOp {
@@ -579,6 +745,33 @@ pub struct ForExpr {
     pub(crate) cond_expr: Option<Expression>,
 }
 
+impl Despan for ForExpr {
+    fn despan(&mut self, input: &str) {
+        self.prefix.despan(input);
+
+        if let Some(key_var) = &mut self.key_var {
+            key_var.decor_mut().despan(input);
+        }
+
+        self.value_var.decor_mut().despan(input);
+        self.collection_expr.decor_mut().despan(input);
+        self.collection_expr.despan(input);
+
+        if let Some(key_expr) = &mut self.key_expr {
+            key_expr.decor_mut().despan(input);
+            key_expr.despan(input);
+        }
+
+        self.value_expr.decor_mut().despan(input);
+        self.value_expr.despan(input);
+
+        if let Some(cond_expr) = &mut self.cond_expr {
+            cond_expr.decor_mut().despan(input);
+            cond_expr.despan(input);
+        }
+    }
+}
+
 impl From<ForExpr> for expr::ForExpr {
     fn from(expr: ForExpr) -> Self {
         expr::ForExpr {
@@ -598,6 +791,14 @@ pub struct Body {
     pub(crate) structures: Vec<Structure>,
 }
 
+impl Despan for Body {
+    fn despan(&mut self, input: &str) {
+        for structure in self.structures.iter_mut() {
+            structure.despan(input);
+        }
+    }
+}
+
 impl From<Body> for structure::Body {
     fn from(body: Body) -> Self {
         structure::Body::from_iter(body.structures)
@@ -608,6 +809,21 @@ impl From<Body> for structure::Body {
 pub enum Structure {
     Attribute(Decorated<Attribute>),
     Block(Decorated<Block>),
+}
+
+impl Despan for Structure {
+    fn despan(&mut self, input: &str) {
+        match self {
+            Structure::Attribute(attr) => {
+                attr.decor_mut().despan(input);
+                attr.despan(input);
+            }
+            Structure::Block(block) => {
+                block.decor_mut().despan(input);
+                block.despan(input);
+            }
+        }
+    }
 }
 
 impl Decorate for Structure {
@@ -663,6 +879,13 @@ impl Attribute {
     }
 }
 
+impl Despan for Attribute {
+    fn despan(&mut self, input: &str) {
+        self.key.decor_mut().despan(input);
+        self.expr.despan(input);
+    }
+}
+
 impl From<Attribute> for structure::Attribute {
     fn from(attr: Attribute) -> Self {
         structure::Attribute {
@@ -697,6 +920,16 @@ impl Block {
     }
 }
 
+impl Despan for Block {
+    fn despan(&mut self, input: &str) {
+        self.identifier.decor_mut().despan(input);
+        for label in self.labels.iter_mut() {
+            label.despan(input);
+        }
+        self.body.despan(input);
+    }
+}
+
 impl From<Block> for structure::Block {
     fn from(block: Block) -> Self {
         structure::Block {
@@ -711,6 +944,15 @@ impl From<Block> for structure::Block {
 pub enum BlockLabel {
     Identifier(Decorated<Identifier>),
     String(Decorated<String>),
+}
+
+impl Despan for BlockLabel {
+    fn despan(&mut self, input: &str) {
+        match self {
+            BlockLabel::Identifier(ident) => ident.decor_mut().despan(input),
+            BlockLabel::String(expr) => expr.decor_mut().despan(input),
+        }
+    }
 }
 
 impl Decorate for BlockLabel {
@@ -761,6 +1003,22 @@ pub enum BlockBody {
     Empty(RawString),
 }
 
+impl Despan for BlockBody {
+    fn despan(&mut self, input: &str) {
+        match self {
+            BlockBody::Multiline(body) => {
+                body.decor_mut().despan(input);
+                body.despan(input);
+            }
+            BlockBody::Oneline(attr) => {
+                attr.decor_mut().despan(input);
+                attr.despan(input);
+            }
+            BlockBody::Empty(raw) => raw.despan(input),
+        }
+    }
+}
+
 impl From<BlockBody> for structure::Body {
     fn from(body: BlockBody) -> Self {
         match body {
@@ -779,6 +1037,14 @@ pub struct Template {
 impl Template {
     pub fn new(elements: Vec<Element>) -> Template {
         Template { elements }
+    }
+}
+
+impl Despan for Template {
+    fn despan(&mut self, input: &str) {
+        for element in self.elements.iter_mut() {
+            element.despan(input);
+        }
     }
 }
 
@@ -803,6 +1069,16 @@ pub enum Element {
     Literal(Spanned<String>),
     Interpolation(Spanned<Interpolation>),
     Directive(Directive),
+}
+
+impl Despan for Element {
+    fn despan(&mut self, input: &str) {
+        match self {
+            Element::Literal(_) => {}
+            Element::Interpolation(interp) => interp.despan(input),
+            Element::Directive(dir) => dir.despan(input),
+        }
+    }
 }
 
 impl Span for Element {
@@ -848,6 +1124,13 @@ impl Interpolation {
     }
 }
 
+impl Despan for Interpolation {
+    fn despan(&mut self, input: &str) {
+        self.expr.decor_mut().despan(input);
+        self.expr.despan(input);
+    }
+}
+
 impl From<Interpolation> for template::Interpolation {
     fn from(interp: Interpolation) -> Self {
         template::Interpolation {
@@ -861,6 +1144,15 @@ impl From<Interpolation> for template::Interpolation {
 pub enum Directive {
     If(Spanned<IfDirective>),
     For(Spanned<ForDirective>),
+}
+
+impl Despan for Directive {
+    fn despan(&mut self, input: &str) {
+        match self {
+            Directive::If(dir) => dir.despan(input),
+            Directive::For(dir) => dir.despan(input),
+        }
+    }
 }
 
 impl Span for Directive {
@@ -898,6 +1190,18 @@ pub struct IfDirective {
     pub(crate) endif_strip: StripMode,
 }
 
+impl Despan for IfDirective {
+    fn despan(&mut self, input: &str) {
+        self.cond_expr.decor_mut().despan(input);
+        self.cond_expr.despan(input);
+        self.true_template.despan(input);
+
+        if let Some(false_template) = &mut self.false_template {
+            false_template.despan(input);
+        }
+    }
+}
+
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
         template::IfDirective {
@@ -919,6 +1223,19 @@ pub struct ForDirective {
     pub(crate) template: Spanned<Template>,
     pub(crate) for_strip: StripMode,
     pub(crate) endfor_strip: StripMode,
+}
+
+impl Despan for ForDirective {
+    fn despan(&mut self, input: &str) {
+        if let Some(key_var) = &mut self.key_var {
+            key_var.decor_mut().despan(input);
+        }
+
+        self.value_var.decor_mut().despan(input);
+        self.collection_expr.decor_mut().despan(input);
+        self.collection_expr.despan(input);
+        self.template.despan(input);
+    }
 }
 
 impl From<ForDirective> for template::ForDirective {
