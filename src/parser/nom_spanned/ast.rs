@@ -25,7 +25,8 @@ pub enum Expression {
     Conditional(Box<Decorated<Conditional>>),
     FuncCall(Box<Decorated<FuncCall>>),
     Traversal(Box<Decorated<Traversal>>),
-    Operation(Box<Decorated<Operation>>),
+    UnaryOp(Box<Decorated<UnaryOp>>),
+    BinaryOp(Box<Decorated<BinaryOp>>),
     ForExpr(Box<Decorated<ForExpr>>),
 }
 
@@ -45,7 +46,8 @@ impl Decorate for Expression {
             Expression::ForExpr(expr) => expr.decor(),
             Expression::Conditional(cond) => cond.decor(),
             Expression::FuncCall(call) => call.decor(),
-            Expression::Operation(op) => op.decor(),
+            Expression::UnaryOp(op) => op.decor(),
+            Expression::BinaryOp(op) => op.decor(),
             Expression::Traversal(traversal) => traversal.decor(),
         }
     }
@@ -65,7 +67,8 @@ impl Decorate for Expression {
             Expression::ForExpr(expr) => expr.decor_mut(),
             Expression::Conditional(cond) => cond.decor_mut(),
             Expression::FuncCall(call) => call.decor_mut(),
-            Expression::Operation(op) => op.decor_mut(),
+            Expression::UnaryOp(op) => op.decor_mut(),
+            Expression::BinaryOp(op) => op.decor_mut(),
             Expression::Traversal(traversal) => traversal.decor_mut(),
         }
     }
@@ -87,7 +90,8 @@ impl Span for Expression {
             Expression::ForExpr(expr) => expr.span(),
             Expression::Conditional(cond) => cond.span(),
             Expression::FuncCall(call) => call.span(),
-            Expression::Operation(op) => op.span(),
+            Expression::UnaryOp(op) => op.span(),
+            Expression::BinaryOp(op) => op.span(),
             Expression::Traversal(traversal) => traversal.span(),
         }
     }
@@ -107,7 +111,8 @@ impl Span for Expression {
             Expression::ForExpr(expr) => expr.set_span(span),
             Expression::Conditional(cond) => cond.set_span(span),
             Expression::FuncCall(call) => call.set_span(span),
-            Expression::Operation(op) => op.set_span(span),
+            Expression::UnaryOp(op) => op.set_span(span),
+            Expression::BinaryOp(op) => op.set_span(span),
             Expression::Traversal(traversal) => traversal.set_span(span),
         }
     }
@@ -135,7 +140,8 @@ impl From<Expression> for expr::Expression {
             Expression::ForExpr(expr) => expr::ForExpr::from(expr.into_inner()).into(),
             Expression::Conditional(cond) => expr::Conditional::from(cond.into_inner()).into(),
             Expression::FuncCall(call) => expr::FuncCall::from(call.into_inner()).into(),
-            Expression::Operation(op) => expr::Operation::from(op.into_inner()).into(),
+            Expression::UnaryOp(op) => expr::Operation::from(op.into_inner()).into(),
+            Expression::BinaryOp(op) => expr::Operation::from(op.into_inner()).into(),
             Expression::Traversal(traversal) => {
                 expr::Traversal::from(traversal.into_inner()).into()
             }
@@ -518,6 +524,12 @@ impl From<UnaryOp> for expr::UnaryOp {
     }
 }
 
+impl From<UnaryOp> for expr::Operation {
+    fn from(op: UnaryOp) -> Self {
+        expr::Operation::Unary(op.into())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryOp {
     lhs_expr: Expression,
@@ -546,6 +558,12 @@ impl From<BinaryOp> for expr::BinaryOp {
             operator: op.operator.into_inner(),
             rhs_expr: op.rhs_expr.into(),
         }
+    }
+}
+
+impl From<BinaryOp> for expr::Operation {
+    fn from(op: BinaryOp) -> Self {
+        expr::Operation::Binary(op.into())
     }
 }
 

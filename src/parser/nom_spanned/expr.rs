@@ -1,7 +1,7 @@
 use super::ast::{
     Array, BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, Null, Object,
-    ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Operation, Template,
-    Traversal, TraversalOperator, UnaryOp,
+    ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Template, Traversal,
+    TraversalOperator, UnaryOp,
 };
 use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
@@ -435,11 +435,7 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
 fn unary_op(input: Input) -> IResult<Input, Expression> {
     map(
         pair(spanned(unary_operator), prefix_decor(sp, expr_term)),
-        |(operator, expr)| {
-            Expression::Operation(Box::new(
-                Operation::Unary(UnaryOp::new(operator, expr)).into(),
-            ))
-        },
+        |(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr).into())),
     )(input)
 }
 
@@ -511,8 +507,8 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
                 Some(((operator, rhs_expr), span)) => {
                     expr.set_span(start..end);
 
-                    let expr = Expression::Operation(Box::new(
-                        Operation::Binary(BinaryOp::new(expr, operator, rhs_expr)).into(),
+                    let expr = Expression::BinaryOp(Box::new(
+                        BinaryOp::new(expr, operator, rhs_expr).into(),
                     ));
 
                     (expr, span.end)
