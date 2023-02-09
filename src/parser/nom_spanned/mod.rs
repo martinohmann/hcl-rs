@@ -224,9 +224,7 @@ where
         pair(span(prefix), with_span(inner)),
         |(prefix_span, (value, span))| {
             let mut value = T::from(value);
-            if !prefix_span.is_empty() {
-                value.decor_mut().set_prefix(prefix_span);
-            }
+            value.decor_mut().set_prefix(prefix_span);
 
             value.set_span(span);
             value
@@ -247,9 +245,7 @@ where
         pair(with_span(inner), span(suffix)),
         |((value, span), suffix_span)| {
             let mut value = T::from(value);
-            if !suffix_span.is_empty() {
-                value.decor_mut().set_suffix(suffix_span);
-            }
+            value.decor_mut().set_suffix(suffix_span);
 
             value.set_span(span);
             value
@@ -273,15 +269,8 @@ where
         |(prefix_span, (value, span), suffix_span)| {
             let mut value = T::from(value);
             let decor = value.decor_mut();
-
-            if !prefix_span.is_empty() {
-                decor.set_prefix(prefix_span);
-            }
-
-            if !suffix_span.is_empty() {
-                decor.set_suffix(suffix_span);
-            }
-
+            decor.set_prefix(prefix_span);
+            decor.set_suffix(suffix_span);
             value.set_span(span);
             value
         },

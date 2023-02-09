@@ -1,10 +1,12 @@
 #![allow(missing_docs)]
 
+use super::encode::{Encode, EncodeDecorated, NO_DECOR};
 use super::repr::{Decor, Decorate, Decorated, Despan, RawString, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
 use crate::{Identifier, Number};
+use std::fmt;
 use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -212,6 +214,12 @@ impl From<Expression> for expr::Expression {
                 expr::Traversal::from(traversal.into_inner()).into()
             }
         }
+    }
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.encode_decorated(f, None, NO_DECOR)
     }
 }
 
@@ -487,6 +495,20 @@ pub struct HeredocTemplate {
     pub(crate) delimiter: Decorated<Identifier>,
     pub(crate) template: Spanned<Template>,
     pub(crate) strip: HeredocStripMode,
+}
+
+impl HeredocTemplate {
+    pub fn delimiter(&self) -> &Decorated<Identifier> {
+        &self.delimiter
+    }
+
+    pub fn template(&self) -> &Spanned<Template> {
+        &self.template
+    }
+
+    pub fn strip(&self) -> HeredocStripMode {
+        self.strip
+    }
 }
 
 impl Despan for HeredocTemplate {
@@ -799,6 +821,40 @@ pub struct ForExpr {
     pub(crate) cond_expr: Option<Expression>,
 }
 
+impl ForExpr {
+    pub fn prefix(&self) -> &RawString {
+        &self.prefix
+    }
+
+    pub fn key_var(&self) -> Option<&Decorated<Identifier>> {
+        self.key_var.as_ref()
+    }
+
+    pub fn value_var(&self) -> &Decorated<Identifier> {
+        &self.value_var
+    }
+
+    pub fn collection_expr(&self) -> &Expression {
+        &self.collection_expr
+    }
+
+    pub fn key_expr(&self) -> Option<&Expression> {
+        self.key_expr.as_ref()
+    }
+
+    pub fn value_expr(&self) -> &Expression {
+        &self.value_expr
+    }
+
+    pub fn grouping(&self) -> bool {
+        self.grouping
+    }
+
+    pub fn cond_expr(&self) -> Option<&Expression> {
+        self.cond_expr.as_ref()
+    }
+}
+
 impl Despan for ForExpr {
     fn despan(&mut self, input: &str) {
         self.prefix.despan(input);
@@ -845,6 +901,12 @@ pub struct Body {
     pub(crate) structures: Vec<Structure>,
 }
 
+impl Body {
+    pub fn structures(&self) -> &[Structure] {
+        &self.structures
+    }
+}
+
 impl Despan for Body {
     fn despan(&mut self, input: &str) {
         for structure in self.structures.iter_mut() {
@@ -856,6 +918,12 @@ impl Despan for Body {
 impl From<Body> for structure::Body {
     fn from(body: Body) -> Self {
         structure::Body::from_iter(body.structures)
+    }
+}
+
+impl fmt::Display for Body {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.encode(f, None)
     }
 }
 
@@ -931,6 +999,14 @@ impl Attribute {
     pub fn new(key: Decorated<Identifier>, expr: Expression) -> Attribute {
         Attribute { key, expr }
     }
+
+    pub fn key(&self) -> &Decorated<Identifier> {
+        &self.key
+    }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
 }
 
 impl Despan for Attribute {
@@ -971,6 +1047,18 @@ impl Block {
             labels,
             body,
         }
+    }
+
+    pub fn ident(&self) -> &Decorated<Identifier> {
+        &self.identifier
+    }
+
+    pub fn labels(&self) -> &[BlockLabel] {
+        &self.labels
+    }
+
+    pub fn body(&self) -> &BlockBody {
+        &self.body
     }
 }
 
@@ -1092,6 +1180,14 @@ impl Template {
     pub fn new(elements: Vec<Element>) -> Template {
         Template { elements }
     }
+
+    pub fn elements(&self) -> &[Element] {
+        &self.elements
+    }
+
+    pub fn elements_mut(&mut self) -> &mut [Element] {
+        &mut self.elements
+    }
 }
 
 impl Despan for Template {
@@ -1115,6 +1211,12 @@ impl From<Template> for template::Template {
 impl From<Template> for String {
     fn from(template: Template) -> Self {
         template::Template::from(template).to_string()
+    }
+}
+
+impl fmt::Display for Template {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.encode(f, None)
     }
 }
 
@@ -1175,6 +1277,14 @@ impl Interpolation {
             expr,
             strip: StripMode::default(),
         }
+    }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
+
+    pub fn strip(&self) -> StripMode {
+        self.strip
     }
 }
 
@@ -1244,6 +1354,32 @@ pub struct IfDirective {
     pub(crate) endif_strip: StripMode,
 }
 
+impl IfDirective {
+    pub fn cond_expr(&self) -> &Expression {
+        &self.cond_expr
+    }
+
+    pub fn true_template(&self) -> &Spanned<Template> {
+        &self.true_template
+    }
+
+    pub fn false_template(&self) -> Option<&Spanned<Template>> {
+        self.false_template.as_ref()
+    }
+
+    pub fn if_strip(&self) -> StripMode {
+        self.if_strip
+    }
+
+    pub fn else_strip(&self) -> StripMode {
+        self.else_strip
+    }
+
+    pub fn endif_strip(&self) -> StripMode {
+        self.endif_strip
+    }
+}
+
 impl Despan for IfDirective {
     fn despan(&mut self, input: &str) {
         self.cond_expr.decor_mut().despan(input);
@@ -1277,6 +1413,32 @@ pub struct ForDirective {
     pub(crate) template: Spanned<Template>,
     pub(crate) for_strip: StripMode,
     pub(crate) endfor_strip: StripMode,
+}
+
+impl ForDirective {
+    pub fn key_var(&self) -> Option<&Decorated<Identifier>> {
+        self.key_var.as_ref()
+    }
+
+    pub fn value_var(&self) -> &Decorated<Identifier> {
+        &self.value_var
+    }
+
+    pub fn collection_expr(&self) -> &Expression {
+        &self.collection_expr
+    }
+
+    pub fn template(&self) -> &Spanned<Template> {
+        &self.template
+    }
+
+    pub fn for_strip(&self) -> StripMode {
+        self.for_strip
+    }
+
+    pub fn endfor_strip(&self) -> StripMode {
+        self.endfor_strip
+    }
 }
 
 impl Despan for ForDirective {

@@ -1,7 +1,8 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorate, Decorated, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, Span, Spanned};
+use super::structure::body;
 use crate::expr::{HeredocStripMode, Variable};
 use crate::{Identifier, Number};
 use indoc::indoc;
@@ -57,11 +58,12 @@ fn parse_conditional() {
                             Variable::unchecked("var"),
                             0..3
                         )),
-                        vec![Decorated::with_span(
+                        vec![Decorated::with_span_decor(
                             TraversalOperator::GetAttr(Decorated::new(Identifier::unchecked(
                                 "enabled"
                             ))),
                             3..11,
+                            Decor::from_prefix("")
                         )]
                     ),
                     0..11
@@ -87,14 +89,21 @@ fn parse_array() {
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
         Ok(Expression::Array(Box::new(Decorated::new(Array::new(
             vec![
-                Expression::String(Decorated::with_span("bar".into(), 1..6)),
+                Expression::String(Decorated::with_span_decor(
+                    "bar".into(),
+                    1..6,
+                    Decor::new("", "")
+                )),
                 Expression::Array(Box::new({
-                    let mut array = Decorated::new(Array::new(vec![Expression::String(
-                        Decorated::with_span("baz".into(), 9..14),
-                    )]));
-                    array.set_span(8..15);
-                    array.decor_mut().set_prefix(7..8);
-                    array
+                    Decorated::with_span_decor(
+                        Array::new(vec![Expression::String(Decorated::with_span_decor(
+                            "baz".into(),
+                            9..14,
+                            Decor::new("", ""),
+                        ))]),
+                        8..15,
+                        Decor::new(7..8, ""),
+                    )
                 })),
             ]
         )))))
@@ -112,12 +121,12 @@ fn parse_object() {
                         ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "bar".into(),
                             1..6,
-                            Decor::from_suffix(6..7),
+                            Decor::new("", 6..7),
                         ))),
                         Expression::String(Decorated::with_span_decor(
                             "baz".into(),
                             9..14,
-                            Decor::from_prefix(8..9),
+                            Decor::new(8..9, ""),
                         )),
                     ));
                     item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
@@ -130,7 +139,7 @@ fn parse_object() {
                         ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "qux".into(),
                             16..21,
-                            Decor::from_prefix(15..16),
+                            Decor::new(15..16, ""),
                         ))),
                         Expression::Variable(Decorated::with_span_decor(
                             Variable::unchecked("ident"),
@@ -197,10 +206,11 @@ fn parse_heredoc() {
                 template: Spanned::with_span(
                     Template::new(vec![
                         Element::Interpolation(Spanned::with_span(
-                            Interpolation::new(Expression::Variable(Decorated::with_span(
+                            Interpolation::new(Expression::Variable(Decorated::with_span_decor(
                                 Variable::unchecked("foo"),
                                 2..5,
-                            )),),
+                                Decor::new("", ""),
+                            ))),
                             0..6
                         )),
                         Element::Literal(Spanned::with_span(String::from("bar\n"), 6..10)),
@@ -318,3 +328,24 @@ fn parse_heredoc() {
 //                 .build()
 //         )),
 //     );
+
+#[test]
+fn roundtrip() {
+    let input = indoc! {r#"
+        // comment
+        block {
+          foo = "bar"
+        }
+
+        oneline { bar="baz"} # comment
+
+        array = [
+          1, 2,
+          3
+        ]
+    "#};
+
+    let mut parsed = parse_to_end(input, body).unwrap();
+    parsed.despan(input);
+    assert_eq!(parsed.to_string(), input);
+}

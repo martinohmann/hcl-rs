@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 #![allow(dead_code)]
 
+use super::encode::{Encode, EncodeDecorated, NO_DECOR};
 use kstring::KString;
 use std::borrow::Borrow;
 use std::fmt;
@@ -377,19 +378,31 @@ impl<T> Spanned<T> {
     }
 }
 
+impl<T> AsRef<T> for Spanned<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<T> AsMut<T> for Spanned<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
+
 impl<T> Deref for Spanned<T> {
     type Target = T;
 
     #[inline]
     fn deref(&self) -> &T {
-        &self.inner
+        self.as_ref()
     }
 }
 
 impl<T> DerefMut for Spanned<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.inner
+        self.as_mut()
     }
 }
 
@@ -406,6 +419,15 @@ impl<T> Span for Spanned<T> {
 
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
+    }
+}
+
+impl<T> fmt::Display for Spanned<T>
+where
+    T: Encode,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.encode(f, None)
     }
 }
 
@@ -453,19 +475,31 @@ impl<T> Decorated<T> {
     }
 }
 
+impl<T> AsRef<T> for Decorated<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<T> AsMut<T> for Decorated<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
+
 impl<T> Deref for Decorated<T> {
     type Target = T;
 
     #[inline]
     fn deref(&self) -> &T {
-        &self.inner
+        self.as_ref()
     }
 }
 
 impl<T> DerefMut for Decorated<T> {
     #[inline]
     fn deref_mut(&mut self) -> &mut T {
-        &mut self.inner
+        self.as_mut()
     }
 }
 
@@ -492,5 +526,14 @@ impl<T> Span for Decorated<T> {
 
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
+    }
+}
+
+impl<T> fmt::Display for Decorated<T>
+where
+    T: Encode,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.encode_decorated(f, None, NO_DECOR)
     }
 }
