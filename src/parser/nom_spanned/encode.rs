@@ -462,10 +462,8 @@ impl Encode for Traversal {
 impl Encode for TraversalOperator {
     fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
         match self {
-            TraversalOperator::AttrSplat | TraversalOperator::LegacyIndex(_) => {
-                buf.write_char('.')?
-            }
-            _other => buf.write_char('[')?,
+            TraversalOperator::FullSplat | TraversalOperator::Index(_) => buf.write_char('[')?,
+            _other => buf.write_char('.')?,
         }
 
         // @TODO(mohmann): handle whitespace within splat operators.
@@ -479,8 +477,8 @@ impl Encode for TraversalOperator {
         }
 
         match self {
-            TraversalOperator::AttrSplat | TraversalOperator::LegacyIndex(_) => Ok(()),
-            _other => buf.write_char(']'),
+            TraversalOperator::FullSplat | TraversalOperator::Index(_) => buf.write_char(']'),
+            _other => Ok(()),
         }
     }
 }
