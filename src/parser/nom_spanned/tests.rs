@@ -302,35 +302,16 @@ fn parse_heredoc() {
 //     );
 // }
 
-// #[test]
-// fn parse_oneline_block() {
-//     assert_eq!(
-//         body("block { attr = 1 }"),
-//         Ok((
-//             "",
-//             Body::builder()
-//                 .add_block(Block::builder("block").add_attribute(("attr", 1)).build())
-//                 .build()
-//         ))
-//     );
-//     assert!(all_consuming(body)("block { attr = 1 attr2 = 2 }").is_err());
-// }
-
-// #[test]
-// fn parse_body() {
-//     assert_eq!(
-//         body("foo = \"bar\"\nbar = 2"),
-//         Ok((
-//             "",
-//             Body::builder()
-//                 .add_attribute(("foo", "bar"))
-//                 .add_attribute(("bar", 2u64))
-//                 .build()
-//         )),
-//     );
+macro_rules! assert_roundtrip {
+    ($input:expr, $parser:expr) => {
+        let mut parsed = parse_to_end($input, $parser).unwrap();
+        parsed.despan($input);
+        assert_eq!(parsed.to_string(), $input);
+    };
+}
 
 #[test]
-fn roundtrip() {
+fn roundtrip_body() {
     let input = indoc! {r#"
         // comment
         block {
@@ -345,7 +326,5 @@ fn roundtrip() {
         ]
     "#};
 
-    let mut parsed = parse_to_end(input, body).unwrap();
-    parsed.despan(input);
-    assert_eq!(parsed.to_string(), input);
+    assert_roundtrip!(input, body);
 }
