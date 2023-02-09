@@ -235,7 +235,7 @@ impl Array {
         &self.values
     }
 
-    pub fn items_mut(&mut self) -> &mut [Expression] {
+    pub fn values_mut(&mut self) -> &mut [Expression] {
         &mut self.values
     }
 
@@ -525,6 +525,18 @@ impl Conditional {
             false_expr,
         }
     }
+
+    pub fn cond_expr(&self) -> &Expression {
+        &self.cond_expr
+    }
+
+    pub fn true_expr(&self) -> &Expression {
+        &self.true_expr
+    }
+
+    pub fn false_expr(&self) -> &Expression {
+        &self.false_expr
+    }
 }
 
 impl Despan for Conditional {
@@ -553,6 +565,20 @@ pub struct FuncCall {
     pub(crate) name: Decorated<Identifier>,
     pub(crate) args: Vec<Expression>,
     pub(crate) expand_final: bool,
+}
+
+impl FuncCall {
+    pub fn name(&self) -> &Decorated<Identifier> {
+        &self.name
+    }
+
+    pub fn args(&self) -> &[Expression] {
+        &self.args
+    }
+
+    pub fn expand_final(&self) -> bool {
+        self.expand_final
+    }
 }
 
 impl Despan for FuncCall {
@@ -585,6 +611,14 @@ pub struct Traversal {
 impl Traversal {
     pub fn new(expr: Expression, operators: Vec<Decorated<TraversalOperator>>) -> Traversal {
         Traversal { expr, operators }
+    }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
+
+    pub fn operators(&self) -> &[Decorated<TraversalOperator>] {
+        &self.operators
     }
 }
 
@@ -662,6 +696,14 @@ impl UnaryOp {
     pub fn new(operator: Spanned<UnaryOperator>, expr: Expression) -> UnaryOp {
         UnaryOp { operator, expr }
     }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
+
+    pub fn operator(&self) -> &Spanned<UnaryOperator> {
+        &self.operator
+    }
 }
 
 impl Despan for UnaryOp {
@@ -704,6 +746,18 @@ impl BinaryOp {
             operator,
             rhs_expr,
         }
+    }
+
+    pub fn lhs_expr(&self) -> &Expression {
+        &self.lhs_expr
+    }
+
+    pub fn rhs_expr(&self) -> &Expression {
+        &self.rhs_expr
+    }
+
+    pub fn operator(&self) -> &Decorated<BinaryOperator> {
+        &self.operator
     }
 }
 

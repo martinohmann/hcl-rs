@@ -127,6 +127,35 @@ impl RawString {
             RawStringInner::Spanned(_) => None,
         }
     }
+
+    pub(crate) fn to_str_with_default<'s>(
+        &'s self,
+        input: Option<&'s str>,
+        default: &'s str,
+    ) -> &'s str {
+        match &self.0 {
+            RawStringInner::Empty => "",
+            RawStringInner::Explicit(s) => s.as_str(),
+            RawStringInner::Spanned(span) => {
+                if let Some(input) = input {
+                    input.get(span.clone()).unwrap_or_else(|| {
+                        panic!("span {:?} should be in input:\n```\n{}\n```", span, input)
+                    })
+                } else {
+                    default
+                }
+            }
+        }
+    }
+
+    pub(crate) fn encode_with_default(
+        &self,
+        buf: &mut dyn fmt::Write,
+        input: Option<&str>,
+        default: &str,
+    ) -> std::fmt::Result {
+        write!(buf, "{}", self.to_str_with_default(input, default))
+    }
 }
 
 impl Despan for RawString {
@@ -262,6 +291,32 @@ impl Decor {
 
     pub fn replace(&mut self, other: Decor) -> Decor {
         std::mem::replace(self, other)
+    }
+
+    pub(crate) fn encode_prefix(
+        &self,
+        buf: &mut dyn fmt::Write,
+        input: Option<&str>,
+        default: &str,
+    ) -> fmt::Result {
+        if let Some(prefix) = self.prefix() {
+            prefix.encode_with_default(buf, input, default)
+        } else {
+            write!(buf, "{}", default)
+        }
+    }
+
+    pub(crate) fn encode_suffix(
+        &self,
+        buf: &mut dyn fmt::Write,
+        input: Option<&str>,
+        default: &str,
+    ) -> fmt::Result {
+        if let Some(suffix) = self.suffix() {
+            suffix.encode_with_default(buf, input, default)
+        } else {
+            write!(buf, "{}", default)
+        }
     }
 }
 

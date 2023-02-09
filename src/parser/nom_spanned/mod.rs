@@ -1,4 +1,5 @@
 pub mod ast;
+mod encode;
 mod error;
 mod expr;
 mod input;
