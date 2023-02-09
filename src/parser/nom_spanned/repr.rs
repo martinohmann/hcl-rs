@@ -422,6 +422,15 @@ impl<T> Span for Spanned<T> {
     }
 }
 
+impl<T> Despan for Spanned<T>
+where
+    T: Despan,
+{
+    fn despan(&mut self, input: &str) {
+        self.inner.despan(input);
+    }
+}
+
 impl<T> fmt::Display for Spanned<T>
 where
     T: Encode,
@@ -526,6 +535,15 @@ impl<T> Span for Decorated<T> {
 
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
+    }
+}
+
+impl<T> Despan for Decorated<T>
+where
+    T: Despan,
+{
+    fn despan(&mut self, input: &str) {
+        self.inner.despan(input);
     }
 }
 
