@@ -306,7 +306,7 @@ macro_rules! assert_roundtrip {
     ($input:expr, $parser:expr) => {
         let mut parsed = parse_to_end($input, $parser).unwrap();
         parsed.despan($input);
-        assert_eq!(parsed.to_string(), $input);
+        assert_eq!(&parsed.to_string(), $input);
     };
 }
 
@@ -327,4 +327,11 @@ fn roundtrip_body() {
     "#};
 
     assert_roundtrip!(input, body);
+}
+
+#[test]
+fn roundtrip_large() {
+    let input = std::fs::read_to_string("benches/network.tf").unwrap();
+
+    assert_roundtrip!(&input, body);
 }

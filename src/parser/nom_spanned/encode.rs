@@ -58,7 +58,15 @@ impl EncodeDecorated for Expression {
             Expression::String(v) => v.encode_decorated(buf, input, default_decor),
             Expression::Array(v) => v.encode_decorated(buf, input, default_decor),
             Expression::Object(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Template(v) => v.encode_decorated(buf, input, default_decor),
+            Expression::Template(v) => {
+                let decor = v.decor();
+                decor.encode_prefix(buf, input, default_decor.0)?;
+                // @FIXME(mohmann): properly escape string literals.
+                buf.write_char('"')?;
+                v.as_ref().encode(buf, input)?;
+                buf.write_char('"')?;
+                decor.encode_suffix(buf, input, default_decor.1)
+            }
             Expression::HeredocTemplate(v) => v.encode_decorated(buf, input, default_decor),
             Expression::Parenthesis(v) => {
                 let decor = v.decor();
@@ -203,7 +211,7 @@ impl Encode for Template {
 impl Encode for Element {
     fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
         match self {
-            Element::Literal(lit) => lit.encode(buf, input),
+            Element::Literal(lit) => buf.write_str(lit.as_str()),
             Element::Interpolation(interp) => interp.encode(buf, input),
             Element::Directive(dir) => dir.encode(buf, input),
         }
@@ -425,6 +433,8 @@ impl Encode for FuncCall {
         if self.expand_final() {
             buf.write_str("...")?;
         }
+
+        // @FIXME(mohmann): handle trailing comma.
 
         buf.write_char(')')
     }
