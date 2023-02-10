@@ -1,14 +1,12 @@
 use super::ast::{
-    Directive, Element, ElseTemplateExpr, EndifTemplateExpr, Expression, ForDirective, IfDirective,
-    IfTemplateExpr, Interpolation, Template,
+    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
+    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, Template,
 };
-use super::repr::{Decorated, Spanned};
 use super::{
     char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment, string_literal,
     tag_or_cut, ws, IResult, Input, StringFragment,
 };
 use crate::template::StripMode;
-use crate::Identifier;
 use nom::sequence::separated_pair;
 use nom::{
     branch::alt,
@@ -111,55 +109,46 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
 }
 
 fn for_directive(input: Input) -> IResult<Input, ForDirective> {
-    struct ForExpr {
-        key_var: Option<Decorated<Identifier>>,
-        value_var: Decorated<Identifier>,
-        collection_expr: Expression,
-        template: Spanned<Template>,
-        strip: StripMode,
-    }
-
     let for_expr = map(
         pair(
             template_tag(
                 "%{",
                 tuple((
-                    preceded(pair(ws, tag("for")), decor(ws, cut(ident), ws)),
+                    pair(terminated(span(ws), tag("for")), decor(ws, cut(ident), ws)),
                     opt(preceded(char(','), decor(ws, cut(ident), ws))),
                     preceded(tag_or_cut("in"), decor(ws, cut(expr), ws)),
                 )),
             ),
             spanned(template),
         ),
-        |(((key_var, value_var, collection_expr), strip), template)| {
+        |((((preamble, key_var), value_var, collection_expr), strip), template)| {
             let (key_var, value_var) = match value_var {
                 Some(value_var) => (Some(key_var), value_var),
                 None => (None, key_var),
             };
-            ForExpr {
-                key_var,
-                value_var,
-                collection_expr,
-                template,
-                strip,
-            }
+
+            let mut expr =
+                ForTemplateExpr::new(key_var, value_var, collection_expr, template, strip);
+            expr.set_preamble(preamble);
+            expr
         },
     );
 
     let endfor_expr = map(
-        template_tag("%{", delimited(ws, tag_or_cut("endfor"), ws)),
-        |(_, strip)| strip,
+        template_tag(
+            "%{",
+            separated_pair(span(ws), tag_or_cut("endfor"), span(ws)),
+        ),
+        |((preamble, trailing), strip)| {
+            let mut expr = EndforTemplateExpr::new(strip);
+            expr.set_preamble(preamble);
+            expr.set_trailing(trailing);
+            expr
+        },
     );
 
-    map(pair(for_expr, endfor_expr), |(for_expr, endfor_strip)| {
-        ForDirective {
-            key_var: for_expr.key_var,
-            value_var: for_expr.value_var,
-            collection_expr: for_expr.collection_expr,
-            template: for_expr.template,
-            for_strip: for_expr.strip,
-            endfor_strip,
-        }
+    map(pair(for_expr, endfor_expr), |(for_expr, endfor_expr)| {
+        ForDirective::new(for_expr, endfor_expr)
     })(input)
 }
 

@@ -269,7 +269,6 @@ impl Despan for Array {
         self.trailing.despan(input);
 
         for value in self.values.iter_mut() {
-            value.decor_mut().despan(input);
             value.despan(input);
         }
     }
@@ -317,7 +316,6 @@ impl Despan for Object {
         self.trailing.despan(input);
 
         for item in self.items.iter_mut() {
-            item.decor_mut().despan(input);
             item.despan(input);
         }
     }
@@ -399,9 +397,7 @@ impl ObjectItem {
 
 impl Despan for ObjectItem {
     fn despan(&mut self, input: &str) {
-        self.key.decor_mut().despan(input);
         self.key.despan(input);
-        self.value.decor_mut().despan(input);
         self.value.despan(input);
     }
 }
@@ -563,11 +559,8 @@ impl Conditional {
 
 impl Despan for Conditional {
     fn despan(&mut self, input: &str) {
-        self.cond_expr.decor_mut().despan(input);
         self.cond_expr.despan(input);
-        self.true_expr.decor_mut().despan(input);
         self.true_expr.despan(input);
-        self.false_expr.decor_mut().despan(input);
         self.false_expr.despan(input);
     }
 }
@@ -608,7 +601,6 @@ impl Despan for FuncCall {
         self.name.decor_mut().despan(input);
 
         for arg in self.args.iter_mut() {
-            arg.decor_mut().despan(input);
             arg.despan(input);
         }
     }
@@ -646,11 +638,9 @@ impl Traversal {
 
 impl Despan for Traversal {
     fn despan(&mut self, input: &str) {
-        self.expr.decor_mut().despan(input);
         self.expr.despan(input);
 
         for operator in self.operators.iter_mut() {
-            operator.decor_mut().despan(input);
             operator.despan(input);
         }
     }
@@ -683,10 +673,7 @@ impl Despan for TraversalOperator {
         match self {
             TraversalOperator::AttrSplat | TraversalOperator::FullSplat => {}
             TraversalOperator::GetAttr(ident) => ident.decor_mut().despan(input),
-            TraversalOperator::Index(expr) => {
-                expr.decor_mut().despan(input);
-                expr.despan(input);
-            }
+            TraversalOperator::Index(expr) => expr.despan(input),
             TraversalOperator::LegacyIndex(index) => index.decor_mut().despan(input),
         }
     }
@@ -730,7 +717,6 @@ impl UnaryOp {
 
 impl Despan for UnaryOp {
     fn despan(&mut self, input: &str) {
-        self.expr.decor_mut().despan(input);
         self.expr.despan(input);
     }
 }
@@ -785,10 +771,8 @@ impl BinaryOp {
 
 impl Despan for BinaryOp {
     fn despan(&mut self, input: &str) {
-        self.lhs_expr.decor_mut().despan(input);
         self.lhs_expr.despan(input);
         self.operator.decor_mut().despan(input);
-        self.rhs_expr.decor_mut().despan(input);
         self.rhs_expr.despan(input);
     }
 }
@@ -864,19 +848,15 @@ impl Despan for ForExpr {
         }
 
         self.value_var.decor_mut().despan(input);
-        self.collection_expr.decor_mut().despan(input);
         self.collection_expr.despan(input);
 
         if let Some(key_expr) = &mut self.key_expr {
-            key_expr.decor_mut().despan(input);
             key_expr.despan(input);
         }
 
-        self.value_expr.decor_mut().despan(input);
         self.value_expr.despan(input);
 
         if let Some(cond_expr) = &mut self.cond_expr {
-            cond_expr.decor_mut().despan(input);
             cond_expr.despan(input);
         }
     }
@@ -1290,7 +1270,6 @@ impl Interpolation {
 
 impl Despan for Interpolation {
     fn despan(&mut self, input: &str) {
-        self.expr.decor_mut().despan(input);
         self.expr.despan(input);
     }
 }
@@ -1379,12 +1358,13 @@ impl IfDirective {
 
 impl Despan for IfDirective {
     fn despan(&mut self, input: &str) {
-        self.if_expr.cond_expr.decor_mut().despan(input);
-        self.if_expr.template.despan(input);
+        self.if_expr.despan(input);
 
         if let Some(else_expr) = &mut self.else_expr {
-            else_expr.template.despan(input);
+            else_expr.despan(input);
         }
+
+        self.endif_expr.despan(input);
     }
 }
 
@@ -1450,6 +1430,14 @@ impl IfTemplateExpr {
     }
 }
 
+impl Despan for IfTemplateExpr {
+    fn despan(&mut self, input: &str) {
+        self.preamble.despan(input);
+        self.cond_expr.despan(input);
+        self.template.despan(input);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElseTemplateExpr {
     preamble: RawString,
@@ -1493,6 +1481,14 @@ impl ElseTemplateExpr {
     }
 }
 
+impl Despan for ElseTemplateExpr {
+    fn despan(&mut self, input: &str) {
+        self.preamble.despan(input);
+        self.template.despan(input);
+        self.trailing.despan(input);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EndifTemplateExpr {
     preamble: RawString,
@@ -1530,17 +1526,84 @@ impl EndifTemplateExpr {
     }
 }
 
+impl Despan for EndifTemplateExpr {
+    fn despan(&mut self, input: &str) {
+        self.preamble.despan(input);
+        self.trailing.despan(input);
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForDirective {
-    pub(crate) key_var: Option<Decorated<Identifier>>,
-    pub(crate) value_var: Decorated<Identifier>,
-    pub(crate) collection_expr: Expression,
-    pub(crate) template: Spanned<Template>,
-    pub(crate) for_strip: StripMode,
-    pub(crate) endfor_strip: StripMode,
+    for_expr: ForTemplateExpr,
+    endfor_expr: EndforTemplateExpr,
 }
 
 impl ForDirective {
+    pub fn new(for_expr: ForTemplateExpr, endfor_expr: EndforTemplateExpr) -> ForDirective {
+        ForDirective {
+            for_expr,
+            endfor_expr,
+        }
+    }
+
+    pub fn for_expr(&self) -> &ForTemplateExpr {
+        &self.for_expr
+    }
+
+    pub fn endfor_expr(&self) -> &EndforTemplateExpr {
+        &self.endfor_expr
+    }
+}
+
+impl Despan for ForDirective {
+    fn despan(&mut self, input: &str) {
+        self.for_expr.despan(input);
+        self.endfor_expr.despan(input);
+    }
+}
+
+impl From<ForDirective> for template::ForDirective {
+    fn from(dir: ForDirective) -> Self {
+        template::ForDirective {
+            key_var: dir.for_expr.key_var.map(Decorated::into_inner),
+            value_var: dir.for_expr.value_var.into_inner(),
+            collection_expr: dir.for_expr.collection_expr.into(),
+            template: dir.for_expr.template.inner_into(),
+            for_strip: dir.for_expr.strip,
+            endfor_strip: dir.endfor_expr.strip,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForTemplateExpr {
+    preamble: RawString,
+    key_var: Option<Decorated<Identifier>>,
+    value_var: Decorated<Identifier>,
+    collection_expr: Expression,
+    template: Spanned<Template>,
+    strip: StripMode,
+}
+
+impl ForTemplateExpr {
+    pub fn new(
+        key_var: Option<Decorated<Identifier>>,
+        value_var: Decorated<Identifier>,
+        collection_expr: Expression,
+        template: Spanned<Template>,
+        strip: StripMode,
+    ) -> ForTemplateExpr {
+        ForTemplateExpr {
+            preamble: RawString::default(),
+            key_var,
+            value_var,
+            collection_expr,
+            template,
+            strip,
+        }
+    }
+
     pub fn key_var(&self) -> Option<&Decorated<Identifier>> {
         self.key_var.as_ref()
     }
@@ -1557,37 +1620,73 @@ impl ForDirective {
         &self.template
     }
 
-    pub fn for_strip(&self) -> StripMode {
-        self.for_strip
+    pub fn strip(&self) -> StripMode {
+        self.strip
     }
 
-    pub fn endfor_strip(&self) -> StripMode {
-        self.endfor_strip
+    pub fn preamble(&self) -> &RawString {
+        &self.preamble
+    }
+
+    pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
+        self.preamble = preamble.into()
     }
 }
 
-impl Despan for ForDirective {
+impl Despan for ForTemplateExpr {
     fn despan(&mut self, input: &str) {
+        self.preamble.despan(input);
+
         if let Some(key_var) = &mut self.key_var {
             key_var.decor_mut().despan(input);
         }
 
         self.value_var.decor_mut().despan(input);
-        self.collection_expr.decor_mut().despan(input);
         self.collection_expr.despan(input);
         self.template.despan(input);
     }
 }
 
-impl From<ForDirective> for template::ForDirective {
-    fn from(dir: ForDirective) -> Self {
-        template::ForDirective {
-            key_var: dir.key_var.map(Decorated::into_inner),
-            value_var: dir.value_var.into_inner(),
-            collection_expr: dir.collection_expr.into(),
-            template: dir.template.inner_into(),
-            for_strip: dir.for_strip,
-            endfor_strip: dir.endfor_strip,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EndforTemplateExpr {
+    preamble: RawString,
+    trailing: RawString,
+    strip: StripMode,
+}
+
+impl EndforTemplateExpr {
+    pub fn new(strip: StripMode) -> EndforTemplateExpr {
+        EndforTemplateExpr {
+            preamble: RawString::default(),
+            trailing: RawString::default(),
+            strip,
         }
+    }
+
+    pub fn strip(&self) -> StripMode {
+        self.strip
+    }
+
+    pub fn preamble(&self) -> &RawString {
+        &self.preamble
+    }
+
+    pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
+        self.preamble = preamble.into()
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into()
+    }
+}
+
+impl Despan for EndforTemplateExpr {
+    fn despan(&mut self, input: &str) {
+        self.preamble.despan(input);
+        self.trailing.despan(input);
     }
 }

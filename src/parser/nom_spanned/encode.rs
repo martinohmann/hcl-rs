@@ -1,9 +1,9 @@
 use super::ast::{
     Array, Attribute, BinaryOp, Block, BlockBody, BlockLabel, Body, Conditional, Directive,
-    Element, ElseTemplateExpr, EndifTemplateExpr, Expression, ForDirective, ForExpr, FuncCall,
-    HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, Null, Object, ObjectItem,
-    ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Structure, Template, Traversal,
-    TraversalOperator, UnaryOp,
+    Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForDirective,
+    ForExpr, ForTemplateExpr, FuncCall, HeredocTemplate, IfDirective, IfTemplateExpr,
+    Interpolation, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
+    ObjectValueTerminator, Structure, Template, Traversal, TraversalOperator, UnaryOp,
 };
 use super::repr::{Decorate, Decorated};
 use crate::expr::{HeredocStripMode, Variable};
@@ -153,7 +153,7 @@ impl Encode for Object {
         buf.write_char('{')?;
 
         for item in self.items().iter() {
-            // @TODO(mohmann): more sensible default decor.
+            // @FIXME(mohmann): more sensible default decor.
             item.encode_decorated(buf, input, NO_DECOR)?;
         }
 
@@ -315,14 +315,21 @@ impl Encode for EndifTemplateExpr {
 
 impl Encode for ForDirective {
     fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
-        let for_strip = self.for_strip();
+        self.for_expr().encode(buf, input)?;
+        self.endfor_expr().encode(buf, input)
+    }
+}
+
+impl Encode for ForTemplateExpr {
+    fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
+        let strip = self.strip();
         buf.write_str("%{")?;
-        if for_strip.strip_start() {
+        if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        // @TODO(mohmann): leading whitespace of `for` needs to be tracked.
-        buf.write_str(" for ")?;
+        self.preamble().encode_with_default(buf, input, " ")?;
+        buf.write_str("for")?;
 
         if let Some(key_var) = self.key_var() {
             key_var.encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
@@ -332,22 +339,27 @@ impl Encode for ForDirective {
         self.value_var()
             .encode_decorated(buf, input, BOTH_SPACE_DECOR)?;
 
-        if for_strip.strip_end() {
+        if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')?;
-        self.template().encode(buf, input)?;
+        self.template().encode(buf, input)
+    }
+}
 
-        let endfor_strip = self.endfor_strip();
+impl Encode for EndforTemplateExpr {
+    fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
+        let strip = self.strip();
         buf.write_str("%{")?;
-        if endfor_strip.strip_start() {
+        if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        // @TODO(mohmann): surrounding whitespace of `endfor` needs to be tracked.
-        buf.write_str(" endfor ")?;
+        self.preamble().encode_with_default(buf, input, " ")?;
+        buf.write_str("endfor")?;
+        self.trailing().encode_with_default(buf, input, " ")?;
 
-        if endfor_strip.strip_end() {
+        if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')
@@ -447,7 +459,7 @@ impl Encode for FuncCall {
             arg.encode_decorated(buf, input, arg_decor)?;
         }
 
-        // @TODO(mohmann): handle trailing whitespace after ellipsis.
+        // @FIXME(mohmann): handle trailing whitespace after ellipsis.
         if self.expand_final() {
             buf.write_str("...")?;
         }
@@ -494,7 +506,7 @@ impl Encode for TraversalOperator {
             _other => buf.write_char('.')?,
         }
 
-        // @TODO(mohmann): handle whitespace within splat operators.
+        // @FIXME(mohmann): handle whitespace within splat operators.
         match self {
             TraversalOperator::AttrSplat | TraversalOperator::FullSplat => buf.write_char('*')?,
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, input, NO_DECOR)?,
