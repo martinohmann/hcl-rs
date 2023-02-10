@@ -1,13 +1,15 @@
 use super::ast::{
-    Directive, Element, Expression, ForDirective, IfDirective, Interpolation, Template,
+    Directive, Element, ElseTemplateExpr, EndifTemplateExpr, Expression, ForDirective, IfDirective,
+    IfTemplateExpr, Interpolation, Template,
 };
 use super::repr::{Decorated, Spanned};
 use super::{
-    char_or_cut, decor, expr::expr, ident, literal, spanned, string_fragment, string_literal,
+    char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment, string_literal,
     tag_or_cut, ws, IResult, Input, StringFragment,
 };
 use crate::template::StripMode;
 use crate::Identifier;
+use nom::sequence::separated_pair;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -61,63 +63,50 @@ where
 }
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
-    struct IfExpr {
-        cond_expr: Expression,
-        template: Spanned<Template>,
-        strip: StripMode,
-    }
-
-    #[derive(Default)]
-    struct ElseExpr {
-        template: Option<Spanned<Template>>,
-        strip: StripMode,
-    }
-
     let if_expr = map(
         pair(
             template_tag(
                 "%{",
-                preceded(pair(ws, tag("if")), decor(ws, cut(expr), ws)),
+                pair(terminated(span(ws), tag("if")), decor(ws, cut(expr), ws)),
             ),
             spanned(template),
         ),
-        |((cond_expr, strip), template)| IfExpr {
-            cond_expr,
-            template,
-            strip,
+        |(((preamble, cond_expr), strip), template)| {
+            let mut expr = IfTemplateExpr::new(cond_expr, template, strip);
+            expr.set_preamble(preamble);
+            expr
         },
     );
 
     let else_expr = map(
         pair(
-            template_tag("%{", delimited(ws, tag("else"), ws)),
+            template_tag("%{", separated_pair(span(ws), tag("else"), span(ws))),
             spanned(template),
         ),
-        |((_, strip), template)| ElseExpr {
-            template: Some(template),
-            strip,
+        |(((preamble, trailing), strip), template)| {
+            let mut expr = ElseTemplateExpr::new(template, strip);
+            expr.set_preamble(preamble);
+            expr.set_trailing(trailing);
+            expr
         },
     );
 
     let endif_expr = map(
-        template_tag("%{", delimited(ws, tag_or_cut("endif"), ws)),
-        |(_, strip)| strip,
+        template_tag(
+            "%{",
+            separated_pair(span(ws), tag_or_cut("endif"), span(ws)),
+        ),
+        |((preamble, trailing), strip)| {
+            let mut expr = EndifTemplateExpr::new(strip);
+            expr.set_preamble(preamble);
+            expr.set_trailing(trailing);
+            expr
+        },
     );
 
     map(
         tuple((if_expr, opt(else_expr), endif_expr)),
-        |(if_expr, else_expr, endif_strip)| {
-            let else_expr = else_expr.unwrap_or_default();
-
-            IfDirective {
-                cond_expr: if_expr.cond_expr,
-                true_template: if_expr.template,
-                false_template: else_expr.template,
-                if_strip: if_expr.strip,
-                else_strip: else_expr.strip,
-                endif_strip,
-            }
-        },
+        |(if_expr, else_expr, endif_expr)| IfDirective::new(if_expr, else_expr, endif_expr),
     )(input)
 }
 

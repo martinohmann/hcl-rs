@@ -1,8 +1,9 @@
 use super::ast::{
     Array, Attribute, BinaryOp, Block, BlockBody, BlockLabel, Body, Conditional, Directive,
-    Element, Expression, ForDirective, ForExpr, FuncCall, HeredocTemplate, IfDirective,
-    Interpolation, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
-    ObjectValueTerminator, Structure, Template, Traversal, TraversalOperator, UnaryOp,
+    Element, ElseTemplateExpr, EndifTemplateExpr, Expression, ForDirective, ForExpr, FuncCall,
+    HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, Null, Object, ObjectItem,
+    ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Structure, Template, Traversal,
+    TraversalOperator, UnaryOp,
 };
 use super::repr::{Decorate, Decorated};
 use crate::expr::{HeredocStripMode, Variable};
@@ -244,51 +245,68 @@ impl Encode for Directive {
 
 impl Encode for IfDirective {
     fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
-        let if_strip = self.if_strip();
+        self.if_expr().encode(buf, input)?;
+        if let Some(else_expr) = self.else_expr() {
+            else_expr.encode(buf, input)?;
+        }
+        self.endif_expr().encode(buf, input)
+    }
+}
+
+impl Encode for IfTemplateExpr {
+    fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
+        let strip = self.strip();
         buf.write_str("%{")?;
-        if if_strip.strip_start() {
+        if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        // @TODO(mohmann): leading whitespace of `if` needs to be tracked.
-        buf.write_str(" if ")?;
-
+        self.preamble().encode_with_default(buf, input, " ")?;
+        buf.write_str("if")?;
         self.cond_expr()
             .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
 
-        if if_strip.strip_end() {
+        if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')?;
-        self.true_template().encode(buf, input)?;
+        self.template().encode(buf, input)
+    }
+}
 
-        if let Some(false_template) = self.false_template() {
-            let else_strip = self.else_strip();
-            buf.write_str("%{")?;
-            if else_strip.strip_start() {
-                buf.write_char('~')?;
-            }
-
-            // @TODO(mohmann): surround whitespace of `else` needs to be tracked.
-            buf.write_str(" else ")?;
-
-            if else_strip.strip_end() {
-                buf.write_char('~')?;
-            }
-            buf.write_char('}')?;
-            false_template.encode(buf, input)?;
-        }
-
-        let endif_strip = self.endif_strip();
+impl Encode for ElseTemplateExpr {
+    fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
+        let strip = self.strip();
         buf.write_str("%{")?;
-        if endif_strip.strip_start() {
+        if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        // @TODO(mohmann): surrounding whitespace of `endif` needs to be tracked.
-        buf.write_str(" endif ")?;
+        self.preamble().encode_with_default(buf, input, " ")?;
+        buf.write_str("else")?;
+        self.trailing().encode_with_default(buf, input, " ")?;
 
-        if endif_strip.strip_end() {
+        if strip.strip_end() {
+            buf.write_char('~')?;
+        }
+        buf.write_char('}')?;
+        self.template().encode(buf, input)
+    }
+}
+
+impl Encode for EndifTemplateExpr {
+    fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
+        let strip = self.strip();
+        buf.write_str("%{")?;
+        if strip.strip_start() {
+            buf.write_char('~')?;
+        }
+
+        self.preamble().encode_with_default(buf, input, " ")?;
+        buf.write_str("endif")?;
+        self.trailing().encode_with_default(buf, input, " ")?;
+
+        if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')

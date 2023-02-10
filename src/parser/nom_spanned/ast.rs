@@ -1346,62 +1346,187 @@ impl From<Directive> for template::Directive {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfDirective {
-    pub(crate) cond_expr: Expression,
-    pub(crate) true_template: Spanned<Template>,
-    pub(crate) false_template: Option<Spanned<Template>>,
-    pub(crate) if_strip: StripMode,
-    pub(crate) else_strip: StripMode,
-    pub(crate) endif_strip: StripMode,
+    if_expr: IfTemplateExpr,
+    else_expr: Option<ElseTemplateExpr>,
+    endif_expr: EndifTemplateExpr,
 }
 
 impl IfDirective {
-    pub fn cond_expr(&self) -> &Expression {
-        &self.cond_expr
+    pub fn new(
+        if_expr: IfTemplateExpr,
+        else_expr: Option<ElseTemplateExpr>,
+        endif_expr: EndifTemplateExpr,
+    ) -> IfDirective {
+        IfDirective {
+            if_expr,
+            else_expr,
+            endif_expr,
+        }
     }
 
-    pub fn true_template(&self) -> &Spanned<Template> {
-        &self.true_template
+    pub fn if_expr(&self) -> &IfTemplateExpr {
+        &self.if_expr
     }
 
-    pub fn false_template(&self) -> Option<&Spanned<Template>> {
-        self.false_template.as_ref()
+    pub fn else_expr(&self) -> Option<&ElseTemplateExpr> {
+        self.else_expr.as_ref()
     }
 
-    pub fn if_strip(&self) -> StripMode {
-        self.if_strip
-    }
-
-    pub fn else_strip(&self) -> StripMode {
-        self.else_strip
-    }
-
-    pub fn endif_strip(&self) -> StripMode {
-        self.endif_strip
+    pub fn endif_expr(&self) -> &EndifTemplateExpr {
+        &self.endif_expr
     }
 }
 
 impl Despan for IfDirective {
     fn despan(&mut self, input: &str) {
-        self.cond_expr.decor_mut().despan(input);
-        self.cond_expr.despan(input);
-        self.true_template.despan(input);
+        self.if_expr.cond_expr.decor_mut().despan(input);
+        self.if_expr.template.despan(input);
 
-        if let Some(false_template) = &mut self.false_template {
-            false_template.despan(input);
+        if let Some(else_expr) = &mut self.else_expr {
+            else_expr.template.despan(input);
         }
     }
 }
 
 impl From<IfDirective> for template::IfDirective {
     fn from(dir: IfDirective) -> Self {
+        let else_strip = dir
+            .else_expr
+            .as_ref()
+            .map(|expr| expr.strip)
+            .unwrap_or_default();
+
         template::IfDirective {
-            cond_expr: dir.cond_expr.into(),
-            true_template: dir.true_template.inner_into(),
-            false_template: dir.false_template.map(Spanned::inner_into),
-            if_strip: dir.if_strip,
-            else_strip: dir.else_strip,
-            endif_strip: dir.endif_strip,
+            cond_expr: dir.if_expr.cond_expr.into(),
+            true_template: dir.if_expr.template.inner_into(),
+            false_template: dir.else_expr.map(|expr| expr.template.inner_into()),
+            if_strip: dir.if_expr.strip,
+            else_strip,
+            endif_strip: dir.endif_expr.strip,
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IfTemplateExpr {
+    preamble: RawString,
+    cond_expr: Expression,
+    template: Spanned<Template>,
+    strip: StripMode,
+}
+
+impl IfTemplateExpr {
+    pub fn new(
+        cond_expr: Expression,
+        template: Spanned<Template>,
+        strip: StripMode,
+    ) -> IfTemplateExpr {
+        IfTemplateExpr {
+            preamble: RawString::default(),
+            cond_expr,
+            template,
+            strip,
+        }
+    }
+
+    pub fn cond_expr(&self) -> &Expression {
+        &self.cond_expr
+    }
+
+    pub fn template(&self) -> &Spanned<Template> {
+        &self.template
+    }
+
+    pub fn strip(&self) -> StripMode {
+        self.strip
+    }
+
+    pub fn preamble(&self) -> &RawString {
+        &self.preamble
+    }
+
+    pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
+        self.preamble = preamble.into()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElseTemplateExpr {
+    preamble: RawString,
+    trailing: RawString,
+    template: Spanned<Template>,
+    strip: StripMode,
+}
+
+impl ElseTemplateExpr {
+    pub fn new(template: Spanned<Template>, strip: StripMode) -> ElseTemplateExpr {
+        ElseTemplateExpr {
+            preamble: RawString::default(),
+            trailing: RawString::default(),
+            template,
+            strip,
+        }
+    }
+
+    pub fn template(&self) -> &Spanned<Template> {
+        &self.template
+    }
+
+    pub fn strip(&self) -> StripMode {
+        self.strip
+    }
+
+    pub fn preamble(&self) -> &RawString {
+        &self.preamble
+    }
+
+    pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
+        self.preamble = preamble.into()
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EndifTemplateExpr {
+    preamble: RawString,
+    trailing: RawString,
+    strip: StripMode,
+}
+
+impl EndifTemplateExpr {
+    pub fn new(strip: StripMode) -> EndifTemplateExpr {
+        EndifTemplateExpr {
+            preamble: RawString::default(),
+            trailing: RawString::default(),
+            strip,
+        }
+    }
+
+    pub fn strip(&self) -> StripMode {
+        self.strip
+    }
+
+    pub fn preamble(&self) -> &RawString {
+        &self.preamble
+    }
+
+    pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
+        self.preamble = preamble.into()
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into()
     }
 }
 
