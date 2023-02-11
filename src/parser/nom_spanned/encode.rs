@@ -17,30 +17,46 @@ const TRAILING_SPACE_DECOR: (&str, &str) = ("", " ");
 const BOTH_SPACE_DECOR: (&str, &str) = (" ", " ");
 
 pub(crate) trait EncodeDecorated {
-    fn encode_decorated<'a>(
-        &self,
-        buf: &mut EncodeState<'a>,
-        input: Option<&str>,
-        default_decor: (&str, &str),
-    ) -> fmt::Result;
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result;
 }
 
 pub(crate) trait Encode {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result;
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result;
 }
 
 pub(crate) struct EncodeState<'a> {
     buf: &'a mut dyn fmt::Write,
     escape: bool,
+    input: Option<&'a str>,
 }
 
 impl<'a> EncodeState<'a> {
-    pub fn new(buf: &'a mut dyn fmt::Write) -> EncodeState<'a> {
-        EncodeState { buf, escape: false }
+    pub fn new(buf: &'a mut dyn fmt::Write, input: Option<&'a str>) -> EncodeState<'a> {
+        EncodeState {
+            buf,
+            input,
+            escape: false,
+        }
     }
 
-    pub fn set_escape(&mut self, yes: bool) {
-        self.escape = yes;
+    pub fn escaped<F>(&mut self, f: F) -> fmt::Result
+    where
+        F: FnOnce(&mut EncodeState) -> fmt::Result,
+    {
+        self.escape = true;
+        let result = f(self);
+        self.escape = false;
+        result
+    }
+
+    pub fn with_input<F>(&mut self, f: F) -> fmt::Result
+    where
+        F: FnOnce(&mut EncodeState, Option<&str>) -> fmt::Result,
+    {
+        self.escape = true;
+        let result = f(self, self.input);
+        self.escape = false;
+        result
     }
 
     pub fn escape(&self) -> bool {
@@ -58,92 +74,77 @@ impl<T> EncodeDecorated for Decorated<T>
 where
     T: Encode,
 {
-    fn encode_decorated<'a>(
-        &self,
-        buf: &mut EncodeState<'a>,
-        input: Option<&str>,
-        default_decor: (&str, &str),
-    ) -> fmt::Result {
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         let decor = self.decor();
-        decor.encode_prefix(buf, input, default_decor.0)?;
-        (&**self).encode(buf, input)?;
-        decor.encode_suffix(buf, input, default_decor.1)
+        decor.encode_prefix(buf, default_decor.0)?;
+        self.as_ref().encode(buf)?;
+        decor.encode_suffix(buf, default_decor.1)
     }
 }
 
 impl EncodeDecorated for Expression {
-    fn encode_decorated<'a>(
-        &self,
-        buf: &mut EncodeState<'a>,
-        input: Option<&str>,
-        default_decor: (&str, &str),
-    ) -> fmt::Result {
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            Expression::Null(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Bool(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Number(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::String(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Array(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Object(v) => v.encode_decorated(buf, input, default_decor),
+            Expression::Null(v) => v.encode_decorated(buf, default_decor),
+            Expression::Bool(v) => v.encode_decorated(buf, default_decor),
+            Expression::Number(v) => v.encode_decorated(buf, default_decor),
+            Expression::String(v) => v.encode_decorated(buf, default_decor),
+            Expression::Array(v) => v.encode_decorated(buf, default_decor),
+            Expression::Object(v) => v.encode_decorated(buf, default_decor),
             Expression::Template(v) => {
                 let decor = v.decor();
-                decor.encode_prefix(buf, input, default_decor.0)?;
-                // @FIXME(mohmann): properly escape string literals within the quoted string
-                // template. This requires passing some state that keeps track whether string
-                // escaping should happen or not.
+                decor.encode_prefix(buf, default_decor.0)?;
                 buf.write_char('"')?;
-                buf.set_escape(true);
-                v.as_ref().encode(buf, input)?;
-                buf.set_escape(false);
+                buf.escaped(|buf| v.as_ref().encode(buf))?;
                 buf.write_char('"')?;
-                decor.encode_suffix(buf, input, default_decor.1)
+                decor.encode_suffix(buf, default_decor.1)
             }
-            Expression::HeredocTemplate(v) => v.encode_decorated(buf, input, default_decor),
+            Expression::HeredocTemplate(v) => v.encode_decorated(buf, default_decor),
             Expression::Parenthesis(v) => {
                 let decor = v.decor();
-                decor.encode_prefix(buf, input, default_decor.0)?;
+                decor.encode_prefix(buf, default_decor.0)?;
                 buf.write_char('(')?;
-                v.as_ref().encode_decorated(buf, input, NO_DECOR)?;
+                v.as_ref().encode_decorated(buf, NO_DECOR)?;
                 buf.write_char(')')?;
-                decor.encode_suffix(buf, input, default_decor.1)
+                decor.encode_suffix(buf, default_decor.1)
             }
-            Expression::Variable(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::ForExpr(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Conditional(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::FuncCall(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::UnaryOp(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::BinaryOp(v) => v.encode_decorated(buf, input, default_decor),
-            Expression::Traversal(v) => v.encode_decorated(buf, input, default_decor),
+            Expression::Variable(v) => v.encode_decorated(buf, default_decor),
+            Expression::ForExpr(v) => v.encode_decorated(buf, default_decor),
+            Expression::Conditional(v) => v.encode_decorated(buf, default_decor),
+            Expression::FuncCall(v) => v.encode_decorated(buf, default_decor),
+            Expression::UnaryOp(v) => v.encode_decorated(buf, default_decor),
+            Expression::BinaryOp(v) => v.encode_decorated(buf, default_decor),
+            Expression::Traversal(v) => v.encode_decorated(buf, default_decor),
         }
     }
 }
 
 impl Encode for Null {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_str("null")
     }
 }
 
 impl Encode for bool {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         write!(buf, "{}", self)
     }
 }
 
 impl Encode for u64 {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         write!(buf, "{}", self)
     }
 }
 
 impl Encode for Number {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         write!(buf, "{}", self)
     }
 }
 
 impl Encode for String {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('"')?;
         write_escaped(buf, &self)?;
         buf.write_char('"')
@@ -151,13 +152,13 @@ impl Encode for String {
 }
 
 impl Encode for Identifier {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_str(self.as_str())
     }
 }
 
 impl Encode for Array {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('[')?;
 
         for (i, value) in self.values().iter().enumerate() {
@@ -167,44 +168,42 @@ impl Encode for Array {
                 buf.write_char(',')?;
                 LEADING_SPACE_DECOR
             };
-            value.encode_decorated(buf, input, value_decor)?;
+            value.encode_decorated(buf, value_decor)?;
         }
 
         if self.trailing_comma() {
             buf.write_char(',')?;
         }
 
-        self.trailing().encode_with_default(buf, input, "")?;
+        self.trailing().encode_with_default(buf, "")?;
         buf.write_char(']')
     }
 }
 
 impl Encode for Object {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('{')?;
 
         for item in self.items().iter() {
             // @FIXME(mohmann): more sensible default decor.
-            item.encode_decorated(buf, input, NO_DECOR)?;
+            item.encode_decorated(buf, NO_DECOR)?;
         }
 
-        self.trailing().encode_with_default(buf, input, "")?;
+        self.trailing().encode_with_default(buf, "")?;
         buf.write_char('}')
     }
 }
 
 impl Encode for ObjectItem {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.key()
-            .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.key().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
 
         match self.key_value_separator() {
             ObjectKeyValueSeparator::Colon => buf.write_char(':')?,
             ObjectKeyValueSeparator::Equals => buf.write_char('=')?,
         }
 
-        self.value()
-            .encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+        self.value().encode_decorated(buf, LEADING_SPACE_DECOR)?;
 
         match self.value_terminator() {
             ObjectValueTerminator::Comma => buf.write_char(',')?,
@@ -217,23 +216,18 @@ impl Encode for ObjectItem {
 }
 
 impl EncodeDecorated for ObjectKey {
-    fn encode_decorated<'a>(
-        &self,
-        buf: &mut EncodeState<'a>,
-        input: Option<&str>,
-        default_decor: (&str, &str),
-    ) -> fmt::Result {
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            ObjectKey::Identifier(ident) => ident.encode_decorated(buf, input, default_decor),
-            ObjectKey::Expression(expr) => expr.encode_decorated(buf, input, default_decor),
+            ObjectKey::Identifier(ident) => ident.encode_decorated(buf, default_decor),
+            ObjectKey::Expression(expr) => expr.encode_decorated(buf, default_decor),
         }
     }
 }
 
 impl Encode for Template {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         for element in self.elements().iter() {
-            element.encode(buf, input)?;
+            element.encode(buf)?;
         }
 
         Ok(())
@@ -241,7 +235,7 @@ impl Encode for Template {
 }
 
 impl Encode for Element {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         match self {
             Element::Literal(lit) => {
                 if buf.escape() {
@@ -250,20 +244,20 @@ impl Encode for Element {
                     buf.write_str(&lit)
                 }
             }
-            Element::Interpolation(interp) => interp.encode(buf, input),
-            Element::Directive(dir) => dir.encode(buf, input),
+            Element::Interpolation(interp) => interp.encode(buf),
+            Element::Directive(dir) => dir.encode(buf),
         }
     }
 }
 
 impl Encode for Interpolation {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         let strip = self.strip();
         buf.write_str("${")?;
         if strip.strip_start() {
             buf.write_char('~')?;
         }
-        self.expr().encode_decorated(buf, input, BOTH_SPACE_DECOR)?;
+        self.expr().encode_decorated(buf, BOTH_SPACE_DECOR)?;
         if strip.strip_end() {
             buf.write_char('~')?;
         }
@@ -272,76 +266,76 @@ impl Encode for Interpolation {
 }
 
 impl Encode for Directive {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         match self {
-            Directive::If(dir) => dir.encode(buf, input),
-            Directive::For(dir) => dir.encode(buf, input),
+            Directive::If(dir) => dir.encode(buf),
+            Directive::For(dir) => dir.encode(buf),
         }
     }
 }
 
 impl Encode for IfDirective {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.if_expr().encode(buf, input)?;
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.if_expr().encode(buf)?;
         if let Some(else_expr) = self.else_expr() {
-            else_expr.encode(buf, input)?;
+            else_expr.encode(buf)?;
         }
-        self.endif_expr().encode(buf, input)
+        self.endif_expr().encode(buf)
     }
 }
 
 impl Encode for IfTemplateExpr {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         let strip = self.strip();
         buf.write_str("%{")?;
         if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        self.preamble().encode_with_default(buf, input, " ")?;
+        self.preamble().encode_with_default(buf, " ")?;
         buf.write_str("if")?;
         self.cond_expr()
-            .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+            .encode_decorated(buf, TRAILING_SPACE_DECOR)?;
 
         if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')?;
-        self.template().encode(buf, input)
+        self.template().encode(buf)
     }
 }
 
 impl Encode for ElseTemplateExpr {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         let strip = self.strip();
         buf.write_str("%{")?;
         if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        self.preamble().encode_with_default(buf, input, " ")?;
+        self.preamble().encode_with_default(buf, " ")?;
         buf.write_str("else")?;
-        self.trailing().encode_with_default(buf, input, " ")?;
+        self.trailing().encode_with_default(buf, " ")?;
 
         if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')?;
-        self.template().encode(buf, input)
+        self.template().encode(buf)
     }
 }
 
 impl Encode for EndifTemplateExpr {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         let strip = self.strip();
         buf.write_str("%{")?;
         if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        self.preamble().encode_with_default(buf, input, " ")?;
+        self.preamble().encode_with_default(buf, " ")?;
         buf.write_str("endif")?;
-        self.trailing().encode_with_default(buf, input, " ")?;
+        self.trailing().encode_with_default(buf, " ")?;
 
         if strip.strip_end() {
             buf.write_char('~')?;
@@ -351,50 +345,49 @@ impl Encode for EndifTemplateExpr {
 }
 
 impl Encode for ForDirective {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.for_expr().encode(buf, input)?;
-        self.endfor_expr().encode(buf, input)
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.for_expr().encode(buf)?;
+        self.endfor_expr().encode(buf)
     }
 }
 
 impl Encode for ForTemplateExpr {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         let strip = self.strip();
         buf.write_str("%{")?;
         if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        self.preamble().encode_with_default(buf, input, " ")?;
+        self.preamble().encode_with_default(buf, " ")?;
         buf.write_str("for")?;
 
         if let Some(key_var) = self.key_var() {
-            key_var.encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+            key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
             buf.write_char(',')?;
         }
 
-        self.value_var()
-            .encode_decorated(buf, input, BOTH_SPACE_DECOR)?;
+        self.value_var().encode_decorated(buf, BOTH_SPACE_DECOR)?;
 
         if strip.strip_end() {
             buf.write_char('~')?;
         }
         buf.write_char('}')?;
-        self.template().encode(buf, input)
+        self.template().encode(buf)
     }
 }
 
 impl Encode for EndforTemplateExpr {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         let strip = self.strip();
         buf.write_str("%{")?;
         if strip.strip_start() {
             buf.write_char('~')?;
         }
 
-        self.preamble().encode_with_default(buf, input, " ")?;
+        self.preamble().encode_with_default(buf, " ")?;
         buf.write_str("endfor")?;
-        self.trailing().encode_with_default(buf, input, " ")?;
+        self.trailing().encode_with_default(buf, " ")?;
 
         if strip.strip_end() {
             buf.write_char('~')?;
@@ -404,65 +397,65 @@ impl Encode for EndforTemplateExpr {
 }
 
 impl Encode for HeredocTemplate {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         match self.strip() {
             HeredocStripMode::None => buf.write_str("<<")?,
             HeredocStripMode::Indent => buf.write_str("<<-")?,
         }
 
         write!(buf, "{}\n", self.delimiter().as_str())?;
-        self.template().encode(buf, input)?;
+        self.template().encode(buf)?;
         write!(buf, "{}", self.delimiter().as_str())
     }
 }
 
 impl Encode for Variable {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_str(self.as_str())
     }
 }
 
 impl Encode for ForExpr {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         if let Some(key_expr) = self.key_expr() {
             // object expr
             buf.write_char('{')?;
-            self.prefix().encode_with_default(buf, input, "")?;
+            self.prefix().encode_with_default(buf, "")?;
             buf.write_str("for")?;
             if let Some(key_var) = self.key_var() {
-                key_var.encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
                 buf.write_char(',')?;
             }
             self.value_var()
-                .encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                .encode_decorated(buf, LEADING_SPACE_DECOR)?;
             buf.write_char(':')?;
-            key_expr.encode_decorated(buf, input, BOTH_SPACE_DECOR)?;
+            key_expr.encode_decorated(buf, BOTH_SPACE_DECOR)?;
             buf.write_str("=>")?;
             self.value_expr()
-                .encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                .encode_decorated(buf, LEADING_SPACE_DECOR)?;
             if self.grouping() {
                 buf.write_str("...")?;
             }
             if let Some(cond_expr) = self.cond_expr() {
-                cond_expr.encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                cond_expr.encode_decorated(buf, LEADING_SPACE_DECOR)?;
             }
             buf.write_char('}')
         } else {
             // list expr
             buf.write_char('[')?;
-            self.prefix().encode_with_default(buf, input, "")?;
+            self.prefix().encode_with_default(buf, "")?;
             buf.write_str("for")?;
             if let Some(key_var) = self.key_var() {
-                key_var.encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
                 buf.write_char(',')?;
             }
             self.value_var()
-                .encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                .encode_decorated(buf, LEADING_SPACE_DECOR)?;
             buf.write_char(':')?;
             self.value_expr()
-                .encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                .encode_decorated(buf, LEADING_SPACE_DECOR)?;
             if let Some(cond_expr) = self.cond_expr() {
-                cond_expr.encode_decorated(buf, input, LEADING_SPACE_DECOR)?;
+                cond_expr.encode_decorated(buf, LEADING_SPACE_DECOR)?;
             }
             buf.write_char(']')
         }
@@ -470,27 +463,25 @@ impl Encode for ForExpr {
 }
 
 impl Encode for Conditional {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         self.cond_expr()
-            .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+            .encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         buf.write_char('?')?;
-        self.true_expr()
-            .encode_decorated(buf, input, BOTH_SPACE_DECOR)?;
+        self.true_expr().encode_decorated(buf, BOTH_SPACE_DECOR)?;
         buf.write_char(':')?;
-        self.false_expr()
-            .encode_decorated(buf, input, LEADING_SPACE_DECOR)
+        self.false_expr().encode_decorated(buf, LEADING_SPACE_DECOR)
     }
 }
 
 impl Encode for FuncCall {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.name().encode_decorated(buf, input, NO_DECOR)?;
-        self.signature().encode_decorated(buf, input, NO_DECOR)
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.name().encode_decorated(buf, NO_DECOR)?;
+        self.signature().encode_decorated(buf, NO_DECOR)
     }
 }
 
 impl Encode for FuncSig {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('(')?;
 
         for (i, arg) in self.args().iter().enumerate() {
@@ -501,7 +492,7 @@ impl Encode for FuncSig {
                 LEADING_SPACE_DECOR
             };
 
-            arg.encode_decorated(buf, input, arg_decor)?;
+            arg.encode_decorated(buf, arg_decor)?;
         }
 
         if self.args().len() > 0 {
@@ -512,34 +503,33 @@ impl Encode for FuncSig {
             }
         }
 
-        self.trailing().encode_with_default(buf, input, "")?;
+        self.trailing().encode_with_default(buf, "")?;
         buf.write_char(')')
     }
 }
 
 impl Encode for UnaryOp {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_str(self.operator().as_str())?;
-        self.expr().encode_decorated(buf, input, NO_DECOR)
+        self.expr().encode_decorated(buf, NO_DECOR)
     }
 }
 
 impl Encode for BinaryOp {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         self.lhs_expr()
-            .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+            .encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         buf.write_str(self.operator().as_str())?;
-        self.rhs_expr()
-            .encode_decorated(buf, input, LEADING_SPACE_DECOR)
+        self.rhs_expr().encode_decorated(buf, LEADING_SPACE_DECOR)
     }
 }
 
 impl Encode for Traversal {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.expr().encode_decorated(buf, input, NO_DECOR)?;
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.expr().encode_decorated(buf, NO_DECOR)?;
 
         for operator in self.operators().iter() {
-            operator.encode_decorated(buf, input, NO_DECOR)?;
+            operator.encode_decorated(buf, NO_DECOR)?;
         }
 
         Ok(())
@@ -547,7 +537,7 @@ impl Encode for Traversal {
 }
 
 impl Encode for TraversalOperator {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         match self {
             TraversalOperator::FullSplat | TraversalOperator::Index(_) => buf.write_char('[')?,
             _other => buf.write_char('.')?,
@@ -556,11 +546,9 @@ impl Encode for TraversalOperator {
         // @FIXME(mohmann): handle whitespace within splat operators.
         match self {
             TraversalOperator::AttrSplat | TraversalOperator::FullSplat => buf.write_char('*')?,
-            TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, input, NO_DECOR)?,
-            TraversalOperator::Index(expr) => expr.encode_decorated(buf, input, NO_DECOR)?,
-            TraversalOperator::LegacyIndex(index) => {
-                index.encode_decorated(buf, input, NO_DECOR)?
-            }
+            TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
+            TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
+            TraversalOperator::LegacyIndex(index) => index.encode_decorated(buf, NO_DECOR)?,
         }
 
         match self {
@@ -571,9 +559,9 @@ impl Encode for TraversalOperator {
 }
 
 impl Encode for Body {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         for structure in self.structures() {
-            structure.encode_decorated(buf, input, NO_DECOR)?;
+            structure.encode_decorated(buf, NO_DECOR)?;
             buf.write_char('\n')?;
         }
 
@@ -582,70 +570,57 @@ impl Encode for Body {
 }
 
 impl EncodeDecorated for Structure {
-    fn encode_decorated<'a>(
-        &self,
-        buf: &mut EncodeState<'a>,
-        input: Option<&str>,
-        default_decor: (&str, &str),
-    ) -> fmt::Result {
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            Structure::Attribute(attr) => attr.encode_decorated(buf, input, default_decor),
-            Structure::Block(block) => block.encode_decorated(buf, input, default_decor),
+            Structure::Attribute(attr) => attr.encode_decorated(buf, default_decor),
+            Structure::Block(block) => block.encode_decorated(buf, default_decor),
         }
     }
 }
 
 impl Encode for Attribute {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.key()
-            .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.key().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         buf.write_char('=')?;
-        self.expr()
-            .encode_decorated(buf, input, LEADING_SPACE_DECOR)
+        self.expr().encode_decorated(buf, LEADING_SPACE_DECOR)
     }
 }
 
 impl Encode for Block {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
-        self.ident()
-            .encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        self.ident().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
 
         for label in self.labels().iter() {
-            label.encode_decorated(buf, input, TRAILING_SPACE_DECOR)?;
+            label.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         }
 
-        self.body().encode(buf, input)
+        self.body().encode(buf)
     }
 }
 
 impl EncodeDecorated for BlockLabel {
-    fn encode_decorated<'a>(
-        &self,
-        buf: &mut EncodeState<'a>,
-        input: Option<&str>,
-        default_decor: (&str, &str),
-    ) -> fmt::Result {
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            BlockLabel::String(string) => string.encode_decorated(buf, input, default_decor),
-            BlockLabel::Identifier(ident) => ident.encode_decorated(buf, input, default_decor),
+            BlockLabel::String(string) => string.encode_decorated(buf, default_decor),
+            BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),
         }
     }
 }
 
 impl Encode for BlockBody {
-    fn encode<'a>(&self, buf: &mut EncodeState<'a>, input: Option<&str>) -> fmt::Result {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('{')?;
 
         match self {
             BlockBody::Multiline(body) => {
                 let decor = body.decor();
-                decor.encode_prefix(buf, input, "")?;
+                decor.encode_prefix(buf, "")?;
                 buf.write_char('\n')?;
-                body.as_ref().encode(buf, input)?;
-                decor.encode_suffix(buf, input, "")?;
+                body.as_ref().encode(buf)?;
+                decor.encode_suffix(buf, "")?;
             }
-            BlockBody::Oneline(attr) => attr.encode_decorated(buf, input, BOTH_SPACE_DECOR)?,
-            BlockBody::Empty(raw) => raw.encode_with_default(buf, input, "")?,
+            BlockBody::Oneline(attr) => attr.encode_decorated(buf, BOTH_SPACE_DECOR)?,
+            BlockBody::Empty(raw) => raw.encode_with_default(buf, "")?,
         }
 
         buf.write_char('}')

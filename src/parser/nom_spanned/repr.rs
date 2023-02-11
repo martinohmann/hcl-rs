@@ -4,7 +4,7 @@
 use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
 use kstring::KString;
 use std::borrow::Borrow;
-use std::fmt;
+use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
 
 #[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -151,11 +151,10 @@ impl RawString {
 
     pub(crate) fn encode_with_default(
         &self,
-        buf: &mut dyn fmt::Write,
-        input: Option<&str>,
+        buf: &mut EncodeState,
         default: &str,
     ) -> std::fmt::Result {
-        write!(buf, "{}", self.to_str_with_default(input, default))
+        buf.with_input(|buf, input| buf.write_str(self.to_str_with_default(input, default)))
     }
 }
 
@@ -294,27 +293,17 @@ impl Decor {
         std::mem::replace(self, other)
     }
 
-    pub(crate) fn encode_prefix(
-        &self,
-        buf: &mut dyn fmt::Write,
-        input: Option<&str>,
-        default: &str,
-    ) -> fmt::Result {
+    pub(crate) fn encode_prefix(&self, buf: &mut EncodeState, default: &str) -> fmt::Result {
         if let Some(prefix) = self.prefix() {
-            prefix.encode_with_default(buf, input, default)
+            prefix.encode_with_default(buf, default)
         } else {
             write!(buf, "{}", default)
         }
     }
 
-    pub(crate) fn encode_suffix(
-        &self,
-        buf: &mut dyn fmt::Write,
-        input: Option<&str>,
-        default: &str,
-    ) -> fmt::Result {
+    pub(crate) fn encode_suffix(&self, buf: &mut EncodeState, default: &str) -> fmt::Result {
         if let Some(suffix) = self.suffix() {
-            suffix.encode_with_default(buf, input, default)
+            suffix.encode_with_default(buf, default)
         } else {
             write!(buf, "{}", default)
         }
@@ -436,8 +425,8 @@ where
     T: Encode,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f);
-        self.encode(&mut state, None)
+        let mut state = EncodeState::new(f, None);
+        self.encode(&mut state)
     }
 }
 
@@ -553,7 +542,7 @@ where
     T: Encode,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f);
-        self.encode_decorated(&mut state, None, NO_DECOR)
+        let mut state = EncodeState::new(f, None);
+        self.encode_decorated(&mut state, NO_DECOR)
     }
 }

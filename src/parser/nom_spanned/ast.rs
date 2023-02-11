@@ -219,8 +219,8 @@ impl From<Expression> for expr::Expression {
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f);
-        self.encode_decorated(&mut state, None, NO_DECOR)
+        let mut state = EncodeState::new(f, None);
+        self.encode_decorated(&mut state, NO_DECOR)
     }
 }
 
@@ -959,8 +959,8 @@ impl From<Body> for structure::Body {
 
 impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f);
-        self.encode(&mut state, None)
+        let mut state = EncodeState::new(f, None);
+        self.encode(&mut state)
     }
 }
 
@@ -1253,8 +1253,8 @@ impl From<Template> for String {
 
 impl fmt::Display for Template {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f);
-        self.encode(&mut state, None)
+        let mut state = EncodeState::new(f, None);
+        self.encode(&mut state)
     }
 }
 
