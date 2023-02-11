@@ -73,7 +73,7 @@ fn parse_conditional() {
                 Expression::Number(Decorated::with_span_decor(
                     1.into(),
                     14..15,
-                    Decor::from_prefix(13..14)
+                    Decor::new(13..14, 15..16)
                 )),
                 Expression::Number(Decorated::with_span_decor(
                     0.into(),

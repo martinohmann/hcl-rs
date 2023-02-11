@@ -896,35 +896,34 @@ impl From<BinaryOp> for expr::Operation {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForExpr {
-    pub(crate) prefix: RawString,
-    pub(crate) key_var: Option<Decorated<Identifier>>,
-    pub(crate) value_var: Decorated<Identifier>,
-    pub(crate) collection_expr: Expression,
-    pub(crate) key_expr: Option<Expression>,
-    pub(crate) value_expr: Expression,
-    pub(crate) grouping: bool,
-    pub(crate) cond_expr: Option<Expression>,
+    intro: Decorated<ForIntro>,
+    key_expr: Option<Expression>,
+    value_expr: Expression,
+    grouping: bool,
+    cond: Option<Decorated<ForCond>>,
 }
 
 impl ForExpr {
-    pub fn prefix(&self) -> &RawString {
-        &self.prefix
+    pub fn new(intro: Decorated<ForIntro>, value_expr: Expression) -> ForExpr {
+        ForExpr {
+            intro,
+            key_expr: None,
+            value_expr,
+            grouping: false,
+            cond: None,
+        }
     }
 
-    pub fn key_var(&self) -> Option<&Decorated<Identifier>> {
-        self.key_var.as_ref()
-    }
-
-    pub fn value_var(&self) -> &Decorated<Identifier> {
-        &self.value_var
-    }
-
-    pub fn collection_expr(&self) -> &Expression {
-        &self.collection_expr
+    pub fn intro(&self) -> &Decorated<ForIntro> {
+        &self.intro
     }
 
     pub fn key_expr(&self) -> Option<&Expression> {
         self.key_expr.as_ref()
+    }
+
+    pub fn set_key_expr(&mut self, key_expr: Expression) {
+        self.key_expr = Some(key_expr);
     }
 
     pub fn value_expr(&self) -> &Expression {
@@ -935,21 +934,23 @@ impl ForExpr {
         self.grouping
     }
 
-    pub fn cond_expr(&self) -> Option<&Expression> {
-        self.cond_expr.as_ref()
+    pub fn set_grouping(&mut self, yes: bool) {
+        self.grouping = yes;
+    }
+
+    pub fn cond(&self) -> Option<&Decorated<ForCond>> {
+        self.cond.as_ref()
+    }
+
+    pub fn set_cond(&mut self, cond: Decorated<ForCond>) {
+        self.cond = Some(cond);
     }
 }
 
 impl Despan for ForExpr {
     fn despan(&mut self, input: &str) {
-        self.prefix.despan(input);
-
-        if let Some(key_var) = &mut self.key_var {
-            key_var.decor_mut().despan(input);
-        }
-
-        self.value_var.decor_mut().despan(input);
-        self.collection_expr.despan(input);
+        self.intro.decor_mut().despan(input);
+        self.intro.despan(input);
 
         if let Some(key_expr) = &mut self.key_expr {
             key_expr.despan(input);
@@ -957,23 +958,89 @@ impl Despan for ForExpr {
 
         self.value_expr.despan(input);
 
-        if let Some(cond_expr) = &mut self.cond_expr {
-            cond_expr.despan(input);
+        if let Some(cond) = &mut self.cond {
+            cond.despan(input);
         }
     }
 }
 
 impl From<ForExpr> for expr::ForExpr {
     fn from(expr: ForExpr) -> Self {
+        let intro = expr.intro.into_inner();
         expr::ForExpr {
-            key_var: expr.key_var.map(Decorated::into_inner),
-            value_var: expr.value_var.into_inner(),
-            collection_expr: expr.collection_expr.into(),
+            key_var: intro.key_var.map(Decorated::into_inner),
+            value_var: intro.value_var.into_inner(),
+            collection_expr: intro.collection_expr.into(),
             key_expr: expr.key_expr.map(Into::into),
             value_expr: expr.value_expr.into(),
             grouping: expr.grouping,
-            cond_expr: expr.cond_expr.map(Into::into),
+            cond_expr: expr.cond.map(|cond| cond.into_inner().expr.into()),
         }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForIntro {
+    key_var: Option<Decorated<Identifier>>,
+    value_var: Decorated<Identifier>,
+    collection_expr: Expression,
+}
+
+impl ForIntro {
+    pub fn new(value_var: Decorated<Identifier>, collection_expr: Expression) -> ForIntro {
+        ForIntro {
+            key_var: None,
+            value_var,
+            collection_expr,
+        }
+    }
+
+    pub fn key_var(&self) -> Option<&Decorated<Identifier>> {
+        self.key_var.as_ref()
+    }
+
+    pub fn set_key_var(&mut self, key_var: Decorated<Identifier>) {
+        self.key_var = Some(key_var);
+    }
+
+    pub fn value_var(&self) -> &Decorated<Identifier> {
+        &self.value_var
+    }
+
+    pub fn collection_expr(&self) -> &Expression {
+        &self.collection_expr
+    }
+}
+
+impl Despan for ForIntro {
+    fn despan(&mut self, input: &str) {
+        if let Some(key_var) = &mut self.key_var {
+            key_var.decor_mut().despan(input);
+        }
+
+        self.value_var.decor_mut().despan(input);
+        self.collection_expr.despan(input);
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ForCond {
+    expr: Expression,
+}
+
+impl ForCond {
+    pub fn new(expr: Expression) -> ForCond {
+        ForCond { expr }
+    }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
+}
+
+impl Despan for ForCond {
+    fn despan(&mut self, input: &str) {
+        self.expr.despan(input);
     }
 }
 

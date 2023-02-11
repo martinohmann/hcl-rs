@@ -1,7 +1,7 @@
 use super::ast::{
-    Array, BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncSig, HeredocTemplate, Null,
-    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Template,
-    Traversal, TraversalOperator, UnaryOp,
+    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig,
+    HeredocTemplate, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
+    ObjectValueTerminator, Template, Traversal, TraversalOperator, UnaryOp,
 };
 use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
@@ -69,20 +69,15 @@ fn array_items(input: Input) -> IResult<Input, Array> {
 
 fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
-        tuple((
-            pair(span(ws), for_intro),
-            decor(ws, cut(expr), ws),
-            opt(for_cond_expr),
-        )),
-        |((prefix_span, intro), value_expr, cond_expr)| ForExpr {
-            prefix: prefix_span.into(),
-            key_var: intro.key_var,
-            value_var: intro.value_var,
-            collection_expr: intro.collection_expr,
-            key_expr: None,
-            value_expr,
-            cond_expr,
-            grouping: false,
+        tuple((for_intro, decor(ws, cut(expr), ws), opt(for_cond))),
+        |(intro, value_expr, cond)| {
+            let mut expr = ForExpr::new(intro, value_expr);
+
+            if let Some(cond) = cond {
+                expr.set_cond(cond);
+            }
+
+            expr
         },
     )(input)
 }
@@ -205,63 +200,59 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
 fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
-            pair(span(ws), for_intro),
+            for_intro,
             separated_pair(
                 decor(ws, cut(expr), ws),
                 tag_or_cut("=>"),
                 decor(ws, cut(expr), ws),
             ),
-            // @FIXME: track ws span.
-            opt(terminated(tag("..."), ws)),
-            opt(for_cond_expr),
+            opt(tag("...")),
+            opt(for_cond),
         )),
-        |((prefix_span, intro), (key_expr, value_expr), grouping, cond_expr)| ForExpr {
-            prefix: prefix_span.into(),
-            key_var: intro.key_var,
-            value_var: intro.value_var,
-            collection_expr: intro.collection_expr,
-            key_expr: Some(key_expr),
-            value_expr,
-            cond_expr,
-            grouping: grouping.is_some(),
+        |(intro, (key_expr, value_expr), grouping, cond)| {
+            let mut expr = ForExpr::new(intro, value_expr);
+            expr.set_key_expr(key_expr);
+            expr.set_grouping(grouping.is_some());
+
+            if let Some(cond) = cond {
+                expr.set_cond(cond);
+            }
+
+            expr
         },
     )(input)
 }
 
-struct ForIntro {
-    key_var: Option<Decorated<Identifier>>,
-    value_var: Decorated<Identifier>,
-    collection_expr: Expression,
-}
-
-fn for_intro(input: Input) -> IResult<Input, ForIntro> {
-    map(
-        delimited(
-            tag("for"),
-            tuple((
-                decor(ws, cut(ident), ws),
-                opt(preceded(char(','), decor(ws, cut(ident), ws))),
-                preceded(tag_or_cut("in"), decor(ws, cut(expr), ws)),
-            )),
-            char_or_cut(':'),
+fn for_intro(input: Input) -> IResult<Input, Decorated<ForIntro>> {
+    prefix_decor(
+        ws,
+        map(
+            delimited(
+                tag("for"),
+                tuple((
+                    decor(ws, cut(ident), ws),
+                    opt(preceded(char(','), decor(ws, cut(ident), ws))),
+                    preceded(tag_or_cut("in"), decor(ws, cut(expr), ws)),
+                )),
+                char_or_cut(':'),
+            ),
+            |(first, second, expr)| match second {
+                Some(second) => {
+                    let mut intro = ForIntro::new(second, expr);
+                    intro.set_key_var(first);
+                    intro
+                }
+                None => ForIntro::new(first, expr),
+            },
         ),
-        |(first, second, expr)| match second {
-            Some(second) => ForIntro {
-                key_var: Some(first),
-                value_var: second,
-                collection_expr: expr,
-            },
-            None => ForIntro {
-                key_var: None,
-                value_var: first,
-                collection_expr: expr,
-            },
-        },
     )(input)
 }
 
-fn for_cond_expr(input: Input) -> IResult<Input, Expression> {
-    preceded(tag("if"), decor(ws, cut(expr), ws))(input)
+fn for_cond(input: Input) -> IResult<Input, Decorated<ForCond>> {
+    prefix_decor(
+        ws,
+        map(preceded(tag("if"), decor(ws, cut(expr), ws)), ForCond::new),
+    )(input)
 }
 
 fn parenthesis(input: Input) -> IResult<Input, Expression> {
@@ -479,7 +470,6 @@ fn expr_term<'a>(input: Input<'a>) -> IResult<Input<'a>, Expression> {
             Expression::HeredocTemplate(Box::new(heredoc.into()))
         })(input),
         '-' => alt((
-            // @FIXME: track sp span.
             map(preceded(pair(char('-'), sp), number), |n| {
                 Expression::Number((-n).into())
             }),
@@ -503,9 +493,8 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
 
     let conditional = pair(
         // @FIXME: track sp span.
-        preceded(pair(sp, char('?')), prefix_decor(sp, cut(expr))),
-        // @FIXME: track sp span.
-        preceded(pair(sp, char_or_cut(':')), prefix_decor(sp, cut(expr))),
+        preceded(pair(sp, char('?')), decor(sp, cut(expr), sp)),
+        preceded(char_or_cut(':'), prefix_decor(sp, cut(expr))),
     );
 
     map(

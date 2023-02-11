@@ -1,9 +1,10 @@
 use super::ast::{
     Array, Attribute, BinaryOp, Block, BlockBody, BlockLabel, Body, Conditional, Directive,
-    Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForDirective,
-    ForExpr, ForTemplateExpr, FuncCall, FuncSig, HeredocTemplate, IfDirective, IfTemplateExpr,
-    Interpolation, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
-    ObjectValueTerminator, Structure, Template, Traversal, TraversalOperator, UnaryOp,
+    Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForCond,
+    ForDirective, ForExpr, ForIntro, ForTemplateExpr, FuncCall, FuncSig, HeredocTemplate,
+    IfDirective, IfTemplateExpr, Interpolation, Null, Object, ObjectItem, ObjectKey,
+    ObjectKeyValueSeparator, ObjectValueTerminator, Structure, Template, Traversal,
+    TraversalOperator, UnaryOp,
 };
 use super::escape::write_escaped;
 use super::repr::{Decorate, Decorated};
@@ -420,15 +421,7 @@ impl Encode for ForExpr {
         if let Some(key_expr) = self.key_expr() {
             // object expr
             buf.write_char('{')?;
-            self.prefix().encode_with_default(buf, "")?;
-            buf.write_str("for")?;
-            if let Some(key_var) = self.key_var() {
-                key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
-                buf.write_char(',')?;
-            }
-            self.value_var()
-                .encode_decorated(buf, LEADING_SPACE_DECOR)?;
-            buf.write_char(':')?;
+            self.intro().encode_decorated(buf, NO_DECOR)?;
             key_expr.encode_decorated(buf, BOTH_SPACE_DECOR)?;
             buf.write_str("=>")?;
             self.value_expr()
@@ -436,29 +429,41 @@ impl Encode for ForExpr {
             if self.grouping() {
                 buf.write_str("...")?;
             }
-            if let Some(cond_expr) = self.cond_expr() {
-                cond_expr.encode_decorated(buf, LEADING_SPACE_DECOR)?;
+            if let Some(cond) = self.cond() {
+                cond.encode_decorated(buf, LEADING_SPACE_DECOR)?;
             }
             buf.write_char('}')
         } else {
             // list expr
             buf.write_char('[')?;
-            self.prefix().encode_with_default(buf, "")?;
-            buf.write_str("for")?;
-            if let Some(key_var) = self.key_var() {
-                key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
-                buf.write_char(',')?;
-            }
-            self.value_var()
-                .encode_decorated(buf, LEADING_SPACE_DECOR)?;
-            buf.write_char(':')?;
+            self.intro().encode_decorated(buf, NO_DECOR)?;
             self.value_expr()
                 .encode_decorated(buf, LEADING_SPACE_DECOR)?;
-            if let Some(cond_expr) = self.cond_expr() {
-                cond_expr.encode_decorated(buf, LEADING_SPACE_DECOR)?;
+            if let Some(cond) = self.cond() {
+                cond.encode_decorated(buf, LEADING_SPACE_DECOR)?;
             }
             buf.write_char(']')
         }
+    }
+}
+
+impl Encode for ForIntro {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        buf.write_str("for")?;
+        if let Some(key_var) = self.key_var() {
+            key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
+            buf.write_char(',')?;
+        }
+        self.value_var()
+            .encode_decorated(buf, LEADING_SPACE_DECOR)?;
+        buf.write_char(':')
+    }
+}
+
+impl Encode for ForCond {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        buf.write_str("if")?;
+        self.expr().encode_decorated(buf, LEADING_SPACE_DECOR)
     }
 }
 
