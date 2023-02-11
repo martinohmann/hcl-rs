@@ -2,9 +2,10 @@ use super::ast::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, Template,
 };
+use super::repr::InternalString;
 use super::{
-    char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment, string_literal,
-    tag_or_cut, ws, IResult, Input, StringFragment,
+    build_string, char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment,
+    string_literal, tag_or_cut, ws, IResult, Input,
 };
 use crate::template::StripMode;
 use nom::sequence::separated_pair;
@@ -13,26 +14,10 @@ use nom::{
     bytes::complete::tag,
     character::complete::char,
     combinator::{cut, map, opt},
-    multi::{fold_many1, many0},
+    multi::many0,
     sequence::{delimited, pair, preceded, terminated, tuple},
 };
-
-fn build_literal<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, String>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, &'a str>,
-{
-    fold_many1(
-        string_fragment(literal),
-        String::new,
-        |mut string, fragment| {
-            match fragment {
-                StringFragment::Literal(s) => string.push_str(s),
-                StringFragment::EscapedChar(c) => string.push(c),
-            }
-            string
-        },
-    )
-}
+use std::borrow::Cow;
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     map(
@@ -161,11 +146,13 @@ fn directive(input: Input) -> IResult<Input, Directive> {
 
 fn build_template<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template>
 where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, String>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, Cow<'a, str>>,
 {
     map(
         many0(spanned(alt((
-            map(literal, |s| Element::Literal(s.into())),
+            map(literal, |s| {
+                Element::Literal(InternalString::from(s).into())
+            }),
             map(interpolation, |i| Element::Interpolation(i.into())),
             map(directive, Element::Directive),
         )))),
@@ -176,19 +163,19 @@ where
 pub fn quoted_string_template(input: Input) -> IResult<Input, Template> {
     delimited(
         char('"'),
-        build_template(build_literal(string_literal)),
+        build_template(build_string(string_fragment(string_literal))),
         char('"'),
     )(input)
 }
 
 pub fn heredoc_template(input: Input) -> IResult<Input, Template> {
-    build_template(map(literal(alt((tag("${"), tag("%{")))), |s| s.to_string()))(input)
+    build_template(map(literal(alt((tag("${"), tag("%{")))), Cow::Borrowed))(input)
 }
 
 pub fn template(input: Input) -> IResult<Input, Template> {
-    build_template(build_literal(literal(alt((
+    build_template(build_string(string_fragment(literal(alt((
         tag("\\"),
         tag("${"),
         tag("%{"),
-    )))))(input)
+    ))))))(input)
 }

@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorate, Decorated, Despan, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, InternalString, Span, Spanned};
 use super::structure::body;
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
@@ -220,7 +220,7 @@ fn parse_heredoc() {
                             ),
                             0..6
                         )),
-                        Element::Literal(Spanned::with_span(String::from("bar\n"), 6..10)),
+                        Element::Literal(Spanned::with_span(InternalString::from("bar\n"), 6..10)),
                     ],),
                     10..20,
                 ),

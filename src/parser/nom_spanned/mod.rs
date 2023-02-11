@@ -18,7 +18,6 @@ use self::repr::{Decorate, Decorated, InternalString, Span};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
-use nom::multi::fold_many1;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while_m_n},
@@ -27,7 +26,7 @@ use nom::{
     },
     combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value, verify},
     error::context,
-    multi::{fold_many0, many0_count, many1_count},
+    multi::{many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
     AsChar, Compare, CompareResult, Finish, InputIter, InputLength, InputTake, Parser, Slice,
 };

@@ -1372,7 +1372,7 @@ impl fmt::Display for Template {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
-    Literal(Spanned<String>),
+    Literal(Spanned<InternalString>),
     Interpolation(Spanned<Interpolation>),
     Directive(Directive),
 }
@@ -1408,7 +1408,7 @@ impl Span for Element {
 impl From<Element> for template::Element {
     fn from(element: Element) -> Self {
         match element {
-            Element::Literal(lit) => template::Element::Literal(lit.into_inner()),
+            Element::Literal(lit) => template::Element::Literal(lit.to_string()),
             Element::Interpolation(interp) => template::Element::Interpolation(interp.inner_into()),
             Element::Directive(dir) => template::Element::Directive(dir.into()),
         }
