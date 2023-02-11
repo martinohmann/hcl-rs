@@ -717,8 +717,8 @@ impl From<Traversal> for expr::Traversal {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TraversalOperator {
-    AttrSplat,
-    FullSplat,
+    AttrSplat(Decorated<()>),
+    FullSplat(Decorated<()>),
     GetAttr(Decorated<Identifier>),
     Index(Expression),
     LegacyIndex(Decorated<u64>),
@@ -727,7 +727,8 @@ pub enum TraversalOperator {
 impl Despan for TraversalOperator {
     fn despan(&mut self, input: &str) {
         match self {
-            TraversalOperator::AttrSplat | TraversalOperator::FullSplat => {}
+            TraversalOperator::AttrSplat(splat) => splat.decor_mut().despan(input),
+            TraversalOperator::FullSplat(splat) => splat.decor_mut().despan(input),
             TraversalOperator::GetAttr(ident) => ident.decor_mut().despan(input),
             TraversalOperator::Index(expr) => expr.despan(input),
             TraversalOperator::LegacyIndex(index) => index.decor_mut().despan(input),
@@ -735,11 +736,55 @@ impl Despan for TraversalOperator {
     }
 }
 
+impl Decorate for TraversalOperator {
+    fn decor(&self) -> &Decor {
+        match self {
+            TraversalOperator::AttrSplat(splat) => splat.decor(),
+            TraversalOperator::FullSplat(splat) => splat.decor(),
+            TraversalOperator::GetAttr(ident) => ident.decor(),
+            TraversalOperator::Index(expr) => expr.decor(),
+            TraversalOperator::LegacyIndex(index) => index.decor(),
+        }
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        match self {
+            TraversalOperator::AttrSplat(splat) => splat.decor_mut(),
+            TraversalOperator::FullSplat(splat) => splat.decor_mut(),
+            TraversalOperator::GetAttr(ident) => ident.decor_mut(),
+            TraversalOperator::Index(expr) => expr.decor_mut(),
+            TraversalOperator::LegacyIndex(index) => index.decor_mut(),
+        }
+    }
+}
+
+impl Span for TraversalOperator {
+    fn span(&self) -> Option<Range<usize>> {
+        match self {
+            TraversalOperator::AttrSplat(splat) => splat.span(),
+            TraversalOperator::FullSplat(splat) => splat.span(),
+            TraversalOperator::GetAttr(ident) => ident.span(),
+            TraversalOperator::Index(expr) => expr.span(),
+            TraversalOperator::LegacyIndex(index) => index.span(),
+        }
+    }
+
+    fn set_span(&mut self, span: Range<usize>) {
+        match self {
+            TraversalOperator::AttrSplat(splat) => splat.set_span(span),
+            TraversalOperator::FullSplat(splat) => splat.set_span(span),
+            TraversalOperator::GetAttr(ident) => ident.set_span(span),
+            TraversalOperator::Index(expr) => expr.set_span(span),
+            TraversalOperator::LegacyIndex(index) => index.set_span(span),
+        }
+    }
+}
+
 impl From<TraversalOperator> for expr::TraversalOperator {
     fn from(operator: TraversalOperator) -> Self {
         match operator {
-            TraversalOperator::AttrSplat => expr::TraversalOperator::AttrSplat,
-            TraversalOperator::FullSplat => expr::TraversalOperator::FullSplat,
+            TraversalOperator::AttrSplat(_) => expr::TraversalOperator::AttrSplat,
+            TraversalOperator::FullSplat(_) => expr::TraversalOperator::FullSplat,
             TraversalOperator::GetAttr(ident) => {
                 expr::TraversalOperator::GetAttr(ident.into_inner())
             }

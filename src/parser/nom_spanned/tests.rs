@@ -59,9 +59,11 @@ fn parse_conditional() {
                             0..3
                         )),
                         vec![Decorated::with_span_decor(
-                            TraversalOperator::GetAttr(Decorated::new(Identifier::unchecked(
-                                "enabled"
-                            ))),
+                            TraversalOperator::GetAttr(Decorated::with_span_decor(
+                                Identifier::unchecked("enabled"),
+                                4..11,
+                                Decor::from_prefix("")
+                            )),
                             3..11,
                             Decor::from_prefix("")
                         )]

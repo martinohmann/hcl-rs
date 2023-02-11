@@ -344,28 +344,32 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
         "TraversalOperator",
         alt((
             preceded(
-                // @FIXME: track ws span.
-                terminated(char('.'), ws),
-                preceded(
-                    // Must not match `for` object value grouping or func call expand final which
-                    // are both `...`.
-                    not(char('.')),
-                    cut(alt((
-                        value(TraversalOperator::AttrSplat, char('*')),
-                        map(ident, |ident| TraversalOperator::GetAttr(ident.into())),
-                        map(u64, |index| TraversalOperator::LegacyIndex(index.into())),
-                    ))),
+                char('.'),
+                prefix_decor(
+                    ws,
+                    preceded(
+                        // Must not match `for` object value grouping or func call expand final which
+                        // are both `...`.
+                        not(char('.')),
+                        cut(alt((
+                            value(TraversalOperator::AttrSplat(Decorated::new(())), char('*')),
+                            map(ident, |ident| TraversalOperator::GetAttr(ident.into())),
+                            map(u64, |index| TraversalOperator::LegacyIndex(index.into())),
+                        ))),
+                    ),
                 ),
             ),
             delimited(
-                // @FIXME: track ws span.
-                terminated(char('['), ws),
-                cut(alt((
-                    value(TraversalOperator::FullSplat, char('*')),
-                    map(expr, TraversalOperator::Index),
-                ))),
-                // @FIXME: track ws span.
-                preceded(ws, char_or_cut(']')),
+                char('['),
+                decor(
+                    ws,
+                    cut(alt((
+                        value(TraversalOperator::FullSplat(Decorated::new(())), char('*')),
+                        map(expr, TraversalOperator::Index),
+                    ))),
+                    ws,
+                ),
+                char_or_cut(']'),
             ),
         )),
     )(input)

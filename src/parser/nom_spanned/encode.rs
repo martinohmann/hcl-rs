@@ -539,20 +539,24 @@ impl Encode for Traversal {
 impl Encode for TraversalOperator {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         match self {
-            TraversalOperator::FullSplat | TraversalOperator::Index(_) => buf.write_char('[')?,
+            TraversalOperator::FullSplat(_) | TraversalOperator::Index(_) => buf.write_char('[')?,
             _other => buf.write_char('.')?,
         }
 
-        // @FIXME(mohmann): handle whitespace within splat operators.
         match self {
-            TraversalOperator::AttrSplat | TraversalOperator::FullSplat => buf.write_char('*')?,
+            TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
+                let decor = splat.decor();
+                decor.encode_prefix(buf, "")?;
+                buf.write_char('*')?;
+                decor.encode_suffix(buf, "")?;
+            }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::LegacyIndex(index) => index.encode_decorated(buf, NO_DECOR)?,
         }
 
         match self {
-            TraversalOperator::FullSplat | TraversalOperator::Index(_) => buf.write_char(']'),
+            TraversalOperator::FullSplat(_) | TraversalOperator::Index(_) => buf.write_char(']'),
             _other => Ok(()),
         }
     }
