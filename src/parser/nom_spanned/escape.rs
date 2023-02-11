@@ -4,7 +4,7 @@
 //!
 //! [source]: https://github.com/serde-rs/json/blob/5fe9bdd3562bf29d02d1ab798bbcff069173306b/src/ser.rs#L2115-L2145
 
-use std::io;
+use std::fmt;
 
 const BB: u8 = b'b'; // \x08
 const TT: u8 = b't'; // \x09
@@ -18,7 +18,7 @@ const __: u8 = 0;
 
 // Lookup table of escape sequences. A value of b'x' at index i means that byte
 // i is escaped as "\x" in JSON. A value of 0 means that byte i is not escaped.
-pub static ESCAPE: [u8; 256] = [
+static ESCAPE: [u8; 256] = [
     //   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
     UU, UU, UU, UU, UU, UU, UU, UU, BB, TT, NN, UU, FF, RR, UU, UU, // 0
     UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, UU, // 1
@@ -39,7 +39,7 @@ pub static ESCAPE: [u8; 256] = [
 ];
 
 /// Represents a character escape code in a type-safe manner.
-pub enum CharEscape {
+enum CharEscape {
     /// An escaped quote `"`
     Quote,
     /// An escaped reverse solidus `\`
@@ -61,7 +61,7 @@ pub enum CharEscape {
 
 impl CharEscape {
     #[inline]
-    pub fn from_escape_table(escape: u8, byte: u8) -> CharEscape {
+    fn from_escape_table(escape: u8, byte: u8) -> CharEscape {
         match escape {
             self::BB => CharEscape::Backspace,
             self::TT => CharEscape::Tab,
@@ -77,32 +77,53 @@ impl CharEscape {
 
     // Extracted from https://github.com/serde-rs/json/blob/5fe9bdd3562bf29d02d1ab798bbcff069173306b/src/ser.rs#L1777-L1807
     #[inline]
-    pub fn write_escaped<W>(&self, writer: &mut W) -> io::Result<()>
-    where
-        W: ?Sized + io::Write,
-    {
+    fn write_escaped(&self, writer: &mut dyn fmt::Write) -> fmt::Result {
         let s = match self {
-            CharEscape::Quote => b"\\\"",
-            CharEscape::ReverseSolidus => b"\\\\",
-            CharEscape::Backspace => b"\\b",
-            CharEscape::FormFeed => b"\\f",
-            CharEscape::LineFeed => b"\\n",
-            CharEscape::CarriageReturn => b"\\r",
-            CharEscape::Tab => b"\\t",
+            CharEscape::Quote => "\\\"",
+            CharEscape::ReverseSolidus => "\\\\",
+            CharEscape::Backspace => "\\b",
+            CharEscape::FormFeed => "\\f",
+            CharEscape::LineFeed => "\\n",
+            CharEscape::CarriageReturn => "\\r",
+            CharEscape::Tab => "\\t",
             CharEscape::AsciiControl(byte) => {
-                static HEX_DIGITS: [u8; 16] = *b"0123456789abcdef";
-                let bytes = &[
-                    b'\\',
-                    b'u',
-                    b'0',
-                    b'0',
-                    HEX_DIGITS[(byte >> 4) as usize],
-                    HEX_DIGITS[(byte & 0xF) as usize],
+                static HEX_DIGITS: [char; 16] = [
+                    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
                 ];
-                return writer.write_all(bytes);
+                writer.write_str("\\u00")?;
+                writer.write_char(HEX_DIGITS[(byte >> 4) as usize])?;
+                return writer.write_char(HEX_DIGITS[(byte & 0xF) as usize]);
             }
         };
 
-        writer.write_all(s)
+        writer.write_str(s)
     }
+}
+
+pub(crate) fn write_escaped_string(writer: &mut dyn fmt::Write, value: &str) -> fmt::Result {
+    let bytes = value.as_bytes();
+
+    let mut start = 0;
+
+    for (i, &byte) in bytes.iter().enumerate() {
+        let escape = ESCAPE[byte as usize];
+        if escape == 0 {
+            continue;
+        }
+
+        if start < i {
+            writer.write_str(&value[start..i])?;
+        }
+
+        let char_escape = CharEscape::from_escape_table(escape, byte);
+        char_escape.write_escaped(writer)?;
+
+        start = i + 1;
+    }
+
+    if start != bytes.len() {
+        writer.write_str(&value[start..])?;
+    }
+
+    Ok(())
 }

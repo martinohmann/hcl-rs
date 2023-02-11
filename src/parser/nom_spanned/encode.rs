@@ -5,9 +5,9 @@ use super::ast::{
     Interpolation, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
     ObjectValueTerminator, Structure, Template, Traversal, TraversalOperator, UnaryOp,
 };
+use super::escape::write_escaped_string;
 use super::repr::{Decorate, Decorated};
 use crate::expr::{HeredocStripMode, Variable};
-use crate::format::escape;
 use crate::{Identifier, Number};
 use std::fmt::{self, Write};
 
@@ -144,15 +144,9 @@ impl Encode for Number {
 
 impl Encode for String {
     fn encode<'a>(&self, buf: &mut EncodeState<'a>, _input: Option<&str>) -> fmt::Result {
-        // @FIXME: write escaped string to buf directly.
-        let mut vec = Vec::with_capacity(self.len());
-        escape::write_escaped_string(&mut vec, &self).map_err(|_| fmt::Error)?;
-
-        write!(buf, "\"{}\"", unsafe {
-            // SAFETY: `self` was a UTF8 string already and `write_escaped_string` never emits
-            // non-UTF8 bytes.
-            std::str::from_utf8_unchecked(&vec)
-        })
+        buf.write_char('"')?;
+        write_escaped_string(buf, &self)?;
+        buf.write_char('"')
     }
 }
 
@@ -251,17 +245,9 @@ impl Encode for Element {
         match self {
             Element::Literal(lit) => {
                 if buf.escape() {
-                    // @FIXME: write escaped string to buf directly.
-                    let mut vec = Vec::with_capacity(lit.len());
-                    escape::write_escaped_string(&mut vec, &lit).map_err(|_| fmt::Error)?;
-
-                    buf.write_str(unsafe {
-                        // SAFETY: `self` was a UTF8 string already and `write_escaped_string` never emits
-                        // non-UTF8 bytes.
-                        std::str::from_utf8_unchecked(&vec)
-                    })
+                    write_escaped_string(buf, &lit)
                 } else {
-                    buf.write_str(lit.as_str())
+                    buf.write_str(&lit)
                 }
             }
             Element::Interpolation(interp) => interp.encode(buf, input),

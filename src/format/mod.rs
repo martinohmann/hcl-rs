@@ -37,6 +37,7 @@
 pub(crate) mod escape;
 mod impls;
 
+use self::escape::{CharEscape, ESCAPE};
 use crate::Result;
 use std::io;
 
@@ -444,7 +445,30 @@ where
     /// Writes a string to the writer and escapes control characters and quotes that might be
     /// contained in it.
     fn write_escaped_string(&mut self, value: &str) -> Result<()> {
-        escape::write_escaped_string(&mut self.writer, value)?;
+        let bytes = value.as_bytes();
+
+        let mut start = 0;
+
+        for (i, &byte) in bytes.iter().enumerate() {
+            let escape = ESCAPE[byte as usize];
+            if escape == 0 {
+                continue;
+            }
+
+            if start < i {
+                self.write_string_fragment(&value[start..i])?;
+            }
+
+            let char_escape = CharEscape::from_escape_table(escape, byte);
+            char_escape.write_escaped(&mut self.writer)?;
+
+            start = i + 1;
+        }
+
+        if start != bytes.len() {
+            self.write_string_fragment(&value[start..])?;
+        }
+
         Ok(())
     }
 
