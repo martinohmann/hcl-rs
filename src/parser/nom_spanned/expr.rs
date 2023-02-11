@@ -211,6 +211,7 @@ fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
                 tag_or_cut("=>"),
                 decor(ws, cut(expr), ws),
             ),
+            // @FIXME: track ws span.
             opt(terminated(tag("..."), ws)),
             opt(for_cond_expr),
         )),
@@ -276,11 +277,13 @@ fn heredoc_start(input: Input) -> IResult<Input, (HeredocStripMode, (&str, Range
             )),
             with_span(cut(str_ident)),
         ),
+        // @FIXME: track space span.
         pair(space0, cut(line_ending)),
     )(input)
 }
 
 fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, ()> {
+    // @FIXME: track space span.
     value((), pair(space0, tag(delim)))
 }
 
@@ -341,6 +344,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
         "TraversalOperator",
         alt((
             preceded(
+                // @FIXME: track ws span.
                 terminated(char('.'), ws),
                 preceded(
                     // Must not match `for` object value grouping or func call expand final which
@@ -354,11 +358,13 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
                 ),
             ),
             delimited(
+                // @FIXME: track ws span.
                 terminated(char('['), ws),
                 cut(alt((
                     value(TraversalOperator::FullSplat, char('*')),
                     map(expr, TraversalOperator::Index),
                 ))),
+                // @FIXME: track ws span.
                 preceded(ws, char_or_cut(']')),
             ),
         )),
@@ -469,6 +475,7 @@ fn expr_term<'a>(input: Input<'a>) -> IResult<Input<'a>, Expression> {
             Expression::HeredocTemplate(Box::new(heredoc.into()))
         })(input),
         '-' => alt((
+            // @FIXME: track sp span.
             map(preceded(pair(char('-'), sp), number), |n| {
                 Expression::Number((-n).into())
             }),
@@ -491,7 +498,9 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
     ));
 
     let conditional = pair(
+        // @FIXME: track sp span.
         preceded(pair(sp, char('?')), prefix_decor(sp, cut(expr))),
+        // @FIXME: track sp span.
         preceded(pair(sp, char_or_cut(':')), prefix_decor(sp, cut(expr))),
     );
 
