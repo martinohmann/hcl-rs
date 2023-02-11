@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 #![allow(dead_code)]
 
-use super::encode::{Encode, EncodeDecorated, NO_DECOR};
+use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
 use kstring::KString;
 use std::borrow::Borrow;
 use std::fmt;
@@ -436,7 +436,8 @@ where
     T: Encode,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.encode(f, None)
+        let mut state = EncodeState::new(f);
+        self.encode(&mut state, None)
     }
 }
 
@@ -552,6 +553,7 @@ where
     T: Encode,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.encode_decorated(f, None, NO_DECOR)
+        let mut state = EncodeState::new(f);
+        self.encode_decorated(&mut state, None, NO_DECOR)
     }
 }
