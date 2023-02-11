@@ -335,10 +335,10 @@ impl From<Object> for expr::Object<expr::ObjectKey, expr::Expression> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObjectItem {
-    pub(crate) key: ObjectKey,
-    pub(crate) key_value_separator: ObjectKeyValueSeparator,
-    pub(crate) value: Expression,
-    pub(crate) value_terminator: ObjectValueTerminator,
+    key: ObjectKey,
+    key_value_separator: ObjectKeyValueSeparator,
+    value: Expression,
+    value_terminator: ObjectValueTerminator,
 }
 
 impl ObjectItem {
@@ -1417,16 +1417,13 @@ impl From<Element> for template::Element {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Interpolation {
-    pub(crate) expr: Expression,
-    pub(crate) strip: StripMode,
+    expr: Expression,
+    strip: StripMode,
 }
 
 impl Interpolation {
-    pub fn new(expr: Expression) -> Interpolation {
-        Interpolation {
-            expr,
-            strip: StripMode::default(),
-        }
+    pub fn new(expr: Expression, strip: StripMode) -> Interpolation {
+        Interpolation { expr, strip }
     }
 
     pub fn expr(&self) -> &Expression {

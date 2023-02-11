@@ -37,7 +37,7 @@ where
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     map(
         template_tag("${", decor(ws, cut(expr), ws)),
-        |(expr, strip)| Interpolation { expr, strip },
+        |(expr, strip)| Interpolation::new(expr, strip),
     )(input)
 }
 

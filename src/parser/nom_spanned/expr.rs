@@ -188,11 +188,10 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
             cut(object_key_value_separator),
             cut(decor(sp, expr, sp)),
         )),
-        |(key, key_value_separator, value)| ObjectItem {
-            key,
-            key_value_separator,
-            value,
-            value_terminator: ObjectValueTerminator::None,
+        |(key, key_value_separator, value)| {
+            let mut item = ObjectItem::new(key, value);
+            item.set_key_value_separator(key_value_separator);
+            item
         },
     )(input)
 }
