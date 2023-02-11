@@ -52,7 +52,7 @@ fn parse_conditional() {
         parse_to_end("var.enabled ? 1 : 0", expr),
         Ok(Expression::Conditional(Box::new(Decorated::new(
             Conditional::new(
-                Expression::Traversal(Box::new(Decorated::with_span(
+                Expression::Traversal(Box::new(Decorated::with_span_decor(
                     Traversal::new(
                         Expression::Variable(Decorated::with_span(
                             Variable::unchecked("var"),
@@ -68,7 +68,8 @@ fn parse_conditional() {
                             Decor::from_prefix("")
                         )]
                     ),
-                    0..11
+                    0..11,
+                    Decor::from_suffix(11..12),
                 ))),
                 Expression::Number(Decorated::with_span_decor(
                     1.into(),

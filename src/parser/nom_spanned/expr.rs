@@ -491,11 +491,11 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
         prefix_decor(sp, cut(expr)),
     ));
 
-    let conditional = pair(
-        // @FIXME: track sp span.
-        preceded(pair(sp, char('?')), decor(sp, cut(expr), sp)),
+    let conditional = tuple((
+        span(sp),
+        preceded(char('?'), decor(sp, cut(expr), sp)),
         preceded(char_or_cut(':'), prefix_decor(sp, cut(expr))),
-    );
+    ));
 
     map(
         tuple((
@@ -534,7 +534,15 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
             };
 
             match conditional {
-                Some((true_expr, false_expr)) => {
+                Some((suffix_span, true_expr, false_expr)) => {
+                    // Associate whitespace preceding the `?` with the cond expression, updating
+                    // the span if it already has a decor suffix.
+                    let suffix_start = match expr.decor().suffix() {
+                        Some(suffix) => suffix.span().unwrap().start,
+                        None => suffix_span.start,
+                    };
+
+                    expr.decor_mut().set_suffix(suffix_start..suffix_span.end);
                     expr.set_span(start..end);
 
                     Expression::Conditional(Box::new(
