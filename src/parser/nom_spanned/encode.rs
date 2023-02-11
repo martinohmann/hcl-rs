@@ -1,7 +1,7 @@
 use super::ast::{
     Array, Attribute, BinaryOp, Block, BlockBody, BlockLabel, Body, Conditional, Directive,
     Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForDirective,
-    ForExpr, ForTemplateExpr, FuncCall, HeredocTemplate, IfDirective, IfTemplateExpr,
+    ForExpr, ForTemplateExpr, FuncCall, FuncSig, HeredocTemplate, IfDirective, IfTemplateExpr,
     Interpolation, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
     ObjectValueTerminator, Structure, Template, Traversal, TraversalOperator, UnaryOp,
 };
@@ -448,7 +448,14 @@ impl Encode for Conditional {
 impl Encode for FuncCall {
     fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
         self.name().encode_decorated(buf, input, NO_DECOR)?;
+        self.signature().encode_decorated(buf, input, NO_DECOR)
+    }
+}
+
+impl Encode for FuncSig {
+    fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
         buf.write_char('(')?;
+
         for (i, arg) in self.args().iter().enumerate() {
             let arg_decor = if i == 0 {
                 NO_DECOR
@@ -456,16 +463,19 @@ impl Encode for FuncCall {
                 buf.write_char(',')?;
                 LEADING_SPACE_DECOR
             };
+
             arg.encode_decorated(buf, input, arg_decor)?;
         }
 
-        // @FIXME(mohmann): handle trailing whitespace after ellipsis.
-        if self.expand_final() {
-            buf.write_str("...")?;
+        if self.args().len() > 0 {
+            if self.expand_final() {
+                buf.write_str("...")?;
+            } else if self.trailing_comma() {
+                buf.write_char(',')?;
+            }
         }
 
-        // @FIXME(mohmann): handle trailing comma.
-
+        self.trailing().encode_with_default(buf, input, "")?;
         buf.write_char(')')
     }
 }

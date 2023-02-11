@@ -1,7 +1,7 @@
 use super::ast::{
-    Array, BinaryOp, Conditional, Expression, ForExpr, FuncCall, HeredocTemplate, Null, Object,
-    ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Template, Traversal,
-    TraversalOperator, UnaryOp,
+    Array, BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncSig, HeredocTemplate, Null,
+    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Template,
+    Traversal, TraversalOperator, UnaryOp,
 };
 use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
@@ -367,16 +367,13 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
 
 fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
     map(
-        pair(with_span(str_ident), opt(preceded(ws, func_call))),
-        |((ident, span), func_call)| match func_call {
-            Some((args, expand_final)) => Expression::FuncCall(Box::new(
-                FuncCall {
-                    name: Decorated::with_span(Identifier::unchecked(ident), span),
-                    args,
-                    expand_final,
-                }
-                .into(),
-            )),
+        pair(with_span(str_ident), opt(prefix_decor(ws, func_sig))),
+        |((ident, span), signature)| match signature {
+            Some(signature) => {
+                let name = Decorated::with_span(Identifier::unchecked(ident), span);
+                let func_call = FuncCall::new(name, signature);
+                Expression::FuncCall(Box::new(func_call.into()))
+            }
             None => match ident {
                 "null" => Expression::Null(Null.into()),
                 "true" => Expression::Bool(true.into()),
@@ -387,18 +384,36 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
     )(input)
 }
 
-fn func_call(input: Input) -> IResult<Input, (Vec<Expression>, bool)> {
+fn func_sig(input: Input) -> IResult<Input, FuncSig> {
     delimited(
         char('('),
         alt((
             map(
                 pair(
                     separated_list1(char(','), decor(ws, expr, ws)),
-                    opt(terminated(alt((tag(","), tag("..."))), ws)),
+                    opt(pair(alt((tag(","), tag("..."))), span(ws))),
                 ),
-                |(args, trailer)| (args, trailer.as_deref() == Some(&&b"..."[..])),
+                |(args, trailer)| {
+                    let mut sig = FuncSig::new(args);
+
+                    if let Some((sep, trailing)) = trailer {
+                        if *sep == b"..." {
+                            sig.set_expand_final(true);
+                        } else {
+                            sig.set_trailing_comma(true);
+                        }
+
+                        sig.set_trailing(trailing);
+                    }
+
+                    sig
+                },
             ),
-            map(ws, |_| (Vec::new(), false)),
+            map(span(ws), |trailing| {
+                let mut sig = FuncSig::new(Vec::new());
+                sig.set_trailing(trailing);
+                sig
+            }),
         )),
         char_or_cut(')'),
     )(input)

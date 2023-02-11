@@ -577,14 +577,59 @@ impl From<Conditional> for expr::Conditional {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
-    pub(crate) name: Decorated<Identifier>,
-    pub(crate) args: Vec<Expression>,
-    pub(crate) expand_final: bool,
+    name: Decorated<Identifier>,
+    signature: Decorated<FuncSig>,
 }
 
 impl FuncCall {
+    pub fn new(name: Decorated<Identifier>, signature: Decorated<FuncSig>) -> FuncCall {
+        FuncCall { name, signature }
+    }
+
     pub fn name(&self) -> &Decorated<Identifier> {
         &self.name
+    }
+
+    pub fn signature(&self) -> &Decorated<FuncSig> {
+        &self.signature
+    }
+}
+
+impl Despan for FuncCall {
+    fn despan(&mut self, input: &str) {
+        self.name.decor_mut().despan(input);
+        self.signature.despan(input);
+    }
+}
+
+impl From<FuncCall> for expr::FuncCall {
+    fn from(call: FuncCall) -> Self {
+        let signature = call.signature.into_inner();
+
+        expr::FuncCall {
+            name: call.name.into_inner(),
+            args: signature.args.into_iter().map(Into::into).collect(),
+            expand_final: signature.expand_final,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FuncSig {
+    args: Vec<Expression>,
+    expand_final: bool,
+    trailing: RawString,
+    trailing_comma: bool,
+}
+
+impl FuncSig {
+    pub fn new(args: Vec<Expression>) -> FuncSig {
+        FuncSig {
+            args,
+            expand_final: false,
+            trailing: RawString::default(),
+            trailing_comma: false,
+        }
     }
 
     pub fn args(&self) -> &[Expression] {
@@ -594,25 +639,35 @@ impl FuncCall {
     pub fn expand_final(&self) -> bool {
         self.expand_final
     }
-}
 
-impl Despan for FuncCall {
-    fn despan(&mut self, input: &str) {
-        self.name.decor_mut().despan(input);
+    pub fn set_expand_final(&mut self, yes: bool) {
+        self.expand_final = yes;
+    }
 
-        for arg in self.args.iter_mut() {
-            arg.despan(input);
-        }
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into();
+    }
+
+    pub fn trailing_comma(&self) -> bool {
+        self.trailing_comma
+    }
+
+    pub fn set_trailing_comma(&mut self, yes: bool) {
+        self.trailing_comma = yes;
     }
 }
 
-impl From<FuncCall> for expr::FuncCall {
-    fn from(call: FuncCall) -> Self {
-        expr::FuncCall {
-            name: call.name.into_inner(),
-            args: call.args.into_iter().map(Into::into).collect(),
-            expand_final: call.expand_final,
+impl Despan for FuncSig {
+    fn despan(&mut self, input: &str) {
+        for arg in self.args.iter_mut() {
+            arg.despan(input);
         }
+
+        self.trailing.despan(input);
     }
 }
 
