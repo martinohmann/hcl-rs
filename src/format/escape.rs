@@ -106,3 +106,34 @@ impl CharEscape {
         writer.write_all(s)
     }
 }
+
+pub fn write_escaped_string<W>(writer: &mut W, value: &str) -> io::Result<()>
+where
+    W: ?Sized + io::Write,
+{
+    let bytes = value.as_bytes();
+
+    let mut start = 0;
+
+    for (i, &byte) in bytes.iter().enumerate() {
+        let escape = ESCAPE[byte as usize];
+        if escape == 0 {
+            continue;
+        }
+
+        if start < i {
+            writer.write_all(value[start..i].as_bytes())?;
+        }
+
+        let char_escape = CharEscape::from_escape_table(escape, byte);
+        char_escape.write_escaped(writer)?;
+
+        start = i + 1;
+    }
+
+    if start != bytes.len() {
+        writer.write_all(value[start..].as_bytes())?;
+    }
+
+    Ok(())
+}

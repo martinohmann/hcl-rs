@@ -7,6 +7,7 @@ use super::ast::{
 };
 use super::repr::{Decorate, Decorated};
 use crate::expr::{HeredocStripMode, Variable};
+use crate::format::escape;
 use crate::{Identifier, Number};
 use std::fmt;
 
@@ -62,7 +63,9 @@ impl EncodeDecorated for Expression {
             Expression::Template(v) => {
                 let decor = v.decor();
                 decor.encode_prefix(buf, input, default_decor.0)?;
-                // @FIXME(mohmann): properly escape string literals.
+                // @FIXME(mohmann): properly escape string literals within the quoted string
+                // template. This requires passing some state that keeps track whether string
+                // escaping should happen or not.
                 buf.write_char('"')?;
                 v.as_ref().encode(buf, input)?;
                 buf.write_char('"')?;
@@ -114,8 +117,15 @@ impl Encode for Number {
 
 impl Encode for String {
     fn encode(&self, buf: &mut dyn fmt::Write, _input: Option<&str>) -> fmt::Result {
-        // @FIXME: properly escape string.
-        write!(buf, "\"{}\"", self)
+        // @FIXME: write escaped string to buf directly.
+        let mut vec = Vec::with_capacity(self.len());
+        escape::write_escaped_string(&mut vec, &self).map_err(|_| fmt::Error)?;
+
+        write!(buf, "\"{}\"", unsafe {
+            // SAFETY: `self` was a UTF8 string already and `write_escaped_string` never emits
+            // non-UTF8 bytes.
+            std::str::from_utf8_unchecked(&vec)
+        })
     }
 }
 
@@ -152,7 +162,7 @@ impl Encode for Object {
     fn encode(&self, buf: &mut dyn fmt::Write, input: Option<&str>) -> fmt::Result {
         buf.write_char('{')?;
 
-        for item in self.items().iter() {
+        for (i, item) in self.items().iter().enumerate() {
             // @FIXME(mohmann): more sensible default decor.
             item.encode_decorated(buf, input, NO_DECOR)?;
         }
