@@ -3,7 +3,7 @@
 
 use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
 use kstring::KString;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
 
@@ -85,6 +85,16 @@ impl From<Box<str>> for InternalString {
     #[inline]
     fn from(s: Box<str>) -> Self {
         InternalString(s.into())
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for InternalString {
+    #[inline]
+    fn from(value: Cow<'a, str>) -> Self {
+        match value {
+            Cow::Borrowed(s) => s.into(),
+            Cow::Owned(s) => s.into(),
+        }
     }
 }
 

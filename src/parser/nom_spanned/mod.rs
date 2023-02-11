@@ -14,10 +14,11 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::Input;
-use self::repr::{Decorate, Decorated, Span};
+use self::repr::{Decorate, Decorated, InternalString, Span};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, Number};
+use nom::multi::fold_many1;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while_m_n},
@@ -30,6 +31,7 @@ use nom::{
     sequence::{delimited, pair, preceded, terminated, tuple},
     AsChar, Compare, CompareResult, Finish, InputIter, InputLength, InputTake, Parser, Slice,
 };
+use std::borrow::Cow;
 use std::ops::Range;
 use std::str::FromStr;
 
@@ -355,20 +357,48 @@ where
     ))
 }
 
-fn string(input: Input) -> IResult<Input, String> {
-    let build_string = fold_many0(
-        string_fragment(string_literal),
-        String::new,
-        |mut string, fragment| {
-            match fragment {
-                StringFragment::Literal(s) => string.push_str(s),
-                StringFragment::EscapedChar(c) => string.push(c),
-            }
-            string
-        },
-    );
+fn build_string<'a, F>(
+    mut string_fragment: F,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Cow<'a, str>>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>,
+{
+    move |input: Input<'a>| {
+        let (mut input, mut string) = match string_fragment(input) {
+            Ok((input, fragment)) => match fragment {
+                StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
+                StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
+            },
+            Err(err) => return Err(err),
+        };
 
-    delimited(char('"'), build_string, char('"'))(input)
+        loop {
+            match string_fragment(input) {
+                Ok((rest, fragment)) => {
+                    match fragment {
+                        StringFragment::Literal(s) => string.to_mut().push_str(s),
+                        StringFragment::EscapedChar(c) => string.to_mut().push(c),
+                    };
+                    input = rest;
+                }
+                Err(_) => return Ok((input, string)),
+            }
+        }
+    }
+}
+
+fn string(input: Input) -> IResult<Input, InternalString> {
+    alt((
+        map(tag("\"\""), |_| InternalString::new()),
+        map(
+            delimited(
+                char('"'),
+                build_string(string_fragment(string_literal)),
+                char('"'),
+            ),
+            Into::into,
+        ),
+    ))(input)
 }
 
 fn str_ident(input: Input) -> IResult<Input, &str> {

@@ -89,7 +89,14 @@ impl EncodeDecorated for Expression {
             Expression::Null(v) => v.encode_decorated(buf, default_decor),
             Expression::Bool(v) => v.encode_decorated(buf, default_decor),
             Expression::Number(v) => v.encode_decorated(buf, default_decor),
-            Expression::String(v) => v.encode_decorated(buf, default_decor),
+            Expression::String(v) => {
+                let decor = v.decor();
+                decor.encode_prefix(buf, default_decor.0)?;
+                buf.write_char('"')?;
+                write_escaped(buf, &v)?;
+                buf.write_char('"')?;
+                decor.encode_suffix(buf, default_decor.1)
+            }
             Expression::Array(v) => v.encode_decorated(buf, default_decor),
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
             Expression::Template(v) => {
@@ -610,7 +617,14 @@ impl Encode for Block {
 impl EncodeDecorated for BlockLabel {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            BlockLabel::String(string) => string.encode_decorated(buf, default_decor),
+            BlockLabel::String(string) => {
+                let decor = string.decor();
+                decor.encode_prefix(buf, default_decor.0)?;
+                buf.write_char('"')?;
+                write_escaped(buf, &string)?;
+                buf.write_char('"')?;
+                decor.encode_suffix(buf, default_decor.1)
+            }
             BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),
         }
     }

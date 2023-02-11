@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
-use super::repr::{Decor, Decorate, Decorated, Despan, RawString, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, InternalString, RawString, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
@@ -17,7 +17,7 @@ pub enum Expression {
     Null(Decorated<Null>),
     Bool(Decorated<bool>),
     Number(Decorated<Number>),
-    String(Decorated<String>),
+    String(Decorated<InternalString>),
     Array(Box<Decorated<Array>>),
     Object(Box<Decorated<Object>>),
     Template(Decorated<Template>),
@@ -192,7 +192,7 @@ impl From<Expression> for expr::Expression {
             Expression::Null(_) => expr::Expression::Null,
             Expression::Bool(b) => expr::Expression::Bool(b.into_inner()),
             Expression::Number(n) => expr::Expression::Number(n.into_inner()),
-            Expression::String(s) => expr::Expression::String(s.into_inner()),
+            Expression::String(s) => expr::Expression::String(s.to_string()),
             Expression::Array(array) => expr::Expression::Array(array.inner_into()),
             Expression::Object(object) => expr::Expression::Object(object.inner_into()),
             Expression::Template(template) => {
@@ -1234,7 +1234,7 @@ impl From<Block> for structure::Block {
 #[derive(Debug, Clone)]
 pub enum BlockLabel {
     Identifier(Decorated<Identifier>),
-    String(Decorated<String>),
+    String(Decorated<InternalString>),
 }
 
 impl Despan for BlockLabel {
@@ -1282,7 +1282,7 @@ impl From<BlockLabel> for structure::BlockLabel {
     fn from(label: BlockLabel) -> Self {
         match label {
             BlockLabel::Identifier(ident) => structure::BlockLabel::Identifier(ident.into_inner()),
-            BlockLabel::String(expr) => structure::BlockLabel::String(expr.into_inner()),
+            BlockLabel::String(expr) => structure::BlockLabel::String(expr.to_string()),
         }
     }
 }
