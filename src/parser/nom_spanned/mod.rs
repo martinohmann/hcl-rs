@@ -13,7 +13,7 @@ mod tests;
 pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
-use self::input::Input;
+use self::input::{Input, Location};
 use self::repr::{Decorate, Decorated, InternalString, Span};
 use self::structure::body;
 use self::template::template;
@@ -287,7 +287,7 @@ fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
     let parse_u32 = map_res(parse_hex, |hex: Input| {
         u32::from_str_radix(
             unsafe {
-                from_utf8_unchecked(hex.input(), "`is_ascii_hexdigit` filters out non-ascii")
+                from_utf8_unchecked(hex.as_ref(), "`is_ascii_hexdigit` filters out non-ascii")
             },
             16,
         )
@@ -331,7 +331,7 @@ where
             tag("%%{"),
             anychar_except(literal_end),
         )))),
-        |s| std::str::from_utf8(s.input()),
+        |s| std::str::from_utf8(s.as_ref()),
     )
 }
 
@@ -410,7 +410,7 @@ fn str_ident(input: Input) -> IResult<Input, &str> {
             )),
             |s: Input| unsafe {
                 from_utf8_unchecked(
-                    s.input(),
+                    s.as_ref(),
                     "`alpha1` and `alphanumeric1` filter out non-ascii",
                 )
             },
@@ -436,7 +436,7 @@ fn float(input: Input) -> IResult<Input, f64> {
         )),
         |s: Input| {
             f64::from_str(unsafe {
-                from_utf8_unchecked(s.input(), "`digit1` and `exponent` filter out non-ascii")
+                from_utf8_unchecked(s.as_ref(), "`digit1` and `exponent` filter out non-ascii")
             })
         },
     )(input)
@@ -444,7 +444,7 @@ fn float(input: Input) -> IResult<Input, f64> {
 
 fn integer(input: Input) -> IResult<Input, u64> {
     map_res(digit1, |s: Input| {
-        u64::from_str(unsafe { from_utf8_unchecked(s.input(), "`digit1` filters out non-ascii") })
+        u64::from_str(unsafe { from_utf8_unchecked(s.as_ref(), "`digit1` filters out non-ascii") })
     })(input)
 }
 

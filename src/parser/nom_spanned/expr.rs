@@ -7,7 +7,9 @@ use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
     anychar_except, char_or_cut, decor,
     error::InternalError,
-    ident, line_comment, number, prefix_decor, sp, span, spanned, str_ident, string, tag_or_cut,
+    ident,
+    input::Location,
+    line_comment, number, prefix_decor, sp, span, spanned, str_ident, string, tag_or_cut,
     template::{heredoc_template, quoted_string_template},
     with_span, ws, ErrorKind, IResult, Input,
 };
@@ -287,7 +289,7 @@ fn heredoc_content<'a>(
                 many1_count(anychar_except(pair(line_ending, heredoc_end(delim)))),
                 line_ending,
             )),
-            |s| std::str::from_utf8(s.input()),
+            |s| std::str::from_utf8(s.as_ref()),
         ),
         move |input| {
             let content = match strip {
@@ -397,7 +399,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
                     let mut sig = FuncSig::new(args);
 
                     if let Some((sep, trailing)) = trailer {
-                        if *sep == b"..." {
+                        if sep.as_ref() == b"..." {
                             sig.set_expand_final(true);
                         } else {
                             sig.set_trailing_comma(true);

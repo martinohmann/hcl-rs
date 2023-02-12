@@ -1,4 +1,4 @@
-use super::Input;
+use super::input::Input;
 use crate::parser::Location;
 use nom::error::{ContextError, FromExternalError, ParseError};
 use nom::Offset;
@@ -24,7 +24,9 @@ impl<'a> ErrorKind<Input<'a>> {
             ErrorKind::Nom(kind) => ErrorKind::Nom(kind),
             ErrorKind::Context(ctx) => ErrorKind::Context(ctx),
             ErrorKind::Char(ch) => ErrorKind::Char(ch),
-            ErrorKind::Tag(tag) => ErrorKind::Tag(String::from_utf8_lossy(tag.input()).to_string()),
+            ErrorKind::Tag(tag) => {
+                ErrorKind::Tag(String::from_utf8_lossy(tag.as_ref()).to_string())
+            }
         }
     }
 }

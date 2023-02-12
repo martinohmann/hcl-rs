@@ -10,6 +10,10 @@ use std::str::FromStr;
 
 pub type Input<'a> = Located<&'a [u8]>;
 
+pub trait Location {
+    fn location(&self) -> usize;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Located<T> {
     initial: T,
@@ -23,12 +27,11 @@ impl<T> Deref for Located<T> {
     }
 }
 
-impl<T, U> AsRef<U> for Located<&T>
+impl<T> AsRef<T> for Located<T>
 where
-    T: ?Sized + AsRef<U>,
-    U: ?Sized,
+    T: AsRef<T>,
 {
-    fn as_ref(&self) -> &U {
+    fn as_ref(&self) -> &T {
         self.input.as_ref()
     }
 }
@@ -37,24 +40,17 @@ impl<T> Located<T>
 where
     T: Clone + Offset,
 {
-    pub fn new(program: T) -> Located<T> {
-        let initial = program.clone();
-        Located {
-            input: program,
-            initial,
-        }
-    }
-
-    pub fn input(&self) -> &T {
-        &self.input
+    pub fn new(input: T) -> Located<T> {
+        let initial = input.clone();
+        Located { input, initial }
     }
 }
 
-impl<T> Located<T>
+impl<T> Location for Located<T>
 where
     T: Offset,
 {
-    pub fn location(&self) -> usize {
+    fn location(&self) -> usize {
         self.initial.offset(&self.input)
     }
 }
