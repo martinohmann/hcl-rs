@@ -358,7 +358,7 @@ where
 
 fn build_string<'a, F>(
     mut string_fragment: F,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Cow<'a, str>>
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>,
 {
@@ -380,7 +380,7 @@ where
                     };
                     input = rest;
                 }
-                Err(_) => return Ok((input, string)),
+                Err(_) => return Ok((input, string.into())),
             }
         }
     }
@@ -389,13 +389,10 @@ where
 fn string(input: Input) -> IResult<Input, InternalString> {
     alt((
         map(tag("\"\""), |_| InternalString::new()),
-        map(
-            delimited(
-                char('"'),
-                build_string(string_fragment(string_literal)),
-                char('"'),
-            ),
-            Into::into,
+        delimited(
+            char('"'),
+            build_string(string_fragment(string_literal)),
+            char('"'),
         ),
     ))(input)
 }

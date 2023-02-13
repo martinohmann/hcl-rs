@@ -17,7 +17,6 @@ use nom::{
     multi::many0,
     sequence::{delimited, pair, preceded, terminated, tuple},
 };
-use std::borrow::Cow;
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     map(
@@ -146,13 +145,11 @@ fn directive(input: Input) -> IResult<Input, Directive> {
 
 fn build_template<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template>
 where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, Cow<'a, str>>,
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>,
 {
     map(
         many0(spanned(alt((
-            map(literal, |s| {
-                Element::Literal(InternalString::from(s).into())
-            }),
+            map(literal, |s| Element::Literal(s.into())),
             map(interpolation, |i| Element::Interpolation(i.into())),
             map(directive, Element::Directive),
         )))),
@@ -169,7 +166,7 @@ pub fn quoted_string_template(input: Input) -> IResult<Input, Template> {
 }
 
 pub fn heredoc_template(input: Input) -> IResult<Input, Template> {
-    build_template(map(literal(alt((tag("${"), tag("%{")))), Cow::Borrowed))(input)
+    build_template(map(literal(alt((tag("${"), tag("%{")))), Into::into))(input)
 }
 
 pub fn template(input: Input) -> IResult<Input, Template> {
