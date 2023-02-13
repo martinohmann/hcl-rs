@@ -555,6 +555,7 @@ where
     T: Despan,
 {
     fn despan(&mut self, input: &str) {
+        self.decor.despan(input);
         self.inner.despan(input);
     }
 }

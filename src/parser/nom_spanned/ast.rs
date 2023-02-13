@@ -32,65 +32,22 @@ pub enum Expression {
 impl Despan for Expression {
     fn despan(&mut self, input: &str) {
         match self {
-            Expression::Null(n) => {
-                n.decor_mut().despan(input);
-            }
-            Expression::Bool(b) => {
-                b.decor_mut().despan(input);
-            }
-            Expression::Number(n) => {
-                n.decor_mut().despan(input);
-            }
-            Expression::String(s) => {
-                s.decor_mut().despan(input);
-            }
-            Expression::Array(array) => {
-                array.decor_mut().despan(input);
-                array.despan(input);
-            }
-            Expression::Object(object) => {
-                object.decor_mut().despan(input);
-                object.despan(input);
-            }
-            Expression::Template(template) => {
-                template.decor_mut().despan(input);
-                template.despan(input);
-            }
-            Expression::HeredocTemplate(heredoc) => {
-                heredoc.decor_mut().despan(input);
-                heredoc.despan(input);
-            }
-            Expression::Parenthesis(expr) => {
-                expr.decor_mut().despan(input);
-                expr.despan(input);
-            }
-            Expression::Variable(var) => {
-                var.decor_mut().despan(input);
-            }
-            Expression::ForExpr(expr) => {
-                expr.decor_mut().despan(input);
-                expr.despan(input);
-            }
-            Expression::Conditional(cond) => {
-                cond.decor_mut().despan(input);
-                cond.despan(input);
-            }
-            Expression::FuncCall(call) => {
-                call.decor_mut().despan(input);
-                call.despan(input);
-            }
-            Expression::UnaryOp(op) => {
-                op.decor_mut().despan(input);
-                op.despan(input);
-            }
-            Expression::BinaryOp(op) => {
-                op.decor_mut().despan(input);
-                op.despan(input);
-            }
-            Expression::Traversal(traversal) => {
-                traversal.decor_mut().despan(input);
-                traversal.despan(input);
-            }
+            Expression::Null(n) => n.decor_mut().despan(input),
+            Expression::Bool(b) => b.decor_mut().despan(input),
+            Expression::Number(n) => n.decor_mut().despan(input),
+            Expression::String(s) => s.decor_mut().despan(input),
+            Expression::Array(array) => array.despan(input),
+            Expression::Object(object) => object.despan(input),
+            Expression::Template(template) => template.despan(input),
+            Expression::HeredocTemplate(heredoc) => heredoc.despan(input),
+            Expression::Parenthesis(expr) => expr.despan(input),
+            Expression::Variable(var) => var.decor_mut().despan(input),
+            Expression::ForExpr(expr) => expr.despan(input),
+            Expression::Conditional(cond) => cond.despan(input),
+            Expression::FuncCall(call) => call.despan(input),
+            Expression::UnaryOp(op) => op.despan(input),
+            Expression::BinaryOp(op) => op.despan(input),
+            Expression::Traversal(traversal) => traversal.despan(input),
         }
     }
 }
@@ -410,10 +367,7 @@ impl Despan for ObjectKey {
     fn despan(&mut self, input: &str) {
         match self {
             ObjectKey::Identifier(ident) => ident.decor_mut().despan(input),
-            ObjectKey::Expression(expr) => {
-                expr.decor_mut().despan(input);
-                expr.despan(input);
-            }
+            ObjectKey::Expression(expr) => expr.despan(input),
         }
     }
 }
@@ -946,7 +900,6 @@ impl ForExpr {
 
 impl Despan for ForExpr {
     fn despan(&mut self, input: &str) {
-        self.intro.decor_mut().despan(input);
         self.intro.despan(input);
 
         if let Some(key_expr) = &mut self.key_expr {
@@ -1082,14 +1035,8 @@ pub enum Structure {
 impl Despan for Structure {
     fn despan(&mut self, input: &str) {
         match self {
-            Structure::Attribute(attr) => {
-                attr.decor_mut().despan(input);
-                attr.despan(input);
-            }
-            Structure::Block(block) => {
-                block.decor_mut().despan(input);
-                block.despan(input);
-            }
+            Structure::Attribute(attr) => attr.despan(input),
+            Structure::Block(block) => block.despan(input),
         }
     }
 }
@@ -1294,14 +1241,8 @@ pub enum BlockBody {
 impl Despan for BlockBody {
     fn despan(&mut self, input: &str) {
         match self {
-            BlockBody::Multiline(body) => {
-                body.decor_mut().despan(input);
-                body.despan(input);
-            }
-            BlockBody::Oneline(attr) => {
-                attr.decor_mut().despan(input);
-                attr.despan(input);
-            }
+            BlockBody::Multiline(body) => body.despan(input),
+            BlockBody::Oneline(attr) => attr.despan(input),
             BlockBody::Empty(raw) => raw.despan(input),
         }
     }
