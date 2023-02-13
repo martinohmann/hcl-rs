@@ -1,16 +1,22 @@
 use crate::expr::Variable;
 use crate::util::{is_id_continue, is_id_start, is_ident};
 use crate::{Error, Result};
+#[cfg(feature = "kstring")]
 use kstring::KString;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
 use std::ops;
 
+#[cfg(feature = "kstring")]
+type Inner = KString;
+#[cfg(not(feature = "kstring"))]
+type Inner = String;
+
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-pub struct Identifier(KString);
+pub struct Identifier(Inner);
 
 impl Identifier {
     /// Create a new `Identifier` after validating that it only contains characters that are
@@ -43,7 +49,12 @@ impl Identifier {
             return Err(Error::InvalidIdentifier(ident.to_string()));
         }
 
-        Ok(Identifier(KString::from_ref(ident)))
+        #[cfg(feature = "kstring")]
+        let inner = KString::from_ref(ident);
+        #[cfg(not(feature = "kstring"))]
+        let inner = String::from(ident);
+
+        Ok(Identifier(inner))
     }
 
     /// Create a new `Identifier` after sanitizing the input if necessary.
@@ -75,7 +86,10 @@ impl Identifier {
         let input = ident.as_ref();
 
         if input.is_empty() {
+            #[cfg(feature = "kstring")]
             return Identifier(KString::from_static("_"));
+            #[cfg(not(feature = "kstring"))]
+            return Identifier(String::from("_"));
         }
 
         let mut ident = String::with_capacity(input.len());
@@ -93,7 +107,8 @@ impl Identifier {
             }
         }
 
-        Identifier(KString::from(ident))
+        #[allow(clippy::useless_conversion)]
+        Identifier(ident.into())
     }
 
     /// Create a new `Identifier` without checking if it is valid.
@@ -111,12 +126,22 @@ impl Identifier {
     where
         T: AsRef<str>,
     {
-        Identifier(KString::from_ref(ident.as_ref()))
+        #[cfg(feature = "kstring")]
+        let inner = KString::from_ref(ident.as_ref());
+        #[cfg(not(feature = "kstring"))]
+        let inner = String::from(ident.as_ref());
+
+        Identifier(inner)
     }
 
     /// Consume `self` and return the wrapped `String`.
     pub fn into_inner(self) -> String {
-        self.0.to_string()
+        #[cfg(feature = "kstring")]
+        let s = self.0.to_string();
+        #[cfg(not(feature = "kstring"))]
+        let s = self.0;
+
+        s
     }
 
     /// Return a reference to the wrapped `str`.
