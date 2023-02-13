@@ -279,14 +279,8 @@ fn heredoc_start(input: Input) -> IResult<Input, (HeredocStripMode, (&str, Range
             )),
             with_span(cut(str_ident)),
         ),
-        // @FIXME: track space span.
-        pair(space0, cut(line_ending)),
+        cut(line_ending),
     )(input)
-}
-
-fn heredoc_end<'a>(delim: &'a str) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, ()> {
-    // @FIXME: track space span.
-    value((), pair(space0, tag(delim)))
 }
 
 fn heredoc_content<'a>(
@@ -296,7 +290,7 @@ fn heredoc_content<'a>(
     map_res(
         map_res(
             recognize(pair(
-                many1_count(anychar_except(pair(line_ending, heredoc_end(delim)))),
+                many1_count(anychar_except(tuple((line_ending, space0, tag(delim))))),
                 line_ending,
             )),
             |s| std::str::from_utf8(s.as_ref()),
@@ -321,24 +315,25 @@ fn heredoc_content<'a>(
 }
 
 fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
-    let (input, (strip, (delim, span))) = heredoc_start(input)?;
+    let (input, (strip, (delim, delim_span))) = heredoc_start(input)?;
 
-    let (input, template) = terminated(
-        map(
-            with_span(opt(heredoc_content(strip, delim))),
-            |(template, span)| Spanned::with_span(template.unwrap_or_default(), span),
-        ),
-        cut(heredoc_end(delim)),
+    let (input, (template, trailing)) = pair(
+        spanned(map(
+            opt(heredoc_content(strip, delim)),
+            Option::unwrap_or_default,
+        )),
+        terminated(span(space0), cut(tag(delim))),
     )(input)?;
 
-    Ok((
-        input,
-        HeredocTemplate {
-            delimiter: Decorated::with_span(Identifier::unchecked(delim), span),
-            template,
-            strip,
-        },
-    ))
+    let mut heredoc = HeredocTemplate::new(
+        Decorated::with_span(Identifier::unchecked(delim), delim_span),
+        strip,
+        template,
+    );
+
+    heredoc.set_trailing(trailing);
+
+    Ok((input, heredoc))
 }
 
 fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {

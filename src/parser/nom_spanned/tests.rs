@@ -187,11 +187,11 @@ fn parse_heredoc() {
     assert_eq!(
         parse_to_end("<<HEREDOC\nHEREDOC", expr),
         Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
-            HeredocTemplate {
-                delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
-                template: Spanned::with_span(Template::default(), 10..10),
-                strip: HeredocStripMode::None,
-            }
+            HeredocTemplate::new(
+                Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
+                HeredocStripMode::None,
+                Spanned::with_span(Template::default(), 10..10),
+            )
         ))))
     );
 
@@ -204,9 +204,10 @@ fn parse_heredoc() {
             expr,
         ),
         Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
-            HeredocTemplate {
-                delimiter: Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
-                template: Spanned::with_span(
+            HeredocTemplate::new(
+                Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
+                HeredocStripMode::None,
+                Spanned::with_span(
                     Template::new(vec![
                         Element::Interpolation(Spanned::with_span(
                             Interpolation::new(
@@ -223,8 +224,7 @@ fn parse_heredoc() {
                     ],),
                     10..20,
                 ),
-                strip: HeredocStripMode::None,
-            }
+            )
         ))))
     );
 }

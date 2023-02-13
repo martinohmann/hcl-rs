@@ -440,12 +440,26 @@ impl From<ObjectKey> for expr::ObjectKey {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
-    pub(crate) delimiter: Decorated<Identifier>,
-    pub(crate) template: Spanned<Template>,
-    pub(crate) strip: HeredocStripMode,
+    delimiter: Decorated<Identifier>,
+    template: Spanned<Template>,
+    strip: HeredocStripMode,
+    trailing: RawString,
 }
 
 impl HeredocTemplate {
+    pub fn new(
+        delimiter: Decorated<Identifier>,
+        strip: HeredocStripMode,
+        template: Spanned<Template>,
+    ) -> HeredocTemplate {
+        HeredocTemplate {
+            delimiter,
+            template,
+            strip,
+            trailing: RawString::default(),
+        }
+    }
+
     pub fn delimiter(&self) -> &Decorated<Identifier> {
         &self.delimiter
     }
@@ -456,6 +470,14 @@ impl HeredocTemplate {
 
     pub fn strip(&self) -> HeredocStripMode {
         self.strip
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into();
     }
 }
 
