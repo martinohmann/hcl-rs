@@ -283,23 +283,23 @@ impl From<Array> for Vec<expr::Expression> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Object {
-    items: Vec<Decorated<ObjectItem>>,
+    items: Vec<Spanned<ObjectItem>>,
     trailing: RawString,
 }
 
 impl Object {
-    pub fn new(items: Vec<Decorated<ObjectItem>>) -> Object {
+    pub fn new(items: Vec<Spanned<ObjectItem>>) -> Object {
         Object {
             items,
             trailing: RawString::default(),
         }
     }
 
-    pub fn items(&self) -> &[Decorated<ObjectItem>] {
+    pub fn items(&self) -> &[Spanned<ObjectItem>] {
         &self.items
     }
 
-    pub fn items_mut(&mut self) -> &mut [Decorated<ObjectItem>] {
+    pub fn items_mut(&mut self) -> &mut [Spanned<ObjectItem>] {
         &mut self.items
     }
 
@@ -327,7 +327,7 @@ impl From<Object> for expr::Object<expr::ObjectKey, expr::Expression> {
         object
             .items
             .into_iter()
-            .map(Decorated::into_inner)
+            .map(Spanned::into_inner)
             .map(|item| (item.key.into(), item.value.into()))
             .collect()
     }

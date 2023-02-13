@@ -107,7 +107,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
         let start = remaining_input.location();
 
         let (input, mut item) = match object_item(remaining_input) {
-            Ok((input, item)) => (input, Decorated::new(item)),
+            Ok((input, item)) => (input, Spanned::new(item)),
             Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
             Err(err) => {
                 // Consume all trailing whitespace and look for the closing brace, otherwise
@@ -138,8 +138,18 @@ fn object_items(input: Input) -> IResult<Input, Object> {
             ',' => value(ObjectValueTerminator::Comma, char(','))(input)?,
             '#' | '/' => {
                 let (input, comment_span) = span(line_comment)(input)?;
-                item.decor_mut()
-                    .set_suffix(comment_span.start..comment_span.end);
+
+                // Associate the trailing comment with the item value, updating
+                // the span if it already has a decor suffix.
+                let suffix_start = match item.value().decor().suffix() {
+                    Some(suffix) => suffix.span().unwrap().start,
+                    None => comment_span.start,
+                };
+
+                item.value_mut()
+                    .decor_mut()
+                    .set_suffix(suffix_start..comment_span.end);
+
                 value(ObjectValueTerminator::Newline, line_ending)(input)?
             }
             _ => {

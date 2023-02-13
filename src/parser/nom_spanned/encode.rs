@@ -196,8 +196,7 @@ impl Encode for Object {
         buf.write_char('{')?;
 
         for item in self.items().iter() {
-            // @FIXME(mohmann): more sensible default decor.
-            item.encode_decorated(buf, NO_DECOR)?;
+            item.encode(buf)?;
         }
 
         self.trailing().encode_with_default(buf, "")?;

@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorate, Decorated, Despan, InternalString, Span, Spanned};
+use super::repr::{Decor, Decorated, Despan, InternalString, Span, Spanned};
 use super::structure::body;
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
@@ -121,7 +121,7 @@ fn parse_object() {
         Ok(Expression::Object(Box::new({
             let mut object = Object::new(vec![
                 {
-                    let mut item = Decorated::new(ObjectItem::new(
+                    let mut item = Spanned::new(ObjectItem::new(
                         ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "bar".into(),
                             1..6,
@@ -139,7 +139,7 @@ fn parse_object() {
                     item
                 },
                 {
-                    let mut item = Decorated::new(ObjectItem::new(
+                    let mut item = Spanned::new(ObjectItem::new(
                         ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
                             "qux".into(),
                             16..21,
@@ -148,12 +148,11 @@ fn parse_object() {
                         Expression::Variable(Decorated::with_span_decor(
                             Variable::unchecked("ident"),
                             23..28,
-                            Decor::new(22..23, 28..29),
+                            Decor::new(22..23, 28..40),
                         )),
                     ));
                     item.set_value_terminator(ObjectValueTerminator::Newline);
                     item.set_span(15..41);
-                    item.decor_mut().set_suffix(29..40);
                     item
                 },
             ]);
