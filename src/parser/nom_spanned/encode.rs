@@ -9,6 +9,7 @@ use super::ast::{
 use super::escape::write_escaped;
 use super::repr::{Decorate, Decorated};
 use crate::expr::{HeredocStripMode, Variable};
+use crate::template::StripMode;
 use crate::{Identifier, Number};
 use std::fmt::{self, Write};
 
@@ -16,6 +17,8 @@ pub(crate) const NO_DECOR: (&str, &str) = ("", "");
 const LEADING_SPACE_DECOR: (&str, &str) = (" ", "");
 const TRAILING_SPACE_DECOR: (&str, &str) = ("", " ");
 const BOTH_SPACE_DECOR: (&str, &str) = (" ", " ");
+const INTERPOLATION_START: &str = "${";
+const DIRECTIVE_START: &str = "%{";
 
 pub(crate) trait EncodeDecorated {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result;
@@ -260,16 +263,9 @@ impl Encode for Element {
 
 impl Encode for Interpolation {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        let strip = self.strip();
-        buf.write_str("${")?;
-        if strip.strip_start() {
-            buf.write_char('~')?;
-        }
-        self.expr().encode_decorated(buf, BOTH_SPACE_DECOR)?;
-        if strip.strip_end() {
-            buf.write_char('~')?;
-        }
-        buf.write_char('}')
+        encode_strip(buf, INTERPOLATION_START, self.strip(), |buf| {
+            self.expr().encode_decorated(buf, BOTH_SPACE_DECOR)
+        })
     }
 }
 
@@ -294,61 +290,33 @@ impl Encode for IfDirective {
 
 impl Encode for IfTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        let strip = self.strip();
-        buf.write_str("%{")?;
-        if strip.strip_start() {
-            buf.write_char('~')?;
-        }
-
-        self.preamble().encode_with_default(buf, " ")?;
-        buf.write_str("if")?;
-        self.cond_expr()
-            .encode_decorated(buf, TRAILING_SPACE_DECOR)?;
-
-        if strip.strip_end() {
-            buf.write_char('~')?;
-        }
-        buf.write_char('}')?;
+        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+            self.preamble().encode_with_default(buf, " ")?;
+            buf.write_str("if")?;
+            self.cond_expr().encode_decorated(buf, TRAILING_SPACE_DECOR)
+        })?;
         self.template().encode(buf)
     }
 }
 
 impl Encode for ElseTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        let strip = self.strip();
-        buf.write_str("%{")?;
-        if strip.strip_start() {
-            buf.write_char('~')?;
-        }
-
-        self.preamble().encode_with_default(buf, " ")?;
-        buf.write_str("else")?;
-        self.trailing().encode_with_default(buf, " ")?;
-
-        if strip.strip_end() {
-            buf.write_char('~')?;
-        }
-        buf.write_char('}')?;
+        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+            self.preamble().encode_with_default(buf, " ")?;
+            buf.write_str("else")?;
+            self.trailing().encode_with_default(buf, " ")
+        })?;
         self.template().encode(buf)
     }
 }
 
 impl Encode for EndifTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        let strip = self.strip();
-        buf.write_str("%{")?;
-        if strip.strip_start() {
-            buf.write_char('~')?;
-        }
-
-        self.preamble().encode_with_default(buf, " ")?;
-        buf.write_str("endif")?;
-        self.trailing().encode_with_default(buf, " ")?;
-
-        if strip.strip_end() {
-            buf.write_char('~')?;
-        }
-        buf.write_char('}')
+        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+            self.preamble().encode_with_default(buf, " ")?;
+            buf.write_str("endif")?;
+            self.trailing().encode_with_default(buf, " ")
+        })
     }
 }
 
@@ -361,46 +329,28 @@ impl Encode for ForDirective {
 
 impl Encode for ForTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        let strip = self.strip();
-        buf.write_str("%{")?;
-        if strip.strip_start() {
-            buf.write_char('~')?;
-        }
+        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+            self.preamble().encode_with_default(buf, " ")?;
+            buf.write_str("for")?;
 
-        self.preamble().encode_with_default(buf, " ")?;
-        buf.write_str("for")?;
+            if let Some(key_var) = self.key_var() {
+                key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
+                buf.write_char(',')?;
+            }
 
-        if let Some(key_var) = self.key_var() {
-            key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
-            buf.write_char(',')?;
-        }
-
-        self.value_var().encode_decorated(buf, BOTH_SPACE_DECOR)?;
-
-        if strip.strip_end() {
-            buf.write_char('~')?;
-        }
-        buf.write_char('}')?;
+            self.value_var().encode_decorated(buf, BOTH_SPACE_DECOR)
+        })?;
         self.template().encode(buf)
     }
 }
 
 impl Encode for EndforTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        let strip = self.strip();
-        buf.write_str("%{")?;
-        if strip.strip_start() {
-            buf.write_char('~')?;
-        }
-
-        self.preamble().encode_with_default(buf, " ")?;
-        buf.write_str("endfor")?;
-        self.trailing().encode_with_default(buf, " ")?;
-
-        if strip.strip_end() {
-            buf.write_char('~')?;
-        }
-        buf.write_char('}')
+        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+            self.preamble().encode_with_default(buf, " ")?;
+            buf.write_str("endfor")?;
+            self.trailing().encode_with_default(buf, " ")
+        })
     }
 }
 
@@ -648,4 +598,22 @@ impl Encode for BlockBody {
 
         buf.write_char('}')
     }
+}
+
+fn encode_strip<F>(buf: &mut EncodeState, start_marker: &str, strip: StripMode, f: F) -> fmt::Result
+where
+    F: FnOnce(&mut EncodeState) -> fmt::Result,
+{
+    buf.write_str(start_marker)?;
+    if strip.strip_start() {
+        buf.write_char('~')?;
+    }
+
+    f(buf)?;
+
+    if strip.strip_end() {
+        buf.write_char('~')?;
+    }
+
+    buf.write_char('}')
 }
