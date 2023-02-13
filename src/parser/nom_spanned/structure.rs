@@ -86,7 +86,7 @@ pub fn body(input: Input) -> IResult<Input, Decorated<Body>> {
     suffix_decor(
         map(
             many0(terminated(decor(ws, structure, spc), line_trailing)),
-            |structures| Body { structures },
+            Body::new,
         ),
         ws,
     )(input)

@@ -996,10 +996,14 @@ impl Despan for ForCond {
 
 #[derive(Debug, Clone, Default)]
 pub struct Body {
-    pub(crate) structures: Vec<Structure>,
+    structures: Vec<Structure>,
 }
 
 impl Body {
+    pub fn new(structures: Vec<Structure>) -> Body {
+        Body { structures }
+    }
+
     pub fn structures(&self) -> &[Structure] {
         &self.structures
     }
