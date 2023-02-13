@@ -79,10 +79,7 @@ where
     T: Encode,
 {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
-        let decor = self.decor();
-        decor.encode_prefix(buf, default_decor.0)?;
-        self.as_ref().encode(buf)?;
-        decor.encode_suffix(buf, default_decor.1)
+        encode_decorated(self, buf, default_decor, |buf| self.as_ref().encode(buf))
     }
 }
 
@@ -90,35 +87,28 @@ impl EncodeDecorated for Expression {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
             Expression::Null(v) => v.encode_decorated(buf, default_decor),
-            Expression::Bool(v) => v.encode_decorated(buf, default_decor),
+            Expression::Bool(v) => {
+                encode_decorated(v, buf, default_decor, |buf| write!(buf, "{}", v.as_ref()))
+            }
             Expression::Number(v) => v.encode_decorated(buf, default_decor),
-            Expression::String(v) => {
-                let decor = v.decor();
-                decor.encode_prefix(buf, default_decor.0)?;
+            Expression::String(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
                 write_escaped(buf, &v)?;
-                buf.write_char('"')?;
-                decor.encode_suffix(buf, default_decor.1)
-            }
+                buf.write_char('"')
+            }),
             Expression::Array(v) => v.encode_decorated(buf, default_decor),
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
-            Expression::Template(v) => {
-                let decor = v.decor();
-                decor.encode_prefix(buf, default_decor.0)?;
+            Expression::Template(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
                 buf.escaped(|buf| v.as_ref().encode(buf))?;
-                buf.write_char('"')?;
-                decor.encode_suffix(buf, default_decor.1)
-            }
+                buf.write_char('"')
+            }),
             Expression::HeredocTemplate(v) => v.encode_decorated(buf, default_decor),
-            Expression::Parenthesis(v) => {
-                let decor = v.decor();
-                decor.encode_prefix(buf, default_decor.0)?;
+            Expression::Parenthesis(v) => encode_decorated(&**v, buf, default_decor, |buf| {
                 buf.write_char('(')?;
                 v.as_ref().encode_decorated(buf, NO_DECOR)?;
-                buf.write_char(')')?;
-                decor.encode_suffix(buf, default_decor.1)
-            }
+                buf.write_char(')')
+            }),
             Expression::Variable(v) => v.encode_decorated(buf, default_decor),
             Expression::ForExpr(v) => v.encode_decorated(buf, default_decor),
             Expression::Conditional(v) => v.encode_decorated(buf, default_decor),
@@ -136,12 +126,6 @@ impl Encode for Null {
     }
 }
 
-impl Encode for bool {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        write!(buf, "{}", self)
-    }
-}
-
 impl Encode for u64 {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         write!(buf, "{}", self)
@@ -151,14 +135,6 @@ impl Encode for u64 {
 impl Encode for Number {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         write!(buf, "{}", self)
-    }
-}
-
-impl Encode for String {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        buf.write_char('"')?;
-        write_escaped(buf, &self)?;
-        buf.write_char('"')
     }
 }
 
@@ -506,10 +482,7 @@ impl Encode for TraversalOperator {
 
         match self {
             TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                let decor = splat.decor();
-                decor.encode_prefix(buf, "")?;
-                buf.write_char('*')?;
-                decor.encode_suffix(buf, "")?;
+                encode_decorated(splat, buf, NO_DECOR, |buf| buf.write_char('*'))?
             }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
@@ -566,14 +539,11 @@ impl Encode for Block {
 impl EncodeDecorated for BlockLabel {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            BlockLabel::String(string) => {
-                let decor = string.decor();
-                decor.encode_prefix(buf, default_decor.0)?;
+            BlockLabel::String(string) => encode_decorated(string, buf, default_decor, |buf| {
                 buf.write_char('"')?;
                 write_escaped(buf, &string)?;
-                buf.write_char('"')?;
-                decor.encode_suffix(buf, default_decor.1)
-            }
+                buf.write_char('"')
+            }),
             BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),
         }
     }
@@ -584,13 +554,10 @@ impl Encode for BlockBody {
         buf.write_char('{')?;
 
         match self {
-            BlockBody::Multiline(body) => {
-                let decor = body.decor();
-                decor.encode_prefix(buf, "")?;
+            BlockBody::Multiline(body) => encode_decorated(body, buf, NO_DECOR, |buf| {
                 buf.write_char('\n')?;
-                body.as_ref().encode(buf)?;
-                decor.encode_suffix(buf, "")?;
-            }
+                body.as_ref().encode(buf)
+            })?,
             BlockBody::Oneline(attr) => attr.encode_decorated(buf, BOTH_SPACE_DECOR)?,
             BlockBody::Empty(raw) => raw.encode_with_default(buf, "")?,
         }
@@ -615,4 +582,20 @@ where
     }
 
     buf.write_char('}')
+}
+
+fn encode_decorated<T, F>(
+    item: &T,
+    buf: &mut EncodeState,
+    default_decor: (&str, &str),
+    f: F,
+) -> fmt::Result
+where
+    T: ?Sized + Decorate,
+    F: FnOnce(&mut EncodeState) -> fmt::Result,
+{
+    let decor = item.decor();
+    decor.encode_prefix(buf, default_decor.0)?;
+    f(buf)?;
+    decor.encode_suffix(buf, default_decor.1)
 }
