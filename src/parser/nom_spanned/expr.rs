@@ -1,7 +1,7 @@
 use super::ast::{
     Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig,
-    HeredocTemplate, Null, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
-    ObjectValueTerminator, Template, Traversal, TraversalOperator, UnaryOp,
+    HeredocTemplate, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
+    Template, Traversal, TraversalOperator, UnaryOp,
 };
 use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
@@ -387,7 +387,7 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
                 Expression::FuncCall(Box::new(func_call.into()))
             }
             None => match ident {
-                "null" => Expression::Null(Null.into()),
+                "null" => Expression::Null(().into()),
                 "true" => Expression::Bool(true.into()),
                 "false" => Expression::Bool(false.into()),
                 var => Expression::Variable(Variable::unchecked(var).into()),

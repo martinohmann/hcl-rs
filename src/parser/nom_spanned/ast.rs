@@ -10,11 +10,8 @@ use std::fmt;
 use std::ops::Range;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Null;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
-    Null(Decorated<Null>),
+    Null(Decorated<()>),
     Bool(Decorated<bool>),
     Number(Decorated<Number>),
     String(Decorated<InternalString>),
@@ -474,7 +471,7 @@ pub enum ObjectValueTerminator {
 
 impl Default for ObjectValueTerminator {
     fn default() -> Self {
-        ObjectValueTerminator::Newline
+        ObjectValueTerminator::Comma
     }
 }
 

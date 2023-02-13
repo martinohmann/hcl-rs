@@ -2,7 +2,7 @@ use super::ast::{
     Array, Attribute, BinaryOp, Block, BlockBody, BlockLabel, Body, Conditional, Directive,
     Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForCond,
     ForDirective, ForExpr, ForIntro, ForTemplateExpr, FuncCall, FuncSig, HeredocTemplate,
-    IfDirective, IfTemplateExpr, Interpolation, Null, Object, ObjectItem, ObjectKey,
+    IfDirective, IfTemplateExpr, Interpolation, Object, ObjectItem, ObjectKey,
     ObjectKeyValueSeparator, ObjectValueTerminator, Structure, Template, Traversal,
     TraversalOperator, UnaryOp,
 };
@@ -10,7 +10,7 @@ use super::escape::write_escaped;
 use super::repr::{Decorate, Decorated};
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
-use crate::{Identifier, Number};
+use crate::Identifier;
 use std::fmt::{self, Write};
 
 pub(crate) const NO_DECOR: (&str, &str) = ("", "");
@@ -86,11 +86,15 @@ where
 impl EncodeDecorated for Expression {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            Expression::Null(v) => v.encode_decorated(buf, default_decor),
+            Expression::Null(v) => {
+                encode_decorated(v, buf, default_decor, |buf| buf.write_str("null"))
+            }
             Expression::Bool(v) => {
                 encode_decorated(v, buf, default_decor, |buf| write!(buf, "{}", v.as_ref()))
             }
-            Expression::Number(v) => v.encode_decorated(buf, default_decor),
+            Expression::Number(v) => {
+                encode_decorated(v, buf, default_decor, |buf| write!(buf, "{}", v.as_ref()))
+            }
             Expression::String(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
                 write_escaped(buf, &v)?;
@@ -117,24 +121,6 @@ impl EncodeDecorated for Expression {
             Expression::BinaryOp(v) => v.encode_decorated(buf, default_decor),
             Expression::Traversal(v) => v.encode_decorated(buf, default_decor),
         }
-    }
-}
-
-impl Encode for Null {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        buf.write_str("null")
-    }
-}
-
-impl Encode for u64 {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        write!(buf, "{}", self)
-    }
-}
-
-impl Encode for Number {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        write!(buf, "{}", self)
     }
 }
 
@@ -486,7 +472,11 @@ impl Encode for TraversalOperator {
             }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
-            TraversalOperator::LegacyIndex(index) => index.encode_decorated(buf, NO_DECOR)?,
+            TraversalOperator::LegacyIndex(index) => {
+                encode_decorated(index, buf, NO_DECOR, |buf| {
+                    write!(buf, "{}", index.as_ref())
+                })?
+            }
         }
 
         match self {
