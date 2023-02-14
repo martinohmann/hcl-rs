@@ -1,4 +1,4 @@
-use crate::{Identifier, Result};
+use crate::{Identifier, InternalString, Result};
 use serde::Deserialize;
 use std::ops::Deref;
 
@@ -25,7 +25,7 @@ impl Variable {
     /// error will be returned.
     pub fn new<T>(ident: T) -> Result<Self>
     where
-        T: Into<String>,
+        T: Into<InternalString>,
     {
         Identifier::new(ident).map(Variable)
     }
@@ -53,7 +53,7 @@ impl Variable {
     /// output.
     pub fn unchecked<T>(ident: T) -> Self
     where
-        T: Into<String>,
+        T: Into<InternalString>,
     {
         Variable(Identifier::unchecked(ident))
     }

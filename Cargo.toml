@@ -27,10 +27,15 @@ name = "specsuite"
 path = "specsuite/main.rs"
 harness = false
 
+[features]
+default = []
+perf = ["dep:kstring"]
+
 [dependencies]
 pest = "2.5.2"
 pest_derive = "2.5.2"
 itoa = "1.0.5"
+kstring = { version = "2.0.0", features = ["max_inline", "serde"], optional = true }
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
 
