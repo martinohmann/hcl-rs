@@ -1,22 +1,15 @@
 use crate::expr::Variable;
 use crate::util::{is_id_continue, is_id_start, is_ident};
-use crate::{Error, Result};
-#[cfg(feature = "kstring")]
-use kstring::KString;
+use crate::{Error, InternalString, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
 use std::ops;
 
-#[cfg(feature = "kstring")]
-type Inner = KString;
-#[cfg(not(feature = "kstring"))]
-type Inner = String;
-
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-pub struct Identifier(Inner);
+pub struct Identifier(InternalString);
 
 impl Identifier {
     /// Create a new `Identifier` after validating that it only contains characters that are
@@ -41,20 +34,15 @@ impl Identifier {
     /// error will be returned.
     pub fn new<T>(ident: T) -> Result<Self>
     where
-        T: AsRef<str>,
+        T: Into<InternalString>,
     {
-        let ident = ident.as_ref();
+        let ident = ident.into();
 
-        if !is_ident(ident) {
+        if !is_ident(&ident) {
             return Err(Error::InvalidIdentifier(ident.to_string()));
         }
 
-        #[cfg(feature = "kstring")]
-        let inner = KString::from_ref(ident);
-        #[cfg(not(feature = "kstring"))]
-        let inner = String::from(ident);
-
-        Ok(Identifier(inner))
+        Ok(Identifier(ident))
     }
 
     /// Create a new `Identifier` after sanitizing the input if necessary.
@@ -86,10 +74,7 @@ impl Identifier {
         let input = ident.as_ref();
 
         if input.is_empty() {
-            #[cfg(feature = "kstring")]
-            return Identifier(KString::from_static("_"));
-            #[cfg(not(feature = "kstring"))]
-            return Identifier(String::from("_"));
+            return Identifier(InternalString::from("_"));
         }
 
         let mut ident = String::with_capacity(input.len());
@@ -107,8 +92,7 @@ impl Identifier {
             }
         }
 
-        #[allow(clippy::useless_conversion)]
-        Identifier(ident.into())
+        Identifier(InternalString::from(ident))
     }
 
     /// Create a new `Identifier` without checking if it is valid.
@@ -124,29 +108,19 @@ impl Identifier {
     /// However, attempting to serialize an invalid identifier to HCL will produce invalid output.
     pub fn unchecked<T>(ident: T) -> Self
     where
-        T: AsRef<str>,
+        T: Into<InternalString>,
     {
-        #[cfg(feature = "kstring")]
-        let inner = KString::from_ref(ident.as_ref());
-        #[cfg(not(feature = "kstring"))]
-        let inner = String::from(ident.as_ref());
-
-        Identifier(inner)
+        Identifier(ident.into())
     }
 
     /// Consume `self` and return the wrapped `String`.
     pub fn into_inner(self) -> String {
-        #[cfg(feature = "kstring")]
-        let s = self.0.to_string();
-        #[cfg(not(feature = "kstring"))]
-        let s = self.0;
-
-        s
+        self.0.into()
     }
 
     /// Return a reference to the wrapped `str`.
     pub fn as_str(&self) -> &str {
-        &self.0
+        self.0.as_str()
     }
 }
 

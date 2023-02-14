@@ -31,17 +31,17 @@ harness = false
 default = ["nom-spanned", "perf"]
 nom-spanned = ["dep:nom"]
 nom = ["dep:nom"]
-perf = ["kstring"]
+perf = ["dep:kstring"]
 pest = ["dep:pest", "dep:pest_derive"]
 
 [dependencies]
 pest = { version = "2.5.2", optional = true }
 pest_derive = { version = "2.5.2", optional = true }
 itoa = "1.0.5"
+kstring = { version = "2.0.0", features = ["max_inline", "serde"], optional = true }
 nom = { version = "7", optional = true }
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
-kstring = { version = "2.0.0", features = ["serde"], optional = true }
 
 [dependencies.indexmap]
 features = ["serde"]
@@ -58,7 +58,7 @@ version = "0.1.9"
 [dev-dependencies]
 criterion = "0.4"
 assert-json-diff = "2.0.2"
-indoc = "1.0"
+indoc = "2.0"
 pretty_assertions = "1.3.0"
 textwrap = "0.16.0"
 

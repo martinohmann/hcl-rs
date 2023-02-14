@@ -31,6 +31,7 @@ pub mod eval;
 pub mod expr;
 pub mod format;
 mod ident;
+mod internal_string;
 mod number;
 pub mod parser;
 pub mod ser;
@@ -40,6 +41,9 @@ pub mod template;
 mod tests;
 mod util;
 pub mod value;
+
+#[doc(inline)]
+pub use internal_string::InternalString;
 
 #[doc(inline)]
 pub use de::{from_body, from_reader, from_slice, from_str};

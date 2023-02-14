@@ -22,6 +22,12 @@ A rust library for interacting with the Hashicorp Configuration Language (HCL).
   implement `serde::Deserialize` or `serde::Serialize`
 - Evaluation of the HCL expression and template sub-languages
 
+## Cargo features
+
+- `perf`: enables parser performance optimizations such as inlining of small
+  strings on the stack. This feature is disabled by default. Enabling it will
+  pull in `kstring` as a dependency.
+
 ## Deserialization examples
 
 Deserialize arbitrary HCL according to the [HCL JSON
