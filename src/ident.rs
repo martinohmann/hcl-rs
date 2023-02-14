@@ -1,6 +1,6 @@
 use crate::expr::Variable;
 use crate::util::{is_id_continue, is_id_start, is_ident};
-use crate::{Error, Result};
+use crate::{Error, InternalString, Result};
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
@@ -9,7 +9,7 @@ use std::ops;
 /// Represents an HCL identifier.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-pub struct Identifier(String);
+pub struct Identifier(InternalString);
 
 impl Identifier {
     /// Create a new `Identifier` after validating that it only contains characters that are
@@ -34,12 +34,12 @@ impl Identifier {
     /// error will be returned.
     pub fn new<T>(ident: T) -> Result<Self>
     where
-        T: Into<String>,
+        T: Into<InternalString>,
     {
         let ident = ident.into();
 
         if !is_ident(&ident) {
-            return Err(Error::InvalidIdentifier(ident));
+            return Err(Error::InvalidIdentifier(ident.to_string()));
         }
 
         Ok(Identifier(ident))
@@ -74,7 +74,7 @@ impl Identifier {
         let input = ident.as_ref();
 
         if input.is_empty() {
-            return Identifier(String::from('_'));
+            return Identifier(InternalString::from("_"));
         }
 
         let mut ident = String::with_capacity(input.len());
@@ -92,7 +92,7 @@ impl Identifier {
             }
         }
 
-        Identifier(ident)
+        Identifier(InternalString::from(ident))
     }
 
     /// Create a new `Identifier` without checking if it is valid.
@@ -108,19 +108,19 @@ impl Identifier {
     /// However, attempting to serialize an invalid identifier to HCL will produce invalid output.
     pub fn unchecked<T>(ident: T) -> Self
     where
-        T: Into<String>,
+        T: Into<InternalString>,
     {
         Identifier(ident.into())
     }
 
     /// Consume `self` and return the wrapped `String`.
     pub fn into_inner(self) -> String {
-        self.0
+        self.0.into()
     }
 
     /// Return a reference to the wrapped `str`.
     pub fn as_str(&self) -> &str {
-        &self.0
+        self.0.as_str()
     }
 }
 
