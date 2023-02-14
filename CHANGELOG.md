@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.12.3](https://github.com/martinohmann/hcl-rs/compare/v0.12.2...v0.12.3) (2023-01-24)
+
+
+### Bug Fixes
+
+* do not strip escaped whitespace from strings ([24d0e6a](https://github.com/martinohmann/hcl-rs/commit/24d0e6a40b040a00819a70ad5ffb727820b95ee2))
+* **parser:** automatically dedent indented heredocs ([#157](https://github.com/martinohmann/hcl-rs/issues/157)) ([011e95e](https://github.com/martinohmann/hcl-rs/commit/011e95e85f0681d11c12f4c0b01791d1e847e511))
+
+## [0.12.2](https://github.com/martinohmann/hcl-rs/compare/v0.12.1...v0.12.2) (2023-01-20)
+
+
+### Features
+
+* **eval:** add `ErrorKind::RawExpression` ([1e89130](https://github.com/martinohmann/hcl-rs/commit/1e891309c25cdbd57cc17f3c71ec162f3bf685c0))
+
+
+### Bug Fixes
+
+* **benches:** add back deleted benchmark fixture ([d209687](https://github.com/martinohmann/hcl-rs/commit/d209687980bd4c5f058e03fede02615f0241c867))
+* **de:** correct too restrictive trait bound ([42cff38](https://github.com/martinohmann/hcl-rs/commit/42cff38e9dad70c5c7d7305720338c8a6394570c))
+* **parser:** preserve whitespace in adjacent template literal ([0f5a639](https://github.com/martinohmann/hcl-rs/commit/0f5a63935c3666d11f392a5cbab2b895c0fc9032))
+
 ## [0.12.1](https://github.com/martinohmann/hcl-rs/compare/v0.12.0...v0.12.1) (2023-01-12)
 
 

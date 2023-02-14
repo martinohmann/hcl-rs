@@ -117,7 +117,7 @@ impl Template {
     /// Returns an error if the parsing of raw string templates fails or if the template expression
     /// contains string literals with invalid escape sequences.
     pub fn from_expr(expr: &TemplateExpr) -> ParseResult<Self> {
-        parser::parse_template(&expr.to_cow_str())
+        parser::parse_template(expr.as_str())
     }
 
     /// Returns a reference to the template elements.

@@ -85,7 +85,6 @@ fn unescape_owned(s: &str, idx: usize) -> Result<String> {
         }
 
         let ch = match chars.next() {
-            Some('\n') => continue,
             Some('b') => '\u{0008}',
             Some('f') => '\u{000C}',
             Some('n') => '\n',
