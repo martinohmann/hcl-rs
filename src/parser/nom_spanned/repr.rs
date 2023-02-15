@@ -2,120 +2,9 @@
 #![allow(dead_code)]
 
 use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
-#[cfg(feature = "kstring")]
-use kstring::KString;
-use std::borrow::{Borrow, Cow};
+use crate::InternalString;
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
-
-#[cfg(feature = "kstring")]
-type Inner = KString;
-#[cfg(not(feature = "kstring"))]
-type Inner = String;
-
-#[derive(Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InternalString(Inner);
-
-impl InternalString {
-    /// Create an empty string
-    pub fn new() -> Self {
-        InternalString(Inner::new())
-    }
-
-    /// Access the underlying string
-    #[inline]
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl fmt::Debug for InternalString {
-    #[inline]
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(formatter)
-    }
-}
-
-impl Deref for InternalString {
-    type Target = str;
-
-    #[inline]
-    fn deref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl Borrow<str> for InternalString {
-    #[inline]
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl AsRef<str> for InternalString {
-    #[inline]
-    fn as_ref(&self) -> &str {
-        self.as_str()
-    }
-}
-
-impl From<&str> for InternalString {
-    #[inline]
-    fn from(s: &str) -> Self {
-        #[cfg(feature = "kstring")]
-        let inner = KString::from_ref(s);
-        #[cfg(not(feature = "kstring"))]
-        let inner = String::from(s);
-
-        InternalString(inner)
-    }
-}
-
-impl From<String> for InternalString {
-    #[inline]
-    fn from(s: String) -> Self {
-        #[allow(clippy::useless_conversion)]
-        InternalString(s.into())
-    }
-}
-
-impl From<&String> for InternalString {
-    #[inline]
-    fn from(s: &String) -> Self {
-        InternalString(s.into())
-    }
-}
-
-impl From<&InternalString> for InternalString {
-    #[inline]
-    fn from(s: &InternalString) -> Self {
-        s.clone()
-    }
-}
-
-impl From<Box<str>> for InternalString {
-    #[inline]
-    fn from(s: Box<str>) -> Self {
-        InternalString(s.into())
-    }
-}
-
-impl<'a> From<Cow<'a, str>> for InternalString {
-    #[inline]
-    fn from(value: Cow<'a, str>) -> Self {
-        match value {
-            Cow::Borrowed(s) => s.into(),
-            Cow::Owned(s) => s.into(),
-        }
-    }
-}
-
-impl fmt::Display for InternalString {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_str().fmt(f)
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawString(RawStringInner);
@@ -146,7 +35,7 @@ impl RawString {
     pub fn as_str(&self) -> Option<&str> {
         match &self.0 {
             RawStringInner::Empty => Some(""),
-            RawStringInner::Explicit(s) => Some(s.0.as_str()),
+            RawStringInner::Explicit(s) => Some(s.as_str()),
             RawStringInner::Spanned(_) => None,
         }
     }

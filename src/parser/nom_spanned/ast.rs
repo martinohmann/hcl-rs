@@ -1,11 +1,11 @@
 #![allow(missing_docs)]
 
 use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
-use super::repr::{Decor, Decorate, Decorated, Despan, InternalString, RawString, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, RawString, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
-use crate::{Identifier, Number};
+use crate::{Identifier, InternalString, Number};
 use std::fmt;
 use std::ops::Range;
 

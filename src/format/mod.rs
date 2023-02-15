@@ -34,7 +34,7 @@
 //! # }
 //! ```
 
-pub(crate) mod escape;
+mod escape;
 mod impls;
 
 use self::escape::{CharEscape, ESCAPE};

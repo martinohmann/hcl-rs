@@ -14,10 +14,10 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::{Input, Location};
-use self::repr::{Decorate, Decorated, InternalString, Span};
+use self::repr::{Decorate, Decorated, Span};
 use self::structure::body;
 use self::template::template;
-use crate::{Identifier, Number};
+use crate::{Identifier, InternalString, Number};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_until, take_while_m_n},

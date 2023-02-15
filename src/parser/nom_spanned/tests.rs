@@ -1,11 +1,11 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorated, Despan, InternalString, Span, Spanned};
+use super::repr::{Decor, Decorated, Despan, Span, Spanned};
 use super::structure::body;
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
-use crate::{Identifier, Number};
+use crate::{Identifier, InternalString, Number};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 

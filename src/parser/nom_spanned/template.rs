@@ -2,12 +2,12 @@ use super::ast::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, Template,
 };
-use super::repr::InternalString;
 use super::{
     build_string, char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment,
     string_literal, tag_or_cut, ws, IResult, Input,
 };
 use crate::template::StripMode;
+use crate::InternalString;
 use nom::sequence::separated_pair;
 use nom::{
     branch::alt,
