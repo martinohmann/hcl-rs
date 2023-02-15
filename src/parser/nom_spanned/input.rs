@@ -16,8 +16,8 @@ pub trait Location {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Located<T> {
-    initial: T,
     input: T,
+    initial: T,
 }
 
 impl<T> Deref for Located<T> {
@@ -168,7 +168,7 @@ where
     }
 }
 
-impl<'a, T> InputIter for Located<T>
+impl<T> InputIter for Located<T>
 where
     T: InputIter,
 {
@@ -206,7 +206,7 @@ impl<A: Compare<B>, B: Into<Located<B>>> Compare<B> for Located<A> {
     }
 }
 
-impl<'a, T, R> Slice<R> for Located<T>
+impl<T, R> Slice<R> for Located<T>
 where
     T: Slice<R> + Offset + Clone,
 {
@@ -254,7 +254,7 @@ impl<T: ToString> fmt::Display for Located<T> {
     }
 }
 
-impl<'a, T> ExtendInto for Located<T>
+impl<T> ExtendInto for Located<T>
 where
     T: ExtendInto,
 {
@@ -266,6 +266,6 @@ where
     }
 
     fn extend_into(&self, acc: &mut Self::Extender) {
-        self.input.extend_into(acc)
+        self.input.extend_into(acc);
     }
 }

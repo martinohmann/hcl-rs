@@ -78,6 +78,7 @@ pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
 }
 
 #[allow(missing_docs)]
+#[allow(clippy::missing_errors_doc)]
 pub fn parse_raw(input: &str) -> ParseResult<Decorated<Body>> {
     parse_to_end(input, body)
 }
@@ -317,7 +318,7 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
 
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
-fn string_literal<'a>(input: Input<'a>) -> IResult<Input<'a>, &'a str> {
+fn string_literal(input: Input) -> IResult<Input, &str> {
     literal(alt((recognize(one_of("\"\\")), tag("${"), tag("%{"))))(input)
 }
 

@@ -97,7 +97,7 @@ impl EncodeDecorated for Expression {
             }
             Expression::String(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
-                write_escaped(buf, &v)?;
+                write_escaped(buf, v)?;
                 buf.write_char('"')
             }),
             Expression::Array(v) => v.encode_decorated(buf, default_decor),
@@ -211,9 +211,9 @@ impl Encode for Element {
         match self {
             Element::Literal(lit) => {
                 if buf.escape() {
-                    write_escaped(buf, &lit)
+                    write_escaped(buf, lit)
                 } else {
-                    buf.write_str(&lit)
+                    buf.write_str(lit)
                 }
             }
             Element::Interpolation(interp) => interp.encode(buf),
@@ -322,7 +322,7 @@ impl Encode for HeredocTemplate {
             HeredocStripMode::Indent => buf.write_str("<<-")?,
         }
 
-        write!(buf, "{}\n", self.delimiter().as_str())?;
+        writeln!(buf, "{}", self.delimiter().as_str())?;
         self.template().encode(buf)?;
         write!(buf, "{}", self.delimiter().as_str())
     }
@@ -418,7 +418,7 @@ impl Encode for FuncSig {
             arg.encode_decorated(buf, arg_decor)?;
         }
 
-        if self.args().len() > 0 {
+        if !self.args().is_empty() {
             if self.expand_final() {
                 buf.write_str("...")?;
             } else if self.trailing_comma() {
@@ -468,14 +468,14 @@ impl Encode for TraversalOperator {
 
         match self {
             TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                encode_decorated(splat, buf, NO_DECOR, |buf| buf.write_char('*'))?
+                encode_decorated(splat, buf, NO_DECOR, |buf| buf.write_char('*'))?;
             }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::LegacyIndex(index) => {
                 encode_decorated(index, buf, NO_DECOR, |buf| {
                     write!(buf, "{}", index.as_ref())
-                })?
+                })?;
             }
         }
 
@@ -531,7 +531,7 @@ impl EncodeDecorated for BlockLabel {
         match self {
             BlockLabel::String(string) => encode_decorated(string, buf, default_decor, |buf| {
                 buf.write_char('"')?;
-                write_escaped(buf, &string)?;
+                write_escaped(buf, string)?;
                 buf.write_char('"')
             }),
             BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),

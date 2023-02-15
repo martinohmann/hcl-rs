@@ -51,7 +51,7 @@ impl RawString {
             RawStringInner::Spanned(span) => {
                 if let Some(input) = input {
                     input.get(span.clone()).unwrap_or_else(|| {
-                        panic!("span {:?} should be in input:\n```\n{}\n```", span, input)
+                        panic!("span {span:?} should be in input:\n```\n{input}\n```")
                     })
                 } else {
                     default
@@ -75,8 +75,8 @@ impl Despan for RawString {
             RawStringInner::Empty | RawStringInner::Explicit(_) => {}
             RawStringInner::Spanned(span) => {
                 *self = RawString::from(input.get(span.clone()).unwrap_or_else(|| {
-                    panic!("span {:?} should be in input:\n```\n{}\n```", span, input)
-                }))
+                    panic!("span {span:?} should be in input:\n```\n{input}\n```")
+                }));
             }
         }
     }
@@ -208,7 +208,7 @@ impl Decor {
         if let Some(prefix) = self.prefix() {
             prefix.encode_with_default(buf, default)
         } else {
-            write!(buf, "{}", default)
+            buf.write_str(default)
         }
     }
 
@@ -216,7 +216,7 @@ impl Decor {
         if let Some(suffix) = self.suffix() {
             suffix.encode_with_default(buf, default)
         } else {
-            write!(buf, "{}", default)
+            buf.write_str(default)
         }
     }
 }

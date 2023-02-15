@@ -461,7 +461,7 @@ fn unary_op(input: Input) -> IResult<Input, Expression> {
     )(input)
 }
 
-fn expr_term<'a>(input: Input<'a>) -> IResult<Input<'a>, Expression> {
+fn expr_term(input: Input) -> IResult<Input, Expression> {
     let (input, ch) = peek(anychar)(input)?;
 
     match ch {
