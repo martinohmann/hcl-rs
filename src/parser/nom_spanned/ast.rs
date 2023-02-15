@@ -9,6 +9,57 @@ use crate::{Identifier, InternalString, Number};
 use std::fmt;
 use std::ops::Range;
 
+macro_rules! forward_decorate_span_impl {
+    ($ty:ident => { $($variant:ident),+ }) => {
+        forward_decorate_impl!($ty => { $($variant),* });
+        forward_span_impl!($ty => { $($variant),* });
+    };
+}
+
+macro_rules! forward_decorate_impl {
+    ($ty:ident => { $($variant:ident),+ }) => {
+        impl Decorate for $ty {
+            fn decor(&self) -> &Decor {
+                match self {
+                    $(
+                        $ty::$variant(v) => v.decor(),
+                    )*
+                }
+            }
+
+            fn decor_mut(&mut self) -> &mut Decor {
+                match self {
+                    $(
+                        $ty::$variant(v) => v.decor_mut(),
+                    )*
+                }
+            }
+        }
+    };
+}
+
+macro_rules! forward_span_impl {
+    ($ty:ident => { $($variant:ident),+ }) => {
+        impl Span for $ty {
+            fn span(&self) -> Option<Range<usize>> {
+                match self {
+                    $(
+                        $ty::$variant(v) => v.span(),
+                    )*
+                }
+            }
+
+            fn set_span(&mut self, span: Range<usize>) {
+                match self {
+                    $(
+                        $ty::$variant(v) => v.set_span(span),
+                    )*
+                }
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Null(Decorated<()>),
@@ -29,6 +80,11 @@ pub enum Expression {
     ForExpr(Box<Decorated<ForExpr>>),
 }
 
+forward_decorate_span_impl!(Expression => {
+    Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+    Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
+});
+
 impl Despan for Expression {
     fn despan(&mut self, input: &str) {
         match self {
@@ -48,94 +104,6 @@ impl Despan for Expression {
             Expression::UnaryOp(op) => op.despan(input),
             Expression::BinaryOp(op) => op.despan(input),
             Expression::Traversal(traversal) => traversal.despan(input),
-        }
-    }
-}
-
-impl Decorate for Expression {
-    fn decor(&self) -> &Decor {
-        match self {
-            Expression::Null(n) => n.decor(),
-            Expression::Bool(b) => b.decor(),
-            Expression::Number(n) => n.decor(),
-            Expression::String(s) => s.decor(),
-            Expression::Array(array) => array.decor(),
-            Expression::Object(object) => object.decor(),
-            Expression::Template(template) => template.decor(),
-            Expression::HeredocTemplate(heredoc) => heredoc.decor(),
-            Expression::Parenthesis(expr) => expr.decor(),
-            Expression::Variable(var) => var.decor(),
-            Expression::ForExpr(expr) => expr.decor(),
-            Expression::Conditional(cond) => cond.decor(),
-            Expression::FuncCall(call) => call.decor(),
-            Expression::UnaryOp(op) => op.decor(),
-            Expression::BinaryOp(op) => op.decor(),
-            Expression::Traversal(traversal) => traversal.decor(),
-        }
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        match self {
-            Expression::Null(n) => n.decor_mut(),
-            Expression::Bool(b) => b.decor_mut(),
-            Expression::Number(n) => n.decor_mut(),
-            Expression::String(s) => s.decor_mut(),
-            Expression::Array(array) => array.decor_mut(),
-            Expression::Object(object) => object.decor_mut(),
-            Expression::Template(template) => template.decor_mut(),
-            Expression::HeredocTemplate(heredoc) => heredoc.decor_mut(),
-            Expression::Parenthesis(expr) => expr.decor_mut(),
-            Expression::Variable(var) => var.decor_mut(),
-            Expression::ForExpr(expr) => expr.decor_mut(),
-            Expression::Conditional(cond) => cond.decor_mut(),
-            Expression::FuncCall(call) => call.decor_mut(),
-            Expression::UnaryOp(op) => op.decor_mut(),
-            Expression::BinaryOp(op) => op.decor_mut(),
-            Expression::Traversal(traversal) => traversal.decor_mut(),
-        }
-    }
-}
-
-impl Span for Expression {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            Expression::Null(n) => n.span(),
-            Expression::Bool(b) => b.span(),
-            Expression::Number(n) => n.span(),
-            Expression::String(s) => s.span(),
-            Expression::Array(array) => array.span(),
-            Expression::Object(object) => object.span(),
-            Expression::Template(template) => template.span(),
-            Expression::HeredocTemplate(heredoc) => heredoc.span(),
-            Expression::Parenthesis(expr) => expr.span(),
-            Expression::Variable(var) => var.span(),
-            Expression::ForExpr(expr) => expr.span(),
-            Expression::Conditional(cond) => cond.span(),
-            Expression::FuncCall(call) => call.span(),
-            Expression::UnaryOp(op) => op.span(),
-            Expression::BinaryOp(op) => op.span(),
-            Expression::Traversal(traversal) => traversal.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            Expression::Null(n) => n.set_span(span),
-            Expression::Bool(b) => b.set_span(span),
-            Expression::Number(n) => n.set_span(span),
-            Expression::String(s) => s.set_span(span),
-            Expression::Array(array) => array.set_span(span),
-            Expression::Object(object) => object.set_span(span),
-            Expression::Template(template) => template.set_span(span),
-            Expression::HeredocTemplate(heredoc) => heredoc.set_span(span),
-            Expression::Parenthesis(expr) => expr.set_span(span),
-            Expression::Variable(var) => var.set_span(span),
-            Expression::ForExpr(expr) => expr.set_span(span),
-            Expression::Conditional(cond) => cond.set_span(span),
-            Expression::FuncCall(call) => call.set_span(span),
-            Expression::UnaryOp(op) => op.set_span(span),
-            Expression::BinaryOp(op) => op.set_span(span),
-            Expression::Traversal(traversal) => traversal.set_span(span),
         }
     }
 }
@@ -363,43 +331,13 @@ pub enum ObjectKey {
     Expression(Expression),
 }
 
+forward_decorate_span_impl!(ObjectKey => { Identifier, Expression });
+
 impl Despan for ObjectKey {
     fn despan(&mut self, input: &str) {
         match self {
             ObjectKey::Identifier(ident) => ident.decor_mut().despan(input),
             ObjectKey::Expression(expr) => expr.despan(input),
-        }
-    }
-}
-
-impl Decorate for ObjectKey {
-    fn decor(&self) -> &Decor {
-        match self {
-            ObjectKey::Identifier(ident) => ident.decor(),
-            ObjectKey::Expression(expr) => expr.decor(),
-        }
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        match self {
-            ObjectKey::Identifier(ident) => ident.decor_mut(),
-            ObjectKey::Expression(expr) => expr.decor_mut(),
-        }
-    }
-}
-
-impl Span for ObjectKey {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            ObjectKey::Identifier(ident) => ident.span(),
-            ObjectKey::Expression(expr) => expr.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            ObjectKey::Identifier(ident) => ident.set_span(span),
-            ObjectKey::Expression(expr) => expr.set_span(span),
         }
     }
 }
@@ -697,6 +635,8 @@ pub enum TraversalOperator {
     LegacyIndex(Decorated<u64>),
 }
 
+forward_decorate_span_impl!(TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex });
+
 impl Despan for TraversalOperator {
     fn despan(&mut self, input: &str) {
         match self {
@@ -706,54 +646,6 @@ impl Despan for TraversalOperator {
             TraversalOperator::GetAttr(ident) => ident.decor_mut().despan(input),
             TraversalOperator::Index(expr) => expr.despan(input),
             TraversalOperator::LegacyIndex(index) => index.decor_mut().despan(input),
-        }
-    }
-}
-
-impl Decorate for TraversalOperator {
-    fn decor(&self) -> &Decor {
-        match self {
-            TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                splat.decor()
-            }
-            TraversalOperator::GetAttr(ident) => ident.decor(),
-            TraversalOperator::Index(expr) => expr.decor(),
-            TraversalOperator::LegacyIndex(index) => index.decor(),
-        }
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        match self {
-            TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                splat.decor_mut()
-            }
-            TraversalOperator::GetAttr(ident) => ident.decor_mut(),
-            TraversalOperator::Index(expr) => expr.decor_mut(),
-            TraversalOperator::LegacyIndex(index) => index.decor_mut(),
-        }
-    }
-}
-
-impl Span for TraversalOperator {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                splat.span()
-            }
-            TraversalOperator::GetAttr(ident) => ident.span(),
-            TraversalOperator::Index(expr) => expr.span(),
-            TraversalOperator::LegacyIndex(index) => index.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                splat.set_span(span);
-            }
-            TraversalOperator::GetAttr(ident) => ident.set_span(span),
-            TraversalOperator::Index(expr) => expr.set_span(span),
-            TraversalOperator::LegacyIndex(index) => index.set_span(span),
         }
     }
 }
@@ -1063,43 +955,13 @@ pub enum Structure {
     Block(Decorated<Block>),
 }
 
+forward_decorate_span_impl!(Structure => { Attribute, Block });
+
 impl Despan for Structure {
     fn despan(&mut self, input: &str) {
         match self {
             Structure::Attribute(attr) => attr.despan(input),
             Structure::Block(block) => block.despan(input),
-        }
-    }
-}
-
-impl Decorate for Structure {
-    fn decor(&self) -> &Decor {
-        match self {
-            Structure::Attribute(attr) => attr.decor(),
-            Structure::Block(block) => block.decor(),
-        }
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        match self {
-            Structure::Attribute(attr) => attr.decor_mut(),
-            Structure::Block(block) => block.decor_mut(),
-        }
-    }
-}
-
-impl Span for Structure {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            Structure::Attribute(attr) => attr.span(),
-            Structure::Block(block) => block.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            Structure::Attribute(attr) => attr.set_span(span),
-            Structure::Block(block) => block.set_span(span),
         }
     }
 }
@@ -1212,43 +1074,13 @@ pub enum BlockLabel {
     String(Decorated<InternalString>),
 }
 
+forward_decorate_span_impl!(BlockLabel => { Identifier, String });
+
 impl Despan for BlockLabel {
     fn despan(&mut self, input: &str) {
         match self {
             BlockLabel::Identifier(ident) => ident.decor_mut().despan(input),
             BlockLabel::String(expr) => expr.decor_mut().despan(input),
-        }
-    }
-}
-
-impl Decorate for BlockLabel {
-    fn decor(&self) -> &Decor {
-        match self {
-            BlockLabel::Identifier(ident) => ident.decor(),
-            BlockLabel::String(expr) => expr.decor(),
-        }
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        match self {
-            BlockLabel::Identifier(ident) => ident.decor_mut(),
-            BlockLabel::String(expr) => expr.decor_mut(),
-        }
-    }
-}
-
-impl Span for BlockLabel {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            BlockLabel::Identifier(ident) => ident.span(),
-            BlockLabel::String(expr) => expr.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            BlockLabel::Identifier(ident) => ident.set_span(span),
-            BlockLabel::String(expr) => expr.set_span(span),
         }
     }
 }
