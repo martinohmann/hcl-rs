@@ -3,7 +3,6 @@ use nom::{
     AsBytes, Compare, CompareResult, Err, ExtendInto, FindSubstring, FindToken, IResult, InputIter,
     InputLength, InputTake, InputTakeAtPosition, Offset, ParseTo, Slice,
 };
-use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, RangeFrom, RangeTo};
 use std::str::FromStr;
@@ -38,7 +37,7 @@ where
 
 impl<T> Located<T>
 where
-    T: Clone + Offset,
+    T: Clone,
 {
     pub fn new(input: T) -> Located<T> {
         let initial = input.clone();
@@ -55,34 +54,52 @@ where
     }
 }
 
-impl<T: Hash> Hash for Located<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+impl<T> Hash for Located<T>
+where
+    T: Hash,
+{
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
         self.initial.hash(state);
         self.input.hash(state);
     }
 }
 
-impl<T: AsBytes + Clone + Offset> From<T> for Located<T> {
+impl<T> From<T> for Located<T>
+where
+    T: Clone,
+{
     fn from(i: T) -> Self {
         Located::new(i)
     }
 }
 
-impl<T: AsBytes + PartialEq> PartialEq for Located<T> {
+impl<T> PartialEq for Located<T>
+where
+    T: PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.initial == other.initial && self.input == other.input
     }
 }
 
-impl<T: AsBytes + Eq> Eq for Located<T> {}
+impl<T> Eq for Located<T> where T: Eq {}
 
-impl<T: AsBytes> AsBytes for Located<T> {
+impl<T> AsBytes for Located<T>
+where
+    T: AsBytes,
+{
     fn as_bytes(&self) -> &[u8] {
         self.input.as_bytes()
     }
 }
 
-impl<T: InputLength> InputLength for Located<T> {
+impl<T> InputLength for Located<T>
+where
+    T: InputLength,
+{
     fn input_len(&self) -> usize {
         self.input.input_len()
     }
@@ -196,21 +213,25 @@ where
     }
 }
 
-impl<A: Compare<B>, B: Into<Located<B>>> Compare<B> for Located<A> {
-    fn compare(&self, t: B) -> CompareResult {
-        self.input.compare(t.into().input)
+impl<T, U> Compare<U> for Located<T>
+where
+    T: AsBytes,
+    U: AsBytes,
+{
+    fn compare(&self, other: U) -> CompareResult {
+        self.input.as_bytes().compare(other.as_bytes())
     }
 
-    fn compare_no_case(&self, t: B) -> CompareResult {
-        self.input.compare_no_case(t.into().input)
+    fn compare_no_case(&self, other: U) -> CompareResult {
+        self.input.as_bytes().compare_no_case(other.as_bytes())
     }
 }
 
-impl<T, R> Slice<R> for Located<T>
+impl<T, U> Slice<U> for Located<T>
 where
-    T: Slice<R> + Offset + Clone,
+    T: Slice<U> + Clone,
 {
-    fn slice(&self, range: R) -> Self {
+    fn slice(&self, range: U) -> Self {
         Located {
             initial: self.initial.clone(),
             input: self.input.slice(range),
@@ -218,7 +239,10 @@ where
     }
 }
 
-impl<T: FindToken<Token>, Token> FindToken<Token> for Located<T> {
+impl<T, Token> FindToken<Token> for Located<T>
+where
+    T: FindToken<Token>,
+{
     fn find_token(&self, token: Token) -> bool {
         self.input.find_token(token)
     }
@@ -233,24 +257,22 @@ where
     }
 }
 
-impl<R: FromStr, T> ParseTo<R> for Located<T>
+impl<T, U> ParseTo<U> for Located<T>
 where
-    T: ParseTo<R>,
+    T: ParseTo<U>,
+    U: FromStr,
 {
-    fn parse_to(&self) -> Option<R> {
+    fn parse_to(&self) -> Option<U> {
         self.input.parse_to()
     }
 }
 
-impl<T: Offset> Offset for Located<T> {
+impl<T> Offset for Located<T>
+where
+    T: Offset,
+{
     fn offset(&self, second: &Self) -> usize {
         self.input.offset(&second.input)
-    }
-}
-
-impl<T: ToString> fmt::Display for Located<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(&self.input.to_string())
     }
 }
 
