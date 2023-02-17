@@ -198,7 +198,7 @@ fn heredoc_content_template<'a>(
     map_res(raw_content, move |raw_content| {
         let content = match strip {
             HeredocStripMode::None => Cow::Borrowed(raw_content),
-            HeredocStripMode::Indent => dedent(raw_content),
+            HeredocStripMode::Indent => dedent(raw_content, false),
         };
 
         let result = all_consuming(heredoc_template(heredoc_end(delim)))(&content);

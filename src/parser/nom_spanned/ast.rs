@@ -5,6 +5,7 @@ use super::repr::{Decor, Decorate, Decorated, Despan, RawString, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
+use crate::util::{dedent_by, min_leading_whitespace};
 use crate::{Identifier, InternalString, Number};
 use std::fmt;
 use std::ops::Range;
@@ -429,7 +430,7 @@ impl From<ObjectKey> for expr::ObjectKey {
 pub struct HeredocTemplate {
     delimiter: Decorated<Identifier>,
     template: Template,
-    strip: HeredocStripMode,
+    indent: Option<usize>,
     trailing: RawString,
     decor: Decor,
     span: Option<Range<usize>>,
@@ -438,15 +439,11 @@ pub struct HeredocTemplate {
 decorate_span_impl!(HeredocTemplate);
 
 impl HeredocTemplate {
-    pub fn new(
-        delimiter: Decorated<Identifier>,
-        strip: HeredocStripMode,
-        template: Template,
-    ) -> HeredocTemplate {
+    pub fn new(delimiter: Decorated<Identifier>, template: Template) -> HeredocTemplate {
         HeredocTemplate {
             delimiter,
             template,
-            strip,
+            indent: None,
             trailing: RawString::default(),
             decor: Decor::default(),
             span: None,
@@ -461,8 +458,16 @@ impl HeredocTemplate {
         &self.template
     }
 
-    pub fn strip(&self) -> HeredocStripMode {
-        self.strip
+    pub fn template_mut(&mut self) -> &mut Template {
+        &mut self.template
+    }
+
+    pub fn indent(&self) -> Option<usize> {
+        self.indent.clone()
+    }
+
+    pub fn set_indent(&mut self, indent: usize) {
+        self.indent = Some(indent);
     }
 
     pub fn trailing(&self) -> &RawString {
@@ -471,6 +476,37 @@ impl HeredocTemplate {
 
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
+    }
+
+    pub fn dedent(&mut self) {
+        let mut indent = usize::MAX;
+        let mut skip_first = false;
+
+        for element in &self.template.elements {
+            match element {
+                Element::Literal(literal) => {
+                    let leading_ws = min_leading_whitespace(literal, skip_first);
+                    indent = indent.min(leading_ws);
+                    skip_first = literal.ends_with('\n');
+                }
+                _other => skip_first = true,
+            }
+        }
+
+        skip_first = false;
+
+        for element in &mut self.template.elements {
+            match element {
+                Element::Literal(literal) => {
+                    let dedented = dedent_by(literal, indent, skip_first);
+                    *literal.as_mut() = dedented.into();
+                    skip_first = literal.ends_with('\n');
+                }
+                _other => skip_first = true,
+            }
+        }
+
+        self.set_indent(indent);
     }
 }
 
@@ -484,10 +520,15 @@ impl Despan for HeredocTemplate {
 
 impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
+        let strip = heredoc
+            .indent
+            .map(|_| HeredocStripMode::Indent)
+            .unwrap_or(HeredocStripMode::None);
+
         expr::Heredoc {
             delimiter: heredoc.delimiter.into_inner(),
             template: heredoc.template.into(),
-            strip: heredoc.strip,
+            strip,
         }
     }
 }

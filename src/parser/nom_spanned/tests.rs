@@ -3,7 +3,7 @@ use super::expr::expr;
 use super::parse_to_end;
 use super::repr::{Decor, Decorate, Decorated, Despan, Span, Spanned};
 use super::structure::body;
-use crate::expr::{HeredocStripMode, Variable};
+use crate::expr::Variable;
 use crate::template::StripMode;
 use crate::{Identifier, InternalString, Number};
 use indoc::indoc;
@@ -177,7 +177,6 @@ fn parse_heredoc() {
         parse_to_end("<<HEREDOC\nHEREDOC", expr),
         Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate::new(
             Decorated::new(Identifier::unchecked("HEREDOC")).spanned(2..9),
-            HeredocStripMode::None,
             Template::default().spanned(10..10),
         ))))
     );
@@ -192,20 +191,19 @@ fn parse_heredoc() {
         ),
         Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate::new(
             Decorated::new(Identifier::unchecked("HEREDOC")).spanned(2..9),
-            HeredocStripMode::None,
             Template::new(vec![
                 Element::Interpolation(
                     Interpolation::new(
                         Expression::Variable(
                             Decorated::new(Variable::unchecked("foo"),)
-                                .spanned(2..5)
+                                .spanned(12..15)
                                 .decorated(("", ""))
                         ),
                         StripMode::None
                     )
-                    .spanned(0..6),
+                    .spanned(10..16),
                 ),
-                Element::Literal(Spanned::new(InternalString::from("bar\n")).spanned(6..10)),
+                Element::Literal(Spanned::new(InternalString::from("bar\n")).spanned(16..20)),
             ])
             .spanned(10..20),
         ))))

@@ -8,35 +8,22 @@ use std::str::Chars;
 // This is how the original HCL spec seems to handle it based on the original specsuite although it
 // is not formally defined. E.g. ' ' (space) and '\u{2003}' (unicode "em-space") are treated as one
 // unit of whitespace even though the former is 1 byte and the latter is 3 bytes long.
-pub fn dedent(s: &str) -> Cow<str> {
-    if s.is_empty() {
+pub(crate) fn dedent(s: &str, skip_first: bool) -> Cow<str> {
+    let min_leading_ws = min_leading_whitespace(s, skip_first);
+
+    if min_leading_ws == 0 {
         return Cow::Borrowed(s);
     }
 
-    let mut leading_ws = usize::MAX;
-    let mut non_empty_lines = 0;
+    dedent_by(s, min_leading_ws, skip_first)
+}
 
-    // Find the minimum number of possible leading units of whitespace that can be be stripped off
-    // of each non-empty line.
-    for line in s.lines().filter(|line| !line.is_empty()) {
-        let line_leading_ws = line.chars().take_while(|ch| ch.is_whitespace()).count();
+pub(crate) fn dedent_by(s: &str, n: usize, skip_first: bool) -> Cow<str> {
+    let mut dedented = String::with_capacity(s.len());
 
-        if line_leading_ws == 0 {
-            // Fast path: no dedent needed if we encounter a non-empty line which starts with a
-            // non-whitespace character.
-            return Cow::Borrowed(s);
-        }
-
-        leading_ws = leading_ws.min(line_leading_ws);
-        non_empty_lines += 1;
-    }
-
-    // Strip the determined amount of leading whitespace off of each line.
-    let mut dedented = String::with_capacity(s.len() - leading_ws * non_empty_lines);
-
-    for line in s.lines() {
-        if !line.is_empty() {
-            dedented.extend(line.chars().skip(leading_ws));
+    for (i, line) in s.lines().enumerate() {
+        if !(i == 0 && skip_first) || !line.is_empty() {
+            dedented.extend(line.chars().skip(n));
         }
 
         dedented.push('\n');
@@ -47,7 +34,63 @@ pub fn dedent(s: &str) -> Cow<str> {
         dedented.truncate(new_len);
     }
 
+    dedented.shrink_to_fit();
+
     Cow::Owned(dedented)
+}
+
+pub(crate) fn min_leading_whitespace(s: &str, skip_first: bool) -> usize {
+    if s.is_empty() {
+        return 0;
+    }
+
+    let mut leading_ws = usize::MAX;
+
+    // Find the minimum number of possible leading units of whitespace that can be be stripped off
+    // of each non-empty line.
+    for (i, line) in s.lines().enumerate() {
+        if (i == 0 && skip_first) || line.is_empty() {
+            continue;
+        }
+
+        let line_leading_ws = line.chars().take_while(|ch| ch.is_whitespace()).count();
+
+        if line_leading_ws == 0 {
+            // Fast path: no dedent needed if we encounter a non-empty line which starts with a
+            // non-whitespace character.
+            return 0;
+        }
+
+        leading_ws = leading_ws.min(line_leading_ws);
+    }
+
+    leading_ws
+}
+
+pub(crate) fn indent_by(s: &str, n: usize, skip_first: bool) -> String {
+    let prefix = " ".repeat(n);
+    let length = s.len();
+    let mut output = String::with_capacity(length + length / 2);
+
+    for (i, line) in s.lines().enumerate() {
+        if i > 0 {
+            output.push('\n');
+
+            if !line.is_empty() {
+                output.push_str(&prefix);
+            }
+        } else if !skip_first && !line.is_empty() {
+            output.push_str(&prefix);
+        }
+
+        output.push_str(line);
+    }
+
+    if s.ends_with('\n') {
+        output.push('\n');
+    }
+
+    output
 }
 
 /// Takes in a string with backslash escapes written out with literal backslash characters and

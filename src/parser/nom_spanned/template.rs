@@ -171,7 +171,7 @@ where
     map(elements(literal), StringTemplate::new)
 }
 
-pub fn quoted_string_template(input: Input) -> IResult<Input, StringTemplate> {
+pub fn string_template(input: Input) -> IResult<Input, StringTemplate> {
     delimited(
         char('"'),
         build_string_template(build_string(string_fragment(string_literal))),
@@ -179,14 +179,6 @@ pub fn quoted_string_template(input: Input) -> IResult<Input, StringTemplate> {
     )(input)
 }
 
-pub fn heredoc_template(input: Input) -> IResult<Input, Template> {
-    build_template(map(literal(alt((tag("${"), tag("%{")))), Into::into))(input)
-}
-
 pub fn template(input: Input) -> IResult<Input, Template> {
-    build_template(build_string(string_fragment(literal(alt((
-        tag("\\"),
-        tag("${"),
-        tag("%{"),
-    ))))))(input)
+    build_template(map(literal(alt((tag("${"), tag("%{")))), Into::into))(input)
 }

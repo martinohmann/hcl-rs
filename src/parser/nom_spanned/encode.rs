@@ -8,8 +8,9 @@ use super::ast::{
 };
 use super::escape::write_escaped;
 use super::repr::{Decorate, Decorated};
-use crate::expr::{HeredocStripMode, Variable};
+use crate::expr::Variable;
 use crate::template::StripMode;
+use crate::util::indent_by;
 use crate::Identifier;
 use std::fmt::{self, Write};
 
@@ -336,13 +337,25 @@ impl Encode for EndforTemplateExpr {
 
 impl Encode for HeredocTemplate {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        match self.strip() {
-            HeredocStripMode::None => buf.write_str("<<")?,
-            HeredocStripMode::Indent => buf.write_str("<<-")?,
+        buf.write_str("<<")?;
+
+        if self.indent().is_some() {
+            buf.write_char('-')?;
         }
 
         writeln!(buf, "{}", self.delimiter().as_str())?;
-        self.template().encode(buf)?;
+
+        match self.indent() {
+            Some(n) => {
+                let mut indent_buf = String::new();
+                let mut indent_state = EncodeState::new(&mut indent_buf, buf.input);
+                self.template().encode(&mut indent_state)?;
+                let indented = indent_by(&indent_buf, n, false);
+                buf.write_str(&indented)?;
+            }
+            None => self.template().encode(buf)?,
+        }
+
         write!(buf, "{}", self.delimiter().as_str())
     }
 }

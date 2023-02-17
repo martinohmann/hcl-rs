@@ -255,7 +255,7 @@ fn heredoc(pair: Pair<Rule>) -> Heredoc {
 
     let mut template = match strip {
         HeredocStripMode::None => string(template),
-        HeredocStripMode::Indent => dedent(template.as_str()).to_string(),
+        HeredocStripMode::Indent => dedent(template.as_str(), false).to_string(),
     };
 
     // Append the trailing newline here. This is easier than doing this in the grammar.

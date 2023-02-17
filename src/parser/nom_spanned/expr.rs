@@ -10,24 +10,21 @@ use super::{
     ident,
     input::Location,
     line_comment, number, prefix_decor, sp, span, spanned, str_ident, string, tag_or_cut,
-    template::{heredoc_template, quoted_string_template},
+    template::{string_template, template},
     with_span, ws, ErrorKind, IResult, Input,
 };
+use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
-use crate::{
-    expr::{BinaryOperator, HeredocStripMode, UnaryOperator, Variable},
-    util::dedent,
-};
+use nom::combinator::map_parser;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char, crlf, line_ending, newline, space0, u64},
-    combinator::{cut, fail, map, map_res, not, opt, peek, recognize, value},
+    combinator::{cut, fail, map, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
-use std::borrow::Cow;
 use std::ops::Range;
 
 fn array(input: Input) -> IResult<Input, Expression> {
@@ -262,66 +259,44 @@ fn parenthesis(input: Input) -> IResult<Input, Expression> {
     delimited(char('('), decor(ws, cut(expr), ws), char_or_cut(')'))(input)
 }
 
-fn heredoc_start(input: Input) -> IResult<Input, (HeredocStripMode, (&str, Range<usize>))> {
+fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
     terminated(
         pair(
-            alt((
-                value(HeredocStripMode::Indent, tag("<<-")),
-                value(HeredocStripMode::None, tag("<<")),
-            )),
+            map(preceded(tag("<<"), opt(char('-'))), |indent| {
+                indent.is_some()
+            }),
             with_span(cut(str_ident)),
         ),
         cut(line_ending),
     )(input)
 }
 
-fn heredoc_content<'a>(
-    strip: HeredocStripMode,
-    delim: &'a str,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template> {
-    map_res(
-        map_res(
-            recognize(pair(
-                many1_count(anychar_except(tuple((line_ending, space0, tag(delim))))),
-                line_ending,
-            )),
-            |s| std::str::from_utf8(s.as_ref()),
-        ),
-        move |input| {
-            let content = match strip {
-                HeredocStripMode::None => Cow::Borrowed(input),
-                HeredocStripMode::Indent => dedent(input),
-            };
-
-            let input = Input::new(content.as_bytes());
-
-            match heredoc_template(input) {
-                Ok((_, template)) => Ok(template),
-                Err(_) => Err(InternalError::new(
-                    content,
-                    ErrorKind::Context("HeredocTemplate"),
-                )),
-            }
-        },
+fn heredoc_content<'a>(delim: &'a str) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template> {
+    map_parser(
+        recognize(pair(
+            many1_count(anychar_except(tuple((line_ending, space0, tag(delim))))),
+            line_ending,
+        )),
+        template,
     )
 }
 
 fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
-    let (input, (strip, (delim, delim_span))) = heredoc_start(input)?;
+    let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
 
     let (input, (template, trailing)) = pair(
-        spanned(map(
-            opt(heredoc_content(strip, delim)),
-            Option::unwrap_or_default,
-        )),
+        spanned(map(opt(heredoc_content(delim)), Option::unwrap_or_default)),
         terminated(span(space0), cut(tag(delim))),
     )(input)?;
 
     let mut heredoc = HeredocTemplate::new(
         Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
-        strip,
         template,
     );
+
+    if indented {
+        heredoc.dedent();
+    }
 
     heredoc.set_trailing(trailing);
 
@@ -459,7 +434,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
     match ch {
         '"' => alt((
             map(string, |s| Expression::String(s.into())),
-            map(quoted_string_template, Expression::Template),
+            map(string_template, Expression::Template),
         ))(input),
         '[' => array(input),
         '{' => object(input),
