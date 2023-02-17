@@ -458,11 +458,11 @@ where
     T: Decorate,
 {
     fn decor(&self) -> &Decor {
-        (&**self).decor()
+        (**self).decor()
     }
 
     fn decor_mut(&mut self) -> &mut Decor {
-        (&mut **self).decor_mut()
+        (**self).decor_mut()
     }
 }
 
@@ -471,11 +471,11 @@ where
     T: Span,
 {
     fn span(&self) -> Option<Range<usize>> {
-        (&**self).span()
+        (**self).span()
     }
 
     fn set_span(&mut self, span: Range<usize>) {
-        (&mut **self).set_span(span);
+        (**self).set_span(span);
     }
 }
 
@@ -484,6 +484,6 @@ where
     T: Despan,
 {
     fn despan(&mut self, input: &str) {
-        (&mut **self).despan(input);
+        (**self).despan(input);
     }
 }

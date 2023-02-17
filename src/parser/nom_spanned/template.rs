@@ -139,8 +139,8 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
 
 fn directive(input: Input) -> IResult<Input, Directive> {
     alt((
-        map(if_directive, |d| Directive::If(d)),
-        map(for_directive, |d| Directive::For(d)),
+        map(if_directive, Directive::If),
+        map(for_directive, Directive::For),
     ))(input)
 }
 

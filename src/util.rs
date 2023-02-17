@@ -22,7 +22,7 @@ pub(crate) fn dedent_by(s: &str, n: usize, skip_first: bool) -> Cow<str> {
     let mut dedented = String::with_capacity(s.len());
 
     for (i, line) in s.lines().enumerate() {
-        if !(i == 0 && skip_first) || !line.is_empty() {
+        if !(line.is_empty() || i == 0 && skip_first) {
             dedented.extend(line.chars().skip(n));
         }
 

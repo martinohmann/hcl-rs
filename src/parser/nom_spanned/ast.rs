@@ -463,7 +463,7 @@ impl HeredocTemplate {
     }
 
     pub fn indent(&self) -> Option<usize> {
-        self.indent.clone()
+        self.indent
     }
 
     pub fn set_indent(&mut self, indent: usize) {
@@ -522,8 +522,7 @@ impl From<HeredocTemplate> for expr::Heredoc {
     fn from(heredoc: HeredocTemplate) -> Self {
         let strip = heredoc
             .indent
-            .map(|_| HeredocStripMode::Indent)
-            .unwrap_or(HeredocStripMode::None);
+            .map_or(HeredocStripMode::None, |_| HeredocStripMode::Indent);
 
         expr::Heredoc {
             delimiter: heredoc.delimiter.into_inner(),
