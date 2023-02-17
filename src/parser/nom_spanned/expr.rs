@@ -34,12 +34,8 @@ fn array(input: Input) -> IResult<Input, Expression> {
     delimited(
         char('['),
         alt((
-            map(for_list_expr, |expr| {
-                Expression::ForExpr(Box::new(expr.into()))
-            }),
-            map(array_items, |array| {
-                Expression::Array(Box::new(array.into()))
-            }),
+            map(for_list_expr, |expr| Expression::ForExpr(Box::new(expr))),
+            map(array_items, |array| Expression::Array(Box::new(array))),
         )),
         char_or_cut(']'),
     )(input)
@@ -88,12 +84,8 @@ fn object(input: Input) -> IResult<Input, Expression> {
     delimited(
         char('{'),
         alt((
-            map(for_object_expr, |expr| {
-                Expression::ForExpr(Box::new(expr.into()))
-            }),
-            map(object_items, |object| {
-                Expression::Object(Box::new(object.into()))
-            }),
+            map(for_object_expr, |expr| Expression::ForExpr(Box::new(expr))),
+            map(object_items, |object| Expression::Object(Box::new(object))),
         )),
         char_or_cut('}'),
     )(input)
@@ -107,7 +99,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
         let start = remaining_input.location();
 
         let (input, mut item) = match object_item(remaining_input) {
-            Ok((input, item)) => (input, Spanned::new(item)),
+            Ok((input, item)) => (input, item),
             Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
             Err(err) => {
                 // Consume all trailing whitespace and look for the closing brace, otherwise
@@ -177,7 +169,7 @@ fn object_key(input: Input) -> IResult<Input, ObjectKey> {
             // avoids re-parsing the whole key-value pair when an identifier followed by a
             // traversal operator is encountered.
             if let Expression::Variable(variable) = expr {
-                ObjectKey::Identifier(Decorated::new(variable.inner_into()))
+                ObjectKey::Identifier(Decorated::new(variable.into_inner().into()))
             } else {
                 ObjectKey::Expression(expr)
             }
@@ -234,7 +226,7 @@ fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     )(input)
 }
 
-fn for_intro(input: Input) -> IResult<Input, Decorated<ForIntro>> {
+fn for_intro(input: Input) -> IResult<Input, ForIntro> {
     prefix_decor(
         ws,
         map(
@@ -259,7 +251,7 @@ fn for_intro(input: Input) -> IResult<Input, Decorated<ForIntro>> {
     )(input)
 }
 
-fn for_cond(input: Input) -> IResult<Input, Decorated<ForCond>> {
+fn for_cond(input: Input) -> IResult<Input, ForCond> {
     prefix_decor(
         ws,
         map(preceded(tag("if"), decor(ws, cut(expr), ws)), ForCond::new),
@@ -326,7 +318,7 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     )(input)?;
 
     let mut heredoc = HeredocTemplate::new(
-        Decorated::with_span(Identifier::unchecked(delim), delim_span),
+        Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
         strip,
         template,
     );
@@ -377,9 +369,9 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
         pair(with_span(str_ident), opt(prefix_decor(ws, func_sig))),
         |((ident, span), signature)| match signature {
             Some(signature) => {
-                let name = Decorated::with_span(Identifier::unchecked(ident), span);
+                let name = Decorated::new(Identifier::unchecked(ident)).spanned(span);
                 let func_call = FuncCall::new(name, signature);
-                Expression::FuncCall(Box::new(func_call.into()))
+                Expression::FuncCall(Box::new(func_call))
             }
             None => match ident {
                 "null" => Expression::Null(().into()),
@@ -457,7 +449,7 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
 fn unary_op(input: Input) -> IResult<Input, Expression> {
     map(
         pair(spanned(unary_operator), prefix_decor(sp, expr_term)),
-        |(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr).into())),
+        |(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr))),
     )(input)
 }
 
@@ -467,13 +459,13 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
     match ch {
         '"' => alt((
             map(string, |s| Expression::String(s.into())),
-            map(quoted_string_template, |t| Expression::Template(t.into())),
+            map(quoted_string_template, Expression::Template),
         ))(input),
         '[' => array(input),
         '{' => object(input),
         '0'..='9' => map(number, |n| Expression::Number(n.into()))(input),
         '<' => map(heredoc, |heredoc| {
-            Expression::HeredocTemplate(Box::new(heredoc.into()))
+            Expression::HeredocTemplate(Box::new(heredoc))
         })(input),
         '-' => alt((
             map(preceded(pair(char('-'), sp), number), |n| {
@@ -518,8 +510,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
                 Some((operators, span)) => {
                     expr.set_span(start..end);
 
-                    let expr =
-                        Expression::Traversal(Box::new(Traversal::new(expr, operators).into()));
+                    let expr = Expression::Traversal(Box::new(Traversal::new(expr, operators)));
 
                     (expr, span.end)
                 }
@@ -530,9 +521,8 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
                 Some(((operator, rhs_expr), span)) => {
                     expr.set_span(start..end);
 
-                    let expr = Expression::BinaryOp(Box::new(
-                        BinaryOp::new(expr, operator, rhs_expr).into(),
-                    ));
+                    let expr =
+                        Expression::BinaryOp(Box::new(BinaryOp::new(expr, operator, rhs_expr)));
 
                     (expr, span.end)
                 }
@@ -551,9 +541,7 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
                     expr.decor_mut().set_suffix(suffix_start..suffix_span.end);
                     expr.set_span(start..end);
 
-                    Expression::Conditional(Box::new(
-                        Conditional::new(expr, true_expr, false_expr).into(),
-                    ))
+                    Expression::Conditional(Box::new(Conditional::new(expr, true_expr, false_expr)))
                 }
                 None => expr,
             }

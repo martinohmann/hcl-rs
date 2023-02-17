@@ -1,8 +1,7 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
-use super::repr::{Decorate, Decorated};
 use super::{
-    char_or_cut, decor, expr::expr, ident, prefix_decor, sp, span, spc, string, suffix_decor, ws,
-    IResult, Input,
+    char_or_cut, decor, decor_boxed, expr::expr, ident, prefix_decor, sp, span, spc, string,
+    suffix_decor, ws, IResult, Input,
 };
 use nom::{
     branch::alt,
@@ -31,16 +30,14 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
         alt((
             // Multiline block.
             map(
-                pair(terminated(span(spc), line_trailing), body),
-                |(prefix_span, mut body)| {
-                    body.decor_mut().set_prefix(prefix_span);
-                    BlockBody::Multiline(body)
-                },
+                decor_boxed(spc, preceded(line_ending, structures), ws),
+                BlockBody::Multiline,
             ),
             // One-line block.
-            map(decor(sp, cut(single_attribute), sp), |attr| {
-                BlockBody::Oneline(Box::new(attr))
-            }),
+            map(
+                decor_boxed(sp, cut(single_attribute), sp),
+                BlockBody::Oneline,
+            ),
             // Empty block.
             map(span(sp), |span| BlockBody::Empty(span.into())),
         )),
@@ -71,23 +68,21 @@ fn structure(input: Input) -> IResult<Input, Structure> {
         let (input, expr) = attribute_expr(input)?;
         Ok((
             input,
-            Structure::Attribute(Attribute::new(ident, expr).into()),
+            Structure::Attribute(Box::new(Attribute::new(ident, expr))),
         ))
     } else {
         let (input, (labels, body)) = block_parts(input)?;
         Ok((
             input,
-            Structure::Block(Block::new_with_labels(ident, labels, body).into()),
+            Structure::Block(Box::new(Block::new_with_labels(ident, labels, body))),
         ))
     }
 }
 
-pub fn body(input: Input) -> IResult<Input, Decorated<Body>> {
-    suffix_decor(
-        map(
-            many0(terminated(decor(ws, structure, spc), line_trailing)),
-            Body::new,
-        ),
-        ws,
-    )(input)
+fn structures(input: Input) -> IResult<Input, Vec<Structure>> {
+    many0(terminated(decor(ws, structure, spc), line_trailing))(input)
+}
+
+pub fn body(input: Input) -> IResult<Input, Body> {
+    suffix_decor(structures, ws)(input)
 }

@@ -233,10 +233,29 @@ impl Despan for Decor {
     }
 }
 
+impl<P, S> From<(P, S)> for Decor
+where
+    P: Into<RawString>,
+    S: Into<RawString>,
+{
+    fn from((prefix, suffix): (P, S)) -> Self {
+        Decor::new(prefix, suffix)
+    }
+}
+
 pub trait Span {
     fn span(&self) -> Option<Range<usize>>;
     #[doc(hidden)]
     fn set_span(&mut self, span: Range<usize>);
+
+    #[doc(hidden)]
+    fn spanned(mut self, span: Range<usize>) -> Self
+    where
+        Self: Sized,
+    {
+        self.set_span(span);
+        self
+    }
 }
 
 pub(crate) trait Despan {
@@ -246,6 +265,18 @@ pub(crate) trait Despan {
 pub trait Decorate {
     fn decor(&self) -> &Decor;
     fn decor_mut(&mut self) -> &mut Decor;
+
+    fn decorate(&mut self, decor: impl Into<Decor>) {
+        *self.decor_mut() = decor.into();
+    }
+
+    fn decorated(mut self, decor: impl Into<Decor>) -> Self
+    where
+        Self: Sized,
+    {
+        self.decorate(decor);
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -259,22 +290,8 @@ impl<T> Spanned<T> {
         Spanned { inner, span: None }
     }
 
-    pub(crate) fn with_span(inner: T, span: Range<usize>) -> Spanned<T> {
-        Spanned {
-            inner,
-            span: Some(span),
-        }
-    }
-
     pub fn into_inner(self) -> T {
         self.inner
-    }
-
-    pub fn inner_into<U>(self) -> U
-    where
-        T: Into<U>,
-    {
-        self.inner.into()
     }
 }
 
@@ -357,31 +374,8 @@ impl<T> Decorated<T> {
         }
     }
 
-    pub(crate) fn with_span(inner: T, span: Range<usize>) -> Decorated<T> {
-        Decorated {
-            inner,
-            decor: Decor::default(),
-            span: Some(span),
-        }
-    }
-
-    pub(crate) fn with_span_decor(inner: T, span: Range<usize>, decor: Decor) -> Decorated<T> {
-        Decorated {
-            inner,
-            decor,
-            span: Some(span),
-        }
-    }
-
     pub fn into_inner(self) -> T {
         self.inner
-    }
-
-    pub fn inner_into<U>(self) -> U
-    where
-        T: Into<U>,
-    {
-        self.inner.into()
     }
 }
 
@@ -456,5 +450,40 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f, None);
         self.encode_decorated(&mut state, NO_DECOR)
+    }
+}
+
+impl<T> Decorate for Box<T>
+where
+    T: Decorate,
+{
+    fn decor(&self) -> &Decor {
+        (&**self).decor()
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        (&mut **self).decor_mut()
+    }
+}
+
+impl<T> Span for Box<T>
+where
+    T: Span,
+{
+    fn span(&self) -> Option<Range<usize>> {
+        (&**self).span()
+    }
+
+    fn set_span(&mut self, span: Range<usize>) {
+        (&mut **self).set_span(span);
+    }
+}
+
+impl<T> Despan for Box<T>
+where
+    T: Despan,
+{
+    fn despan(&mut self, input: &str) {
+        (&mut **self).despan(input);
     }
 }

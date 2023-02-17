@@ -14,7 +14,7 @@ pub use self::ast::*;
 pub use self::error::{Error, ErrorKind, ParseResult};
 use self::error::{IResult, InternalError};
 use self::input::{Input, Location};
-use self::repr::{Decorate, Decorated, Span};
+use self::repr::{Decorate, Span};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, InternalString, Number};
@@ -74,12 +74,12 @@ use std::str::FromStr;
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
-    parse_raw(input).map(|node| node.into_inner().into())
+    parse_raw(input).map(Into::into)
 }
 
 #[allow(missing_docs)]
 #[allow(clippy::missing_errors_doc)]
-pub fn parse_raw(input: &str) -> ParseResult<Decorated<Body>> {
+pub fn parse_raw(input: &str) -> ParseResult<Body> {
     parse_to_end(input, body)
 }
 
@@ -276,6 +276,30 @@ where
             decor.set_suffix(suffix_span);
             value.set_span(span);
             value
+        },
+    )
+}
+
+fn decor_boxed<'a, F, G, H, O1, O2, O3, T>(
+    prefix: F,
+    inner: G,
+    suffix: H,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Box<T>>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
+    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
+    H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
+    T: From<O2> + Decorate + Span,
+{
+    map(
+        tuple((span(prefix), with_span(inner), span(suffix))),
+        |(prefix_span, (value, span), suffix_span)| {
+            let mut value = T::from(value);
+            let decor = value.decor_mut();
+            decor.set_prefix(prefix_span);
+            decor.set_suffix(suffix_span);
+            value.set_span(span);
+            Box::new(value)
         },
     )
 }

@@ -2,6 +2,7 @@ use super::ast::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, Template,
 };
+use super::StringTemplate;
 use super::{
     build_string, char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment,
     string_literal, tag_or_cut, ws, IResult, Input,
@@ -138,29 +139,42 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
 
 fn directive(input: Input) -> IResult<Input, Directive> {
     alt((
-        map(if_directive, |d| Directive::If(d.into())),
-        map(for_directive, |d| Directive::For(d.into())),
+        map(if_directive, |d| Directive::If(d)),
+        map(for_directive, |d| Directive::For(d)),
     ))(input)
+}
+
+fn elements<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Vec<Element>>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>,
+{
+    many0(spanned(alt((
+        map(literal, |s| Element::Literal(s.into())),
+        map(interpolation, Element::Interpolation),
+        map(directive, Element::Directive),
+    ))))
 }
 
 fn build_template<'a, F>(literal: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Template>
 where
     F: FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>,
 {
-    map(
-        many0(spanned(alt((
-            map(literal, |s| Element::Literal(s.into())),
-            map(interpolation, |i| Element::Interpolation(i.into())),
-            map(directive, Element::Directive),
-        )))),
-        Template::new,
-    )
+    map(elements(literal), Template::new)
 }
 
-pub fn quoted_string_template(input: Input) -> IResult<Input, Template> {
+fn build_string_template<'a, F>(
+    literal: F,
+) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, StringTemplate>
+where
+    F: FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>,
+{
+    map(elements(literal), StringTemplate::new)
+}
+
+pub fn quoted_string_template(input: Input) -> IResult<Input, StringTemplate> {
     delimited(
         char('"'),
-        build_template(build_string(string_fragment(string_literal))),
+        build_string_template(build_string(string_fragment(string_literal))),
         char('"'),
     )(input)
 }

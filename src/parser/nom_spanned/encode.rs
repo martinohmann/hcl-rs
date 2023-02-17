@@ -3,7 +3,7 @@ use super::ast::{
     Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForCond,
     ForDirective, ForExpr, ForIntro, ForTemplateExpr, FuncCall, FuncSig, HeredocTemplate,
     IfDirective, IfTemplateExpr, Interpolation, Object, ObjectItem, ObjectKey,
-    ObjectKeyValueSeparator, ObjectValueTerminator, Structure, Template, Traversal,
+    ObjectKeyValueSeparator, ObjectValueTerminator, StringTemplate, Structure, Template, Traversal,
     TraversalOperator, UnaryOp,
 };
 use super::escape::write_escaped;
@@ -74,6 +74,15 @@ impl<'a> fmt::Write for EncodeState<'a> {
     }
 }
 
+impl<T> EncodeDecorated for T
+where
+    T: Decorate + Encode,
+{
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
+        encode_decorated(self, buf, default_decor, |buf| self.encode(buf))
+    }
+}
+
 impl<T> EncodeDecorated for Decorated<T>
 where
     T: Encode,
@@ -104,7 +113,7 @@ impl EncodeDecorated for Expression {
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
             Expression::Template(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
-                buf.escaped(|buf| v.as_ref().encode(buf))?;
+                buf.escaped(|buf| v.encode(buf))?;
                 buf.write_char('"')
             }),
             Expression::HeredocTemplate(v) => v.encode_decorated(buf, default_decor),
@@ -193,6 +202,16 @@ impl EncodeDecorated for ObjectKey {
             ObjectKey::Identifier(ident) => ident.encode_decorated(buf, default_decor),
             ObjectKey::Expression(expr) => expr.encode_decorated(buf, default_decor),
         }
+    }
+}
+
+impl Encode for StringTemplate {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        for element in self.elements().iter() {
+            element.encode(buf)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -544,9 +563,9 @@ impl Encode for BlockBody {
         buf.write_char('{')?;
 
         match self {
-            BlockBody::Multiline(body) => encode_decorated(body, buf, NO_DECOR, |buf| {
+            BlockBody::Multiline(body) => encode_decorated(body.as_ref(), buf, NO_DECOR, |buf| {
                 buf.write_char('\n')?;
-                body.as_ref().encode(buf)
+                body.encode(buf)
             })?,
             BlockBody::Oneline(attr) => attr.encode_decorated(buf, BOTH_SPACE_DECOR)?,
             BlockBody::Empty(raw) => raw.encode_with_default(buf, "")?,

@@ -1,7 +1,7 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorated, Despan, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, Span, Spanned};
 use super::structure::body;
 use crate::expr::{HeredocStripMode, Variable};
 use crate::template::StripMode;
@@ -51,38 +51,31 @@ fn parse_number() {
 fn parse_conditional() {
     assert_eq!(
         parse_to_end("var.enabled ? 1 : 0", expr),
-        Ok(Expression::Conditional(Box::new(Decorated::new(
-            Conditional::new(
-                Expression::Traversal(Box::new(Decorated::with_span_decor(
-                    Traversal::new(
-                        Expression::Variable(Decorated::with_span(
-                            Variable::unchecked("var"),
-                            0..3
-                        )),
-                        vec![Decorated::with_span_decor(
-                            TraversalOperator::GetAttr(Decorated::with_span_decor(
-                                Identifier::unchecked("enabled"),
-                                4..11,
-                                Decor::from_prefix("")
-                            )),
-                            3..11,
-                            Decor::from_prefix("")
-                        )]
-                    ),
-                    0..11,
-                    Decor::from_suffix(11..12),
-                ))),
-                Expression::Number(Decorated::with_span_decor(
-                    1.into(),
-                    14..15,
-                    Decor::new(13..14, 15..16)
-                )),
-                Expression::Number(Decorated::with_span_decor(
-                    0.into(),
-                    18..19,
-                    Decor::from_prefix(17..18)
-                )),
-            )
+        Ok(Expression::Conditional(Box::new(Conditional::new(
+            Expression::Traversal(Box::new(
+                Traversal::new(
+                    Expression::Variable(Decorated::new(Variable::unchecked("var")).spanned(0..3)),
+                    vec![Decorated::new(TraversalOperator::GetAttr(
+                        Decorated::new(Identifier::unchecked("enabled"))
+                            .spanned(4..11)
+                            .decorated(Decor::from_prefix(""))
+                    ))
+                    .spanned(3..11)
+                    .decorated(Decor::from_prefix(""))]
+                )
+                .spanned(0..11)
+                .decorated(Decor::from_suffix(11..12)),
+            )),
+            Expression::Number(
+                Decorated::new(Number::from(1))
+                    .spanned(14..15)
+                    .decorated(Decor::new(13..14, 15..16))
+            ),
+            Expression::Number(
+                Decorated::new(Number::from(0))
+                    .spanned(18..19)
+                    .decorated(Decor::from_prefix(17..18))
+            ),
         ))))
     );
 }
@@ -91,26 +84,22 @@ fn parse_conditional() {
 fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
-        Ok(Expression::Array(Box::new(Decorated::new(Array::new(
-            vec![
-                Expression::String(Decorated::with_span_decor(
-                    "bar".into(),
-                    1..6,
-                    Decor::new("", "")
-                )),
-                Expression::Array(Box::new({
-                    Decorated::with_span_decor(
-                        Array::new(vec![Expression::String(Decorated::with_span_decor(
-                            "baz".into(),
-                            9..14,
-                            Decor::new("", ""),
-                        ))]),
-                        8..15,
-                        Decor::new(7..8, ""),
-                    )
-                })),
-            ]
-        )))))
+        Ok(Expression::Array(Box::new(Array::new(vec![
+            Expression::String(
+                Decorated::new(InternalString::from("bar"))
+                    .spanned(1..6)
+                    .decorated(Decor::new("", ""))
+            ),
+            Expression::Array(Box::new(
+                Array::new(vec![Expression::String(
+                    Decorated::new(InternalString::from("baz"))
+                        .spanned(9..14)
+                        .decorated(("", ""))
+                )])
+                .spanned(8..15)
+                .decorated((7..8, ""))
+            ))
+        ]))))
     );
 }
 
@@ -121,38 +110,38 @@ fn parse_object() {
         Ok(Expression::Object(Box::new({
             let mut object = Object::new(vec![
                 {
-                    let mut item = Spanned::new(ObjectItem::new(
-                        ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
-                            "bar".into(),
-                            1..6,
-                            Decor::new("", 6..7),
-                        ))),
-                        Expression::String(Decorated::with_span_decor(
-                            "baz".into(),
-                            9..14,
-                            Decor::new(8..9, ""),
+                    let mut item = ObjectItem::new(
+                        ObjectKey::Expression(Expression::String(
+                            Decorated::new(InternalString::from("bar"))
+                                .spanned(1..6)
+                                .decorated(Decor::new("", 6..7)),
                         )),
-                    ));
+                        Expression::String(
+                            Decorated::new(InternalString::from("baz"))
+                                .spanned(9..14)
+                                .decorated(Decor::new(8..9, "")),
+                        ),
+                    )
+                    .spanned(1..15);
                     item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
                     item.set_value_terminator(ObjectValueTerminator::Comma);
-                    item.set_span(1..15);
                     item
                 },
                 {
-                    let mut item = Spanned::new(ObjectItem::new(
-                        ObjectKey::Expression(Expression::String(Decorated::with_span_decor(
-                            "qux".into(),
-                            16..21,
-                            Decor::new(15..16, ""),
-                        ))),
-                        Expression::Variable(Decorated::with_span_decor(
-                            Variable::unchecked("ident"),
-                            23..28,
-                            Decor::new(22..23, 28..40),
+                    let mut item = ObjectItem::new(
+                        ObjectKey::Expression(Expression::String(
+                            Decorated::new(InternalString::from("qux"))
+                                .spanned(16..21)
+                                .decorated(Decor::new(15..16, "")),
                         )),
-                    ));
+                        Expression::Variable(
+                            Decorated::new(Variable::unchecked("ident"))
+                                .spanned(23..28)
+                                .decorated(Decor::new(22..23, 28..40)),
+                        ),
+                    )
+                    .spanned(15..41);
                     item.set_value_terminator(ObjectValueTerminator::Newline);
-                    item.set_span(15..41);
                     item
                 },
             ]);
@@ -186,12 +175,10 @@ fn parse_object() {
 fn parse_heredoc() {
     assert_eq!(
         parse_to_end("<<HEREDOC\nHEREDOC", expr),
-        Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
-            HeredocTemplate::new(
-                Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
-                HeredocStripMode::None,
-                Spanned::with_span(Template::default(), 10..10),
-            )
+        Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate::new(
+            Decorated::new(Identifier::unchecked("HEREDOC")).spanned(2..9),
+            HeredocStripMode::None,
+            Template::default().spanned(10..10),
         ))))
     );
 
@@ -203,28 +190,24 @@ fn parse_heredoc() {
                 HEREDOC"#},
             expr,
         ),
-        Ok(Expression::HeredocTemplate(Box::new(Decorated::new(
-            HeredocTemplate::new(
-                Decorated::with_span(Identifier::unchecked("HEREDOC"), 2..9),
-                HeredocStripMode::None,
-                Spanned::with_span(
-                    Template::new(vec![
-                        Element::Interpolation(Spanned::with_span(
-                            Interpolation::new(
-                                Expression::Variable(Decorated::with_span_decor(
-                                    Variable::unchecked("foo"),
-                                    2..5,
-                                    Decor::new("", ""),
-                                )),
-                                StripMode::None
-                            ),
-                            0..6
-                        )),
-                        Element::Literal(Spanned::with_span(InternalString::from("bar\n"), 6..10)),
-                    ],),
-                    10..20,
+        Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate::new(
+            Decorated::new(Identifier::unchecked("HEREDOC")).spanned(2..9),
+            HeredocStripMode::None,
+            Template::new(vec![
+                Element::Interpolation(
+                    Interpolation::new(
+                        Expression::Variable(
+                            Decorated::new(Variable::unchecked("foo"),)
+                                .spanned(2..5)
+                                .decorated(("", ""))
+                        ),
+                        StripMode::None
+                    )
+                    .spanned(0..6),
                 ),
-            )
+                Element::Literal(Spanned::new(InternalString::from("bar\n")).spanned(6..10)),
+            ])
+            .spanned(10..20),
         ))))
     );
 }
