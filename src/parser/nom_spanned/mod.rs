@@ -280,30 +280,6 @@ where
     )
 }
 
-fn decor_boxed<'a, F, G, H, O1, O2, O3, T>(
-    prefix: F,
-    inner: G,
-    suffix: H,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Box<T>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, O1>,
-    G: FnMut(Input<'a>) -> IResult<Input<'a>, O2>,
-    H: FnMut(Input<'a>) -> IResult<Input<'a>, O3>,
-    T: From<O2> + Decorate + Span,
-{
-    map(
-        tuple((span(prefix), with_span(inner), span(suffix))),
-        |(prefix_span, (value, span), suffix_span)| {
-            let mut value = T::from(value);
-            let decor = value.decor_mut();
-            decor.set_prefix(prefix_span);
-            decor.set_suffix(suffix_span);
-            value.set_span(span);
-            Box::new(value)
-        },
-    )
-}
-
 fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
     let parse_hex = verify(
         take_while_m_n(1, N, |c: u8| c.is_ascii_hexdigit()),

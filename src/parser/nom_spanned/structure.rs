@@ -1,7 +1,7 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::{
-    char_or_cut, decor, decor_boxed, expr::expr, ident, prefix_decor, sp, span, spc, string,
-    suffix_decor, ws, IResult, Input,
+    char_or_cut, decor, expr::expr, ident, prefix_decor, sp, span, spc, string, suffix_decor, ws,
+    IResult, Input,
 };
 use nom::{
     branch::alt,
@@ -20,7 +20,7 @@ fn attribute_expr(input: Input) -> IResult<Input, Expression> {
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
-    let single_attribute = map(
+    let attribute = map(
         pair(suffix_decor(ident, sp), attribute_expr),
         |(key, expr)| Attribute::new(key, expr),
     );
@@ -30,14 +30,11 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
         alt((
             // Multiline block.
             map(
-                decor_boxed(spc, preceded(line_ending, structures), ws),
+                prefix_decor(spc, preceded(line_ending, body)),
                 BlockBody::Multiline,
             ),
             // One-line block.
-            map(
-                decor_boxed(sp, cut(single_attribute), sp),
-                BlockBody::Oneline,
-            ),
+            map(decor(sp, cut(attribute), sp), BlockBody::Oneline),
             // Empty block.
             map(span(sp), |span| BlockBody::Empty(span.into())),
         )),
@@ -79,10 +76,9 @@ fn structure(input: Input) -> IResult<Input, Structure> {
     }
 }
 
-fn structures(input: Input) -> IResult<Input, Vec<Structure>> {
-    many0(terminated(decor(ws, structure, spc), line_trailing))(input)
-}
-
 pub fn body(input: Input) -> IResult<Input, Body> {
-    suffix_decor(structures, ws)(input)
+    suffix_decor(
+        many0(terminated(decor(ws, structure, spc), line_trailing)),
+        ws,
+    )(input)
 }
