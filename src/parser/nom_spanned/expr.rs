@@ -15,12 +15,11 @@ use super::{
 };
 use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
-use nom::combinator::map_parser;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char, crlf, line_ending, newline, space0, u64},
-    combinator::{cut, fail, map, not, opt, peek, recognize, value},
+    combinator::{cut, fail, map, map_parser, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
@@ -304,39 +303,39 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
 }
 
 fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
-    context(
-        "TraversalOperator",
-        alt((
-            preceded(
-                char('.'),
-                prefix_decor(
-                    ws,
-                    preceded(
-                        // Must not match `for` object value grouping or func call expand final which
-                        // are both `...`.
-                        not(char('.')),
-                        cut(alt((
-                            value(TraversalOperator::AttrSplat(Decorated::new(())), char('*')),
-                            map(ident, |ident| TraversalOperator::GetAttr(ident.into())),
-                            map(u64, |index| TraversalOperator::LegacyIndex(index.into())),
-                        ))),
-                    ),
-                ),
-            ),
-            delimited(
-                char('['),
-                decor(
-                    ws,
+    let (input, ch) = peek(anychar)(input)?;
+
+    match ch {
+        '.' => preceded(
+            char('.'),
+            prefix_decor(
+                ws,
+                preceded(
+                    // Must not match `for` object value grouping or func call expand final which
+                    // are both `...`.
+                    not(char('.')),
                     cut(alt((
-                        value(TraversalOperator::FullSplat(Decorated::new(())), char('*')),
-                        map(expr, TraversalOperator::Index),
+                        value(TraversalOperator::AttrSplat(Decorated::new(())), char('*')),
+                        map(ident, |ident| TraversalOperator::GetAttr(ident.into())),
+                        map(u64, |index| TraversalOperator::LegacyIndex(index.into())),
                     ))),
-                    ws,
                 ),
-                char_or_cut(']'),
             ),
-        )),
-    )(input)
+        )(input),
+        '[' => delimited(
+            char('['),
+            decor(
+                ws,
+                cut(alt((
+                    value(TraversalOperator::FullSplat(Decorated::new(())), char('*')),
+                    map(expr, TraversalOperator::Index),
+                ))),
+                ws,
+            ),
+            char_or_cut(']'),
+        )(input),
+        _ => fail(input),
+    }
 }
 
 fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
@@ -393,39 +392,29 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
     )(input)
 }
 
-fn unary_operator(input: Input) -> IResult<Input, Spanned<UnaryOperator>> {
-    map(
-        alt((
-            value(UnaryOperator::Neg, char('-')),
-            value(UnaryOperator::Not, char('!')),
-        )),
-        Spanned::new,
-    )(input)
-}
-
 fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
-    alt((
-        value(BinaryOperator::Eq, tag("==")),
-        value(BinaryOperator::NotEq, tag("!=")),
-        value(BinaryOperator::LessEq, tag("<=")),
-        value(BinaryOperator::GreaterEq, tag(">=")),
-        value(BinaryOperator::Less, char('<')),
-        value(BinaryOperator::Greater, char('>')),
-        value(BinaryOperator::Plus, char('+')),
-        value(BinaryOperator::Minus, char('-')),
-        value(BinaryOperator::Mul, char('*')),
-        value(BinaryOperator::Div, char('/')),
-        value(BinaryOperator::Mod, char('%')),
-        value(BinaryOperator::And, tag("&&")),
-        value(BinaryOperator::Or, tag("||")),
-    ))(input)
-}
+    let (input, ch) = peek(anychar)(input)?;
 
-fn unary_op(input: Input) -> IResult<Input, Expression> {
-    map(
-        pair(spanned(unary_operator), prefix_decor(sp, expr_term)),
-        |(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr))),
-    )(input)
+    match ch {
+        '=' => value(BinaryOperator::Eq, tag("=="))(input),
+        '!' => value(BinaryOperator::NotEq, tag("!="))(input),
+        '<' => alt((
+            value(BinaryOperator::LessEq, tag("<=")),
+            value(BinaryOperator::Less, char('<')),
+        ))(input),
+        '>' => alt((
+            value(BinaryOperator::GreaterEq, tag(">=")),
+            value(BinaryOperator::Greater, char('>')),
+        ))(input),
+        '+' => value(BinaryOperator::Plus, char('+'))(input),
+        '-' => value(BinaryOperator::Minus, char('-'))(input),
+        '*' => value(BinaryOperator::Mul, char('*'))(input),
+        '/' => value(BinaryOperator::Div, char('/'))(input),
+        '%' => value(BinaryOperator::Mod, char('%'))(input),
+        '&' => value(BinaryOperator::And, tag("&&"))(input),
+        '|' => value(BinaryOperator::Or, tag("||"))(input),
+        _ => fail(input),
+    }
 }
 
 fn expr_term(input: Input) -> IResult<Input, Expression> {
@@ -446,9 +435,21 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
             map(preceded(pair(char('-'), sp), number), |n| {
                 Expression::Number((-n).into())
             }),
-            unary_op,
+            map(
+                pair(
+                    spanned(value(UnaryOperator::Neg, char('-'))),
+                    prefix_decor(sp, expr_term),
+                ),
+                |(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr))),
+            ),
         ))(input),
-        '!' => unary_op(input),
+        '!' => map(
+            pair(
+                spanned(value(UnaryOperator::Not, char('!'))),
+                prefix_decor(sp, expr_term),
+            ),
+            |(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr))),
+        )(input),
         '(' => map(parenthesis, |expr| {
             Expression::Parenthesis(Box::new(expr.into()))
         })(input),
