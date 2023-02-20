@@ -3,7 +3,7 @@ use super::ast::{
     HeredocTemplate, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
     Template, Traversal, TraversalOperator, UnaryOp,
 };
-use super::repr::{Decorate, Decorated, Span, Spanned};
+use super::repr::{Decorate, Decorated, Span};
 use super::{
     anychar_except, char_or_cut, decor,
     error::InternalError,

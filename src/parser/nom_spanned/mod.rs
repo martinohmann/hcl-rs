@@ -24,7 +24,9 @@ use nom::{
     character::complete::{
         alpha1, alphanumeric1, anychar, char, digit1, multispace0, not_line_ending, one_of, space0,
     },
-    combinator::{all_consuming, cut, map, map_opt, map_res, not, opt, recognize, value, verify},
+    combinator::{
+        all_consuming, cut, fail, map, map_opt, map_res, not, opt, peek, recognize, value, verify,
+    },
     error::context,
     multi::{many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
@@ -139,16 +141,36 @@ fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Input<'a>) -> IResult<Input<'a>, Inpu
     }
 }
 
-fn line_comment(input: Input) -> IResult<Input, ()> {
-    value((), pair(alt((tag("#"), tag("//"))), not_line_ending))(input)
+fn hash_line_comment(input: Input) -> IResult<Input, ()> {
+    value((), preceded(char('#'), not_line_ending))(input)
+}
+
+fn double_slash_line_comment(input: Input) -> IResult<Input, ()> {
+    value((), preceded(tag("//"), not_line_ending))(input)
 }
 
 fn inline_comment(input: Input) -> IResult<Input, ()> {
-    value((), tuple((tag("/*"), take_until("*/"), tag("*/"))))(input)
+    value((), delimited(tag("/*"), take_until("*/"), tag("*/")))(input)
+}
+
+fn line_comment(input: Input) -> IResult<Input, ()> {
+    let (input, ch) = peek(anychar)(input)?;
+
+    match ch {
+        '#' => cut(hash_line_comment)(input),
+        '/' => cut(double_slash_line_comment)(input),
+        _ => fail(input),
+    }
 }
 
 fn comment(input: Input) -> IResult<Input, ()> {
-    alt((line_comment, inline_comment))(input)
+    let (input, ch) = peek(anychar)(input)?;
+
+    match ch {
+        '#' => cut(hash_line_comment)(input),
+        '/' => cut(alt((double_slash_line_comment, inline_comment)))(input),
+        _ => fail(input),
+    }
 }
 
 fn sp(input: Input) -> IResult<Input, ()> {
@@ -156,7 +178,14 @@ fn sp(input: Input) -> IResult<Input, ()> {
 }
 
 fn spc(input: Input) -> IResult<Input, ()> {
-    value((), pair(space0, many0_count(pair(comment, space0))))(input)
+    value(
+        (),
+        tuple((
+            space0,
+            many0_count(pair(inline_comment, space0)),
+            opt(line_comment),
+        )),
+    )(input)
 }
 
 fn ws(input: Input) -> IResult<Input, ()> {
