@@ -9,7 +9,8 @@ use super::{
     error::InternalError,
     ident,
     input::Location,
-    line_comment, number, prefix_decor, sp, span, spanned, str_ident, string, tag_or_cut,
+    line_comment, number, prefix_decor, sp, span, spanned, str_ident, string, suffix_decor,
+    tag_or_cut,
     template::{string_template, template},
     with_span, ws, ErrorKind, IResult, Input,
 };
@@ -18,7 +19,7 @@ use crate::Identifier;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{anychar, char, crlf, line_ending, newline, space0, u64},
+    character::complete::{anychar, char, crlf, line_ending, newline, none_of, space0, u64},
     combinator::{cut, fail, map, map_parser, not, opt, peek, recognize, value},
     error::context,
     multi::{many1, many1_count, separated_list1},
@@ -41,7 +42,7 @@ fn array_items(input: Input) -> IResult<Input, Array> {
     alt((
         map(
             pair(
-                separated_list1(char(','), decor(ws, expr, ws)),
+                separated_list1(char(','), decor(ws, preceded(peek(none_of("]")), expr), ws)),
                 opt(preceded(char(','), span(ws))),
             ),
             |(values, suffix_span)| {
@@ -63,7 +64,7 @@ fn array_items(input: Input) -> IResult<Input, Array> {
 
 fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
-        tuple((for_intro, decor(ws, cut(expr), ws), opt(for_cond))),
+        tuple((for_intro, decor(ws, expr, ws), opt(for_cond))),
         |(intro, value_expr, cond)| {
             let mut expr = ForExpr::new(intro, value_expr);
 
@@ -94,20 +95,19 @@ fn object_items(input: Input) -> IResult<Input, Object> {
     loop {
         let start = remaining_input.location();
 
-        let (input, mut item) = match object_item(remaining_input) {
-            Ok((input, item)) => (input, item),
-            Err(nom::Err::Failure(err)) => return Err(nom::Err::Failure(err)),
-            Err(err) => {
-                // Consume all trailing whitespace and look for the closing brace, otherwise
-                // propagate the error that occurred while parsing the object item.
-                match terminated(span(ws), peek(char('}')))(remaining_input) {
-                    Ok((input, suffix_span)) => {
-                        let mut object = Object::new(items);
-                        object.set_trailing(suffix_span);
-                        return Ok((input, object));
-                    }
-                    Err(_) => return Err(err),
-                }
+        let (input, ws_span) = span(ws)(remaining_input)?;
+        let (input, ch) = peek(anychar)(input)?;
+
+        let (input, mut item) = match ch {
+            '}' => {
+                let mut object = Object::new(items);
+                object.set_trailing(ws_span);
+                return Ok((input, object));
+            }
+            _ => {
+                let (input, mut item) = object_item(input)?;
+                item.key_mut().decor_mut().set_prefix(ws_span);
+                (input, item)
             }
         };
 
@@ -156,8 +156,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
 }
 
 fn object_key(input: Input) -> IResult<Input, ObjectKey> {
-    decor(
-        ws,
+    suffix_decor(
         map(expr, |expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
             //
@@ -186,7 +185,7 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
         tuple((
             object_key,
             cut(object_key_value_separator),
-            cut(decor(sp, expr, sp)),
+            decor(sp, expr, sp),
         )),
         |(key, key_value_separator, value)| {
             let mut item = ObjectItem::new(key, value);
@@ -200,11 +199,7 @@ fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
             for_intro,
-            separated_pair(
-                decor(ws, cut(expr), ws),
-                tag_or_cut("=>"),
-                decor(ws, cut(expr), ws),
-            ),
+            separated_pair(decor(ws, expr, ws), tag_or_cut("=>"), decor(ws, expr, ws)),
             opt(tag("...")),
             opt(for_cond),
         )),
@@ -231,7 +226,7 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
                 tuple((
                     decor(ws, cut(ident), ws),
                     opt(preceded(char(','), decor(ws, cut(ident), ws))),
-                    preceded(tag_or_cut("in"), decor(ws, cut(expr), ws)),
+                    preceded(tag_or_cut("in"), decor(ws, expr, ws)),
                 )),
                 char_or_cut(':'),
             ),
@@ -250,12 +245,12 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
 fn for_cond(input: Input) -> IResult<Input, ForCond> {
     prefix_decor(
         ws,
-        map(preceded(tag("if"), decor(ws, cut(expr), ws)), ForCond::new),
+        map(preceded(tag("if"), decor(ws, expr, ws)), ForCond::new),
     )(input)
 }
 
 fn parenthesis(input: Input) -> IResult<Input, Expression> {
-    delimited(char('('), decor(ws, cut(expr), ws), char_or_cut(')'))(input)
+    delimited(char('('), decor(ws, expr, ws), char_or_cut(')'))(input)
 }
 
 fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
@@ -326,10 +321,10 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
             char('['),
             decor(
                 ws,
-                cut(alt((
+                alt((
                     value(TraversalOperator::FullSplat(Decorated::new(())), char('*')),
                     map(expr, TraversalOperator::Index),
-                ))),
+                )),
                 ws,
             ),
             char_or_cut(']'),
@@ -363,7 +358,10 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         alt((
             map(
                 pair(
-                    separated_list1(char(','), decor(ws, expr, ws)),
+                    separated_list1(
+                        char(','),
+                        decor(ws, preceded(peek(none_of(",.)")), expr), ws),
+                    ),
                     opt(pair(alt((tag(","), tag("..."))), span(ws))),
                 ),
                 |(args, trailer)| {
@@ -428,7 +426,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
         '[' => array(input),
         '{' => object(input),
         '0'..='9' => map(number, |n| Expression::Number(n.into()))(input),
-        '<' => map(heredoc, |heredoc| {
+        '<' => map(context("Expression", heredoc), |heredoc| {
             Expression::HeredocTemplate(Box::new(heredoc))
         })(input),
         '-' => alt((
@@ -453,22 +451,23 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
         '(' => map(parenthesis, |expr| {
             Expression::Parenthesis(Box::new(expr.into()))
         })(input),
-        _ => alt((ident_or_func_call, fail))(input),
+        '_' | 'a'..='z' | 'A'..='Z' => ident_or_func_call(input),
+        _ => context("Expression", cut(fail))(input),
     }
 }
 
-pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
+pub fn expr(input: Input) -> IResult<Input, Expression> {
     let traversal = with_span(many1(prefix_decor(sp, traversal_operator)));
 
     let binary_op = with_span(pair(
         prefix_decor(sp, binary_operator),
-        prefix_decor(sp, cut(expr)),
+        prefix_decor(sp, expr),
     ));
 
     let conditional = tuple((
         span(sp),
-        preceded(char('?'), decor(sp, cut(expr), sp)),
-        preceded(char_or_cut(':'), prefix_decor(sp, cut(expr))),
+        preceded(char('?'), decor(sp, expr, sp)),
+        preceded(char_or_cut(':'), prefix_decor(sp, expr)),
     ));
 
     map(
@@ -523,8 +522,4 @@ pub fn expr_inner(input: Input) -> IResult<Input, Expression> {
             }
         },
     )(input)
-}
-
-pub fn expr(input: Input) -> IResult<Input, Expression> {
-    context("Expression", expr_inner)(input)
 }

@@ -27,7 +27,6 @@ use nom::{
     combinator::{
         all_consuming, cut, fail, map, map_opt, map_res, not, opt, peek, recognize, value, verify,
     },
-    error::context,
     multi::{many0_count, many1_count},
     sequence::{delimited, pair, preceded, terminated, tuple},
     AsChar, Compare, CompareResult, Finish, InputIter, InputLength, InputTake, Parser, Slice,
@@ -417,31 +416,27 @@ where
 }
 
 fn string(input: Input) -> IResult<Input, InternalString> {
-    alt((
-        map(tag("\"\""), |_| InternalString::new()),
-        delimited(
-            char('"'),
-            build_string(string_fragment(string_literal)),
-            char('"'),
-        ),
-    ))(input)
+    preceded(
+        char('"'),
+        alt((
+            map(char('"'), |_| InternalString::new()),
+            terminated(build_string(string_fragment(string_literal)), char('"')),
+        )),
+    )(input)
 }
 
 fn str_ident(input: Input) -> IResult<Input, &str> {
-    context(
-        "Identifier",
-        map(
-            recognize(pair(
-                alt((alpha1, tag("_"))),
-                many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
-            )),
-            |s: Input| unsafe {
-                from_utf8_unchecked(
-                    s.as_ref(),
-                    "`alpha1` and `alphanumeric1` filter out non-ascii",
-                )
-            },
-        ),
+    map(
+        recognize(pair(
+            alt((alpha1, tag("_"))),
+            many0_count(alt((alphanumeric1, tag("_"), tag("-")))),
+        )),
+        |s: Input| unsafe {
+            from_utf8_unchecked(
+                s.as_ref(),
+                "`alpha1` and `alphanumeric1` filter out non-ascii",
+            )
+        },
     )(input)
 }
 
@@ -476,10 +471,7 @@ fn integer(input: Input) -> IResult<Input, u64> {
 }
 
 fn number(input: Input) -> IResult<Input, Number> {
-    context(
-        "Number",
-        alt((map_opt(float, Number::from_f64), map(integer, Number::from))),
-    )(input)
+    alt((map_opt(float, Number::from_f64), map(integer, Number::from)))(input)
 }
 
 fn anychar_except<'a, F, T>(inner: F) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Input<'a>>

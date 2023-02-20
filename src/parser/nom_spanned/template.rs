@@ -20,10 +20,9 @@ use nom::{
 };
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
-    map(
-        template_tag("${", decor(ws, cut(expr), ws)),
-        |(expr, strip)| Interpolation::new(expr, strip),
-    )(input)
+    map(template_tag("${", decor(ws, expr, ws)), |(expr, strip)| {
+        Interpolation::new(expr, strip)
+    })(input)
 }
 
 fn template_tag<'a, F, O>(
@@ -50,7 +49,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         pair(
             template_tag(
                 "%{",
-                pair(terminated(span(ws), tag("if")), decor(ws, cut(expr), ws)),
+                pair(terminated(span(ws), tag("if")), decor(ws, expr, ws)),
             ),
             spanned(template),
         ),
@@ -101,7 +100,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
                 tuple((
                     pair(terminated(span(ws), tag("for")), decor(ws, cut(ident), ws)),
                     opt(preceded(char(','), decor(ws, cut(ident), ws))),
-                    preceded(tag_or_cut("in"), decor(ws, cut(expr), ws)),
+                    preceded(tag_or_cut("in"), decor(ws, expr, ws)),
                 )),
             ),
             spanned(template),

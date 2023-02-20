@@ -16,7 +16,7 @@ fn line_trailing(input: Input) -> IResult<Input, ()> {
 }
 
 fn attribute_expr(input: Input) -> IResult<Input, Expression> {
-    preceded(char('='), prefix_decor(sp, cut(expr)))(input)
+    preceded(char('='), prefix_decor(sp, expr))(input)
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
