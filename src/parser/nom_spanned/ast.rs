@@ -1133,7 +1133,7 @@ impl From<Body> for structure::Body {
 impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f, None);
-        self.encode(&mut state)
+        self.encode_decorated(&mut state, NO_DECOR)
     }
 }
 
