@@ -11,8 +11,8 @@ mod template;
 mod tests;
 
 pub use self::ast::*;
-pub use self::error::{Error, ErrorKind, ParseResult};
-use self::error::{IResult, InternalError};
+use self::error::{Context, Expected, IResult, InternalError};
+pub use self::error::{Error, ParseResult};
 use self::input::{Input, Location};
 use self::repr::{Decorate, Span};
 use self::structure::body;
@@ -111,31 +111,51 @@ pub(crate) unsafe fn from_utf8_unchecked<'b>(
     }
 }
 
-fn char_or_cut(c: char) -> impl Fn(Input) -> IResult<Input, char> {
+fn context<I, F, O>(mut f: F, ctx: Context) -> impl FnMut(I) -> IResult<I, O>
+where
+    F: Parser<I, O, InternalError<I>>,
+{
+    move |input: I| match f.parse(input) {
+        Ok(o) => Ok(o),
+        Err(nom::Err::Incomplete(input)) => Err(nom::Err::Incomplete(input)),
+        Err(nom::Err::Error(err)) => Err(nom::Err::Error(err.add_context(ctx))),
+        Err(nom::Err::Failure(err)) => Err(nom::Err::Failure(err.add_context(ctx))),
+    }
+}
+
+fn cut_context<I, F, O>(mut f: F, ctx: Context) -> impl FnMut(I) -> IResult<I, O>
+where
+    F: Parser<I, O, InternalError<I>>,
+{
+    move |input: I| match f.parse(input) {
+        Ok(o) => Ok(o),
+        Err(nom::Err::Incomplete(input)) => Err(nom::Err::Incomplete(input)),
+        Err(nom::Err::Error(err) | nom::Err::Failure(err)) => {
+            Err(nom::Err::Failure(err.add_context(ctx)))
+        }
+    }
+}
+
+fn cut_char(c: char) -> impl Fn(Input) -> IResult<Input, char> {
     move |input: Input| match input.iter_elements().next().map(|t| {
         let b = t.as_char() == c;
         (&c, b)
     }) {
         Some((c, true)) => Ok((input.slice(c.len()..), c.as_char())),
-        _ => Err(nom::Err::Failure(InternalError::new(
-            input,
-            ErrorKind::Char(c),
-        ))),
+        _ => Err(nom::Err::Failure(
+            InternalError::new(input).add_context(Context::Expected(Expected::Char(c))),
+        )),
     }
 }
 
-fn tag_or_cut<'a>(tag: &'a str) -> impl Fn(Input<'a>) -> IResult<Input<'a>, Input<'a>> {
+fn cut_tag<'a>(tag: &'static str) -> impl Fn(Input<'a>) -> IResult<Input<'a>, Input<'a>> {
     move |input: Input<'a>| {
         let tag_len = tag.input_len();
         match input.compare(tag) {
-            CompareResult::Ok => {
-                let (input, tag) = input.take_split(tag_len);
-                Ok((input, tag))
-            }
-            _ => Err(nom::Err::Failure(InternalError::new(
-                input,
-                ErrorKind::Tag(Input::new(tag.as_bytes())),
-            ))),
+            CompareResult::Ok => Ok(input.take_split(tag_len)),
+            _ => Err(nom::Err::Failure(
+                InternalError::new(input).add_context(Context::Expected(Expected::Literal(tag))),
+            )),
         }
     }
 }
@@ -437,6 +457,13 @@ fn str_ident(input: Input) -> IResult<Input, &str> {
                 "`alpha1` and `alphanumeric1` filter out non-ascii",
             )
         },
+    )(input)
+}
+
+fn cut_ident(input: Input) -> IResult<Input, Identifier> {
+    cut_context(
+        ident,
+        Context::Expected(Expected::Description("identifier")),
     )(input)
 }
 

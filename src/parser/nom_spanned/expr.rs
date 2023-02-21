@@ -3,16 +3,16 @@ use super::ast::{
     HeredocTemplate, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
     Template, Traversal, TraversalOperator, UnaryOp,
 };
+use super::cut_ident;
 use super::repr::{Decorate, Decorated, Span};
 use super::{
-    anychar_except, char_or_cut, decor,
-    error::InternalError,
+    anychar_except, context, cut_char, cut_context, cut_tag, decor,
+    error::{Context, Expected, InternalError},
     ident,
     input::Location,
     line_comment, number, prefix_decor, sp, span, spanned, str_ident, string, suffix_decor,
-    tag_or_cut,
     template::{string_template, template},
-    with_span, ws, ErrorKind, IResult, Input,
+    with_span, ws, IResult, Input,
 };
 use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
@@ -20,8 +20,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{anychar, char, crlf, line_ending, newline, none_of, space0, u64},
-    combinator::{cut, fail, map, map_parser, not, opt, peek, recognize, value},
-    error::context,
+    combinator::{fail, map, map_parser, not, opt, peek, recognize, value},
     multi::{many1, many1_count, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
 };
@@ -34,7 +33,7 @@ fn array(input: Input) -> IResult<Input, Expression> {
             map(for_list_expr, |expr| Expression::ForExpr(Box::new(expr))),
             map(array_items, |array| Expression::Array(Box::new(array))),
         )),
-        char_or_cut(']'),
+        cut_char(']'),
     )(input)
 }
 
@@ -84,7 +83,7 @@ fn object(input: Input) -> IResult<Input, Expression> {
             map(for_object_expr, |expr| Expression::ForExpr(Box::new(expr))),
             map(object_items, |object| Expression::Object(Box::new(object))),
         )),
-        char_or_cut('}'),
+        cut_char('}'),
     )(input)
 }
 
@@ -98,17 +97,14 @@ fn object_items(input: Input) -> IResult<Input, Object> {
         let (input, ws_span) = span(ws)(remaining_input)?;
         let (input, ch) = peek(anychar)(input)?;
 
-        let (input, mut item) = match ch {
-            '}' => {
-                let mut object = Object::new(items);
-                object.set_trailing(ws_span);
-                return Ok((input, object));
-            }
-            _ => {
-                let (input, mut item) = object_item(input)?;
-                item.key_mut().decor_mut().set_prefix(ws_span);
-                (input, item)
-            }
+        let (input, mut item) = if ch == '}' {
+            let mut object = Object::new(items);
+            object.set_trailing(ws_span);
+            return Ok((input, object));
+        } else {
+            let (input, mut item) = object_item(input)?;
+            item.key_mut().decor_mut().set_prefix(ws_span);
+            (input, item)
         };
 
         // Look for the closing brace and return or consume the object item separator and proceed
@@ -141,10 +137,13 @@ fn object_items(input: Input) -> IResult<Input, Object> {
                 value(ObjectValueTerminator::Newline, line_ending)(input)?
             }
             _ => {
-                return Err(nom::Err::Failure(InternalError::new(
-                    input,
-                    ErrorKind::Context("closing brace, comma or newline"),
-                )))
+                return Err(nom::Err::Failure(
+                    InternalError::new(input)
+                        .add_context(Context::Expression("object item"))
+                        .add_context(Context::Expected(Expected::Char('}')))
+                        .add_context(Context::Expected(Expected::Char(',')))
+                        .add_context(Context::Expected(Expected::Char('\n'))),
+                ))
             }
         };
 
@@ -184,7 +183,10 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
     map(
         tuple((
             object_key,
-            cut(object_key_value_separator),
+            cut_context(
+                object_key_value_separator,
+                Context::Expected(Expected::Description("`=` or `:`")),
+            ),
             decor(sp, expr, sp),
         )),
         |(key, key_value_separator, value)| {
@@ -199,7 +201,7 @@ fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     map(
         tuple((
             for_intro,
-            separated_pair(decor(ws, expr, ws), tag_or_cut("=>"), decor(ws, expr, ws)),
+            separated_pair(decor(ws, expr, ws), cut_tag("=>"), decor(ws, expr, ws)),
             opt(tag("...")),
             opt(for_cond),
         )),
@@ -224,11 +226,11 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
             delimited(
                 tag("for"),
                 tuple((
-                    decor(ws, cut(ident), ws),
-                    opt(preceded(char(','), decor(ws, cut(ident), ws))),
-                    preceded(tag_or_cut("in"), decor(ws, expr, ws)),
+                    decor(ws, cut_ident, ws),
+                    opt(preceded(char(','), decor(ws, cut_ident, ws))),
+                    preceded(cut_tag("in"), decor(ws, expr, ws)),
                 )),
-                char_or_cut(':'),
+                cut_char(':'),
             ),
             |(first, second, expr)| match second {
                 Some(second) => {
@@ -250,7 +252,7 @@ fn for_cond(input: Input) -> IResult<Input, ForCond> {
 }
 
 fn parenthesis(input: Input) -> IResult<Input, Expression> {
-    delimited(char('('), decor(ws, expr, ws), char_or_cut(')'))(input)
+    delimited(cut_char('('), decor(ws, expr, ws), cut_char(')'))(input)
 }
 
 fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
@@ -259,9 +261,12 @@ fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
             map(preceded(tag("<<"), opt(char('-'))), |indent| {
                 indent.is_some()
             }),
-            with_span(cut(str_ident)),
+            with_span(cut_context(
+                str_ident,
+                Context::Expected(Expected::Description("identifier")),
+            )),
         ),
-        cut(line_ending),
+        cut_context(line_ending, Context::Expected(Expected::Char('\n'))),
     )(input)
 }
 
@@ -275,26 +280,37 @@ fn heredoc_content<'a>(delim: &'a str) -> impl FnMut(Input<'a>) -> IResult<Input
     )
 }
 
-fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
-    let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
+fn heredoc<'a>(input: Input<'a>) -> IResult<Input<'a>, HeredocTemplate> {
+    context(
+        move |input: Input<'a>| {
+            let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
 
-    let (input, (template, trailing)) = pair(
-        spanned(map(opt(heredoc_content(delim)), Option::unwrap_or_default)),
-        terminated(span(space0), cut(tag(delim))),
-    )(input)?;
+            let (input, (template, trailing)) = pair(
+                spanned(map(opt(heredoc_content(delim)), Option::unwrap_or_default)),
+                terminated(
+                    span(space0),
+                    cut_context(
+                        tag(delim),
+                        Context::Expected(Expected::Description("heredoc end delimiter")),
+                    ),
+                ),
+            )(input)?;
 
-    let mut heredoc = HeredocTemplate::new(
-        Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
-        template,
-    );
+            let mut heredoc = HeredocTemplate::new(
+                Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
+                template,
+            );
 
-    if indented {
-        heredoc.dedent();
-    }
+            if indented {
+                heredoc.dedent();
+            }
 
-    heredoc.set_trailing(trailing);
+            heredoc.set_trailing(trailing);
 
-    Ok((input, heredoc))
+            Ok((input, heredoc))
+        },
+        Context::Expression("heredoc"),
+    )(input)
 }
 
 fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
@@ -309,11 +325,16 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
                     // Must not match `for` object value grouping or func call expand final which
                     // are both `...`.
                     not(char('.')),
-                    cut(alt((
-                        value(TraversalOperator::AttrSplat(Decorated::new(())), char('*')),
-                        map(ident, |ident| TraversalOperator::GetAttr(ident.into())),
-                        map(u64, |index| TraversalOperator::LegacyIndex(index.into())),
-                    ))),
+                    cut_context(
+                        alt((
+                            value(TraversalOperator::AttrSplat(Decorated::new(())), char('*')),
+                            map(ident, |ident| TraversalOperator::GetAttr(ident.into())),
+                            map(u64, |index| TraversalOperator::LegacyIndex(index.into())),
+                        )),
+                        Context::Expected(Expected::Description(
+                            "`*`, identifier or unsigned integer",
+                        )),
+                    ),
                 ),
             ),
         )(input),
@@ -327,28 +348,31 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
                 )),
                 ws,
             ),
-            char_or_cut(']'),
+            cut_char(']'),
         )(input),
         _ => fail(input),
     }
 }
 
 fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
-    map(
-        pair(with_span(str_ident), opt(prefix_decor(ws, func_sig))),
-        |((ident, span), signature)| match signature {
-            Some(signature) => {
-                let name = Decorated::new(Identifier::unchecked(ident)).spanned(span);
-                let func_call = FuncCall::new(name, signature);
-                Expression::FuncCall(Box::new(func_call))
-            }
-            None => match ident {
-                "null" => Expression::Null(().into()),
-                "true" => Expression::Bool(true.into()),
-                "false" => Expression::Bool(false.into()),
-                var => Expression::Variable(Variable::unchecked(var).into()),
+    cut_context(
+        map(
+            pair(with_span(str_ident), opt(prefix_decor(ws, func_sig))),
+            |((ident, span), signature)| match signature {
+                Some(signature) => {
+                    let name = Decorated::new(Identifier::unchecked(ident)).spanned(span);
+                    let func_call = FuncCall::new(name, signature);
+                    Expression::FuncCall(Box::new(func_call))
+                }
+                None => match ident {
+                    "null" => Expression::Null(().into()),
+                    "true" => Expression::Bool(true.into()),
+                    "false" => Expression::Bool(false.into()),
+                    var => Expression::Variable(Variable::unchecked(var).into()),
+                },
             },
-        },
+        ),
+        Context::Expression("identifier"),
     )(input)
 }
 
@@ -386,7 +410,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
                 sig
             }),
         )),
-        char_or_cut(')'),
+        cut_char(')'),
     )(input)
 }
 
@@ -426,7 +450,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
         '[' => array(input),
         '{' => object(input),
         '0'..='9' => map(number, |n| Expression::Number(n.into()))(input),
-        '<' => map(context("Expression", heredoc), |heredoc| {
+        '<' => map(heredoc, |heredoc| {
             Expression::HeredocTemplate(Box::new(heredoc))
         })(input),
         '-' => alt((
@@ -452,7 +476,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
             Expression::Parenthesis(Box::new(expr.into()))
         })(input),
         '_' | 'a'..='z' | 'A'..='Z' => ident_or_func_call(input),
-        _ => context("Expression", cut(fail))(input),
+        _ => fail(input),
     }
 }
 
@@ -467,12 +491,12 @@ pub fn expr(input: Input) -> IResult<Input, Expression> {
     let conditional = tuple((
         span(sp),
         preceded(char('?'), decor(sp, expr, sp)),
-        preceded(char_or_cut(':'), prefix_decor(sp, expr)),
+        preceded(cut_char(':'), prefix_decor(sp, expr)),
     ));
 
     map(
         tuple((
-            with_span(expr_term),
+            with_span(cut_context(expr_term, Context::Expression("expression"))),
             opt(traversal),
             opt(binary_op),
             opt(conditional),

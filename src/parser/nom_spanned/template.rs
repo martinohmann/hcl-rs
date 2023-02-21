@@ -4,8 +4,8 @@ use super::ast::{
 };
 use super::StringTemplate;
 use super::{
-    build_string, char_or_cut, decor, expr::expr, ident, literal, span, spanned, string_fragment,
-    string_literal, tag_or_cut, ws, IResult, Input,
+    build_string, cut_char, cut_ident, cut_tag, decor, expr::expr, literal, span, spanned,
+    string_fragment, string_literal, ws, IResult, Input,
 };
 use crate::template::StripMode;
 use crate::InternalString;
@@ -14,7 +14,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::char,
-    combinator::{cut, map, opt},
+    combinator::{map, opt},
     multi::many0,
     sequence::{delimited, pair, preceded, terminated, tuple},
 };
@@ -36,7 +36,7 @@ where
         tuple((
             preceded(tag(start_tag), opt(char('~'))),
             inner,
-            terminated(opt(char('~')), char_or_cut('}')),
+            terminated(opt(char('~')), cut_char('}')),
         )),
         |(strip_start, output, strip_end)| {
             (output, (strip_start.is_some(), strip_end.is_some()).into())
@@ -74,10 +74,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     );
 
     let endif_expr = map(
-        template_tag(
-            "%{",
-            separated_pair(span(ws), tag_or_cut("endif"), span(ws)),
-        ),
+        template_tag("%{", separated_pair(span(ws), cut_tag("endif"), span(ws))),
         |((preamble, trailing), strip)| {
             let mut expr = EndifTemplateExpr::new(strip);
             expr.set_preamble(preamble);
@@ -98,9 +95,9 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             template_tag(
                 "%{",
                 tuple((
-                    pair(terminated(span(ws), tag("for")), decor(ws, cut(ident), ws)),
-                    opt(preceded(char(','), decor(ws, cut(ident), ws))),
-                    preceded(tag_or_cut("in"), decor(ws, expr, ws)),
+                    pair(terminated(span(ws), tag("for")), decor(ws, cut_ident, ws)),
+                    opt(preceded(char(','), decor(ws, cut_ident, ws))),
+                    preceded(cut_tag("in"), decor(ws, expr, ws)),
                 )),
             ),
             spanned(template),
@@ -119,10 +116,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     );
 
     let endfor_expr = map(
-        template_tag(
-            "%{",
-            separated_pair(span(ws), tag_or_cut("endfor"), span(ws)),
-        ),
+        template_tag("%{", separated_pair(span(ws), cut_tag("endfor"), span(ws))),
         |((preamble, trailing), strip)| {
             let mut expr = EndforTemplateExpr::new(strip);
             expr.set_preamble(preamble);

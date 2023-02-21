@@ -3,6 +3,7 @@ use nom::{
     AsBytes, Compare, CompareResult, Err, ExtendInto, FindSubstring, FindToken, IResult, InputIter,
     InputLength, InputTake, InputTakeAtPosition, Offset, ParseTo, Slice,
 };
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::{Deref, RangeFrom, RangeTo};
 use std::str::FromStr;
@@ -289,5 +290,14 @@ where
 
     fn extend_into(&self, acc: &mut Self::Extender) {
         self.input.extend_into(acc);
+    }
+}
+
+impl<T> fmt::Display for Located<T>
+where
+    T: AsBytes,
+{
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        fmt.write_str(&String::from_utf8_lossy(self.input.as_bytes()))
     }
 }

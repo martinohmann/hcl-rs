@@ -1,7 +1,7 @@
 use super::input::Input;
 use crate::parser::Location;
-use nom::error::{ContextError, FromExternalError, ParseError};
-use nom::Offset;
+use nom::error::{FromExternalError, ParseError};
+use nom::{AsBytes, Offset};
 use std::fmt;
 
 /// The result type used by this module.
@@ -10,63 +10,78 @@ pub type ParseResult<T> = std::result::Result<T, Error>;
 /// The result type used by parsers internally.
 pub type IResult<I, O, E = InternalError<I>> = nom::IResult<I, O, E>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorKind<T = String> {
-    Nom(nom::error::ErrorKind),
-    Context(&'static str),
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Context {
+    Expression(&'static str),
+    Expected(Expected),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Expected {
     Char(char),
-    Tag(T),
+    Literal(&'static str),
+    Description(&'static str),
 }
 
-impl<'a> ErrorKind<Input<'a>> {
-    fn into_owned(self) -> ErrorKind<String> {
+impl std::fmt::Display for Expected {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorKind::Nom(kind) => ErrorKind::Nom(kind),
-            ErrorKind::Context(ctx) => ErrorKind::Context(ctx),
-            ErrorKind::Char(ch) => ErrorKind::Char(ch),
-            ErrorKind::Tag(tag) => {
-                ErrorKind::Tag(String::from_utf8_lossy(tag.as_ref()).to_string())
+            Expected::Char('\n') => write!(f, "newline"),
+            Expected::Char(c) if c.is_ascii_control() => {
+                write!(f, "`{}`", c.escape_debug())
             }
+            Expected::Char(c) => write!(f, "`{}`", c),
+            Expected::Literal(l) => write!(f, "`{}`", l),
+            Expected::Description(d) => write!(f, "{}", d),
         }
     }
 }
 
-impl<T> fmt::Display for ErrorKind<T>
-where
-    T: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ErrorKind::Context(ctx) => write!(f, "expected {ctx}"),
-            ErrorKind::Nom(kind) => write!(f, "error in {kind:?} parser"),
-            ErrorKind::Char(ch) => write!(f, "expected char `{ch}`"),
-            ErrorKind::Tag(tag) => write!(f, "expected `{tag}`"),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct InternalError<I> {
-    pub input: I,
-    pub kind: ErrorKind<I>,
+    input: I,
+    context: Vec<Context>,
+    cause: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
 }
 
 impl<I> InternalError<I> {
     #[inline]
-    pub(super) fn new(input: I, kind: ErrorKind<I>) -> InternalError<I> {
-        InternalError { input, kind }
+    pub(super) fn new(input: I) -> InternalError<I> {
+        InternalError {
+            input,
+            context: Vec::new(),
+            cause: None,
+        }
+    }
+
+    #[inline]
+    pub(super) fn add_context(mut self, ctx: Context) -> InternalError<I> {
+        self.context.push(ctx);
+        self
+    }
+}
+
+impl<I> PartialEq for InternalError<I>
+where
+    I: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.input == other.input
+            && self.context == other.context
+            && self.cause.as_ref().map(ToString::to_string)
+                == other.cause.as_ref().map(ToString::to_string)
     }
 }
 
 impl<I> ParseError<I> for InternalError<I> {
     #[inline]
-    fn from_error_kind(input: I, kind: nom::error::ErrorKind) -> Self {
-        InternalError::new(input, ErrorKind::Nom(kind))
+    fn from_error_kind(input: I, _kind: nom::error::ErrorKind) -> Self {
+        InternalError::new(input)
     }
 
     #[inline]
-    fn from_char(input: I, ch: char) -> Self {
-        InternalError::new(input, ErrorKind::Char(ch))
+    fn from_char(input: I, _ch: char) -> Self {
+        InternalError::new(input)
     }
 
     #[inline]
@@ -75,23 +90,17 @@ impl<I> ParseError<I> for InternalError<I> {
     }
 }
 
-impl<I> ContextError<I> for InternalError<I> {
+impl<I, E> FromExternalError<I, E> for InternalError<I>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
     #[inline]
-    fn add_context(input: I, ctx: &'static str, other: Self) -> Self {
-        // Keep `Char`, `Tag` and `Context` errors unchanged and only replace less specific nom
-        // errors with the context.
-        if let ErrorKind::Nom(_) = &other.kind {
-            InternalError::new(input, ErrorKind::Context(ctx))
-        } else {
-            other
+    fn from_external_error(input: I, _kind: nom::error::ErrorKind, err: E) -> Self {
+        InternalError {
+            input,
+            context: Vec::new(),
+            cause: Some(Box::new(err)),
         }
-    }
-}
-
-impl<I, E> FromExternalError<I, E> for InternalError<I> {
-    #[inline]
-    fn from_external_error(input: I, kind: nom::error::ErrorKind, _e: E) -> Self {
-        InternalError::new(input, ErrorKind::Nom(kind))
     }
 }
 
@@ -100,7 +109,51 @@ where
     I: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} at: {}", self.kind, self.input)
+        let expression = self.context.iter().find_map(|c| match c {
+            Context::Expression(c) => Some(c),
+            _ => None,
+        });
+
+        let expected = self
+            .context
+            .iter()
+            .filter_map(|c| match c {
+                Context::Expected(c) => Some(c),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        if let Some(expression) = expression {
+            write!(f, "invalid {}; ", expression)?;
+        }
+
+        if expected.is_empty() {
+            f.write_str("unexpected token")?;
+        } else {
+            write!(f, "expected ")?;
+
+            match expected.len() {
+                0 => {}
+                1 => write!(f, "{}", &expected[0])?,
+                n => {
+                    for (i, expected) in expected.iter().enumerate() {
+                        if i == n - 1 {
+                            f.write_str(" or ")?;
+                        } else if i > 0 {
+                            f.write_str(", ")?;
+                        }
+
+                        write!(f, "{}", expected)?;
+                    }
+                }
+            }
+        }
+
+        if let Some(cause) = &self.cause {
+            write!(f, "; {}", cause)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -155,61 +208,27 @@ impl fmt::Display for Error {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ErrorInner {
+    message: String,
     line: String,
-    kind: ErrorKind,
     location: Location,
     offset: usize,
 }
 
 impl ErrorInner {
     fn from_internal_error<'a>(input: Input<'a>, err: InternalError<Input<'a>>) -> ErrorInner {
-        let substring = err.input;
-        let offset = input.offset(&substring);
-        let prefix = &input[..offset];
-
-        // Find the line that includes the subslice:
-        // Find the *last* newline before the substring starts
-        let line_begin = prefix
-            .iter()
-            .rev()
-            .position(|&b| b == b'\n')
-            .map_or(0, |pos| offset - pos);
-
-        // Find the full line after that newline
-        let line = input[line_begin..]
-            .iter()
-            .position(|&b| b == b'\n')
-            .map_or(&input[line_begin..], |pos| {
-                &input[line_begin..line_begin + pos]
-            });
-
-        // Count the number of newlines in the first `offset` bytes of input
-        let line_number = prefix.iter().filter(|&&b| b == b'\n').count() + 1;
-
-        // The (1-indexed) column number is the offset of our substring into that line
-        let column_number = line.offset(&substring) + 1;
+        let offset = input.offset(&err.input);
+        let (line, location) = locate_error(input.as_bytes(), offset);
 
         ErrorInner {
+            message: err.to_string(),
             line: String::from_utf8_lossy(line).to_string(),
-            kind: err.kind.into_owned(),
             offset,
-            location: Location {
-                line: line_number,
-                col: column_number,
-            },
+            location,
         }
     }
 
     fn spacing(&self) -> String {
-        let line_str_len = format!("{}", self.location.line).len();
-        " ".repeat(line_str_len)
-    }
-
-    fn message(&self) -> String {
-        format!(
-            "{} in line {}, col {}",
-            self.kind, self.location.line, self.location.col
-        )
+        " ".repeat(self.location.line.to_string().len())
     }
 }
 
@@ -217,7 +236,7 @@ impl fmt::Display for ErrorInner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{s}--> {l}:{c}\n\
+            "{s}--> HCL parse error in line {l}, column {c}\n\
                  {s} |\n\
                  {l} | {line}\n\
                  {s} | {caret:>c$}---\n\
@@ -228,7 +247,42 @@ impl fmt::Display for ErrorInner {
             c = self.location.col,
             line = self.line,
             caret = '^',
-            message = self.message()
+            message = self.message,
         )
     }
+}
+
+fn locate_error(input: &[u8], offset: usize) -> (&[u8], Location) {
+    let consumed_input = &input[..offset];
+    let remaining_input = &input[offset..];
+
+    // Find the line that includes the subslice:
+    // Find the *last* newline before the remaining input starts
+    let line_begin = consumed_input
+        .iter()
+        .rev()
+        .position(|&b| b == b'\n')
+        .map_or(0, |pos| offset - pos);
+
+    // Find the full line after that newline
+    let line = input[line_begin..]
+        .iter()
+        .position(|&b| b == b'\n')
+        .map_or(&input[line_begin..], |pos| {
+            &input[line_begin..line_begin + pos]
+        });
+
+    // Count the number of newlines in the first `offset` bytes of input
+    let line_number = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
+
+    // The (1-indexed) column number is the offset of the remaining input into that line
+    let column_number = line.offset(remaining_input) + 1;
+
+    (
+        line,
+        Location {
+            line: line_number,
+            col: column_number,
+        },
+    )
 }
