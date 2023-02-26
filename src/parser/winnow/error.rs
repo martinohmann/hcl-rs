@@ -1,14 +1,14 @@
 use super::input::Input;
 use crate::parser::Location;
-use nom::error::{FromExternalError, ParseError};
-use nom::{AsBytes, Offset};
 use std::fmt;
+use winnow::error::{ContextError, FromExternalError, ParseError};
+use winnow::stream::{AsBytes, Offset};
 
 /// The result type used by this module.
 pub type ParseResult<T> = std::result::Result<T, Error>;
 
 /// The result type used by parsers internally.
-pub type IResult<I, O, E = InternalError<I>> = nom::IResult<I, O, E>;
+pub type IResult<I, O, E = InternalError<I>> = winnow::IResult<I, O, E>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Context {
@@ -30,9 +30,9 @@ impl std::fmt::Display for Expected {
             Expected::Char(c) if c.is_ascii_control() => {
                 write!(f, "`{}`", c.escape_debug())
             }
-            Expected::Char(c) => write!(f, "`{}`", c),
-            Expected::Literal(l) => write!(f, "`{}`", l),
-            Expected::Description(d) => write!(f, "{}", d),
+            Expected::Char(c) => write!(f, "`{c}`"),
+            Expected::Literal(l) => write!(f, "`{l}`"),
+            Expected::Description(d) => write!(f, "{d}"),
         }
     }
 }
@@ -53,12 +53,6 @@ impl<I> InternalError<I> {
             cause: None,
         }
     }
-
-    #[inline]
-    pub(super) fn add_context(mut self, ctx: Context) -> InternalError<I> {
-        self.context.push(ctx);
-        self
-    }
 }
 
 impl<I> PartialEq for InternalError<I>
@@ -75,7 +69,7 @@ where
 
 impl<I> ParseError<I> for InternalError<I> {
     #[inline]
-    fn from_error_kind(input: I, _kind: nom::error::ErrorKind) -> Self {
+    fn from_error_kind(input: I, _kind: winnow::error::ErrorKind) -> Self {
         InternalError::new(input)
     }
 
@@ -85,8 +79,16 @@ impl<I> ParseError<I> for InternalError<I> {
     }
 
     #[inline]
-    fn append(_: I, _: nom::error::ErrorKind, other: Self) -> Self {
-        other
+    fn append(self, _input: I, _kind: winnow::error::ErrorKind) -> Self {
+        self
+    }
+}
+
+impl<I> ContextError<I, Context> for InternalError<I> {
+    #[inline]
+    fn add_context(mut self, _input: I, ctx: Context) -> Self {
+        self.context.push(ctx);
+        self
     }
 }
 
@@ -95,7 +97,7 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     #[inline]
-    fn from_external_error(input: I, _kind: nom::error::ErrorKind, err: E) -> Self {
+    fn from_external_error(input: I, _kind: winnow::error::ErrorKind, err: E) -> Self {
         InternalError {
             input,
             context: Vec::new(),
@@ -104,10 +106,7 @@ where
     }
 }
 
-impl<I> fmt::Display for InternalError<I>
-where
-    I: fmt::Display,
-{
+impl<I> fmt::Display for InternalError<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let expression = self.context.iter().find_map(|c| match c {
             Context::Expression(c) => Some(c),
@@ -124,7 +123,7 @@ where
             .collect::<Vec<_>>();
 
         if let Some(expression) = expression {
-            write!(f, "invalid {}; ", expression)?;
+            write!(f, "invalid {expression}; ")?;
         }
 
         if expected.is_empty() {
@@ -143,14 +142,14 @@ where
                             f.write_str(", ")?;
                         }
 
-                        write!(f, "{}", expected)?;
+                        write!(f, "{expected}")?;
                     }
                 }
             }
         }
 
         if let Some(cause) = &self.cause {
-            write!(f, "; {}", cause)?;
+            write!(f, "; {cause}")?;
         }
 
         Ok(())
@@ -216,7 +215,7 @@ struct ErrorInner {
 
 impl ErrorInner {
     fn from_internal_error<'a>(input: Input<'a>, err: InternalError<Input<'a>>) -> ErrorInner {
-        let offset = input.offset(&err.input);
+        let offset = input.offset_to(&err.input);
         let (line, location) = locate_error(input.as_bytes(), offset);
 
         ErrorInner {
@@ -276,7 +275,7 @@ fn locate_error(input: &[u8], offset: usize) -> (&[u8], Location) {
     let line_number = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
 
     // The (1-indexed) column number is the offset of the remaining input into that line
-    let column_number = line.offset(remaining_input) + 1;
+    let column_number = line.offset_to(remaining_input) + 1;
 
     (
         line,

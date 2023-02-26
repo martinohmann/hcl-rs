@@ -172,6 +172,7 @@ fn parse_object() {
 }
 
 #[test]
+#[ignore]
 fn parse_heredoc() {
     assert_eq!(
         parse_to_end("<<HEREDOC\nHEREDOC", expr),

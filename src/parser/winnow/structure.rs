@@ -1,40 +1,37 @@
 use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::{
-    cut_char, cut_context, decor,
+    cut_char, decor,
     error::{Context, Expected},
     expr::expr,
-    ident, prefix_decor, sp, span, spc, string, suffix_decor, ws, IResult, Input,
+    ident, prefix_decor, sp, spc, string, suffix_decor, ws, IResult, Input,
 };
-use nom::{
+use winnow::{
     branch::alt,
-    character::complete::{anychar, char, line_ending},
-    combinator::{eof, map, peek},
+    bytes::any,
+    character::line_ending,
+    combinator::{cut_err, eof, peek},
     multi::many0,
-    sequence::{delimited, pair, preceded, terminated},
+    prelude::*,
+    sequence::{delimited, preceded, terminated},
 };
 
 fn attribute_expr(input: Input) -> IResult<Input, Expression> {
-    preceded(char('='), prefix_decor(sp, expr))(input)
+    preceded(b'=', prefix_decor(sp, expr))(input)
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
-    let attribute = map(
-        pair(suffix_decor(ident, sp), attribute_expr),
-        |(key, expr)| Attribute::new(key, expr),
-    );
+    let attribute =
+        (suffix_decor(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 
     delimited(
         cut_char('{'),
         alt((
             // Multiline block.
-            map(
-                prefix_decor(spc, preceded(line_ending, body)),
-                BlockBody::Multiline,
-            ),
+            prefix_decor(spc, preceded(line_ending, body.map(Box::new))).map(BlockBody::Multiline),
             // One-line block.
-            map(decor(sp, attribute, sp), BlockBody::Oneline),
+            decor(sp, attribute.map(Box::new), sp).map(BlockBody::Oneline),
             // Empty block.
-            map(span(sp), |span| BlockBody::Empty(span.into())),
+            sp.span().map(|span| BlockBody::Empty(span.into())),
         )),
         cut_char('}'),
     )(input)
@@ -45,21 +42,21 @@ fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
 }
 
 fn block_parts(input: Input) -> IResult<Input, (Vec<BlockLabel>, BlockBody)> {
-    pair(block_labels, block_body)(input)
+    (block_labels, block_body).parse_next(input)
 }
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
-        map(string, |string| BlockLabel::String(string.into())),
-        map(ident, |ident| BlockLabel::Identifier(ident.into())),
+        string.map(|string| BlockLabel::String(string.into())),
+        ident.map(BlockLabel::Identifier),
     ))(input)
 }
 
 fn structure(input: Input) -> IResult<Input, Structure> {
-    let (input, ident) = suffix_decor(ident, sp)(input)?;
-    let (input, ch) = peek(anychar)(input)?;
+    let (input, ident) = suffix_decor(ident, sp).parse_next(input)?;
+    let (input, ch) = peek(any)(input)?;
 
-    if ch == '=' {
+    if ch == b'=' {
         let (input, expr) = attribute_expr(input)?;
         Ok((
             input,
@@ -78,11 +75,11 @@ pub fn body(input: Input) -> IResult<Input, Body> {
     suffix_decor(
         many0(terminated(
             decor(ws, structure, spc),
-            cut_context(
-                alt((line_ending, eof)),
-                Context::Expected(Expected::Description("newline or eof")),
-            ),
-        )),
+            cut_err(alt((line_ending, eof)))
+                .context(Context::Expected(Expected::Description("newline or eof"))),
+        ))
+        .map(Body::new),
         ws,
-    )(input)
+    )
+    .parse_next(input)
 }

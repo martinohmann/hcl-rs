@@ -4,15 +4,15 @@
 #[path = "nom/mod.rs"]
 mod imp;
 
-#[cfg(feature = "nom-spanned")]
-#[path = "nom_spanned/mod.rs"]
+#[cfg(feature = "winnow")]
+#[path = "winnow/mod.rs"]
 mod imp;
 
 #[cfg(feature = "pest")]
 #[path = "pest/mod.rs"]
 mod imp;
 
-#[cfg(feature = "nom-spanned")]
+#[cfg(feature = "winnow")]
 pub use self::imp::parse_raw;
 pub(crate) use self::imp::parse_template;
 pub use self::imp::{parse, Error};

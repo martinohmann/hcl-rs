@@ -16,7 +16,7 @@ fn benchmark(c: &mut Criterion) {
         b.iter(|| parser::parse(&deeply_nested).unwrap())
     });
 
-    #[cfg(feature = "nom-spanned")]
+    #[cfg(feature = "winnow")]
     {
         c.bench_function("parse_raw", |b| {
             b.iter(|| parser::parse_raw(&input).unwrap())
