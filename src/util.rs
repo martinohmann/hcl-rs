@@ -8,6 +8,7 @@ use std::str::Chars;
 // This is how the original HCL spec seems to handle it based on the original specsuite although it
 // is not formally defined. E.g. ' ' (space) and '\u{2003}' (unicode "em-space") are treated as one
 // unit of whitespace even though the former is 1 byte and the latter is 3 bytes long.
+#[cfg(feature = "pest")]
 pub(crate) fn dedent(s: &str, skip_first: bool) -> Cow<str> {
     let min_leading_ws = min_leading_whitespace(s, skip_first);
 
@@ -67,6 +68,7 @@ pub(crate) fn min_leading_whitespace(s: &str, skip_first: bool) -> usize {
     leading_ws
 }
 
+#[cfg(feature = "winnow")]
 pub(crate) fn indent_by(s: &str, n: usize, skip_first: bool) -> String {
     let prefix = " ".repeat(n);
     let length = s.len();

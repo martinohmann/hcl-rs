@@ -432,7 +432,7 @@ where
     preceded(not(inner), any).recognize()
 }
 
-#[inline(always)]
+#[inline]
 fn void<'a, P>(inner: P) -> impl Parser<Input<'a>, (), InternalError<Input<'a>>>
 where
     P: Parser<Input<'a>, (), InternalError<Input<'a>>>,
