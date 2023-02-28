@@ -271,7 +271,7 @@ fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
     )(input)
 }
 
-fn heredoc<'a>(input: Input<'a>) -> IResult<Input<'a>, HeredocTemplate> {
+fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
 
     let (input, (template, trailing)) = (
