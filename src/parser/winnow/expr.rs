@@ -6,8 +6,8 @@ use super::ast::{
 use super::{
     cut_char, cut_ident, cut_tag, decor,
     error::{Context, Expected, InternalError},
-    ident, line_comment, number, prefix_decor,
-    repr::{Decorate, Decorated, Span, Spanned},
+    ident, line_comment, number, prefix_decor, raw,
+    repr::{Decorate, Decorated, RawString, SetSpan, Span, Spanned},
     sp, spanned, str_ident, string, suffix_decor,
     template::{heredoc_template, string_template},
     ws, IResult, Input,
@@ -40,22 +40,20 @@ fn array(input: Input) -> IResult<Input, Expression> {
 }
 
 fn array_items(input: Input) -> IResult<Input, Array> {
+    let values = separated1(decor(ws, preceded(peek(none_of("]")), expr), ws), b',');
+
     alt((
-        (
-            separated1(decor(ws, preceded(peek(none_of("]")), expr), ws), b','),
-            opt(preceded(b',', ws.span())),
-        )
-            .map(|(values, suffix_span)| {
-                let mut array = Array::new(values);
-                if let Some(suffix_span) = suffix_span {
-                    array.set_trailing_comma(true);
-                    array.set_trailing(suffix_span);
-                }
-                array
-            }),
-        ws.span().map(|suffix_span| {
+        (values, opt(preceded(b',', raw(ws)))).map(|(values, trailing)| {
+            let mut array = Array::new(values);
+            if let Some(trailing) = trailing {
+                array.set_trailing_comma(true);
+                array.set_trailing(trailing);
+            }
+            array
+        }),
+        raw(ws).map(|trailing| {
             let mut array = Array::default();
-            array.set_trailing(suffix_span);
+            array.set_trailing(trailing);
             array
         }),
     ))(input)
@@ -93,16 +91,16 @@ fn object_items(input: Input) -> IResult<Input, Object> {
     loop {
         let start = remaining_input.location();
 
-        let (input, ws_span) = ws.span().parse_next(remaining_input)?;
+        let (input, trailing) = raw(ws).parse_next(remaining_input)?;
         let (input, ch) = peek(any)(input)?;
 
         let (input, mut item) = if ch == b'}' {
             let mut object = Object::new(items);
-            object.set_trailing(ws_span);
+            object.set_trailing(trailing);
             return Ok((input, object));
         } else {
             let (input, mut item) = object_item(input)?;
-            item.key_mut().decor_mut().set_prefix(ws_span);
+            item.key_mut().decor_mut().set_prefix(trailing);
             (input, item)
         };
 
@@ -138,7 +136,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
 
                 item.value_mut()
                     .decor_mut()
-                    .set_suffix(suffix_start..comment_span.end);
+                    .set_suffix(RawString::from_span(suffix_start..comment_span.end));
 
                 line_ending
                     .value(ObjectValueTerminator::Newline)
@@ -278,7 +276,7 @@ fn heredoc<'a>(input: Input<'a>) -> IResult<Input<'a>, HeredocTemplate> {
     let (input, (template, trailing)) = (
         spanned(heredoc_template(delim)),
         terminated(
-            space0.span(),
+            raw(space0),
             cut_err(tag(delim)).context(Context::Expected(Expected::Description(
                 "heredoc end delimiter",
             ))),
@@ -362,7 +360,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         alt((
             (
                 separated1(decor(ws, preceded(peek(none_of(",.)")), expr), ws), b','),
-                opt((alt((tag(","), tag("..."))), ws.span())),
+                opt((alt((tag(","), tag("..."))), raw(ws))),
             )
                 .map(|(args, trailer)| {
                     let mut sig = FuncSig::new(args);
@@ -379,7 +377,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
 
                     sig
                 }),
-            ws.span().map(|trailing| {
+            raw(ws).map(|trailing| {
                 let mut sig = FuncSig::new(Vec::new());
                 sig.set_trailing(trailing);
                 sig
@@ -489,7 +487,8 @@ pub fn expr(input: Input) -> IResult<Input, Expression> {
                         None => suffix_span.start,
                     };
 
-                    expr.decor_mut().set_suffix(suffix_start..suffix_span.end);
+                    expr.decor_mut()
+                        .set_suffix(RawString::from_span(suffix_start..suffix_span.end));
 
                     let cond = Conditional::new(expr, true_expr, false_expr);
                     let expr = Expression::Conditional(Box::new(cond));

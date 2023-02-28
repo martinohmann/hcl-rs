@@ -88,12 +88,6 @@ impl Default for RawString {
     }
 }
 
-impl From<Range<usize>> for RawString {
-    fn from(span: Range<usize>) -> Self {
-        RawString::from_span(span)
-    }
-}
-
 impl From<&str> for RawString {
     #[inline]
     fn from(s: &str) -> Self {
@@ -245,10 +239,11 @@ where
 
 pub trait Span {
     fn span(&self) -> Option<Range<usize>>;
-    #[doc(hidden)]
+}
+
+pub(crate) trait SetSpan {
     fn set_span(&mut self, span: Range<usize>);
 
-    #[doc(hidden)]
     fn spanned(mut self, span: Range<usize>) -> Self
     where
         Self: Sized,
@@ -333,7 +328,9 @@ impl<T> Span for Spanned<T> {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
+}
 
+impl<T> SetSpan for Spanned<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -427,7 +424,9 @@ impl<T> Span for Decorated<T> {
     fn span(&self) -> Option<Range<usize>> {
         self.span.clone()
     }
+}
 
+impl<T> SetSpan for Decorated<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
     }
@@ -473,7 +472,12 @@ where
     fn span(&self) -> Option<Range<usize>> {
         (**self).span()
     }
+}
 
+impl<T> SetSpan for Box<T>
+where
+    T: SetSpan,
+{
     fn set_span(&mut self, span: Range<usize>) {
         (**self).set_span(span);
     }

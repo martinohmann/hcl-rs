@@ -3,7 +3,7 @@ use super::{
     cut_char, decor,
     error::{Context, Expected},
     expr::expr,
-    ident, prefix_decor, sp, spc, string, suffix_decor, ws, IResult, Input,
+    ident, prefix_decor, raw, sp, spc, string, suffix_decor, ws, IResult, Input,
 };
 use winnow::{
     branch::alt,
@@ -31,7 +31,7 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
             // One-line block.
             decor(sp, attribute.map(Box::new), sp).map(BlockBody::Oneline),
             // Empty block.
-            sp.span().map(|span| BlockBody::Empty(span.into())),
+            raw(sp).map(BlockBody::Empty),
         )),
         cut_char('}'),
     )(input)

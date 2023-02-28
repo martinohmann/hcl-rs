@@ -5,8 +5,11 @@ use super::ast::{
 use super::error::InternalError;
 use super::StringTemplate;
 use super::{
-    build_string, cut_char, cut_ident, cut_tag, decor, expr::expr, literal, repr::Span, spanned,
-    string_fragment, string_literal, ws, IResult, Input,
+    build_string, cut_char, cut_ident, cut_tag, decor,
+    expr::expr,
+    literal, raw,
+    repr::{SetSpan, Span},
+    spanned, string_fragment, string_literal, ws, IResult, Input,
 };
 use crate::template::StripMode;
 use crate::InternalString;
@@ -46,10 +49,7 @@ where
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     let if_expr = (
-        template_tag(
-            "%{",
-            (terminated(ws.span(), tag("if")), decor(ws, expr, ws)),
-        ),
+        template_tag("%{", (terminated(raw(ws), tag("if")), decor(ws, expr, ws))),
         spanned(template),
     )
         .map(|(((preamble, cond_expr), strip), template)| {
@@ -59,7 +59,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         });
 
     let else_expr = (
-        template_tag("%{", separated_pair(ws.span(), tag("else"), ws.span())),
+        template_tag("%{", separated_pair(raw(ws), tag("else"), raw(ws))),
         spanned(template),
     )
         .map(|(((preamble, trailing), strip), template)| {
@@ -69,13 +69,14 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
             expr
         });
 
-    let endif_expr = template_tag("%{", separated_pair(ws.span(), cut_tag("endif"), ws.span()))
-        .map(|((preamble, trailing), strip)| {
+    let endif_expr = template_tag("%{", separated_pair(raw(ws), cut_tag("endif"), raw(ws))).map(
+        |((preamble, trailing), strip)| {
             let mut expr = EndifTemplateExpr::new(strip);
             expr.set_preamble(preamble);
             expr.set_trailing(trailing);
             expr
-        });
+        },
+    );
 
     (if_expr, opt(else_expr), endif_expr)
         .map(|(if_expr, else_expr, endif_expr)| IfDirective::new(if_expr, else_expr, endif_expr))
@@ -87,7 +88,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
         template_tag(
             "%{",
             (
-                (terminated(ws.span(), tag("for")), decor(ws, cut_ident, ws)),
+                (terminated(raw(ws), tag("for")), decor(ws, cut_ident, ws)),
                 opt(preceded(b',', decor(ws, cut_ident, ws))),
                 preceded(cut_tag("in"), decor(ws, expr, ws)),
             ),
@@ -108,16 +109,14 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             },
         );
 
-    let endfor_expr = template_tag(
-        "%{",
-        separated_pair(ws.span(), cut_tag("endfor"), ws.span()),
-    )
-    .map(|((preamble, trailing), strip)| {
-        let mut expr = EndforTemplateExpr::new(strip);
-        expr.set_preamble(preamble);
-        expr.set_trailing(trailing);
-        expr
-    });
+    let endfor_expr = template_tag("%{", separated_pair(raw(ws), cut_tag("endfor"), raw(ws))).map(
+        |((preamble, trailing), strip)| {
+            let mut expr = EndforTemplateExpr::new(strip);
+            expr.set_preamble(preamble);
+            expr.set_trailing(trailing);
+            expr
+        },
+    );
 
     (for_expr, endfor_expr)
         .map(|(for_expr, endfor_expr)| ForDirective::new(for_expr, endfor_expr))

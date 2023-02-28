@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
-use super::repr::{Decor, Decorate, Decorated, Despan, RawString, Span, Spanned};
+use super::repr::{Decor, Decorate, Decorated, Despan, RawString, SetSpan, Span, Spanned};
 use crate::expr::{self, BinaryOperator, HeredocStripMode, UnaryOperator, Variable};
 use crate::structure;
 use crate::template::{self, StripMode};
@@ -49,7 +49,9 @@ macro_rules! forward_span_impl {
                     )*
                 }
             }
+        }
 
+        impl SetSpan for $ty {
             fn set_span(&mut self, span: Range<usize>) {
                 match self {
                     $(
@@ -88,7 +90,9 @@ macro_rules! span_impl {
             fn span(&self) -> Option<Range<usize>> {
                 self.span.clone()
             }
+        }
 
+        impl SetSpan for $ty {
             fn set_span(&mut self, span: Range<usize>) {
                 self.span = Some(span);
             }
@@ -1441,30 +1445,14 @@ pub enum Element {
     Directive(Directive),
 }
 
+forward_span_impl!(Element => { Literal, Interpolation, Directive });
+
 impl Despan for Element {
     fn despan(&mut self, input: &str) {
         match self {
             Element::Literal(_) => {}
             Element::Interpolation(interp) => interp.despan(input),
             Element::Directive(dir) => dir.despan(input),
-        }
-    }
-}
-
-impl Span for Element {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            Element::Literal(lit) => lit.span(),
-            Element::Interpolation(interp) => interp.span(),
-            Element::Directive(dir) => dir.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            Element::Literal(lit) => lit.set_span(span),
-            Element::Interpolation(interp) => interp.set_span(span),
-            Element::Directive(dir) => dir.set_span(span),
         }
     }
 }
@@ -1527,27 +1515,13 @@ pub enum Directive {
     For(ForDirective),
 }
 
+forward_span_impl!(Directive => { If, For });
+
 impl Despan for Directive {
     fn despan(&mut self, input: &str) {
         match self {
             Directive::If(dir) => dir.despan(input),
             Directive::For(dir) => dir.despan(input),
-        }
-    }
-}
-
-impl Span for Directive {
-    fn span(&self) -> Option<Range<usize>> {
-        match self {
-            Directive::If(dir) => dir.span(),
-            Directive::For(dir) => dir.span(),
-        }
-    }
-
-    fn set_span(&mut self, span: Range<usize>) {
-        match self {
-            Directive::If(dir) => dir.set_span(span),
-            Directive::For(dir) => dir.set_span(span),
         }
     }
 }
