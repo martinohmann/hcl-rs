@@ -3,7 +3,6 @@ mod encode;
 mod error;
 mod escape;
 mod expr;
-mod input;
 pub mod repr;
 mod structure;
 mod template;
@@ -13,7 +12,6 @@ mod tests;
 pub use self::ast::*;
 use self::error::{Context, Expected, IResult, InternalError};
 pub use self::error::{Error, ParseResult};
-use self::input::Input;
 use self::repr::{Decorate, Decorated, RawString, SetSpan};
 use self::structure::body;
 use self::template::template;
@@ -30,8 +28,11 @@ use winnow::{
     multi::{many0, many1},
     prelude::*,
     sequence::{delimited, preceded, terminated},
+    stream::Located,
     Parser,
 };
+
+pub type Input<'a> = Located<&'a [u8]>;
 
 /// Parse a `hcl::Body` from a `&str`.
 ///

@@ -1,4 +1,4 @@
-use super::input::Input;
+use super::Input;
 use crate::parser::Location;
 use std::fmt;
 use winnow::error::{ContextError, FromExternalError, ParseError};
