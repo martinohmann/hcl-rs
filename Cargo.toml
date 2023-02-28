@@ -30,7 +30,6 @@ harness = false
 [features]
 default = ["winnow", "perf"]
 winnow = ["dep:winnow"]
-nom = ["dep:nom"]
 perf = ["dep:kstring"]
 pest = ["dep:pest", "dep:pest_derive"]
 
@@ -39,7 +38,6 @@ pest = { version = "2.5.2", optional = true }
 pest_derive = { version = "2.5.2", optional = true }
 itoa = "1.0.5"
 kstring = { version = "2.0.0", features = ["max_inline", "serde"], optional = true }
-nom = { version = "7", optional = true }
 ryu = "1.0.12"
 unicode-ident = "1.0.6"
 winnow = { version = "0.3.3", features = ["simd"], optional = true }

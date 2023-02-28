@@ -1,9 +1,5 @@
 //! HCL parser implementation.
 
-#[cfg(feature = "nom")]
-#[path = "nom/mod.rs"]
-mod imp;
-
 #[cfg(feature = "winnow")]
 #[path = "winnow/mod.rs"]
 mod imp;
