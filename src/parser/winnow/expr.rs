@@ -5,7 +5,7 @@ use super::ast::{
 };
 use super::{
     cut_char, cut_ident, cut_tag, decor,
-    error::{Context, Expected, InternalError},
+    error::{Context, Expected},
     ident, line_comment, number, prefix_decor, raw,
     repr::{Decorate, Decorated, RawString, SetSpan, Span, Spanned},
     sp, spanned, str_ident, string, suffix_decor,
@@ -21,7 +21,6 @@ use winnow::{
     character::{crlf, dec_uint, line_ending, newline, space0},
     combinator::{cut_err, fail, not, opt, peek, success},
     dispatch,
-    error::ContextError,
     multi::{many1, separated1},
     sequence::{delimited, preceded, separated_pair, terminated},
     stream::{AsBytes, Location},
@@ -143,13 +142,12 @@ fn object_items(input: Input) -> IResult<Input, Object> {
                     .parse_next(input)?
             }
             _ => {
-                return Err(winnow::error::ErrMode::Cut(
-                    InternalError::new(input)
-                        .add_context(input, Context::Expression("object item"))
-                        .add_context(input, Context::Expected(Expected::Char('}')))
-                        .add_context(input, Context::Expected(Expected::Char(',')))
-                        .add_context(input, Context::Expected(Expected::Char('\n'))),
-                ))
+                return cut_err(fail)
+                    .context(Context::Expression("object item"))
+                    .context(Context::Expected(Expected::Char('}')))
+                    .context(Context::Expected(Expected::Char(',')))
+                    .context(Context::Expected(Expected::Char('\n')))
+                    .parse_next(input)
             }
         };
 
@@ -183,7 +181,10 @@ fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSepa
     dispatch! {any;
         b'=' => success(ObjectKeyValueSeparator::Equals),
         b':' => success(ObjectKeyValueSeparator::Colon),
-        _ => cut_err(fail).context(Context::Expected(Expected::Description("`=` or `:`"))),
+        _ => cut_err(fail)
+            .context(Context::Expression("object key-value separator"))
+            .context(Context::Expected(Expected::Char('=')))
+            .context(Context::Expected(Expected::Char(':'))),
     }
     .parse_next(input)
 }
@@ -311,18 +312,22 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
                     ident.map(TraversalOperator::GetAttr),
                     dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
                 )))
-                .context(Context::Expected(Expected::Description(
-                    "`*`, identifier or unsigned integer",
-                ))),
+                .context(Context::Expression("traversal operator"))
+                .context(Context::Expected(Expected::Char('*')))
+                .context(Context::Expected(Expected::Description("identifier")))
+                .context(Context::Expected(Expected::Description("unsigned integer"))),
             ),
         ),
         b'[' => terminated(
             decor(
                 ws,
-                alt((
+                cut_err(alt((
                     one_of('*').value(TraversalOperator::FullSplat(Decorated::new(()))),
                     expr.map(TraversalOperator::Index),
-                )),
+                )))
+                .context(Context::Expression("traversal operator"))
+                .context(Context::Expected(Expected::Char('*')))
+                .context(Context::Expected(Expected::Description("expression"))),
                 ws,
             ),
             cut_char(']'),
@@ -333,25 +338,21 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
 }
 
 fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
-    cut_err(
-        (str_ident.with_span(), opt(prefix_decor(ws, func_sig))).map(
-            |((ident, span), signature)| match signature {
-                Some(signature) => {
-                    let name = Decorated::new(Identifier::unchecked(ident)).spanned(span);
-                    let func_call = FuncCall::new(name, signature);
-                    Expression::FuncCall(Box::new(func_call))
-                }
-                None => match ident {
-                    "null" => Expression::Null(().into()),
-                    "true" => Expression::Bool(true.into()),
-                    "false" => Expression::Bool(false.into()),
-                    var => Expression::Variable(Variable::unchecked(var).into()),
-                },
+    (str_ident.with_span(), opt(prefix_decor(ws, func_sig)))
+        .map(|((ident, span), signature)| match signature {
+            Some(signature) => {
+                let name = Decorated::new(Identifier::unchecked(ident)).spanned(span);
+                let func_call = FuncCall::new(name, signature);
+                Expression::FuncCall(Box::new(func_call))
+            }
+            None => match ident {
+                "null" => Expression::Null(().into()),
+                "true" => Expression::Bool(true.into()),
+                "false" => Expression::Bool(false.into()),
+                var => Expression::Variable(Variable::unchecked(var).into()),
             },
-        ),
-    )
-    .context(Context::Expression("identifier"))
-    .parse_next(input)
+        })
+        .parse_next(input)
 }
 
 fn func_sig(input: Input) -> IResult<Input, FuncSig> {
@@ -439,7 +440,18 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
             .map(|(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))),
         b'(' => parenthesis.map(|expr| Expression::Parenthesis(Box::new(expr.into()))),
         b'_' | b'a'..=b'z' | b'A'..=b'Z' => ident_or_func_call,
-        _ => fail,
+        _ => cut_err(fail)
+            .context(Context::Expression("expression"))
+            .context(Context::Expected(Expected::Char('"')))
+            .context(Context::Expected(Expected::Char('[')))
+            .context(Context::Expected(Expected::Char('{')))
+            .context(Context::Expected(Expected::Char('-')))
+            .context(Context::Expected(Expected::Char('!')))
+            .context(Context::Expected(Expected::Char('(')))
+            .context(Context::Expected(Expected::Char('_')))
+            .context(Context::Expected(Expected::Char('<')))
+            .context(Context::Expected(Expected::Description("letter")))
+            .context(Context::Expected(Expected::Description("digit"))),
     }
     .parse_next(input)
 }
@@ -458,9 +470,7 @@ pub fn expr(input: Input) -> IResult<Input, Expression> {
         prefix_decor(sp, expr),
     );
 
-    let (input, expr) = cut_err(spanned(expr_term))
-        .context(Context::Expression("expression"))
-        .parse_next(input)?;
+    let (input, expr) = spanned(expr_term).parse_next(input)?;
 
     let (input, mut expr) = match traversal.parse_next(input) {
         Ok((input, (operators, span))) => {

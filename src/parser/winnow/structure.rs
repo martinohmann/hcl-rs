@@ -76,7 +76,8 @@ pub fn body(input: Input) -> IResult<Input, Body> {
         many0(terminated(
             decor(ws, structure, spc),
             cut_err(alt((line_ending, eof)))
-                .context(Context::Expected(Expected::Description("newline or eof"))),
+                .context(Context::Expected(Expected::Description("newline")))
+                .context(Context::Expected(Expected::Description("eof"))),
         ))
         .map(Body::new),
         ws,

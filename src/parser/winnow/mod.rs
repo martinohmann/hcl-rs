@@ -276,10 +276,11 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
         b'/' => success('/'),
         b'b' => success('\u{08}'),
         b'f' => success('\u{0C}'),
-        b'u' => cut_err(hexescape::<4>).context(Context::Expression("unicode 4-digit hex code")),
-        b'U' => cut_err(hexescape::<8>).context(Context::Expression("unicode 8-digit hex code")),
-        _ => {
-            cut_err(fail)
+        b'u' => cut_err(hexescape::<4>)
+            .context(Context::Expression("unicode 4-digit hex code")),
+        b'U' => cut_err(hexescape::<8>)
+            .context(Context::Expression("unicode 8-digit hex code")),
+        _ => cut_err(fail)
             .context(Context::Expression("escape sequence"))
             .context(Context::Expected(Expected::Char('b')))
             .context(Context::Expected(Expected::Char('f')))
@@ -289,8 +290,7 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
             .context(Context::Expected(Expected::Char('u')))
             .context(Context::Expected(Expected::Char('U')))
             .context(Context::Expected(Expected::Char('\\')))
-            .context(Context::Expected(Expected::Char('"')))
-        }
+            .context(Context::Expected(Expected::Char('"'))),
     }
     .parse_next(input)
 }
@@ -400,7 +400,11 @@ fn ident(input: Input) -> IResult<Input, Decorated<Identifier>> {
 }
 
 fn exponent(input: Input) -> IResult<Input, &[u8]> {
-    (one_of("eE"), opt(one_of("+-")), cut_err(digit1))
+    (
+        one_of("eE"),
+        opt(one_of("+-")),
+        cut_err(digit1).context(Context::Expected(Expected::Description("digit"))),
+    )
         .recognize()
         .parse_next(input)
 }
