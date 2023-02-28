@@ -319,30 +319,24 @@ fn heredoc<'a>(input: Input<'a>) -> IResult<Input<'a>, HeredocTemplate> {
 }
 
 fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
-    let (input, ch) = peek(any)(input)?;
-
-    match ch {
-        b'.' => preceded(
-            b'.',
-            prefix_decor(
-                ws,
-                preceded(
-                    // Must not match `for` object value grouping or func call expand final which
-                    // are both `...`.
-                    not(b'.'),
-                    cut_err(alt((
-                        one_of('*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
-                        ident.map(TraversalOperator::GetAttr),
-                        dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
-                    )))
-                    .context(Context::Expected(Expected::Description(
-                        "`*`, identifier or unsigned integer",
-                    ))),
-                ),
+    dispatch! {any;
+        b'.' => prefix_decor(
+            ws,
+            preceded(
+                // Must not match `for` object value grouping or func call expand final which
+                // are both `...`.
+                not(b'.'),
+                cut_err(alt((
+                    one_of('*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
+                    ident.map(TraversalOperator::GetAttr),
+                    dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
+                )))
+                .context(Context::Expected(Expected::Description(
+                    "`*`, identifier or unsigned integer",
+                ))),
             ),
-        )(input),
-        b'[' => delimited(
-            b'[',
+        ),
+        b'[' => terminated(
             decor(
                 ws,
                 alt((
@@ -352,9 +346,10 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
                 ws,
             ),
             cut_char(']'),
-        )(input),
-        _ => fail(input),
+        ),
+        _ => fail,
     }
+    .parse_next(input)
 }
 
 fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
@@ -413,46 +408,39 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
 }
 
 fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
-    dispatch! {peek(any);
-        b'=' => tag("==").value(BinaryOperator::Eq),
-        b'!' => tag("!=").value(BinaryOperator::NotEq),
+    dispatch! {any;
+        b'=' => one_of('=').value(BinaryOperator::Eq),
+        b'!' => one_of('=').value(BinaryOperator::NotEq),
         b'<' => alt((
-            tag("<=").value(BinaryOperator::LessEq),
-            one_of('<').value(BinaryOperator::Less),
+            one_of('=').value(BinaryOperator::LessEq),
+            success(BinaryOperator::Less),
         )),
         b'>' => alt((
-            tag(">=").value(BinaryOperator::GreaterEq),
-            one_of('>').value(BinaryOperator::Greater),
+            one_of('=').value(BinaryOperator::GreaterEq),
+            success(BinaryOperator::Greater),
         )),
-        b'+' => one_of('+').value(BinaryOperator::Plus),
-        b'-' => one_of('-').value(BinaryOperator::Minus),
-        b'*' => one_of('*').value(BinaryOperator::Mul),
-        b'/' => one_of('/').value(BinaryOperator::Div),
-        b'%' => one_of('%').value(BinaryOperator::Mod),
-        b'&' => tag("&&").value(BinaryOperator::And),
-        b'|' => tag("||").value(BinaryOperator::Or),
+        b'+' => success(BinaryOperator::Plus),
+        b'-' => success(BinaryOperator::Minus),
+        b'*' => success(BinaryOperator::Mul),
+        b'/' => success(BinaryOperator::Div),
+        b'%' => success(BinaryOperator::Mod),
+        b'&' => one_of('&').value(BinaryOperator::And),
+        b'|' => one_of('|').value(BinaryOperator::Or),
         _ => fail,
     }
     .parse_next(input)
 }
 
 fn expr_term(input: Input) -> IResult<Input, Expression> {
-    let (input, ch) = peek(any)(input)?;
-
-    match ch {
+    dispatch! {peek(any);
         b'"' => alt((
             string.map(|s| Expression::String(s.into())),
             string_template.map(Expression::Template),
-        ))
-        .parse_next(input),
-        b'[' => array.parse_next(input),
-        b'{' => object.parse_next(input),
-        b'0'..=b'9' => number
-            .map(|n| Expression::Number(n.into()))
-            .parse_next(input),
-        b'<' => heredoc
-            .map(|heredoc| Expression::HeredocTemplate(Box::new(heredoc)))
-            .parse_next(input),
+        )),
+        b'[' => array,
+        b'{' => object,
+        b'0'..=b'9' => number.map(|n| Expression::Number(n.into())),
+        b'<' => heredoc.map(|heredoc| Expression::HeredocTemplate(Box::new(heredoc))),
         b'-' => alt((
             preceded((b'-', sp), number).map(|n| Expression::Number((-n).into())),
             (
@@ -462,72 +450,55 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
                 .map(|(operator, expr)| {
                     Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))
                 }),
-        ))
-        .parse_next(input),
+        )),
         b'!' => (
             spanned(take(1usize).value(UnaryOperator::Not).map(Spanned::new)),
             prefix_decor(sp, expr_term),
         )
-            .map(|(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr))))
-            .parse_next(input),
-        b'(' => parenthesis
-            .map(|expr| Expression::Parenthesis(Box::new(expr.into())))
-            .parse_next(input),
-        b'_' | b'a'..=b'z' | b'A'..=b'Z' => ident_or_func_call.parse_next(input),
-        _ => fail(input),
+            .map(|(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))),
+        b'(' => parenthesis.map(|expr| Expression::Parenthesis(Box::new(expr.into()))),
+        b'_' | b'a'..=b'z' | b'A'..=b'Z' => ident_or_func_call,
+        _ => fail,
     }
+    .parse_next(input)
 }
 
 pub fn expr(input: Input) -> IResult<Input, Expression> {
-    let traversal = many1(prefix_decor(sp, traversal_operator.map(Decorated::new))).with_span();
+    let mut traversal = many1(prefix_decor(sp, traversal_operator.map(Decorated::new))).with_span();
 
-    let binary_op = (
-        prefix_decor(sp, binary_operator.map(Decorated::new)),
-        prefix_decor(sp, expr),
-    )
-        .with_span();
-
-    let conditional = (
+    let mut conditional = (
         sp.span(),
         preceded(b'?', decor(sp, expr, sp)),
         preceded(cut_char(':'), prefix_decor(sp, expr)),
     );
 
-    (
-        cut_err(expr_term.with_span()).context(Context::Expression("expression")),
-        opt(traversal),
-        opt(binary_op),
-        opt(conditional),
-    )
-        .map(|((mut expr, span), traversal, binary_op, conditional)| {
-            let start = span.start;
-            let end = span.end;
+    let mut binary_op = (
+        prefix_decor(sp, binary_operator.map(Decorated::new)),
+        prefix_decor(sp, expr),
+    );
 
-            let (mut expr, end) = match traversal {
-                Some((operators, span)) => {
-                    expr.set_span(start..end);
+    let (input, expr) = cut_err(spanned(expr_term))
+        .context(Context::Expression("expression"))
+        .parse_next(input)?;
 
-                    let expr = Expression::Traversal(Box::new(Traversal::new(expr, operators)));
+    let (input, mut expr) = match traversal.parse_next(input) {
+        Ok((input, (operators, span))) => {
+            let expr_start = expr.span().map_or(0, |span| span.start);
+            let mut expr = Expression::Traversal(Box::new(Traversal::new(expr, operators)));
+            expr.set_span(expr_start..span.end);
+            (input, expr)
+        }
+        Err(winnow::error::ErrMode::Cut(e)) => return Err(winnow::error::ErrMode::Cut(e)),
+        Err(_) => (input, expr),
+    };
 
-                    (expr, span.end)
-                }
-                None => (expr, end),
-            };
+    match peek(preceded(sp, any)).parse_next(input) {
+        Ok((input, ch)) => {
+            match ch {
+                b'?' => {
+                    let (input, (suffix_span, true_expr, false_expr)) =
+                        conditional.parse_next(input)?;
 
-            let (mut expr, end) = match binary_op {
-                Some(((operator, rhs_expr), span)) => {
-                    expr.set_span(start..end);
-
-                    let expr =
-                        Expression::BinaryOp(Box::new(BinaryOp::new(expr, operator, rhs_expr)));
-
-                    (expr, span.end)
-                }
-                None => (expr, end),
-            };
-
-            match conditional {
-                Some((suffix_span, true_expr, false_expr)) => {
                     // Associate whitespace preceding the `?` with the cond expression, updating
                     // the span if it already has a decor suffix.
                     let suffix_start = match expr.decor().suffix() {
@@ -536,12 +507,25 @@ pub fn expr(input: Input) -> IResult<Input, Expression> {
                     };
 
                     expr.decor_mut().set_suffix(suffix_start..suffix_span.end);
-                    expr.set_span(start..end);
 
-                    Expression::Conditional(Box::new(Conditional::new(expr, true_expr, false_expr)))
+                    let cond = Conditional::new(expr, true_expr, false_expr);
+                    let expr = Expression::Conditional(Box::new(cond));
+                    Ok((input, expr))
                 }
-                None => expr,
+                b'=' | b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' => {
+                    match binary_op.parse_next(input) {
+                        Ok((input, (operator, rhs_expr))) => {
+                            let op = BinaryOp::new(expr, operator, rhs_expr);
+                            let expr = Expression::BinaryOp(Box::new(op));
+                            Ok((input, expr))
+                        }
+                        Err(winnow::error::ErrMode::Cut(e)) => Err(winnow::error::ErrMode::Cut(e)),
+                        Err(_) => Ok((input, expr)),
+                    }
+                }
+                _ => Ok((input, expr)),
             }
-        })
-        .parse_next(input)
+        }
+        Err(_) => Ok((input, expr)),
+    }
 }

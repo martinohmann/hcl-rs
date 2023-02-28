@@ -13,9 +13,9 @@ use pretty_assertions::assert_eq;
 fn parse_variable() {
     assert_eq!(
         parse_to_end("_an-id3nt1fieR", expr),
-        Ok(Expression::Variable(Decorated::new(Variable::unchecked(
-            "_an-id3nt1fieR"
-        ))))
+        Ok(Expression::Variable(
+            Decorated::new(Variable::unchecked("_an-id3nt1fieR")).spanned(0..14)
+        ))
     );
 }
 
@@ -23,12 +23,16 @@ fn parse_variable() {
 fn parse_string() {
     assert_eq!(
         parse_to_end("\"a string\"", expr),
-        Ok(Expression::String(Decorated::new("a string".into())))
+        Ok(Expression::String(
+            Decorated::new(InternalString::from("a string")).spanned(0..10)
+        ))
     );
 
     assert_eq!(
         parse_to_end(r#""\\""#, expr),
-        Ok(Expression::String(Decorated::new("\\".into())))
+        Ok(Expression::String(
+            Decorated::new(InternalString::from("\\")).spanned(0..4)
+        ))
     );
 }
 
@@ -36,14 +40,16 @@ fn parse_string() {
 fn parse_number() {
     assert_eq!(
         parse_to_end("12e+10", expr),
-        Ok(Expression::Number(Decorated::new(
-            Number::from_f64(120000000000.0).unwrap()
-        )))
+        Ok(Expression::Number(
+            Decorated::new(Number::from_f64(120000000000.0).unwrap()).spanned(0..6)
+        ))
     );
 
     assert_eq!(
         parse_to_end("42", expr),
-        Ok(Expression::Number(Decorated::new(Number::from(42u64))))
+        Ok(Expression::Number(
+            Decorated::new(Number::from(42u64)).spanned(0..2)
+        ))
     );
 }
 
@@ -84,22 +90,25 @@ fn parse_conditional() {
 fn parse_array() {
     assert_eq!(
         parse_to_end(r#"["bar", ["baz"]]"#, expr),
-        Ok(Expression::Array(Box::new(Array::new(vec![
-            Expression::String(
-                Decorated::new(InternalString::from("bar"))
-                    .spanned(1..6)
-                    .decorated(Decor::new("", ""))
-            ),
-            Expression::Array(Box::new(
-                Array::new(vec![Expression::String(
-                    Decorated::new(InternalString::from("baz"))
-                        .spanned(9..14)
-                        .decorated(("", ""))
-                )])
-                .spanned(8..15)
-                .decorated((7..8, ""))
-            ))
-        ]))))
+        Ok(Expression::Array(Box::new(
+            Array::new(vec![
+                Expression::String(
+                    Decorated::new(InternalString::from("bar"))
+                        .spanned(1..6)
+                        .decorated(Decor::new("", ""))
+                ),
+                Expression::Array(Box::new(
+                    Array::new(vec![Expression::String(
+                        Decorated::new(InternalString::from("baz"))
+                            .spanned(9..14)
+                            .decorated(("", ""))
+                    )])
+                    .spanned(8..15)
+                    .decorated((7..8, ""))
+                ))
+            ])
+            .spanned(0..16)
+        )))
     );
 }
 
@@ -146,6 +155,7 @@ fn parse_object() {
                 },
             ]);
             object.set_trailing(41..42);
+            object.set_span(0..43);
             object.into()
         })))
     );
@@ -155,6 +165,7 @@ fn parse_object() {
         Ok(Expression::Object(Box::new({
             let mut object = Object::new(vec![]);
             object.set_trailing(1..12);
+            object.set_span(0..13);
             object.into()
         })))
     );
