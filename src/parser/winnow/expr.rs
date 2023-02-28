@@ -3,25 +3,23 @@ use super::ast::{
     HeredocTemplate, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
     Template, Traversal, TraversalOperator, UnaryOp,
 };
-use super::cut_ident;
-use super::repr::{Decorate, Decorated, Span, Spanned};
 use super::{
-    anychar_except, cut_char, cut_tag, decor,
+    anychar_except, cut_char, cut_ident, cut_tag, decor,
     error::{Context, Expected, InternalError},
-    ident, line_comment, number, prefix_decor, sp, spanned, str_ident, string, suffix_decor,
+    ident, line_comment, number, prefix_decor,
+    repr::{Decorate, Decorated, Span, Spanned},
+    sp, spanned, str_ident, string, suffix_decor,
     template::{string_template, template},
     void, ws, IResult, Input,
 };
 use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
 use std::ops::Range;
-use winnow::character::dec_uint;
-use winnow::combinator::success;
 use winnow::{
     branch::alt,
     bytes::{any, none_of, one_of, tag, take},
-    character::{crlf, line_ending, newline, space0},
-    combinator::{cut_err, fail, not, opt, peek},
+    character::{crlf, dec_uint, line_ending, newline, space0},
+    combinator::{cut_err, fail, not, opt, peek, success},
     dispatch,
     error::ContextError,
     multi::{many1, separated1},
@@ -226,7 +224,11 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
     prefix_decor(
         ws,
         delimited(
-            tag("for"),
+            // The `for` tag needs to be followed by either a space character or a comment start to
+            // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
+            // and the following identifier which would fail parsing of arrays with identifier/func
+            // call elements and objects with those as keys.
+            (tag("for"), peek(one_of(" \t#/"))),
             (
                 decor(ws, cut_ident, ws),
                 opt(preceded(b',', decor(ws, cut_ident, ws))),

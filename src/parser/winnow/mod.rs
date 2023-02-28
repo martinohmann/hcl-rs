@@ -109,13 +109,13 @@ pub(crate) unsafe fn from_utf8_unchecked<'b>(
 }
 
 fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, InternalError<Input<'a>>> {
-    one_of(c)
+    cut_err(one_of(c))
         .map(AsChar::as_char)
         .context(Context::Expected(Expected::Char(c)))
 }
 
 fn cut_tag<'a>(t: &'static str) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>> {
-    tag(t).context(Context::Expected(Expected::Literal(t)))
+    cut_err(tag(t)).context(Context::Expected(Expected::Literal(t)))
 }
 
 fn hash_line_comment(input: Input) -> IResult<Input, ()> {

@@ -110,6 +110,45 @@ fn parse_array() {
             .spanned(0..16)
         )))
     );
+
+    assert_eq!(
+        parse_to_end(r#"[format("prefix-%s", var.foo)]"#, expr),
+        Ok(Expression::Array(Box::new(
+            Array::new(vec![Expression::FuncCall(Box::new(
+                FuncCall::new(
+                    Decorated::new(Identifier::unchecked("format")).spanned(1..7),
+                    FuncSig::new(vec![
+                        Expression::String(
+                            Decorated::new(InternalString::from("prefix-%s"))
+                                .spanned(8..19)
+                                .decorated(("", ""))
+                        ),
+                        Expression::Traversal(Box::new(
+                            Traversal::new(
+                                Expression::Variable(
+                                    Decorated::new(Variable::unchecked("var")).spanned(21..24)
+                                ),
+                                vec![Decorated::new(TraversalOperator::GetAttr(
+                                    Decorated::new(Identifier::unchecked("foo"))
+                                        .spanned(25..28)
+                                        .decorated(Decor::from_prefix(""))
+                                ))
+                                .spanned(24..28)
+                                .decorated(Decor::from_prefix(""))]
+                            )
+                            .spanned(21..28)
+                            .decorated((20..21, ""))
+                        ))
+                    ])
+                    .spanned(7..29)
+                    .decorated(Decor::from_prefix(""))
+                )
+                .spanned(1..29)
+                .decorated(("", ""))
+            ))])
+            .spanned(0..30)
+        )))
+    );
 }
 
 #[test]
