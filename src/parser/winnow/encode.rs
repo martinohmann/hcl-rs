@@ -319,7 +319,10 @@ impl Encode for ForTemplateExpr {
                 buf.write_char(',')?;
             }
 
-            self.value_var().encode_decorated(buf, BOTH_SPACE_DECOR)
+            self.value_var().encode_decorated(buf, BOTH_SPACE_DECOR)?;
+            buf.write_str("in")?;
+            self.collection_expr()
+                .encode_decorated(buf, BOTH_SPACE_DECOR)
         })?;
         self.template().encode(buf)
     }

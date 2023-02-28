@@ -1,40 +1,14 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decor, Decorate, Decorated, Despan, Span, Spanned};
+use super::repr::{Decorate, Decorated, Despan, Span, Spanned};
 use super::structure::body;
+use super::template::template;
 use crate::expr::Variable;
 use crate::template::StripMode;
 use crate::{Identifier, InternalString, Number};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
-
-#[test]
-fn parse_variable() {
-    assert_eq!(
-        parse_to_end("_an-id3nt1fieR", expr),
-        Ok(Expression::Variable(
-            Decorated::new(Variable::unchecked("_an-id3nt1fieR")).spanned(0..14)
-        ))
-    );
-}
-
-#[test]
-fn parse_string() {
-    assert_eq!(
-        parse_to_end("\"a string\"", expr),
-        Ok(Expression::String(
-            Decorated::new(InternalString::from("a string")).spanned(0..10)
-        ))
-    );
-
-    assert_eq!(
-        parse_to_end(r#""\\""#, expr),
-        Ok(Expression::String(
-            Decorated::new(InternalString::from("\\")).spanned(0..4)
-        ))
-    );
-}
 
 #[test]
 fn parse_number() {
@@ -44,194 +18,11 @@ fn parse_number() {
             Decorated::new(Number::from_f64(120000000000.0).unwrap()).spanned(0..6)
         ))
     );
-
-    assert_eq!(
-        parse_to_end("42", expr),
-        Ok(Expression::Number(
-            Decorated::new(Number::from(42u64)).spanned(0..2)
-        ))
-    );
-}
-
-#[test]
-fn parse_conditional() {
-    assert_eq!(
-        parse_to_end("var.enabled ? 1 : 0", expr),
-        Ok(Expression::Conditional(Box::new(Conditional::new(
-            Expression::Traversal(Box::new(
-                Traversal::new(
-                    Expression::Variable(Decorated::new(Variable::unchecked("var")).spanned(0..3)),
-                    vec![Decorated::new(TraversalOperator::GetAttr(
-                        Decorated::new(Identifier::unchecked("enabled"))
-                            .spanned(4..11)
-                            .decorated(Decor::from_prefix(""))
-                    ))
-                    .spanned(3..11)
-                    .decorated(Decor::from_prefix(""))]
-                )
-                .spanned(0..11)
-                .decorated(Decor::from_suffix(11..12)),
-            )),
-            Expression::Number(
-                Decorated::new(Number::from(1))
-                    .spanned(14..15)
-                    .decorated(Decor::new(13..14, 15..16))
-            ),
-            Expression::Number(
-                Decorated::new(Number::from(0))
-                    .spanned(18..19)
-                    .decorated(Decor::from_prefix(17..18))
-            ),
-        ))))
-    );
-}
-
-#[test]
-fn parse_array() {
-    assert_eq!(
-        parse_to_end(r#"["bar", ["baz"]]"#, expr),
-        Ok(Expression::Array(Box::new(
-            Array::new(vec![
-                Expression::String(
-                    Decorated::new(InternalString::from("bar"))
-                        .spanned(1..6)
-                        .decorated(Decor::new("", ""))
-                ),
-                Expression::Array(Box::new(
-                    Array::new(vec![Expression::String(
-                        Decorated::new(InternalString::from("baz"))
-                            .spanned(9..14)
-                            .decorated(("", ""))
-                    )])
-                    .spanned(8..15)
-                    .decorated((7..8, ""))
-                ))
-            ])
-            .spanned(0..16)
-        )))
-    );
-
-    assert_eq!(
-        parse_to_end(r#"[format("prefix-%s", var.foo)]"#, expr),
-        Ok(Expression::Array(Box::new(
-            Array::new(vec![Expression::FuncCall(Box::new(
-                FuncCall::new(
-                    Decorated::new(Identifier::unchecked("format")).spanned(1..7),
-                    FuncSig::new(vec![
-                        Expression::String(
-                            Decorated::new(InternalString::from("prefix-%s"))
-                                .spanned(8..19)
-                                .decorated(("", ""))
-                        ),
-                        Expression::Traversal(Box::new(
-                            Traversal::new(
-                                Expression::Variable(
-                                    Decorated::new(Variable::unchecked("var")).spanned(21..24)
-                                ),
-                                vec![Decorated::new(TraversalOperator::GetAttr(
-                                    Decorated::new(Identifier::unchecked("foo"))
-                                        .spanned(25..28)
-                                        .decorated(Decor::from_prefix(""))
-                                ))
-                                .spanned(24..28)
-                                .decorated(Decor::from_prefix(""))]
-                            )
-                            .spanned(21..28)
-                            .decorated((20..21, ""))
-                        ))
-                    ])
-                    .spanned(7..29)
-                    .decorated(Decor::from_prefix(""))
-                )
-                .spanned(1..29)
-                .decorated(("", ""))
-            ))])
-            .spanned(0..30)
-        )))
-    );
-}
-
-#[test]
-fn parse_object() {
-    assert_eq!(
-        parse_to_end("{\"bar\" : \"baz\", \"qux\"= ident # a comment\n }", expr),
-        Ok(Expression::Object(Box::new({
-            let mut object = Object::new(vec![
-                {
-                    let mut item = ObjectItem::new(
-                        ObjectKey::Expression(Expression::String(
-                            Decorated::new(InternalString::from("bar"))
-                                .spanned(1..6)
-                                .decorated(Decor::new("", 6..7)),
-                        )),
-                        Expression::String(
-                            Decorated::new(InternalString::from("baz"))
-                                .spanned(9..14)
-                                .decorated(Decor::new(8..9, "")),
-                        ),
-                    )
-                    .spanned(1..15);
-                    item.set_key_value_separator(ObjectKeyValueSeparator::Colon);
-                    item.set_value_terminator(ObjectValueTerminator::Comma);
-                    item
-                },
-                {
-                    let mut item = ObjectItem::new(
-                        ObjectKey::Expression(Expression::String(
-                            Decorated::new(InternalString::from("qux"))
-                                .spanned(16..21)
-                                .decorated(Decor::new(15..16, "")),
-                        )),
-                        Expression::Variable(
-                            Decorated::new(Variable::unchecked("ident"))
-                                .spanned(23..28)
-                                .decorated(Decor::new(22..23, 28..40)),
-                        ),
-                    )
-                    .spanned(15..41);
-                    item.set_value_terminator(ObjectValueTerminator::Newline);
-                    item
-                },
-            ]);
-            object.set_trailing(41..42);
-            object.set_span(0..43);
-            object.into()
-        })))
-    );
-
-    assert_eq!(
-        parse_to_end("{ #comment\n }", expr),
-        Ok(Expression::Object(Box::new({
-            let mut object = Object::new(vec![]);
-            object.set_trailing(1..12);
-            object.set_span(0..13);
-            object.into()
-        })))
-    );
-
-    assert!(parse_to_end("{  }", expr).is_ok());
-    assert!(parse_to_end("{ /*comment*/ }", expr).is_ok());
-    assert!(parse_to_end("{ #comment\n }", expr).is_ok());
-    assert!(parse_to_end("{ , }", expr).is_err());
-    assert!(parse_to_end("{ foo = 1, }", expr).is_ok());
-    assert!(parse_to_end("{ foo = 1 bar = 1 }", expr).is_err());
-    assert!(parse_to_end("{ foo = 1, bar = 1 }", expr).is_ok());
-    assert!(parse_to_end("{ foo = 1 /*comment*/ }", expr).is_ok());
-    assert!(parse_to_end("{ foo = 1 #comment\n }", expr).is_ok());
-    assert!(parse_to_end("{ foo = 1, #comment\n bar = 1 }", expr).is_ok());
 }
 
 #[test]
 #[ignore]
 fn parse_heredoc() {
-    assert_eq!(
-        parse_to_end("<<HEREDOC\nHEREDOC", expr),
-        Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate::new(
-            Decorated::new(Identifier::unchecked("HEREDOC")).spanned(2..9),
-            Template::default().spanned(10..10),
-        ))))
-    );
-
     assert_eq!(
         parse_to_end(
             indoc! {r#"
@@ -257,88 +48,10 @@ fn parse_heredoc() {
                 Element::Literal(Spanned::new(InternalString::from("bar\n")).spanned(16..20)),
             ])
             .spanned(10..20),
-        ))))
+        )))
+        .spanned(0..27))
     );
 }
-
-// #[test]
-// fn parse_template_expr() {
-//     assert_eq!(
-//         expr("\"foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}\""),
-//         Ok((
-//             "",
-//             Expression::from(TemplateExpr::from(
-//                 "foo ${bar} $${baz}, %{ if cond ~} qux %{~ endif }"
-//             ))
-//         )),
-//     );
-// }
-
-// #[test]
-// fn parse_cond_in_interpolation() {
-//     assert_eq!(
-//         expr(r#""${var.l ? "us-east-1." : ""}""#),
-//         Ok((
-//             "",
-//             Expression::from(TemplateExpr::from(r#"${var.l ? "us-east-1." : ""}"#))
-//         )),
-//     );
-// }
-
-// #[test]
-// fn parse_nested_function_call_with_splat() {
-//     assert_eq!(
-//         expr("element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)"),
-//         Ok((
-//             "",
-//             Expression::from(
-//                 FuncCall::builder("element")
-//                     .arg(
-//                         FuncCall::builder("concat")
-//                             .arg(
-//                                 Traversal::builder(Variable::unchecked("aws_kms_key"))
-//                                     .attr("key-one")
-//                                     .attr_splat()
-//                                     .attr("arn")
-//                                     .build()
-//                             )
-//                             .arg(
-//                                 Traversal::builder(Variable::unchecked("aws_kms_key"))
-//                                     .attr("key-two")
-//                                     .attr_splat()
-//                                     .attr("arn")
-//                                     .build()
-//                             )
-//                             .build()
-//                     )
-//                     .arg(0)
-//                     .build()
-//             )
-//         )),
-//     );
-// }
-
-// #[test]
-// fn parse_template() {
-//     assert_eq!(
-//         template("foo $${baz} ${bar}, %{if cond ~} qux %{~ endif}"),
-//         Ok((
-//             "",
-//             Template::new()
-//                 .add_literal("foo $${baz} ")
-//                 .add_interpolation(Variable::unchecked("bar"))
-//                 .add_literal(", ")
-//                 .add_directive(
-//                     IfDirective::new(
-//                         Variable::unchecked("cond"),
-//                         Template::new().add_literal(" qux ")
-//                     )
-//                     .with_if_strip(StripMode::End)
-//                     .with_endif_strip(StripMode::Start)
-//                 )
-//         )),
-//     );
-// }
 
 macro_rules! assert_roundtrip {
     ($input:expr, $parser:expr) => {
@@ -349,27 +62,93 @@ macro_rules! assert_roundtrip {
 }
 
 #[test]
-fn roundtrip_body() {
-    let input = indoc! {r#"
-        // comment
-        block {
-          foo = "bar"
-        }
+fn roundtrip_expr() {
+    let inputs = [
+        "_an-id3nt1fieR",
+        r#""a string""#,
+        r#""\\""#,
+        // "12e+10",
+        "42",
+        "var.enabled ? 1 : 0",
+        r#"["bar", ["baz"]]"#,
+        r#"[format("prefix-%s", var.foo)]"#,
+        r#"{"bar" = "baz","qux" = ident }"#,
+        "{\"bar\" : \"baz\", \"qux\"= ident # a comment\n }",
+        "{ #comment\n }",
+        "{  }",
+        "{ /*comment*/ }",
+        "{ foo = 1, }",
+        "{ foo = 1, bar = 1 }",
+        "{ foo = 1 /*comment*/ }",
+        "{ foo = 1 #comment\n }",
+        "{ foo = 1, #comment\n bar = 1 }",
+        "<<HEREDOC\nHEREDOC",
+        // indoc! {r#"
+        //     <<HEREDOC
+        //     ${foo}
+        //     %{if asdf}qux%{endif}
+        //     heredoc
+        //     HEREDOC"#},
+        r#""foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}""#,
+        r#""${var.l ? "us-east-1." : ""}""#,
+        "element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)",
+    ];
 
-        oneline { bar="baz"} # comment
-
-        array = [
-          1, 2,
-          3
-        ]
-    "#};
-
-    assert_roundtrip!(input, body);
+    for input in inputs {
+        assert_roundtrip!(input, expr);
+    }
 }
 
 #[test]
-fn roundtrip_large() {
-    let input = std::fs::read_to_string("benches/network.tf").unwrap();
+fn roundtrip_body() {
+    let large = std::fs::read_to_string("benches/network.tf").unwrap();
 
-    assert_roundtrip!(&input, body);
+    let inputs = [
+        indoc! {r#"
+            // comment
+            block {
+              foo = "bar"
+            }
+
+            oneline { bar="baz"} # comment
+
+            array = [
+              1, 2,
+              3
+            ]
+        "#},
+        "block { attr = 1 }\n",
+        "foo = \"bar\"\nbar = 2\n",
+        &large,
+    ];
+
+    for input in inputs {
+        assert_roundtrip!(input, body);
+    }
+}
+
+#[test]
+fn roundtrip_template() {
+    let inputs = [
+        "foo $${baz} ${bar}, %{if cond ~} qux %{~ endif}",
+        indoc! {r#"
+            Bill of materials:
+            %{ for item in items ~}
+            - ${item}
+            %{ endfor ~}
+        "#},
+    ];
+
+    for input in inputs {
+        assert_roundtrip!(input, template);
+    }
+}
+
+#[test]
+fn invalid_exprs() {
+    let inputs = ["{ , }", "{ foo = 1 bar = 1 }"];
+
+    for input in inputs {
+        assert!(parse_to_end(input, expr).is_err());
+    }
 }

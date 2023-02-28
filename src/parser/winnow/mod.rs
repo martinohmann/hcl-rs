@@ -296,9 +296,9 @@ fn string_literal(input: Input) -> IResult<Input, &str> {
     literal(alt((one_of("\"\\").recognize(), tag("${"), tag("%{")))).parse_next(input)
 }
 
-fn literal<'a, F>(literal_end: F) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
+fn literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
 where
-    F: Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>>,
+    F: Parser<Input<'a>, T, InternalError<Input<'a>>>,
 {
     void(many1(alt((
         tag("$${"),

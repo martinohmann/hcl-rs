@@ -113,6 +113,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
         let (input, value_terminator) = match ch {
             b'}' => {
                 item.set_span(start..input.location());
+                item.set_value_terminator(ObjectValueTerminator::None);
                 items.push(item);
                 return Ok((input, Object::new(items)));
             }
