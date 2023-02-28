@@ -303,7 +303,7 @@ where
     void(many1(alt((
         tag("$${"),
         tag("%%{"),
-        anychar_except(literal_end),
+        any_except(literal_end),
     ))))
     .recognize()
     .map_res(std::str::from_utf8)
@@ -428,7 +428,7 @@ fn number(input: Input) -> IResult<Input, Number> {
     ))(input)
 }
 
-fn anychar_except<'a, F, T>(inner: F) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>>
+fn any_except<'a, F, T>(inner: F) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>>
 where
     F: Parser<Input<'a>, T, InternalError<Input<'a>>>,
 {

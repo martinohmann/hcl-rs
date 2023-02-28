@@ -1,12 +1,10 @@
 use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decorate, Decorated, Despan, Span, Spanned};
+use super::repr::{Decorated, Despan, Span};
 use super::structure::body;
 use super::template::template;
-use crate::expr::Variable;
-use crate::template::StripMode;
-use crate::{Identifier, InternalString, Number};
+use crate::Number;
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 
@@ -17,39 +15,6 @@ fn parse_number() {
         Ok(Expression::Number(
             Decorated::new(Number::from_f64(120000000000.0).unwrap()).spanned(0..6)
         ))
-    );
-}
-
-#[test]
-#[ignore]
-fn parse_heredoc() {
-    assert_eq!(
-        parse_to_end(
-            indoc! {r#"
-                <<HEREDOC
-                ${foo}bar
-                HEREDOC"#},
-            expr,
-        ),
-        Ok(Expression::HeredocTemplate(Box::new(HeredocTemplate::new(
-            Decorated::new(Identifier::unchecked("HEREDOC")).spanned(2..9),
-            Template::new(vec![
-                Element::Interpolation(
-                    Interpolation::new(
-                        Expression::Variable(
-                            Decorated::new(Variable::unchecked("foo"),)
-                                .spanned(12..15)
-                                .decorated(("", ""))
-                        ),
-                        StripMode::None
-                    )
-                    .spanned(10..16),
-                ),
-                Element::Literal(Spanned::new(InternalString::from("bar\n")).spanned(16..20)),
-            ])
-            .spanned(10..20),
-        )))
-        .spanned(0..27))
     );
 }
 
@@ -83,12 +48,12 @@ fn roundtrip_expr() {
         "{ foo = 1 #comment\n }",
         "{ foo = 1, #comment\n bar = 1 }",
         "<<HEREDOC\nHEREDOC",
-        // indoc! {r#"
-        //     <<HEREDOC
-        //     ${foo}
-        //     %{if asdf}qux%{endif}
-        //     heredoc
-        //     HEREDOC"#},
+        indoc! {r#"
+            <<HEREDOC
+            ${foo}
+            %{if asdf}qux%{endif}
+            heredoc
+            HEREDOC"#},
         r#""foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}""#,
         r#""${var.l ? "us-east-1." : ""}""#,
         "element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)",

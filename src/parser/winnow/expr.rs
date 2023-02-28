@@ -1,16 +1,16 @@
 use super::ast::{
     Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig,
     HeredocTemplate, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
-    Template, Traversal, TraversalOperator, UnaryOp,
+    Traversal, TraversalOperator, UnaryOp,
 };
 use super::{
-    anychar_except, cut_char, cut_ident, cut_tag, decor,
+    cut_char, cut_ident, cut_tag, decor,
     error::{Context, Expected, InternalError},
     ident, line_comment, number, prefix_decor,
     repr::{Decorate, Decorated, Span, Spanned},
     sp, spanned, str_ident, string, suffix_decor,
-    template::{string_template, template},
-    void, ws, IResult, Input,
+    template::{heredoc_template, string_template},
+    ws, IResult, Input,
 };
 use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
@@ -272,53 +272,32 @@ fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
     )(input)
 }
 
-fn heredoc_content<'a>(
-    delim: &'a str,
-) -> impl Parser<Input<'a>, Template, InternalError<Input<'a>>> {
-    move |input: Input<'a>| {
-        let (input, content) = (
-            void(many1(anychar_except((line_ending, space0, tag(delim))))),
-            line_ending,
-        )
-            .recognize()
-            .parse_next(input)?;
-
-        let (_, tpl) = template(Input::new(content))?;
-
-        Ok((input, tpl))
-    }
-}
-
 fn heredoc<'a>(input: Input<'a>) -> IResult<Input<'a>, HeredocTemplate> {
-    (move |input: Input<'a>| {
-        let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
+    let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
 
-        let (input, (template, trailing)) = (
-            spanned(opt(heredoc_content(delim)).map(Option::unwrap_or_default)),
-            terminated(
-                space0.span(),
-                cut_err(tag(delim)).context(Context::Expected(Expected::Description(
-                    "heredoc end delimiter",
-                ))),
-            ),
-        )
-            .parse_next(input)?;
+    let (input, (template, trailing)) = (
+        spanned(heredoc_template(delim)),
+        terminated(
+            space0.span(),
+            cut_err(tag(delim)).context(Context::Expected(Expected::Description(
+                "heredoc end delimiter",
+            ))),
+        ),
+    )
+        .parse_next(input)?;
 
-        let mut heredoc = HeredocTemplate::new(
-            Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
-            template,
-        );
+    let mut heredoc = HeredocTemplate::new(
+        Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
+        template,
+    );
 
-        if indented {
-            heredoc.dedent();
-        }
+    if indented {
+        heredoc.dedent();
+    }
 
-        heredoc.set_trailing(trailing);
+    heredoc.set_trailing(trailing);
 
-        Ok((input, heredoc))
-    })
-    .context(Context::Expression("heredoc"))
-    .parse_next(input)
+    Ok((input, heredoc))
 }
 
 fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
@@ -443,7 +422,8 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
         b'[' => array,
         b'{' => object,
         b'0'..=b'9' => number.map(|n| Expression::Number(n.into())),
-        b'<' => heredoc.map(|heredoc| Expression::HeredocTemplate(Box::new(heredoc))),
+        b'<' => cut_err(heredoc.map(|heredoc| Expression::HeredocTemplate(Box::new(heredoc))))
+            .context(Context::Expression("heredoc template")),
         b'-' => alt((
             preceded((b'-', sp), number).map(|n| Expression::Number((-n).into())),
             (

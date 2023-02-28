@@ -5,7 +5,7 @@ use super::ast::{
 use super::error::InternalError;
 use super::StringTemplate;
 use super::{
-    build_string, cut_char, cut_ident, cut_tag, decor, expr::expr, literal, spanned,
+    build_string, cut_char, cut_ident, cut_tag, decor, expr::expr, literal, repr::Span, spanned,
     string_fragment, string_literal, ws, IResult, Input,
 };
 use crate::template::StripMode;
@@ -15,6 +15,7 @@ use winnow::Parser;
 use winnow::{
     branch::alt,
     bytes::tag,
+    character::{line_ending, space0},
     combinator::opt,
     multi::many0,
     sequence::{delimited, preceded, terminated},
@@ -167,4 +168,47 @@ pub fn string_template(input: Input) -> IResult<Input, StringTemplate> {
 
 pub fn template(input: Input) -> IResult<Input, Template> {
     build_template(literal(alt((tag("${"), tag("%{")))).output_into()).parse_next(input)
+}
+
+pub fn heredoc_template<'a>(
+    delim: &'a str,
+) -> impl Parser<Input<'a>, Template, InternalError<Input<'a>>> {
+    move |input: Input<'a>| {
+        // We'll need to look for a newline character followed by optional space and the heredoc
+        // delimiter.
+        //
+        // Here's the catch though: the newline character has to be treated as part of
+        // the last template literal, but is still required to be matched when detecting the
+        // heredoc end. Matching only `(space0, tag(delim))` is not sufficient, because heredocs
+        // can contain their delimiter as long as it's not preceeded by an newline character.
+        //
+        // Handling this case via parser combinators is quite tricky and thus we'll manually add
+        // the newline character to the last template element below.
+        let heredoc_end = (line_ending, space0, tag(delim)).recognize();
+        let literal_end = alt((tag("${"), tag("%{"), heredoc_end));
+        let elements = elements(literal(literal_end).output_into());
+
+        // Use `opt` to handle an empty template.
+        opt(
+            (elements, line_ending.span()).map(|(mut elements, newline_span)| {
+                // If there is a trailing literal, update its span and append the newline character to it.
+                // Otherwise just add a new literal containing only the newline character.
+                if let Some(Element::Literal(lit)) = elements.last_mut() {
+                    let span = lit.span().unwrap();
+                    lit.set_span(span.start..newline_span.end);
+                    let mut existing = String::from(lit.as_str());
+                    existing.push('\n');
+                    *lit.as_mut() = existing.into();
+                } else {
+                    let newline =
+                        Element::Literal(InternalString::from("\n").into()).spanned(newline_span);
+                    elements.push(newline);
+                }
+
+                Template::new(elements)
+            }),
+        )
+        .map(Option::unwrap_or_default)
+        .parse_next(input)
+    }
 }
