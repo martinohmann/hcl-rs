@@ -1,12 +1,4 @@
-use super::ast::{
-    Array, Attribute, BinaryOp, Block, BlockBody, BlockLabel, Body, Conditional, Directive,
-    Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, Expression, ForCond,
-    ForDirective, ForExpr, ForIntro, ForTemplateExpr, FuncCall, FuncSig, HeredocTemplate,
-    IfDirective, IfTemplateExpr, Interpolation, Object, ObjectItem, ObjectKey,
-    ObjectKeyValueSeparator, ObjectValueTerminator, StringTemplate, Structure, Template, Traversal,
-    TraversalOperator, UnaryOp,
-};
-use super::escape::write_escaped;
+use super::ast::*;
 use super::repr::{Decorate, Decorated};
 use crate::expr::Variable;
 use crate::template::StripMode;
@@ -107,16 +99,12 @@ impl EncodeDecorated for Expression {
             }
             Expression::String(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
-                write_escaped(buf, v)?;
+                encode_escaped(buf, v)?;
                 buf.write_char('"')
             }),
             Expression::Array(v) => v.encode_decorated(buf, default_decor),
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
-            Expression::Template(v) => encode_decorated(v, buf, default_decor, |buf| {
-                buf.write_char('"')?;
-                buf.escaped(|buf| v.encode(buf))?;
-                buf.write_char('"')
-            }),
+            Expression::Template(v) => v.encode_decorated(buf, default_decor),
             Expression::HeredocTemplate(v) => v.encode_decorated(buf, default_decor),
             Expression::Parenthesis(v) => encode_decorated(&**v, buf, default_decor, |buf| {
                 buf.write_char('(')?;
@@ -208,11 +196,15 @@ impl EncodeDecorated for ObjectKey {
 
 impl Encode for StringTemplate {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        for element in self.elements().iter() {
-            element.encode(buf)?;
-        }
+        buf.write_char('"')?;
+        buf.escaped(|buf| {
+            for element in self.elements().iter() {
+                element.encode(buf)?;
+            }
 
-        Ok(())
+            Ok(())
+        })?;
+        buf.write_char('"')
     }
 }
 
@@ -231,7 +223,7 @@ impl Encode for Element {
         match self {
             Element::Literal(lit) => {
                 if buf.escape() {
-                    write_escaped(buf, lit)
+                    encode_escaped(buf, lit)
                 } else {
                     buf.write_str(lit)
                 }
@@ -566,7 +558,7 @@ impl EncodeDecorated for BlockLabel {
         match self {
             BlockLabel::String(string) => encode_decorated(string, buf, default_decor, |buf| {
                 buf.write_char('"')?;
-                write_escaped(buf, string)?;
+                encode_escaped(buf, string)?;
                 buf.write_char('"')
             }),
             BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),
@@ -623,4 +615,24 @@ where
     decor.encode_prefix(buf, default_decor.0)?;
     f(buf)?;
     decor.encode_suffix(buf, default_decor.1)
+}
+
+fn encode_escaped(buf: &mut dyn fmt::Write, value: &str) -> fmt::Result {
+    for ch in value.chars() {
+        match ch {
+            '\u{8}' => buf.write_str("\\b")?,
+            '\u{9}' => buf.write_str("\\t")?,
+            '\u{a}' => buf.write_str("\\n")?,
+            '\u{c}' => buf.write_str("\\f")?,
+            '\u{d}' => buf.write_str("\\r")?,
+            '\u{22}' => buf.write_str("\\\"")?,
+            '\u{5c}' => buf.write_str("\\\\")?,
+            c if c <= '\u{1f}' || c == '\u{7f}' => {
+                write!(buf, "\\u{:04X}", ch as u32)?;
+            }
+            ch => buf.write_char(ch)?,
+        }
+    }
+
+    Ok(())
 }

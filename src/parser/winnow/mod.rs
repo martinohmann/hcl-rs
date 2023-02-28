@@ -1,7 +1,6 @@
 pub mod ast;
 mod encode;
 mod error;
-mod escape;
 mod expr;
 pub mod repr;
 mod structure;
