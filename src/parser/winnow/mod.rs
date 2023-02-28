@@ -135,37 +135,25 @@ fn inline_comment(input: Input) -> IResult<Input, ()> {
 }
 
 fn line_comment(input: Input) -> IResult<Input, ()> {
-    let (input, ch) = peek(any)(input)?;
-
-    match ch {
-        b'#' => cut_err(hash_line_comment)(input),
-        b'/' => cut_err(double_slash_line_comment)(input),
-        _ => fail(input),
+    dispatch! {peek(any);
+        b'#' => hash_line_comment,
+        b'/' => double_slash_line_comment,
+        _ => fail,
     }
+    .parse_next(input)
 }
 
 fn comment(input: Input) -> IResult<Input, ()> {
-    let (input, ch) = peek(any)(input)?;
-
-    match ch {
-        b'#' => cut_err(hash_line_comment)(input),
-        b'/' => cut_err(alt((double_slash_line_comment, inline_comment)))(input),
-        _ => fail(input),
+    dispatch! {peek(any);
+        b'#' => hash_line_comment,
+        b'/' => alt((double_slash_line_comment, inline_comment)),
+        _ => fail,
     }
+    .parse_next(input)
 }
 
 fn sp(input: Input) -> IResult<Input, ()> {
     (space0.void(), void(many0((inline_comment, space0.void()))))
-        .void()
-        .parse_next(input)
-}
-
-fn spc(input: Input) -> IResult<Input, ()> {
-    (
-        space0.void(),
-        void(many0((inline_comment, space0.void()))),
-        opt(line_comment),
-    )
         .void()
         .parse_next(input)
 }
