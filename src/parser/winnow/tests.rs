@@ -7,6 +7,25 @@ use super::template::template;
 use crate::Number;
 use indoc::indoc;
 use pretty_assertions::assert_eq;
+use std::fs;
+use std::io;
+
+fn load_tests() -> Result<Vec<String>, io::Error> {
+    let mut tests = Vec::new();
+
+    for entry in fs::read_dir("testdata")? {
+        let path = entry?.path();
+
+        if path.is_file() && path.extension().map_or(false, |ext| ext == "hcl") {
+            let content = fs::read_to_string(&path)?;
+            tests.push(content);
+        }
+    }
+
+    tests.sort();
+
+    Ok(tests)
+}
 
 #[test]
 fn parse_number() {
@@ -66,9 +85,7 @@ fn roundtrip_expr() {
 
 #[test]
 fn roundtrip_body() {
-    let large = std::fs::read_to_string("benches/network.tf").unwrap();
-
-    let inputs = [
+    let mut inputs = vec![
         indoc! {r#"
             // comment
             block {
@@ -84,8 +101,14 @@ fn roundtrip_body() {
         "#},
         "block { attr = 1 }\n",
         "foo = \"bar\"\nbar = 2\n",
-        &large,
     ];
+
+    let tests = load_tests().unwrap();
+    assert!(tests.len() > 0);
+
+    for input in &tests {
+        inputs.push(input);
+    }
 
     for input in inputs {
         assert_roundtrip!(input, body);

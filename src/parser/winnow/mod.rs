@@ -11,7 +11,7 @@ mod tests;
 pub use self::ast::*;
 use self::error::{Context, Expected, IResult, InternalError};
 pub use self::error::{Error, ParseResult};
-use self::repr::{Decorate, Decorated, RawString, SetSpan};
+use self::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
 use self::structure::body;
 use self::template::template;
 use crate::{Identifier, InternalString, Number};
@@ -73,13 +73,15 @@ pub type Input<'a> = Located<&'a [u8]>;
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> ParseResult<crate::structure::Body> {
-    parse_raw(input).map(Into::into)
+    parse_to_end(input, body).map(Into::into)
 }
 
 #[allow(missing_docs)]
 #[allow(clippy::missing_errors_doc)]
 pub fn parse_raw(input: &str) -> ParseResult<Body> {
-    parse_to_end(input, body)
+    let mut body = parse_to_end(input, body)?;
+    body.despan(input);
+    Ok(body)
 }
 
 pub(crate) fn parse_template(input: &str) -> ParseResult<crate::template::Template> {

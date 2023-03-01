@@ -401,6 +401,9 @@ impl Encode for ForIntro {
         }
         self.value_var()
             .encode_decorated(buf, LEADING_SPACE_DECOR)?;
+        buf.write_str("in")?;
+        self.collection_expr()
+            .encode_decorated(buf, BOTH_SPACE_DECOR)?;
         buf.write_char(':')
     }
 }
