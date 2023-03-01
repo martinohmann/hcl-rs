@@ -432,7 +432,7 @@ impl From<ObjectKey> for expr::ObjectKey {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeredocTemplate {
-    delimiter: Decorated<Identifier>,
+    delimiter: Identifier,
     template: Template,
     indent: Option<usize>,
     trailing: RawString,
@@ -443,7 +443,7 @@ pub struct HeredocTemplate {
 decorate_span_impl!(HeredocTemplate);
 
 impl HeredocTemplate {
-    pub fn new(delimiter: Decorated<Identifier>, template: Template) -> HeredocTemplate {
+    pub fn new(delimiter: Identifier, template: Template) -> HeredocTemplate {
         HeredocTemplate {
             delimiter,
             template,
@@ -454,7 +454,7 @@ impl HeredocTemplate {
         }
     }
 
-    pub fn delimiter(&self) -> &Decorated<Identifier> {
+    pub fn delimiter(&self) -> &Identifier {
         &self.delimiter
     }
 
@@ -517,8 +517,8 @@ impl HeredocTemplate {
 impl Despan for HeredocTemplate {
     fn despan(&mut self, input: &str) {
         self.decor.despan(input);
-        self.delimiter.decor_mut().despan(input);
         self.template.despan(input);
+        self.trailing.despan(input);
     }
 }
 
@@ -529,7 +529,7 @@ impl From<HeredocTemplate> for expr::Heredoc {
             .map_or(HeredocStripMode::None, |_| HeredocStripMode::Indent);
 
         expr::Heredoc {
-            delimiter: heredoc.delimiter.into_inner(),
+            delimiter: heredoc.delimiter,
             template: heredoc.template.into(),
             strip,
         }

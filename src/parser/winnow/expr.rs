@@ -14,7 +14,6 @@ use super::{
 };
 use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
-use std::ops::Range;
 use winnow::{
     branch::alt,
     bytes::{any, none_of, one_of, tag, take},
@@ -260,19 +259,18 @@ fn parenthesis(input: Input) -> IResult<Input, Expression> {
     delimited(cut_char('('), decor(ws, expr, ws), cut_char(')'))(input)
 }
 
-fn heredoc_start(input: Input) -> IResult<Input, (bool, (&str, Range<usize>))> {
+fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
     terminated(
         (
             preceded(tag("<<"), opt(b'-')).map(|indent| indent.is_some()),
-            cut_err(str_ident.with_span())
-                .context(Context::Expected(Expected::Description("identifier"))),
+            cut_err(str_ident).context(Context::Expected(Expected::Description("identifier"))),
         ),
         cut_err(line_ending).context(Context::Expected(Expected::Char('\n'))),
     )(input)
 }
 
 fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
-    let (input, (indented, (delim, delim_span))) = heredoc_start(input)?;
+    let (input, (indented, delim)) = heredoc_start(input)?;
 
     let (input, (template, trailing)) = (
         spanned(heredoc_template(delim)),
@@ -285,10 +283,7 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     )
         .parse_next(input)?;
 
-    let mut heredoc = HeredocTemplate::new(
-        Decorated::new(Identifier::unchecked(delim)).spanned(delim_span),
-        template,
-    );
+    let mut heredoc = HeredocTemplate::new(Identifier::unchecked(delim), template);
 
     if indented {
         heredoc.dedent();

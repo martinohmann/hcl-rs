@@ -300,7 +300,7 @@ variable "availability_zone_count" {
 }
 
 variable "dns_domain" {
-  default     = "bonial.lan"
+  default     = "zone.internal"
   description = "The DNS domain to use as a base for internal zones."
   type        = string
 }

@@ -101,6 +101,13 @@ fn roundtrip_body() {
         "#},
         "block { attr = 1 }\n",
         "foo = \"bar\"\nbar = 2\n",
+        indoc! {r#"
+            indented_heredoc = <<-EOT
+                ${foo}
+              %{if asdf}qux%{endif}
+                  heredoc
+                EOT
+        "#},
     ];
 
     let tests = load_tests().unwrap();

@@ -351,6 +351,8 @@ impl Encode for HeredocTemplate {
             None => self.template().encode(buf)?,
         }
 
+        self.trailing().encode_with_default(buf, "")?;
+
         write!(buf, "{}", self.delimiter().as_str())
     }
 }
