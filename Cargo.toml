@@ -1,6 +1,6 @@
 [package]
 name = "hcl-rs"
-version = "0.12.3"
+version = "0.13.0"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT"
 description = "HCL parser and formatter for rust with serde support"
