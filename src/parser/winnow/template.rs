@@ -7,7 +7,7 @@ use super::StringTemplate;
 use super::{
     build_string, cut_char, cut_ident, cut_tag, decor,
     expr::expr,
-    literal, raw,
+    literal_until, raw,
     repr::{SetSpan, Span, Spanned},
     spanned, string_fragment, string_literal, ws, IResult, Input,
 };
@@ -142,33 +142,15 @@ where
     ))))
 }
 
-fn build_template<'a, P>(literal: P) -> impl Parser<Input<'a>, Template, InternalError<Input<'a>>>
-where
-    P: Parser<Input<'a>, InternalString, InternalError<Input<'a>>>,
-{
-    elements(literal).map(Template::new)
-}
-
-fn build_string_template<'a, F>(
-    literal: F,
-) -> impl Parser<Input<'a>, StringTemplate, InternalError<Input<'a>>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>,
-{
-    elements(literal).map(StringTemplate::new)
-}
-
 pub fn string_template(input: Input) -> IResult<Input, StringTemplate> {
-    delimited(
-        b'"',
-        build_string_template(build_string(string_fragment(string_literal))),
-        b'"',
-    )(input)
+    let literal = build_string(string_fragment(string_literal));
+    delimited(b'"', elements(literal).map(StringTemplate::new), b'"')(input)
 }
 
 pub fn template(input: Input) -> IResult<Input, Template> {
     let literal_end = alt((b"${", b"%{"));
-    build_template(literal(literal_end).output_into()).parse_next(input)
+    let literal = literal_until(literal_end).output_into();
+    elements(literal).map(Template::new).parse_next(input)
 }
 
 pub fn heredoc_template<'a>(
@@ -187,11 +169,11 @@ pub fn heredoc_template<'a>(
         // the newline character to the last template element below.
         let heredoc_end = (line_ending, space0, delim).recognize();
         let literal_end = alt((b"${", b"%{", heredoc_end));
-        let elements = elements(literal(literal_end).output_into());
+        let literal = literal_until(literal_end).output_into();
 
         // Use `opt` to handle an empty template.
         opt(
-            (elements, line_ending.span()).map(|(mut elements, newline_span)| {
+            (elements(literal), line_ending.span()).map(|(mut elements, newline_span)| {
                 // If there is a trailing literal, update its span and append the newline character to it.
                 // Otherwise just add a new literal containing only the newline character.
                 if let Some(Element::Literal(lit)) = elements.last_mut() {

@@ -286,10 +286,12 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
 /// interpolation/directive start markers.
 fn string_literal(input: Input) -> IResult<Input, &str> {
     let literal_end = alt((b"\"", b"\\", b"${", b"%{"));
-    literal(literal_end).parse_next(input)
+    literal_until(literal_end).parse_next(input)
 }
 
-fn literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
+fn literal_until<'a, F, T>(
+    literal_end: F,
+) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
 where
     F: Parser<Input<'a>, T, InternalError<Input<'a>>>,
 {
