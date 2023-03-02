@@ -7,7 +7,7 @@ use super::{
     cut_char, cut_ident, cut_tag, decor,
     error::{Context, Expected},
     ident, line_comment, number, prefix_decor, raw,
-    repr::{Decorate, Decorated, RawString, SetSpan, Span, Spanned},
+    repr::{Decorate, Decorated, RawString, SetSpan, Spanned},
     sp, spanned, str_ident, string, suffix_decor,
     template::{heredoc_template, string_template},
     ws, IResult, Input,
@@ -20,6 +20,7 @@ use winnow::{
     character::{crlf, dec_uint, line_ending, newline, space0},
     combinator::{cut_err, fail, not, opt, peek, success},
     dispatch,
+    error::ErrMode,
     multi::{many1, separated1},
     sequence::{delimited, preceded, separated_pair, terminated},
     stream::{AsBytes, Location},
@@ -452,67 +453,58 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
 }
 
 pub fn expr(input: Input) -> IResult<Input, Expression> {
-    let mut traversal = many1(prefix_decor(sp, traversal_operator.map(Decorated::new))).with_span();
+    let mut traversal = (
+        raw(sp),
+        many1(prefix_decor(sp, traversal_operator.map(Decorated::new))),
+    );
 
     let mut conditional = (
-        sp.span(),
+        raw(sp),
         preceded(b'?', decor(sp, expr, sp)),
         preceded(cut_char(':'), prefix_decor(sp, expr)),
     );
 
     let mut binary_op = (
-        prefix_decor(sp, binary_operator.map(Decorated::new)),
+        raw(sp),
+        spanned(binary_operator.map(Spanned::new)),
         prefix_decor(sp, expr),
     );
 
-    let (input, expr) = spanned(expr_term).parse_next(input)?;
+    let (input, mut expr) = spanned(expr_term).parse_next(input)?;
 
     let (input, mut expr) = match traversal.parse_next(input) {
-        Ok((input, (operators, span))) => {
-            let expr_start = expr.span().map_or(0, |span| span.start);
-            let mut expr = Expression::Traversal(Box::new(Traversal::new(expr, operators)));
-            expr.set_span(expr_start..span.end);
+        Ok((input, (suffix, operators))) => {
+            expr.decor_mut().set_suffix(suffix);
+            let expr = Expression::Traversal(Box::new(Traversal::new(expr, operators)));
             (input, expr)
         }
-        Err(winnow::error::ErrMode::Cut(e)) => return Err(winnow::error::ErrMode::Cut(e)),
+        Err(ErrMode::Cut(e)) => return Err(ErrMode::Cut(e)),
         Err(_) => (input, expr),
     };
 
     match peek(preceded(sp, any)).parse_next(input) {
-        Ok((input, ch)) => {
-            match ch {
-                b'?' => {
-                    let (input, (suffix_span, true_expr, false_expr)) =
-                        conditional.parse_next(input)?;
-
-                    // Associate whitespace preceding the `?` with the cond expression, updating
-                    // the span if it already has a decor suffix.
-                    let suffix_start = match expr.decor().suffix() {
-                        Some(suffix) => suffix.span().unwrap().start,
-                        None => suffix_span.start,
-                    };
-
-                    expr.decor_mut()
-                        .set_suffix(RawString::from_span(suffix_start..suffix_span.end));
-
-                    let cond = Conditional::new(expr, true_expr, false_expr);
-                    let expr = Expression::Conditional(Box::new(cond));
-                    Ok((input, expr))
-                }
-                b'=' | b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' => {
-                    match binary_op.parse_next(input) {
-                        Ok((input, (operator, rhs_expr))) => {
-                            let op = BinaryOp::new(expr, operator, rhs_expr);
-                            let expr = Expression::BinaryOp(Box::new(op));
-                            Ok((input, expr))
-                        }
-                        Err(winnow::error::ErrMode::Cut(e)) => Err(winnow::error::ErrMode::Cut(e)),
-                        Err(_) => Ok((input, expr)),
-                    }
-                }
-                _ => Ok((input, expr)),
+        Ok((input, ch)) => match ch {
+            b'?' => {
+                let (input, (suffix, true_expr, false_expr)) = conditional.parse_next(input)?;
+                expr.decor_mut().set_suffix(suffix);
+                let cond = Conditional::new(expr, true_expr, false_expr);
+                let expr = Expression::Conditional(Box::new(cond));
+                Ok((input, expr))
             }
-        }
+            b'=' | b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' => {
+                match binary_op.parse_next(input) {
+                    Ok((input, (suffix, operator, rhs_expr))) => {
+                        expr.decor_mut().set_suffix(suffix);
+                        let op = BinaryOp::new(expr, operator, rhs_expr);
+                        let expr = Expression::BinaryOp(Box::new(op));
+                        Ok((input, expr))
+                    }
+                    Err(ErrMode::Cut(e)) => Err(ErrMode::Cut(e)),
+                    Err(_) => Ok((input, expr)),
+                }
+            }
+            _ => Ok((input, expr)),
+        },
         Err(_) => Ok((input, expr)),
     }
 }

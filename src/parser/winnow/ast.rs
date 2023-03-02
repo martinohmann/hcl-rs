@@ -853,7 +853,7 @@ impl From<UnaryOp> for expr::Operation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryOp {
     lhs_expr: Expression,
-    operator: Decorated<BinaryOperator>,
+    operator: Spanned<BinaryOperator>,
     rhs_expr: Expression,
     decor: Decor,
     span: Option<Range<usize>>,
@@ -864,7 +864,7 @@ decorate_span_impl!(BinaryOp);
 impl BinaryOp {
     pub fn new(
         lhs_expr: Expression,
-        operator: Decorated<BinaryOperator>,
+        operator: Spanned<BinaryOperator>,
         rhs_expr: Expression,
     ) -> BinaryOp {
         BinaryOp {
@@ -884,7 +884,7 @@ impl BinaryOp {
         &self.rhs_expr
     }
 
-    pub fn operator(&self) -> &Decorated<BinaryOperator> {
+    pub fn operator(&self) -> &Spanned<BinaryOperator> {
         &self.operator
     }
 }
@@ -893,7 +893,6 @@ impl Despan for BinaryOp {
     fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.lhs_expr.despan(input);
-        self.operator.decor_mut().despan(input);
         self.rhs_expr.despan(input);
     }
 }
