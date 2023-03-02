@@ -17,7 +17,6 @@ use winnow::sequence::separated_pair;
 use winnow::Parser;
 use winnow::{
     branch::alt,
-    bytes::tag,
     character::{line_ending, space0},
     combinator::opt,
     multi::many0,
@@ -167,7 +166,8 @@ pub fn string_template(input: Input) -> IResult<Input, StringTemplate> {
 }
 
 pub fn template(input: Input) -> IResult<Input, Template> {
-    build_template(literal(alt((b"${", b"%{"))).output_into()).parse_next(input)
+    let literal_end = alt((b"${", b"%{"));
+    build_template(literal(literal_end).output_into()).parse_next(input)
 }
 
 pub fn heredoc_template<'a>(
@@ -184,7 +184,7 @@ pub fn heredoc_template<'a>(
         //
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
         // the newline character to the last template element below.
-        let heredoc_end = (line_ending, space0, tag(delim)).recognize();
+        let heredoc_end = (line_ending, space0, delim).recognize();
         let literal_end = alt((b"${", b"%{", heredoc_end));
         let elements = elements(literal(literal_end).output_into());
 

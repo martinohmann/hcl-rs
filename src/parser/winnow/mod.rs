@@ -286,7 +286,8 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
 fn string_literal(input: Input) -> IResult<Input, &str> {
-    literal(alt((one_of("\"\\").recognize(), b"${", b"%{"))).parse_next(input)
+    let literal_end = alt((b"\"", b"\\", b"${", b"%{"));
+    literal(literal_end).parse_next(input)
 }
 
 fn literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
