@@ -16,7 +16,7 @@ use crate::expr::{BinaryOperator, UnaryOperator, Variable};
 use crate::Identifier;
 use winnow::{
     branch::alt,
-    bytes::{any, none_of, one_of, tag, take},
+    bytes::{any, none_of, one_of, take},
     character::{crlf, dec_uint, line_ending, newline, space0},
     combinator::{cut_err, fail, opt, peek, success},
     dispatch,
@@ -202,7 +202,7 @@ fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     (
         for_intro,
         separated_pair(decor(ws, expr, ws), cut_tag("=>"), decor(ws, expr, ws)),
-        opt(tag("...")),
+        opt(b"..."),
         opt(for_cond),
     )
         .map(|(intro, (key_expr, value_expr), grouping, cond)| {
@@ -227,7 +227,7 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
             // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
             // and the following identifier which would fail parsing of arrays with identifier/func
             // call elements and objects with those as keys.
-            (tag("for"), peek(one_of(" \t#/"))),
+            (b"for", peek(one_of(" \t#/"))),
             (
                 decor(ws, cut_ident, ws),
                 opt(preceded(b',', decor(ws, cut_ident, ws))),
@@ -248,11 +248,7 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
 }
 
 fn for_cond(input: Input) -> IResult<Input, ForCond> {
-    prefix_decor(
-        ws,
-        preceded(tag("if"), decor(ws, expr, ws)).map(ForCond::new),
-    )
-    .parse_next(input)
+    prefix_decor(ws, preceded(b"if", decor(ws, expr, ws)).map(ForCond::new)).parse_next(input)
 }
 
 fn parenthesis(input: Input) -> IResult<Input, Expression> {
@@ -262,7 +258,7 @@ fn parenthesis(input: Input) -> IResult<Input, Expression> {
 fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
     terminated(
         (
-            preceded(tag("<<"), opt(b'-')).map(|indent| indent.is_some()),
+            preceded(b"<<", opt(b'-')).map(|indent| indent.is_some()),
             cut_err(str_ident).context(Context::Expected(Expected::Description("identifier"))),
         ),
         cut_err(line_ending).context(Context::Expected(Expected::Char('\n'))),
@@ -276,7 +272,7 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
         spanned(heredoc_template(delim)),
         terminated(
             raw(space0),
-            cut_err(tag(delim)).context(Context::Expected(Expected::Description(
+            cut_err(delim).context(Context::Expected(Expected::Description(
                 "heredoc end delimiter",
             ))),
         ),
@@ -351,7 +347,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         alt((
             (
                 separated1(decor(ws, preceded(peek(none_of(",.)")), expr), ws), b','),
-                opt((alt((tag(","), tag("..."))), raw(ws))),
+                opt((alt((b",", b"...")), raw(ws))),
             )
                 .map(|(args, trailer)| {
                     let mut sig = FuncSig::new(args);

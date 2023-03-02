@@ -25,20 +25,21 @@ use winnow::{
 };
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
-    template_tag("${", decor(ws, expr, ws))
+    template_tag(b"${", decor(ws, expr, ws))
         .map(|(expr, strip)| Interpolation::new(expr, strip))
         .parse_next(input)
 }
 
-fn template_tag<'a, P, O>(
-    start_tag: &'a str,
+fn template_tag<'a, S, P, O1, O2>(
+    start_tag: S,
     inner: P,
-) -> impl Parser<Input<'a>, (O, StripMode), InternalError<Input<'a>>>
+) -> impl Parser<Input<'a>, (O2, StripMode), InternalError<Input<'a>>>
 where
-    P: Parser<Input<'a>, O, InternalError<Input<'a>>>,
+    S: Parser<Input<'a>, O1, InternalError<Input<'a>>>,
+    P: Parser<Input<'a>, O2, InternalError<Input<'a>>>,
 {
     (
-        preceded(tag(start_tag), opt(b'~')),
+        preceded(start_tag, opt(b'~')),
         inner,
         terminated(opt(b'~'), cut_char('}')),
     )
@@ -49,7 +50,7 @@ where
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     let if_expr = (
-        template_tag("%{", (terminated(raw(ws), tag("if")), decor(ws, expr, ws))),
+        template_tag(b"%{", (terminated(raw(ws), b"if"), decor(ws, expr, ws))),
         spanned(template),
     )
         .map(|(((preamble, cond_expr), strip), template)| {
@@ -59,7 +60,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         });
 
     let else_expr = (
-        template_tag("%{", separated_pair(raw(ws), tag("else"), raw(ws))),
+        template_tag(b"%{", separated_pair(raw(ws), b"else", raw(ws))),
         spanned(template),
     )
         .map(|(((preamble, trailing), strip), template)| {
@@ -69,7 +70,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
             expr
         });
 
-    let endif_expr = template_tag("%{", separated_pair(raw(ws), cut_tag("endif"), raw(ws))).map(
+    let endif_expr = template_tag(b"%{", separated_pair(raw(ws), cut_tag("endif"), raw(ws))).map(
         |((preamble, trailing), strip)| {
             let mut expr = EndifTemplateExpr::new(strip);
             expr.set_preamble(preamble);
@@ -86,9 +87,9 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
 fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     let for_expr = (
         template_tag(
-            "%{",
+            b"%{",
             (
-                (terminated(raw(ws), tag("for")), decor(ws, cut_ident, ws)),
+                (terminated(raw(ws), b"for"), decor(ws, cut_ident, ws)),
                 opt(preceded(b',', decor(ws, cut_ident, ws))),
                 preceded(cut_tag("in"), decor(ws, expr, ws)),
             ),
@@ -109,7 +110,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             },
         );
 
-    let endfor_expr = template_tag("%{", separated_pair(raw(ws), cut_tag("endfor"), raw(ws))).map(
+    let endfor_expr = template_tag(b"%{", separated_pair(raw(ws), cut_tag("endfor"), raw(ws))).map(
         |((preamble, trailing), strip)| {
             let mut expr = EndforTemplateExpr::new(strip);
             expr.set_preamble(preamble);
@@ -166,7 +167,7 @@ pub fn string_template(input: Input) -> IResult<Input, StringTemplate> {
 }
 
 pub fn template(input: Input) -> IResult<Input, Template> {
-    build_template(literal(alt((tag("${"), tag("%{")))).output_into()).parse_next(input)
+    build_template(literal(alt((b"${", b"%{"))).output_into()).parse_next(input)
 }
 
 pub fn heredoc_template<'a>(
@@ -184,7 +185,7 @@ pub fn heredoc_template<'a>(
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
         // the newline character to the last template element below.
         let heredoc_end = (line_ending, space0, tag(delim)).recognize();
-        let literal_end = alt((tag("${"), tag("%{"), heredoc_end));
+        let literal_end = alt((b"${", b"%{", heredoc_end));
         let elements = elements(literal(literal_end).output_into());
 
         // Use `opt` to handle an empty template.

@@ -16,18 +16,18 @@ use self::structure::body;
 use self::template::template;
 use crate::{Identifier, InternalString, Number};
 use std::borrow::Cow;
+use std::ops::RangeInclusive;
 use std::str::FromStr;
-use winnow::stream::AsChar;
 use winnow::{
     branch::alt,
-    bytes::{any, one_of, tag, take_until0, take_while_m_n},
-    character::{alpha1, alphanumeric1, digit1, multispace0, not_line_ending, space0},
+    bytes::{any, one_of, tag, take_until0, take_while0, take_while_m_n},
+    character::{digit1, multispace0, not_line_ending, space0},
     combinator::{cut_err, fail, not, opt, peek, success},
     dispatch,
     multi::{many0, many1},
     prelude::*,
     sequence::{delimited, preceded, terminated},
-    stream::Located,
+    stream::{AsChar, Located},
     Parser,
 };
 
@@ -117,7 +117,7 @@ fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, InternalError<Input<'a>
 }
 
 fn cut_tag<'a>(t: &'static str) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>> {
-    cut_err(tag(t)).context(Context::Expected(Expected::Literal(t)))
+    cut_err(t).context(Context::Expected(Expected::Literal(t)))
 }
 
 fn hash_line_comment(input: Input) -> IResult<Input, ()> {
@@ -125,13 +125,11 @@ fn hash_line_comment(input: Input) -> IResult<Input, ()> {
 }
 
 fn double_slash_line_comment(input: Input) -> IResult<Input, ()> {
-    preceded(tag("//"), not_line_ending)
-        .void()
-        .parse_next(input)
+    preceded(b"//", not_line_ending).void().parse_next(input)
 }
 
 fn inline_comment(input: Input) -> IResult<Input, ()> {
-    delimited(tag("/*"), take_until0("*/"), tag("*/"))
+    delimited(b"/*", take_until0("*/"), b"*/")
         .void()
         .parse_next(input)
 }
@@ -288,7 +286,7 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
 fn string_literal(input: Input) -> IResult<Input, &str> {
-    literal(alt((one_of("\"\\").recognize(), tag("${"), tag("%{")))).parse_next(input)
+    literal(alt((one_of("\"\\").recognize(), b"${", b"%{"))).parse_next(input)
 }
 
 fn literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
@@ -365,11 +363,18 @@ fn string(input: Input) -> IResult<Input, InternalString> {
     )(input)
 }
 
+const XID_START: (RangeInclusive<u8>, RangeInclusive<u8>, u8) = (b'a'..=b'z', b'A'..=b'Z', b'_');
+
+const XID_CONTINUE: (
+    RangeInclusive<u8>,
+    RangeInclusive<u8>,
+    RangeInclusive<u8>,
+    u8,
+    u8,
+) = (b'a'..=b'z', b'A'..=b'Z', b'0'..=b'9', b'_', b'-');
+
 fn str_ident(input: Input) -> IResult<Input, &str> {
-    (
-        alt((alpha1, tag("_"))),
-        void(many0(alt((alphanumeric1, tag("_"), tag("-"))))),
-    )
+    (one_of(XID_START), take_while0(XID_CONTINUE))
         .recognize()
         .map(|s: &[u8]| unsafe {
             from_utf8_unchecked(s, "`alpha1` and `alphanumeric1` filter out non-ascii")
