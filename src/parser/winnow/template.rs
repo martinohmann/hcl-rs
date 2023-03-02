@@ -8,7 +8,7 @@ use super::{
     build_string, cut_char, cut_ident, cut_tag, decor,
     expr::expr,
     literal, raw,
-    repr::{SetSpan, Span},
+    repr::{SetSpan, Span, Spanned},
     spanned, string_fragment, string_literal, ws, IResult, Input,
 };
 use crate::template::StripMode;
@@ -24,13 +24,13 @@ use winnow::{
 };
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
-    template_tag(b"${", decor(ws, expr, ws))
+    control(b"${", decor(ws, expr, ws))
         .map(|(expr, strip)| Interpolation::new(expr, strip))
         .parse_next(input)
 }
 
-fn template_tag<'a, S, P, O1, O2>(
-    start_tag: S,
+fn control<'a, S, P, O1, O2>(
+    intro: S,
     inner: P,
 ) -> impl Parser<Input<'a>, (O2, StripMode), InternalError<Input<'a>>>
 where
@@ -38,7 +38,7 @@ where
     P: Parser<Input<'a>, O2, InternalError<Input<'a>>>,
 {
     (
-        preceded(start_tag, opt(b'~')),
+        preceded(intro, opt(b'~')),
         inner,
         terminated(opt(b'~'), cut_char('}')),
     )
@@ -49,7 +49,7 @@ where
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     let if_expr = (
-        template_tag(b"%{", (terminated(raw(ws), b"if"), decor(ws, expr, ws))),
+        control(b"%{", (terminated(raw(ws), b"if"), decor(ws, expr, ws))),
         spanned(template),
     )
         .map(|(((preamble, cond_expr), strip), template)| {
@@ -59,7 +59,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         });
 
     let else_expr = (
-        template_tag(b"%{", separated_pair(raw(ws), b"else", raw(ws))),
+        control(b"%{", separated_pair(raw(ws), b"else", raw(ws))),
         spanned(template),
     )
         .map(|(((preamble, trailing), strip), template)| {
@@ -69,7 +69,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
             expr
         });
 
-    let endif_expr = template_tag(b"%{", separated_pair(raw(ws), cut_tag("endif"), raw(ws))).map(
+    let endif_expr = control(b"%{", separated_pair(raw(ws), cut_tag("endif"), raw(ws))).map(
         |((preamble, trailing), strip)| {
             let mut expr = EndifTemplateExpr::new(strip);
             expr.set_preamble(preamble);
@@ -85,10 +85,11 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
 
 fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     let for_expr = (
-        template_tag(
+        control(
             b"%{",
             (
-                (terminated(raw(ws), b"for"), decor(ws, cut_ident, ws)),
+                terminated(raw(ws), b"for"),
+                decor(ws, cut_ident, ws),
                 opt(preceded(b',', decor(ws, cut_ident, ws))),
                 preceded(cut_tag("in"), decor(ws, expr, ws)),
             ),
@@ -96,7 +97,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
         spanned(template),
     )
         .map(
-            |((((preamble, key_var), value_var, collection_expr), strip), template)| {
+            |(((preamble, key_var, value_var, collection_expr), strip), template)| {
                 let (key_var, value_var) = match value_var {
                     Some(value_var) => (Some(key_var), value_var),
                     None => (None, key_var),
@@ -109,7 +110,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             },
         );
 
-    let endfor_expr = template_tag(b"%{", separated_pair(raw(ws), cut_tag("endfor"), raw(ws))).map(
+    let endfor_expr = control(b"%{", separated_pair(raw(ws), cut_tag("endfor"), raw(ws))).map(
         |((preamble, trailing), strip)| {
             let mut expr = EndforTemplateExpr::new(strip);
             expr.set_preamble(preamble);
@@ -179,8 +180,8 @@ pub fn heredoc_template<'a>(
         //
         // Here's the catch though: the newline character has to be treated as part of
         // the last template literal, but is still required to be matched when detecting the
-        // heredoc end. Matching only `(space0, tag(delim))` is not sufficient, because heredocs
-        // can contain their delimiter as long as it's not preceeded by an newline character.
+        // heredoc end. Matching only `(space0, delim)` is not sufficient, because heredocs can
+        // contain their delimiter as long as it's not preceeded by a newline character.
         //
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
         // the newline character to the last template element below.
@@ -194,15 +195,14 @@ pub fn heredoc_template<'a>(
                 // If there is a trailing literal, update its span and append the newline character to it.
                 // Otherwise just add a new literal containing only the newline character.
                 if let Some(Element::Literal(lit)) = elements.last_mut() {
-                    let span = lit.span().unwrap();
-                    lit.set_span(span.start..newline_span.end);
-                    let mut existing = String::from(lit.as_str());
+                    let existing_span = lit.span().unwrap();
+                    let mut existing = lit.to_string();
                     existing.push('\n');
-                    *lit.as_mut() = existing.into();
+                    *lit = Spanned::new(InternalString::from(existing))
+                        .spanned(existing_span.start..newline_span.end);
                 } else {
-                    let newline =
-                        Element::Literal(InternalString::from("\n").into()).spanned(newline_span);
-                    elements.push(newline);
+                    let lit = Spanned::new(InternalString::from("\n")).spanned(newline_span);
+                    elements.push(Element::Literal(lit));
                 }
 
                 Template::new(elements)
