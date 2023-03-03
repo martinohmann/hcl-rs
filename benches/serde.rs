@@ -1,6 +1,6 @@
 mod common;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use hcl::{Body, Value};
 
 fn ser(c: &mut Criterion) {
@@ -32,18 +32,24 @@ fn de(c: &mut Criterion) {
     let mut group = c.benchmark_group("de");
 
     common::for_each_test(&mut group, &tests, |group, test| {
-        let len = test.input.len();
-
-        group.throughput(Throughput::Bytes(len as u64));
+        let body: Body = hcl::from_str(&test.input).unwrap();
 
         group.bench_function(BenchmarkId::new("body", &test.id), |b| {
-            hcl::from_str::<Body>(&test.input).unwrap();
-            b.iter(|| black_box(hcl::from_str::<Body>(&test.input).unwrap()))
+            hcl::from_body::<Body>(body.clone()).unwrap();
+            b.iter_batched(
+                || body.clone(),
+                |body| black_box(hcl::from_body::<Body>(body).unwrap()),
+                BatchSize::SmallInput,
+            )
         });
 
         group.bench_function(BenchmarkId::new("value", &test.id), |b| {
-            hcl::from_str::<Value>(&test.input).unwrap();
-            b.iter(|| black_box(hcl::from_str::<Value>(&test.input).unwrap()))
+            hcl::from_body::<Value>(body.clone()).unwrap();
+            b.iter_batched(
+                || body.clone(),
+                |body| black_box(hcl::from_body::<Value>(body).unwrap()),
+                BatchSize::SmallInput,
+            )
         });
     });
 
