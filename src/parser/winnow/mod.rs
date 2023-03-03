@@ -14,9 +14,8 @@ pub use self::error::{Error, ParseResult};
 use self::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
 use self::structure::body;
 use self::template::template;
-use crate::{Identifier, InternalString, Number};
+use crate::{util, Identifier, InternalString, Number};
 use std::borrow::Cow;
-use std::ops::RangeInclusive;
 use std::str::FromStr;
 use winnow::{
     branch::alt,
@@ -364,18 +363,18 @@ fn string(input: Input) -> IResult<Input, InternalString> {
     )(input)
 }
 
-const XID_START: (RangeInclusive<u8>, RangeInclusive<u8>, u8) = (b'a'..=b'z', b'A'..=b'Z', b'_');
+#[inline]
+fn is_id_start(b: u8) -> bool {
+    util::is_id_start(b.as_char())
+}
 
-const XID_CONTINUE: (
-    RangeInclusive<u8>,
-    RangeInclusive<u8>,
-    RangeInclusive<u8>,
-    u8,
-    u8,
-) = (b'a'..=b'z', b'A'..=b'Z', b'0'..=b'9', b'_', b'-');
+#[inline]
+fn is_id_continue(b: u8) -> bool {
+    util::is_id_continue(b.as_char())
+}
 
 fn str_ident(input: Input) -> IResult<Input, &str> {
-    (one_of(XID_START), take_while0(XID_CONTINUE))
+    (one_of(is_id_start), take_while0(is_id_continue))
         .recognize()
         .map(|s: &[u8]| unsafe {
             from_utf8_unchecked(s, "`alpha1` and `alphanumeric1` filter out non-ascii")
