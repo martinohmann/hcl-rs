@@ -4,7 +4,7 @@ use criterion::{black_box, criterion_group, criterion_main, BatchSize, Benchmark
 use hcl::{Body, Value};
 
 fn ser(c: &mut Criterion) {
-    let tests = common::load_tests().unwrap();
+    let tests = testdata::load().unwrap();
 
     let mut group = c.benchmark_group("ser");
 
@@ -27,7 +27,7 @@ fn ser(c: &mut Criterion) {
 }
 
 fn de(c: &mut Criterion) {
-    let tests = common::load_tests().unwrap();
+    let tests = testdata::load().unwrap();
 
     let mut group = c.benchmark_group("de");
 

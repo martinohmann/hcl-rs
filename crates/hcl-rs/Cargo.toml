@@ -1,0 +1,50 @@
+[package]
+name = "hcl-rs"
+version = "0.13.1"
+authors = ["Martin Ohmann <martinohmann@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "HCL parser and formatter for rust with serde support"
+repository = "https://github.com/martinohmann/hcl-rs"
+documentation = "https://docs.rs/hcl-rs/"
+keywords = ["hcl", "serde", "serialization"]
+categories = ["encoding"]
+readme = "README.md"
+edition = "2021"
+include = [
+  "CHANGELOG.md",
+  "Cargo.toml",
+  "LICENSE*",
+  "README.md",
+  "benches/**/*",
+  "examples/**/*",
+  "src/**/*",
+  "tests/**/*"
+]
+
+[lib]
+name = "hcl"
+path = "src/lib.rs"
+
+[features]
+default = ["winnow", "perf"]
+winnow = ["dep:winnow"]
+perf = ["dep:kstring"]
+pest = ["dep:pest", "dep:pest_derive"]
+
+[dependencies]
+indexmap = { version = "1.9.2", features = ["serde"] }
+itoa = "1.0.5"
+kstring = { version = "2.0.0", features = ["max_inline", "serde"], optional = true }
+pest = { version = "2.5.2", optional = true }
+pest_derive = { version = "2.5.2", optional = true }
+ryu = "1.0.12"
+serde = { version = "1.0.151", features = ["derive"] }
+unicode-ident = "1.0.6"
+vecmap-rs = { version = "0.1.9", features = ["serde"] }
+winnow = { version = "0.3.3", features = ["simd"], optional = true }
+
+[dev-dependencies]
+indoc = "2.0"
+pretty_assertions = "1.3.0"
+serde_json = { version = "1.0.91", features = ["preserve_order"] }
+testdata = { path = "../testdata" }

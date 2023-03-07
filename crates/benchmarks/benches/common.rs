@@ -1,31 +1,6 @@
 use criterion::{measurement::Measurement, BenchmarkGroup, SamplingMode};
-use std::fs;
-use std::io;
 use std::time::Duration;
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Test {
-    pub id: String,
-    pub input: String,
-}
-
-pub fn load_tests() -> Result<Vec<Test>, io::Error> {
-    let mut tests = Vec::new();
-
-    for entry in fs::read_dir("testdata")? {
-        let path = entry?.path();
-
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "hcl") {
-            let input = fs::read_to_string(&path)?;
-            let id = path.file_stem().unwrap().to_string_lossy().to_string();
-            tests.push(Test { id, input });
-        }
-    }
-
-    tests.sort();
-
-    Ok(tests)
-}
+use testdata::Test;
 
 pub fn for_each_test<M, F>(group: &mut BenchmarkGroup<M>, tests: &[Test], f: F)
 where

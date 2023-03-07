@@ -135,7 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut ignored = 0;
     let mut successes = 0;
 
-    let mut tests = find_tests("specsuite/")?;
+    let mut tests = find_tests("tests/")?;
     tests.sort();
 
     println!("\nrunning {} tests", tests.len());

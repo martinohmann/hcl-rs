@@ -4,7 +4,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use hcl::parser;
 
 fn parse(c: &mut Criterion) {
-    let tests = common::load_tests().unwrap();
+    let tests = testdata::load().unwrap();
 
     let mut group = c.benchmark_group("parse");
 
