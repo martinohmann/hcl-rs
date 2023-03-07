@@ -1,8 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use hcl::{Body, Value};
+use std::path::Path;
 
 fn benchmark(c: &mut Criterion) {
-    let input = std::fs::read_to_string("benches/terraform.hcl").unwrap();
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let input = std::fs::read_to_string(manifest_dir.join("benches/terraform.hcl")).unwrap();
     let body: Body = hcl::from_str(&input).unwrap();
     let value: Value = hcl::from_str(&input).unwrap();
 

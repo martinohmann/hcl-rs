@@ -21,11 +21,7 @@ jobs:
         id: release-please
         uses: google-github-actions/release-please-action@v3
         with:
-          release-type: rust
-          bump-minor-pre-major: true
-          bump-patch-for-minor-pre-major: true
-          package-name: hcl-rs
-          changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Miscellaneous","hidden":false}]'
+          command: manifest
 
   publish-crate:
     needs: release-please
@@ -42,7 +38,10 @@ jobs:
           profile: minimal
           override: true
 
+      - name: Install cargo-release
+        run: cargo install cargo-release
+
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish || true
+        run: cargo release publish
