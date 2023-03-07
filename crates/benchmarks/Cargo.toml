@@ -1,0 +1,16 @@
+[package]
+name = "benchmarks"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata.release]
+release = false
+
+[[bench]]
+name = "benchmark"
+harness = false
+
+[dev-dependencies]
+criterion = "0.4"
+hcl-rs = { path = "../hcl-rs" }

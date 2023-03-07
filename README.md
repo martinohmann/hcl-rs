@@ -180,10 +180,13 @@ examples.
 
 ## Contributing
 
-Contributions are welcome! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md)
+Contributions are welcome! Please read
+[`CONTRIBUTING.md`](https://github.com/martinohmann/hcl-rs/blob/main/CONTRIBUTING.md)
 before creating a PR.
 
 ## License
 
-The source code of hcl-rs is licensed under either of [Apache License,
-Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
+The source code of hcl-rs is licensed under either of [Apache License, Version
+2.0](https://github.com/martinohmann/hcl-rs/blob/main/LICENSE-APACHE) or [MIT
+license](https://github.com/martinohmann/hcl-rs/blob/main/LICENSE-MIT) at your
+option.

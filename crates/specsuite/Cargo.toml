@@ -1,0 +1,19 @@
+[package]
+name = "specsuite"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata.release]
+release = false
+
+[[test]]
+name = "specsuite"
+path = "main.rs"
+harness = false
+
+[dev-dependencies]
+assert-json-diff = "2.0.2"
+hcl-rs = { path = "../hcl-rs" }
+serde = { version = "1.0.151", features = ["derive"] }
+textwrap = "0.16.0"
