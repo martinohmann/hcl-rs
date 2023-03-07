@@ -3,7 +3,8 @@
 [![Build Status](https://github.com/martinohmann/hcl-rs/workflows/ci/badge.svg)](https://github.com/martinohmann/hcl-rs/actions?query=workflow%3Aci)
 [![crates.io](https://img.shields.io/crates/v/hcl-rs)](https://crates.io/crates/hcl-rs)
 [![docs.rs](https://img.shields.io/docsrs/hcl-rs)](https://docs.rs/hcl-rs)
-![MIT License](https://img.shields.io/github/license/martinohmann/hcl-rs?color=blue)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A rust library for interacting with the Hashicorp Configuration Language (HCL).
 
@@ -184,5 +185,5 @@ before creating a PR.
 
 ## License
 
-The source code of hcl-rs is released under the MIT License. See the bundled
-LICENSE file for details.
+The source code of hcl-rs is licensed under either of [Apache License,
+Version 2.0](LICENSE-APACHE) or [MIT license](LICENSE-MIT) at your option.
