@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/martinohmann/hcl-rs/compare/v0.13.0...v0.13.1) (2023-03-07)
+
+
+### Miscellaneous
+
+* dual-license under MIT and Apache 2.0 ([#165](https://github.com/martinohmann/hcl-rs/issues/165)) ([48fe290](https://github.com/martinohmann/hcl-rs/commit/48fe2908a87c07713d64975a9eb63b8258d6d1a4))
+
 ## [0.13.0](https://github.com/martinohmann/hcl-rs/compare/v0.12.3...v0.13.0) (2023-03-01)
 
 
