@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.13.0](https://github.com/martinohmann/hcl-rs/compare/v0.12.3...v0.13.0) (2023-03-01)
+
+
+### ⚠ BREAKING CHANGES
+
+* **perf:** The trait bounds on `Identifier::{new,unchecked}` and `Variable::{new,unchecked}` were changed from `Into<String>` to `Into<InternalString>`. This has no impact on common use cases involving std types but may break code using custom types.
+
+### Features
+
+* **perf:** optionally inline identifier strings on the stack ([#163](https://github.com/martinohmann/hcl-rs/issues/163)) ([d810d55](https://github.com/martinohmann/hcl-rs/commit/d810d556ab5ecea7a725b7beb602053a531c55e2))
+
+
+### Miscellaneous
+
+* **deps:** bump actions/cache from 3.2.2 to 3.2.4 ([#160](https://github.com/martinohmann/hcl-rs/issues/160)) ([790b385](https://github.com/martinohmann/hcl-rs/commit/790b3856c24913b9e6b92e4c1efe70ea729bdc3e))
+* **deps:** bump actions/cache from 3.2.4 to 3.2.6 ([#164](https://github.com/martinohmann/hcl-rs/issues/164)) ([5609b85](https://github.com/martinohmann/hcl-rs/commit/5609b8586e4ea2a9493a15ac9663ff4391790cb6))
+* **deps:** update indoc requirement from 1.0 to 2.0 ([#161](https://github.com/martinohmann/hcl-rs/issues/161)) ([3ed52a8](https://github.com/martinohmann/hcl-rs/commit/3ed52a82264d753b6b4c75c7c044bb6d8e0e0cd8))
+
 ## [0.12.3](https://github.com/martinohmann/hcl-rs/compare/v0.12.2...v0.12.3) (2023-01-24)
 
 
