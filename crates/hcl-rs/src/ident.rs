@@ -1,15 +1,19 @@
 use crate::expr::Variable;
-use crate::util::{is_id_continue, is_id_start, is_ident};
 use crate::{Error, InternalString, Result};
+use hcl_primitives::Ident;
 use serde::{Deserialize, Serialize};
 use std::borrow::{Borrow, Cow};
 use std::fmt;
 use std::ops;
 
+// @NOTE(mohmann): Eventually, the `Identifier` type should be entirely replaced with
+// `hcl_primitives::Ident`, but this is a breaking change because of various intentional API
+// changes.
+
 /// Represents an HCL identifier.
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
-pub struct Identifier(InternalString);
+pub struct Identifier(Ident);
 
 impl Identifier {
     /// Create a new `Identifier` after validating that it only contains characters that are
@@ -36,13 +40,7 @@ impl Identifier {
     where
         T: Into<InternalString>,
     {
-        let ident = ident.into();
-
-        if !is_ident(&ident) {
-            return Err(Error::InvalidIdentifier(ident.to_string()));
-        }
-
-        Ok(Identifier(ident))
+        Ident::new(ident).map(Identifier).map_err(Error::new)
     }
 
     /// Create a new `Identifier` after sanitizing the input if necessary.
@@ -71,28 +69,7 @@ impl Identifier {
     where
         T: AsRef<str>,
     {
-        let input = ident.as_ref();
-
-        if input.is_empty() {
-            return Identifier(InternalString::from("_"));
-        }
-
-        let mut ident = String::with_capacity(input.len());
-
-        for (i, ch) in input.chars().enumerate() {
-            if i == 0 && is_id_start(ch) {
-                ident.push(ch);
-            } else if is_id_continue(ch) {
-                if i == 0 {
-                    ident.push('_');
-                }
-                ident.push(ch);
-            } else {
-                ident.push('_');
-            }
-        }
-
-        Identifier(InternalString::from(ident))
+        Identifier(Ident::new_sanitized(ident))
     }
 
     /// Create a new `Identifier` without checking if it is valid.
@@ -110,17 +87,23 @@ impl Identifier {
     where
         T: Into<InternalString>,
     {
-        Identifier(ident.into())
+        Identifier(Ident::new_unchecked(ident))
     }
 
     /// Consume `self` and return the wrapped `String`.
     pub fn into_inner(self) -> String {
-        self.0.into()
+        self.0.into_string()
     }
 
     /// Return a reference to the wrapped `str`.
     pub fn as_str(&self) -> &str {
         self.0.as_str()
+    }
+}
+
+impl From<Ident> for Identifier {
+    fn from(ident: Ident) -> Self {
+        Identifier(ident)
     }
 }
 
@@ -148,8 +131,14 @@ impl From<Variable> for Identifier {
     }
 }
 
+impl fmt::Debug for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Identifier({self})")
+    }
+}
+
 impl fmt::Display for Identifier {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self)
     }
 }

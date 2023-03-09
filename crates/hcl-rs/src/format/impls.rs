@@ -7,8 +7,9 @@ use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
 };
-use crate::util::{is_ident, is_templated};
+use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
+use hcl_primitives::ident::is_ident;
 use std::io;
 
 impl<T> private::Sealed for &T where T: Format {}

@@ -1,6 +1,10 @@
-use std::borrow::{Borrow, Cow};
-use std::fmt;
-use std::ops::Deref;
+//! Provides the `InternalString` type and associated functionality.
+
+use alloc::borrow::{Borrow, Cow};
+use alloc::boxed::Box;
+use alloc::string::String;
+use core::fmt;
+use core::ops::Deref;
 
 #[cfg(feature = "perf")]
 type Inner = kstring::KString;
@@ -23,6 +27,18 @@ impl InternalString {
         let inner = String::new();
 
         InternalString(inner)
+    }
+
+    /// Converts the `Ident` to a mutable string type.
+    #[inline]
+    #[must_use]
+    pub fn into_string(self) -> String {
+        #[cfg(feature = "perf")]
+        let string = self.0.into_string();
+        #[cfg(not(feature = "perf"))]
+        let string = self.0;
+
+        string
     }
 
     /// Returns a reference to the underlying string.
@@ -119,29 +135,25 @@ impl<'a> From<Cow<'a, str>> for InternalString {
 impl From<InternalString> for String {
     #[inline]
     fn from(is: InternalString) -> Self {
-        #[cfg(feature = "perf")]
-        let string = is.0.to_string();
-        #[cfg(not(feature = "perf"))]
-        let string = is.0;
-
-        string
+        is.into_string()
     }
 }
 
 impl fmt::Debug for InternalString {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.as_str(), f)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "InternalString({self})")
     }
 }
 
 impl fmt::Display for InternalString {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self.as_str(), f)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
+#[cfg(feature = "serde")]
 impl serde::Serialize for InternalString {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -151,6 +163,7 @@ impl serde::Serialize for InternalString {
     }
 }
 
+#[cfg(feature = "serde")]
 impl<'de> serde::Deserialize<'de> for InternalString {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where

@@ -120,7 +120,7 @@ impl<'de> de::Deserializer<'de> for ValueDeserializer {
         match self.value {
             Value::Null => visitor.visit_unit(),
             Value::Bool(b) => visitor.visit_bool(b),
-            Value::Number(n) => n.deserialize_any(visitor),
+            Value::Number(n) => n.deserialize_any(visitor).map_err(de::Error::custom),
             Value::String(s) => visitor.visit_string(s),
             Value::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Value::Object(object) => visitor.visit_map(object.into_deserializer()),

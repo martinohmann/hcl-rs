@@ -30,8 +30,6 @@ pub mod eval;
 pub mod expr;
 pub mod format;
 mod ident;
-mod internal_string;
-mod number;
 mod parser;
 pub mod ser;
 pub mod structure;
@@ -41,8 +39,9 @@ mod tests;
 mod util;
 pub mod value;
 
+// Re-exported for convenience.
 #[doc(inline)]
-pub use internal_string::InternalString;
+pub use hcl_primitives::{InternalString, Number};
 
 #[doc(inline)]
 pub use de::{from_body, from_reader, from_slice, from_str};
@@ -62,7 +61,6 @@ pub use expr::{
 };
 
 pub use ident::Identifier;
-pub use number::Number;
 pub use parser::parse;
 
 #[doc(inline)]

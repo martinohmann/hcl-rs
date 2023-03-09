@@ -27,17 +27,15 @@ path = "src/lib.rs"
 
 [features]
 default = []
-perf = ["dep:kstring"]
+perf = ["hcl-primitives/perf"]
 
 [dependencies]
 indexmap = { version = "1.9.2", features = ["serde"] }
 itoa = "1.0.5"
-kstring = { version = "2.0.0", features = ["max_inline", "serde"], optional = true }
+hcl-primitives = { version = "0.0.1", path = "../hcl-primitives", features = ["serde"] }
 pest = "2.5.2"
 pest_derive = "2.5.2"
-ryu = "1.0.12"
 serde = { version = "1.0.151", features = ["derive"] }
-unicode-ident = "1.0.6"
 vecmap-rs = { version = "0.1.9", features = ["serde"] }
 
 [dev-dependencies]
