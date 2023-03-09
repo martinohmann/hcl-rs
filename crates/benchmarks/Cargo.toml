@@ -8,9 +8,14 @@ edition = "2021"
 release = false
 
 [[bench]]
-name = "benchmark"
+name = "parse"
+harness = false
+
+[[bench]]
+name = "serde"
 harness = false
 
 [dev-dependencies]
 criterion = "0.4"
 hcl-rs = { path = "../hcl-rs" }
+testdata = { path = "../testdata" }
