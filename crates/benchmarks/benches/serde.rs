@@ -12,12 +12,12 @@ fn ser(c: &mut Criterion) {
         let body: Body = hcl::from_str(&test.input).unwrap();
         let value: Value = hcl::from_str(&test.input).unwrap();
 
-        group.bench_function(BenchmarkId::new("body", &test.id), |b| {
+        group.bench_function(BenchmarkId::new("body", test.name()), |b| {
             hcl::to_string(&body).unwrap();
             b.iter(|| black_box(hcl::to_string(&body).unwrap()))
         });
 
-        group.bench_function(BenchmarkId::new("value", &test.id), |b| {
+        group.bench_function(BenchmarkId::new("value", test.name()), |b| {
             hcl::to_string(&value).unwrap();
             b.iter(|| black_box(hcl::to_string(&value).unwrap()))
         });
@@ -34,7 +34,7 @@ fn de(c: &mut Criterion) {
     common::for_each_test(&mut group, &tests, |group, test| {
         let body: Body = hcl::from_str(&test.input).unwrap();
 
-        group.bench_function(BenchmarkId::new("body", &test.id), |b| {
+        group.bench_function(BenchmarkId::new("body", test.name()), |b| {
             hcl::from_body::<Body>(body.clone()).unwrap();
             b.iter_batched(
                 || body.clone(),
@@ -43,7 +43,7 @@ fn de(c: &mut Criterion) {
             )
         });
 
-        group.bench_function(BenchmarkId::new("value", &test.id), |b| {
+        group.bench_function(BenchmarkId::new("value", test.name()), |b| {
             hcl::from_body::<Value>(body.clone()).unwrap();
             b.iter_batched(
                 || body.clone(),

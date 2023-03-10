@@ -13,7 +13,6 @@
     {"type": "build", "section": "Build System", "hidden": true},
     {"type": "ci", "section": "Continuous Integration", "hidden": true}
   ],
-  "last-release-sha": "e37cfa06abcad2fe3da7ef84afb2d76c22c30b0b",
   "monorepo-tags": true,
   "plugins": ["cargo-workspace"],
   "release-type": "rust",

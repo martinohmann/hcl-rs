@@ -13,13 +13,13 @@ fn parse(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(len as u64));
 
-        group.bench_function(BenchmarkId::new("simple", &test.id), |b| {
+        group.bench_function(BenchmarkId::new("simple", test.name()), |b| {
             parser::parse(&test.input).unwrap();
             b.iter(|| black_box(parser::parse(&test.input).unwrap()))
         });
 
         #[cfg(feature = "winnow")]
-        group.bench_function(BenchmarkId::new("raw", &test.id), |b| {
+        group.bench_function(BenchmarkId::new("raw", test.name()), |b| {
             parser::parse_raw(&test.input).unwrap();
             b.iter(|| black_box(parser::parse_raw(&test.input).unwrap()))
         });

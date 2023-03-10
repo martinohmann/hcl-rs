@@ -8,7 +8,9 @@ where
     F: Fn(&mut BenchmarkGroup<M>, &Test),
 {
     for test in tests {
-        let (sampling_mode, measurement_time) = if test.id == "medium" || test.id == "large" {
+        let input_len = test.input.len();
+
+        let (sampling_mode, measurement_time) = if input_len > 4096 {
             (SamplingMode::Flat, Duration::from_secs(5))
         } else {
             (SamplingMode::Auto, Duration::from_secs(2))
