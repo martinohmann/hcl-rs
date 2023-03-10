@@ -18,8 +18,8 @@ fn parse(c: &mut Criterion) {
         });
 
         group.bench_function(BenchmarkId::new("hcl-edit", test.name()), |b| {
-            hcl_edit::parser::parse(&test.input).unwrap();
-            b.iter(|| black_box(hcl_edit::parser::parse(&test.input).unwrap()))
+            hcl_edit::parser::parse_body(&test.input).unwrap();
+            b.iter(|| black_box(hcl_edit::parser::parse_body(&test.input).unwrap()))
         });
     });
 

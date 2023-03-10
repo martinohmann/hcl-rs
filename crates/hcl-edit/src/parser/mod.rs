@@ -9,8 +9,10 @@ mod tests;
 
 use self::error::{Context, Expected, IResult, InternalError};
 pub use self::error::{Error, ParseResult};
+use self::expr::expr;
 use self::structure::body;
 use self::template::template;
+use crate::expr::Expression;
 use crate::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
 use crate::structure::Body;
 use crate::template::Template;
@@ -31,12 +33,18 @@ use winnow::{
     Parser,
 };
 
-pub type Input<'a> = Located<&'a [u8]>;
+pub(crate) type Input<'a> = Located<&'a [u8]>;
 
-pub fn parse(input: &str) -> ParseResult<Body> {
+pub fn parse_body(input: &str) -> ParseResult<Body> {
     let mut body = parse_to_end(input, body)?;
     body.despan(input);
     Ok(body)
+}
+
+pub fn parse_expr(input: &str) -> ParseResult<Expression> {
+    let mut expr = parse_to_end(input, expr)?;
+    expr.despan(input);
+    Ok(expr)
 }
 
 pub fn parse_template(input: &str) -> ParseResult<Template> {
