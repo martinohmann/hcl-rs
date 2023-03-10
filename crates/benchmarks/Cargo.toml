@@ -17,5 +17,6 @@ harness = false
 
 [dev-dependencies]
 criterion = "0.4"
+hcl-edit = { path = "../hcl-edit" }
 hcl-rs = { path = "../hcl-rs" }
 testdata = { path = "../testdata" }

@@ -1,7 +1,6 @@
 mod common;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use hcl::parser;
 
 fn parse(c: &mut Criterion) {
     let tests = testdata::load().unwrap();
@@ -13,15 +12,14 @@ fn parse(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(len as u64));
 
-        group.bench_function(BenchmarkId::new("simple", test.name()), |b| {
-            parser::parse(&test.input).unwrap();
-            b.iter(|| black_box(parser::parse(&test.input).unwrap()))
+        group.bench_function(BenchmarkId::new("hcl-rs", test.name()), |b| {
+            hcl::parser::parse(&test.input).unwrap();
+            b.iter(|| black_box(hcl::parser::parse(&test.input).unwrap()))
         });
 
-        #[cfg(feature = "winnow")]
-        group.bench_function(BenchmarkId::new("raw", test.name()), |b| {
-            parser::parse_raw(&test.input).unwrap();
-            b.iter(|| black_box(parser::parse_raw(&test.input).unwrap()))
+        group.bench_function(BenchmarkId::new("hcl-edit", test.name()), |b| {
+            hcl_edit::parser::parse(&test.input).unwrap();
+            b.iter(|| black_box(hcl_edit::parser::parse(&test.input).unwrap()))
         });
     });
 

@@ -1,0 +1,39 @@
+[package]
+name = "hcl-edit"
+version = "0.0.1"
+authors = ["Martin Ohmann <martinohmann@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Parse and modify HCL while preserving comments and whitespace"
+repository = "https://github.com/martinohmann/hcl-rs"
+documentation = "https://docs.rs/hcl-edit/"
+keywords = ["hcl"]
+categories = ["encoding"]
+readme = "README.md"
+edition = "2021"
+include = [
+  "CHANGELOG.md",
+  "Cargo.toml",
+  "LICENSE*",
+  "README.md",
+  "benches/**/*",
+  "examples/**/*",
+  "src/**/*",
+  "tests/**/*"
+]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[features]
+default = []
+perf = ["hcl-primitives/perf"]
+serde = ["hcl-primitives/serde"]
+
+[dependencies]
+hcl-primitives = { version = "0.0.1", path = "../hcl-primitives", features = ["serde"] }
+winnow = "0.3.5"
+
+[dev-dependencies]
+indoc = "2.0"
+pretty_assertions = "1.3.0"
+testdata = { path = "../testdata" }
