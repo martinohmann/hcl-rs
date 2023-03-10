@@ -15,7 +15,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      release_created: ${{ steps.release-please.outputs.release_created }}
+      releases_created: ${{ steps.release-please.outputs.releases_created }}
     steps:
       - name: Run release-please
         id: release-please
@@ -25,7 +25,7 @@ jobs:
 
   publish-crates:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created || github.event.inputs.force-publish }}
+    if: ${{ needs.release-please.outputs.releases_created || github.event.inputs.force-publish }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
