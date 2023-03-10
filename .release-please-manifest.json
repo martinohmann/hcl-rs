@@ -1,5 +1,5 @@
 {
   "crates/hcl-rs": "0.13.1",
-  "crates/benchmarks": "0.0.1",
-  "crates/specsuite": "0.0.1"
+  "crates/benchmarks": "0.0.2",
+  "crates/specsuite": "0.0.2"
 }
