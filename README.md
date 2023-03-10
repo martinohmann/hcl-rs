@@ -26,8 +26,7 @@ A rust library for interacting with the Hashicorp Configuration Language (HCL).
 ## Cargo features
 
 - `perf`: enables parser performance optimizations such as inlining of small
-  strings on the stack. This feature is disabled by default. Enabling it will
-  pull in `kstring` as a dependency.
+  strings on the stack. This feature is disabled by default.
 
 ## Deserialization examples
 
