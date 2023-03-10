@@ -10,9 +10,9 @@ use crate::expr::{
     FuncSig, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
     Traversal, TraversalOperator, UnaryOp, UnaryOperator,
 };
-use crate::repr::{Decorate, Decorated, RawString, SetSpan, Spanned};
+use crate::repr::{Decorate, Decorated, SetSpan, Spanned};
 use crate::template::HeredocTemplate;
-use crate::Ident;
+use crate::{Ident, RawString};
 use winnow::{
     branch::alt,
     bytes::{any, none_of, one_of, take},

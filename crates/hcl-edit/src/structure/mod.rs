@@ -1,7 +1,7 @@
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, Despan, RawString, SetSpan, Span};
-use crate::{Ident, InternalString};
+use crate::repr::{Decor, Decorate, Decorated, Despan, SetSpan, Span};
+use crate::{Ident, InternalString, RawString};
 use std::fmt;
 use std::ops::Range;
 

@@ -1,7 +1,7 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::repr::{Decor, Decorate, Decorated, Despan, RawString, SetSpan, Span, Spanned};
+use crate::repr::{Decor, Decorate, Decorated, Despan, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
-use crate::{Error, Ident, InternalString, Number};
+use crate::{Error, Ident, InternalString, Number, RawString};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
