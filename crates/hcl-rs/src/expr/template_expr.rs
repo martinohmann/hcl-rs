@@ -51,7 +51,10 @@ impl From<Heredoc> for TemplateExpr {
 
 impl fmt::Display for TemplateExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&try_unescape(self.as_str()))
+        match self {
+            TemplateExpr::QuotedString(_) => f.write_str(&try_unescape(self.as_str())),
+            TemplateExpr::Heredoc(_) => f.write_str(self.as_str()),
+        }
     }
 }
 
