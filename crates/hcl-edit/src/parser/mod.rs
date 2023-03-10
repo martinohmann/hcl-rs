@@ -2,6 +2,7 @@
 
 mod error;
 mod expr;
+mod repr;
 mod structure;
 mod template;
 #[cfg(test)]
@@ -10,13 +11,14 @@ mod tests;
 use self::error::{Context, Expected, IResult, InternalError};
 pub use self::error::{Error, ParseResult};
 use self::expr::expr;
+use self::repr::{decor, prefix_decor, raw, spanned, suffix_decor};
 use self::structure::body;
 use self::template::template;
 use crate::expr::Expression;
-use crate::repr::{Decorate, Decorated, Despan, SetSpan};
+use crate::repr::{Decorated, Despan};
 use crate::structure::Body;
 use crate::template::Template;
-use crate::{Ident, InternalString, Number, RawString};
+use crate::{Ident, InternalString, Number};
 use hcl_primitives::ident;
 use std::borrow::Cow;
 use std::str::FromStr;
@@ -130,76 +132,6 @@ fn ws(input: Input) -> IResult<Input, ()> {
     )
         .void()
         .parse_next(input)
-}
-
-fn spanned<'a, F, O>(inner: F) -> impl Parser<Input<'a>, O, InternalError<Input<'a>>>
-where
-    F: Parser<Input<'a>, O, InternalError<Input<'a>>>,
-    O: SetSpan,
-{
-    inner.with_span().map(|(mut value, span)| {
-        value.set_span(span);
-        value
-    })
-}
-
-fn prefix_decor<'a, F, G, O1, O2>(
-    prefix: F,
-    inner: G,
-) -> impl Parser<Input<'a>, O2, InternalError<Input<'a>>>
-where
-    F: Parser<Input<'a>, O1, InternalError<Input<'a>>>,
-    G: Parser<Input<'a>, O2, InternalError<Input<'a>>>,
-    O2: Decorate + SetSpan,
-{
-    (raw(prefix), inner.with_span()).map(|(prefix, (mut value, span))| {
-        value.decor_mut().set_prefix(prefix);
-        value.set_span(span);
-        value
-    })
-}
-
-fn suffix_decor<'a, F, G, O1, O2>(
-    inner: F,
-    suffix: G,
-) -> impl Parser<Input<'a>, O1, InternalError<Input<'a>>>
-where
-    F: Parser<Input<'a>, O1, InternalError<Input<'a>>>,
-    G: Parser<Input<'a>, O2, InternalError<Input<'a>>>,
-    O1: Decorate + SetSpan,
-{
-    (inner.with_span(), raw(suffix)).map(|((mut value, span), suffix)| {
-        value.decor_mut().set_suffix(suffix);
-        value.set_span(span);
-        value
-    })
-}
-
-fn decor<'a, F, G, H, O1, O2, O3>(
-    prefix: F,
-    inner: G,
-    suffix: H,
-) -> impl Parser<Input<'a>, O2, InternalError<Input<'a>>>
-where
-    F: Parser<Input<'a>, O1, InternalError<Input<'a>>>,
-    G: Parser<Input<'a>, O2, InternalError<Input<'a>>>,
-    H: Parser<Input<'a>, O3, InternalError<Input<'a>>>,
-    O2: Decorate + SetSpan,
-{
-    (raw(prefix), inner.with_span(), raw(suffix)).map(|(prefix, (mut value, span), suffix)| {
-        let decor = value.decor_mut();
-        decor.set_prefix(prefix);
-        decor.set_suffix(suffix);
-        value.set_span(span);
-        value
-    })
-}
-
-fn raw<'a, P, O>(inner: P) -> impl Parser<Input<'a>, RawString, InternalError<Input<'a>>>
-where
-    P: Parser<Input<'a>, O, InternalError<Input<'a>>>,
-{
-    inner.span().map(RawString::from_span)
 }
 
 fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
