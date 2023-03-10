@@ -9,7 +9,7 @@ use crate::template::{
     ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, StripMode,
     Template,
 };
-use hcl_primitives::InternalString;
+use crate::InternalString;
 use winnow::sequence::separated_pair;
 use winnow::Parser;
 use winnow::{

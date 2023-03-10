@@ -12,7 +12,7 @@ use crate::expr::{
 };
 use crate::repr::{Decorate, Decorated, RawString, SetSpan, Spanned};
 use crate::template::HeredocTemplate;
-use hcl_primitives::Ident;
+use crate::Ident;
 use winnow::{
     branch::alt,
     bytes::{any, none_of, one_of, take},

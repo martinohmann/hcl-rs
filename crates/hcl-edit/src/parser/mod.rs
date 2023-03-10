@@ -16,8 +16,8 @@ use crate::expr::Expression;
 use crate::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
 use crate::structure::Body;
 use crate::template::Template;
+use crate::{Ident, InternalString, Number};
 use hcl_primitives::ident;
-use hcl_primitives::{Ident, InternalString, Number};
 use std::borrow::Cow;
 use std::str::FromStr;
 use winnow::{

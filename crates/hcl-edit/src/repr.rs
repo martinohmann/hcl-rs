@@ -1,5 +1,5 @@
 use crate::encode::{Encode, EncodeState};
-use hcl_primitives::InternalString;
+use crate::InternalString;
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
 
@@ -7,7 +7,7 @@ use std::ops::{Deref, DerefMut, Range};
 pub struct RawString(RawStringInner);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RawStringInner {
+enum RawStringInner {
     Empty,
     Spanned(Range<usize>),
     Explicit(InternalString),

@@ -4,7 +4,7 @@ use super::structure::body;
 use super::template::template;
 use crate::expr::Expression;
 use crate::repr::{Decorated, Despan, SetSpan};
-use hcl_primitives::Number;
+use crate::Number;
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 

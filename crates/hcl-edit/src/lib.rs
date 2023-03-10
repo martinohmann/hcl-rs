@@ -15,3 +15,7 @@ pub mod template;
 mod util;
 
 pub use self::error::Error;
+
+// Re-exported for convenience;
+#[doc(inline)]
+pub use hcl_primitives::{Ident, InternalString, Number};

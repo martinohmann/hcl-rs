@@ -3,7 +3,7 @@ mod structure;
 mod template;
 
 use crate::repr::{Decorate, Decorated};
-use hcl_primitives::Ident;
+use crate::Ident;
 use std::fmt::{self, Write};
 
 pub(crate) const NO_DECOR: (&str, &str) = ("", "");
