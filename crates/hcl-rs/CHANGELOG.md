@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.2...hcl-rs-v0.13.3) (2023-03-10)
+
+
+### Features
+
+* add `hcl-primitives` crate ([#178](https://github.com/martinohmann/hcl-rs/issues/178)) ([200a16f](https://github.com/martinohmann/hcl-rs/commit/200a16f8d0299b50e24b3e8808e17547eef8bb2b))
+
 ## [0.13.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.1...hcl-rs-v0.13.2) (2023-03-10)
 
 

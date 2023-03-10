@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/benchmarks",
+    "crates/hcl-primitives",
     "crates/hcl-rs",
     "crates/specsuite",
     "crates/testdata"

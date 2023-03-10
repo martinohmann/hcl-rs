@@ -1,6 +1,6 @@
 [package]
 name = "hcl-rs"
-version = "0.13.2"
+version = "0.13.3"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "HCL parser and formatter for rust with serde support"
@@ -28,18 +28,16 @@ path = "src/lib.rs"
 [features]
 default = ["winnow", "perf"]
 winnow = ["dep:winnow"]
-perf = ["dep:kstring"]
+perf = ["hcl-primitives/perf"]
 pest = ["dep:pest", "dep:pest_derive"]
 
 [dependencies]
 indexmap = { version = "1.9.2", features = ["serde"] }
 itoa = "1.0.5"
-kstring = { version = "2.0.0", features = ["max_inline", "serde"], optional = true }
+hcl-primitives = { version = "0.0.1", path = "../hcl-primitives", features = ["serde"] }
 pest = { version = "2.5.2", optional = true }
 pest_derive = { version = "2.5.2", optional = true }
-ryu = "1.0.12"
 serde = { version = "1.0.151", features = ["derive"] }
-unicode-ident = "1.0.6"
 vecmap-rs = { version = "0.1.9", features = ["serde"] }
 winnow = { version = "0.3.3", features = ["simd"], optional = true }
 

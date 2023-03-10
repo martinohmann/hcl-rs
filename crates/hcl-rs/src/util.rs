@@ -207,31 +207,6 @@ pub fn is_templated(s: &str) -> bool {
     false
 }
 
-/// Determines if `ch` is a valid HCL identifier start character.
-#[inline]
-pub fn is_id_start(ch: char) -> bool {
-    ch == '_' || unicode_ident::is_xid_start(ch)
-}
-
-/// Determines if `ch` is a valid HCL identifier continue character.
-#[inline]
-pub fn is_id_continue(ch: char) -> bool {
-    ch == '-' || unicode_ident::is_xid_continue(ch)
-}
-
-/// Determines if `s` represents a valid HCL identifier.
-#[inline]
-pub fn is_ident(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-
-    let mut chars = s.chars();
-    let first = chars.next().unwrap();
-
-    is_id_start(first) && chars.all(is_id_continue)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

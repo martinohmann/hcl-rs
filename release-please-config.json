@@ -17,6 +17,9 @@
   "plugins": ["cargo-workspace"],
   "release-type": "rust",
   "packages": {
+    "crates/hcl-primitives": {
+      "component": "hcl-primitives"
+    },
     "crates/hcl-rs": {
       "component": "hcl-rs"
     }

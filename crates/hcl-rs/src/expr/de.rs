@@ -291,7 +291,7 @@ macro_rules! impl_deserialize_number {
                 V: de::Visitor<'de>,
             {
                 match self {
-                    Expression::Number(n) => n.deserialize_any(visitor),
+                    Expression::Number(n) => n.deserialize_any(visitor).map_err(de::Error::custom),
                     _ => Err(self.invalid_type(&visitor)),
                 }
             }
@@ -313,7 +313,7 @@ impl<'de> de::Deserializer<'de> for Expression {
         match self {
             Expression::Null => visitor.visit_unit(),
             Expression::Bool(b) => visitor.visit_bool(b),
-            Expression::Number(v) => v.deserialize_any(visitor),
+            Expression::Number(v) => v.deserialize_any(visitor).map_err(de::Error::custom),
             Expression::String(s) => visitor.visit_string(s),
             Expression::Array(v) => visitor.visit_seq(v.into_deserializer()),
             Expression::Object(v) => visitor.visit_map(v.into_deserializer()),
@@ -554,7 +554,7 @@ impl<'de> de::VariantAccess<'de> for Expression {
     {
         match self {
             Expression::Bool(v) => seed.deserialize(v.into_deserializer()),
-            Expression::Number(v) => seed.deserialize(v),
+            Expression::Number(v) => seed.deserialize(v).map_err(de::Error::custom),
             Expression::String(v) => seed.deserialize(v.into_deserializer()),
             Expression::Array(v) => seed.deserialize(v.into_deserializer()),
             Expression::Object(v) => seed.deserialize(v.into_deserializer()),

@@ -14,7 +14,8 @@ pub use self::error::{Error, ParseResult};
 use self::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
 use self::structure::body;
 use self::template::template;
-use crate::{util, Identifier, InternalString, Number};
+use crate::{Identifier, InternalString, Number};
+use hcl_primitives::ident;
 use std::borrow::Cow;
 use std::str::FromStr;
 use winnow::{
@@ -367,12 +368,12 @@ fn string(input: Input) -> IResult<Input, InternalString> {
 
 #[inline]
 fn is_id_start(b: u8) -> bool {
-    util::is_id_start(b.as_char())
+    ident::is_id_start(b.as_char())
 }
 
 #[inline]
 fn is_id_continue(b: u8) -> bool {
-    util::is_id_continue(b.as_char())
+    ident::is_id_continue(b.as_char())
 }
 
 fn str_ident(input: Input) -> IResult<Input, &str> {
