@@ -19,8 +19,17 @@
   "plugins": ["cargo-workspace"],
   "release-type": "rust",
   "packages": {
+    "crates/benchmarks": {
+      "release-as": "0.0.0"
+    },
     "crates/hcl-rs": {
       "component": "hcl-rs"
+    },
+    "crates/specsuite": {
+      "release-as": "0.0.0"
+    },
+    "crates/testdata": {
+      "release-as": "0.0.0"
     }
   }
 }
