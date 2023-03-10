@@ -1698,21 +1698,6 @@ impl BinaryOperator {
             BinaryOperator::Or => "||",
         }
     }
-
-    // Returns the operator precedence level. Higher numbers mean higher precedence.
-    pub(crate) fn precedence(self) -> u8 {
-        match self {
-            BinaryOperator::Mul | BinaryOperator::Div | BinaryOperator::Mod => 6,
-            BinaryOperator::Plus | BinaryOperator::Minus => 5,
-            BinaryOperator::LessEq
-            | BinaryOperator::GreaterEq
-            | BinaryOperator::Less
-            | BinaryOperator::Greater => 4,
-            BinaryOperator::Eq | BinaryOperator::NotEq => 3,
-            BinaryOperator::And => 2,
-            BinaryOperator::Or => 1,
-        }
-    }
 }
 
 impl fmt::Display for BinaryOperator {
@@ -1760,10 +1745,6 @@ pub enum StripMode {
 }
 
 impl StripMode {
-    pub(crate) fn from_adjacent(prev: StripMode, next: StripMode) -> Self {
-        StripMode::from((prev.strip_end(), next.strip_start()))
-    }
-
     pub(crate) fn strip_start(self) -> bool {
         matches!(self, StripMode::Start | StripMode::Both)
     }
