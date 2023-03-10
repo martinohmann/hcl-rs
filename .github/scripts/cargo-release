@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+#
+# Installs cargo-release if it's not present in the required version and
+# susequently invokes it with the provided arguments.
+#
+# Usage:
+#
+#   ./cargo-release [cargo-release-args]
+
+set -euo pipefail
+
+readonly cargo_bin_dir="$HOME/.cargo/bin"
+readonly cargo_release_version=0.24.5
+
+install_cargo_release() {
+  local platform archive download_url
+
+  platform="$(uname)"
+
+  case "$platform" in
+    Linux)
+      platform=unknown-linux-gnu;;
+    Darwin)
+      platform=apple-darwin;;
+    *)
+      echo "Unsupported platform: $platform" >&2
+      exit 1;;
+  esac
+
+  archive="cargo-release-v${cargo_release_version}-x86_64-${platform}.tar.gz"
+  download_url="https://github.com/crate-ci/cargo-release/releases/download/v${cargo_release_version}/${archive}"
+
+  echo "[+] Downloading cargo-release from $download_url"
+  curl -SsL "$download_url" -o "$archive"
+
+  echo "[+] Extracting cargo-release from $archive"
+  tar xvzf "$archive" ./cargo-release
+  rm -f "$archive"
+
+  echo "[+] Installing cargo-release to $cargo_bin_dir"
+  chmod +x ./cargo-release
+  mkdir -p "$cargo_bin_dir"
+  mv cargo-release "$cargo_bin_dir/cargo-release"
+}
+
+if command -v cargo-release > /dev/null; then
+  version="$(cargo release --version | cut -d' ' -f2)"
+
+  if [[ "$version" != "$cargo_release_version" ]]; then
+    install_cargo_release
+  fi
+else
+  install_cargo_release
+fi
+
+cargo release "$@"
