@@ -1,7 +1,9 @@
 use super::Rule;
-use crate::parser::Location;
 use pest::error::LineColLocation;
 use std::fmt;
+
+/// The result type used by this module.
+pub type ParseResult<T> = std::result::Result<T, Error>;
 
 /// Error type returned when the parser encountered an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,4 +66,13 @@ impl From<pest::error::Error<Rule>> for Error {
 struct ErrorInner {
     msg: String,
     location: Option<Location>,
+}
+
+/// Represents a location in the parser input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Location {
+    /// The one-based line number of the error.
+    pub line: usize,
+    /// The one-based column number of the error.
+    pub col: usize,
 }

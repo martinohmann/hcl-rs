@@ -26,7 +26,7 @@ name = "hcl"
 path = "src/lib.rs"
 
 [features]
-default = ["winnow", "perf"]
+default = ["pest"]
 winnow = ["dep:winnow"]
 perf = ["hcl-primitives/perf"]
 pest = ["dep:pest", "dep:pest_derive"]
