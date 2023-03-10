@@ -1,18 +1,18 @@
-use super::ast::{
-    Array, BinaryOp, BinaryOperator, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall,
-    FuncSig, HeredocTemplate, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator,
-    ObjectValueTerminator, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
-};
 use super::{
     cut_char, cut_ident, cut_tag, decor,
     error::{Context, Expected, InternalError},
-    ident, line_comment, number, prefix_decor, raw,
-    repr::{Decorate, Decorated, RawString, SetSpan, Spanned},
-    sp, spanned, str_ident, string, suffix_decor,
+    ident, line_comment, number, prefix_decor, raw, sp, spanned, str_ident, string, suffix_decor,
     template::{heredoc_template, string_template},
     ws, IResult, Input,
 };
-use hcl_primitives::Ident as Identifier;
+use crate::expr::{
+    Array, BinaryOp, BinaryOperator, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall,
+    FuncSig, Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator,
+    Traversal, TraversalOperator, UnaryOp, UnaryOperator,
+};
+use crate::repr::{Decorate, Decorated, RawString, SetSpan, Spanned};
+use crate::template::HeredocTemplate;
+use hcl_primitives::Ident;
 use winnow::{
     branch::alt,
     bytes::{any, none_of, one_of, take},
@@ -278,7 +278,7 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     )
         .parse_next(input)?;
 
-    let mut heredoc = HeredocTemplate::new(Identifier::new_unchecked(delim), template);
+    let mut heredoc = HeredocTemplate::new(Ident::new_unchecked(delim), template);
 
     if indented {
         heredoc.dedent();
@@ -326,7 +326,7 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
     (str_ident.with_span(), opt(prefix_decor(ws, func_sig)))
         .map(|((ident, span), signature)| match signature {
             Some(signature) => {
-                let name = Decorated::new(Identifier::new_unchecked(ident)).spanned(span);
+                let name = Decorated::new(Ident::new_unchecked(ident)).spanned(span);
                 let func_call = FuncCall::new(name, signature);
                 Expression::FuncCall(Box::new(func_call))
             }
@@ -334,7 +334,7 @@ fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
                 "null" => Expression::Null(().into()),
                 "true" => Expression::Bool(true.into()),
                 "false" => Expression::Bool(false.into()),
-                var => Expression::Variable(Identifier::new_unchecked(var).into()),
+                var => Expression::Variable(Ident::new_unchecked(var).into()),
             },
         })
         .parse_next(input)

@@ -1,9 +1,9 @@
-use super::ast::*;
 use super::expr::expr;
 use super::parse_to_end;
-use super::repr::{Decorated, Despan, SetSpan};
 use super::structure::body;
 use super::template::template;
+use crate::expr::Expression;
+use crate::repr::{Decorated, Despan, SetSpan};
 use hcl_primitives::Number;
 use indoc::indoc;
 use pretty_assertions::assert_eq;

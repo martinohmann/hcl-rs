@@ -1,7 +1,4 @@
-#![allow(missing_docs)]
-#![allow(dead_code)]
-
-use super::encode::{Encode, EncodeDecorated, EncodeState, NO_DECOR};
+use crate::encode::{Encode, EncodeState};
 use hcl_primitives::InternalString;
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
@@ -448,7 +445,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f, None);
-        self.encode_decorated(&mut state, NO_DECOR)
+        self.encode(&mut state)
     }
 }
 

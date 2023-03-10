@@ -1,23 +1,21 @@
 #![allow(missing_docs)]
 
-pub mod ast;
-mod encode;
 mod error;
 mod expr;
-pub mod repr;
 mod structure;
 mod template;
 #[cfg(test)]
 mod tests;
 
-pub use self::ast::*;
 use self::error::{Context, Expected, IResult, InternalError};
 pub use self::error::{Error, ParseResult};
-use self::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
 use self::structure::body;
 use self::template::template;
+use crate::repr::{Decorate, Decorated, Despan, RawString, SetSpan};
+use crate::structure::Body;
+use crate::template::Template;
 use hcl_primitives::ident;
-use hcl_primitives::{Ident as Identifier, InternalString, Number};
+use hcl_primitives::{Ident, InternalString, Number};
 use std::borrow::Cow;
 use std::str::FromStr;
 use winnow::{
@@ -344,15 +342,15 @@ fn str_ident(input: Input) -> IResult<Input, &str> {
         .parse_next(input)
 }
 
-fn cut_ident(input: Input) -> IResult<Input, Decorated<Identifier>> {
+fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
     cut_err(ident)
         .context(Context::Expected(Expected::Description("identifier")))
         .parse_next(input)
 }
 
-fn ident(input: Input) -> IResult<Input, Decorated<Identifier>> {
+fn ident(input: Input) -> IResult<Input, Decorated<Ident>> {
     str_ident
-        .map(|ident| Decorated::new(Identifier::new_unchecked(ident)))
+        .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)
 }
 

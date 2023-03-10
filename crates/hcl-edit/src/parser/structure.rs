@@ -1,10 +1,11 @@
-use super::ast::{Attribute, Block, BlockBody, BlockLabel, Body, Expression, Structure};
 use super::{
     cut_char, decor,
     error::{Context, Expected},
     expr::expr,
     ident, line_comment, prefix_decor, raw, sp, string, suffix_decor, ws, IResult, Input,
 };
+use crate::expr::Expression;
+use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};
 use winnow::{
     branch::alt,
     bytes::any,

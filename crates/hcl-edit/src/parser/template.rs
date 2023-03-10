@@ -1,15 +1,13 @@
-use super::ast::{
-    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StripMode, Template,
-};
 use super::error::InternalError;
-use super::StringTemplate;
 use super::{
-    build_string, cut_char, cut_ident, cut_tag, decor,
-    expr::expr,
-    literal_until, raw,
-    repr::{SetSpan, Span, Spanned},
-    spanned, string_fragment, string_literal, ws, IResult, Input,
+    build_string, cut_char, cut_ident, cut_tag, decor, expr::expr, literal_until, raw, spanned,
+    string_fragment, string_literal, ws, IResult, Input,
+};
+use crate::repr::{SetSpan, Span, Spanned};
+use crate::template::{
+    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
+    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, StripMode,
+    Template,
 };
 use hcl_primitives::InternalString;
 use winnow::sequence::separated_pair;
