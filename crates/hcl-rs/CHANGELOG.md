@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.1...hcl-rs-v0.13.2) (2023-03-10)
+
+
+### Bug Fixes
+
+* **format:** do not unescape heredoc strings ([#171](https://github.com/martinohmann/hcl-rs/issues/171)) ([c2b37ec](https://github.com/martinohmann/hcl-rs/commit/c2b37ec29539bc51e3503f902e0e46ad57e2264c))
+
 ## [0.13.1](https://github.com/martinohmann/hcl-rs/compare/v0.13.0...v0.13.1) (2023-03-07)
 
 
