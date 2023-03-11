@@ -7,7 +7,6 @@ use hcl::expr::{
 };
 use hcl::structure::{Block, Body};
 use hcl::{Identifier, Value};
-use indoc::indoc;
 use serde::Deserialize;
 use std::fmt::Debug;
 
@@ -28,17 +27,7 @@ fn object() {
     assert_deserialize(
         r#"foo = { bar = 42, "baz" = true }"#,
         hcl::value!({ foo = { bar = 42, baz = true } }),
-    );
-
-    assert_deserialize(
-        indoc! {r#"
-            foo = {
-                bar = 42
-                "baz" = true
-            }
-        "#},
-        hcl::value!({ foo = { bar = 42, baz = true } }),
-    );
+    )
 }
 
 #[test]
@@ -267,14 +256,13 @@ fn negative_numbers() {
 }
 
 #[test]
-#[cfg_attr(feature = "pest", ignore)]
 fn template_expr() {
     let input = r#"foo = "bar ${baz} %{~ if cond}qux%{ endif ~}""#;
 
     let expected = Body::builder()
         .add_attribute((
             "foo",
-            TemplateExpr::QuotedString("bar ${baz} %{~ if cond }qux%{ endif ~}".into()),
+            TemplateExpr::QuotedString("bar ${baz} %{~ if cond}qux%{ endif ~}".into()),
         ))
         .build();
 
@@ -343,7 +331,6 @@ fn traversal_with_expression() {
 }
 
 #[test]
-#[cfg_attr(feature = "pest", ignore)]
 fn unescape_strings() {
     let input = r#"
         block "label\\with\\backslashes" {

@@ -1,33 +1,30 @@
-//! HCL parser implementation.
-
-mod error;
 mod expr;
 mod structure;
 mod template;
 #[cfg(test)]
 mod tests;
 
-pub use self::error::{Error, Location, ParseResult};
-use self::internal::{HclParser, Rule};
 use self::{expr::expression, structure::body, template::template};
 use crate::{
     expr::Expression, structure::Body, template::Template, util::unescape, Identifier, Number,
     Result,
 };
-use pest::iterators::{Pair, Pairs};
-use pest::Parser;
+use pest::{
+    iterators::{Pair, Pairs},
+    Parser as _,
+};
+use pest_derive::Parser;
 use std::str::FromStr;
 
-mod internal {
-    use pest_derive::Parser;
-    #[derive(Parser)]
-    #[grammar = "parser/hcl.pest"]
-    pub struct HclParser;
-}
+#[derive(Parser)]
+#[grammar = "parser/grammar/hcl.pest"]
+struct HclParser;
 
 /// Parse a `hcl::Body` from a `&str`.
 ///
-/// If deserialization into a different type is preferred consider using [`hcl::from_str`][crate::from_str].
+/// If deserialization into a different type is preferred consider using [`hcl::from_str`][from_str].
+///
+/// [from_str]: ./de/fn.from_str.html
 ///
 /// # Example
 ///
@@ -64,14 +61,14 @@ mod internal {
 /// # Errors
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
-pub fn parse(input: &str) -> ParseResult<Body> {
+pub fn parse(input: &str) -> Result<Body> {
     let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-    body(pair).map_err(Into::into)
+    body(pair)
 }
 
-pub(crate) fn parse_template(input: &str) -> ParseResult<Template> {
+pub fn parse_template(input: &str) -> Result<Template> {
     let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();
-    template(inner(pair)).map_err(Into::into)
+    template(inner(pair))
 }
 
 fn string(pair: Pair<Rule>) -> String {

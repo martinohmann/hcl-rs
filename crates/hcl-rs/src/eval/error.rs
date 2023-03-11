@@ -62,9 +62,9 @@ impl From<ErrorKind> for Error {
     }
 }
 
-impl From<parser::Error> for Error {
-    fn from(err: parser::Error) -> Self {
-        Error::new(ErrorKind::Parse(err))
+impl From<crate::Error> for Error {
+    fn from(err: crate::Error) -> Self {
+        Error::new(ErrorKind::Message(err.to_string()))
     }
 }
 
@@ -102,6 +102,8 @@ impl fmt::Display for ErrorInner {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// A generic error message.
+    Message(String),
     /// An expression contained an undefined variable.
     UndefinedVar(Identifier),
     /// An expression contained a call to an undefined function.
@@ -120,8 +122,6 @@ pub enum ErrorKind {
     KeyExists(String),
     /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
-    /// A HCL parsing error.
-    Parse(parser::Error),
     /// It was attempted to evaluate a raw expression.
     RawExpression,
 }
@@ -132,9 +132,22 @@ impl From<Error> for ErrorKind {
     }
 }
 
+impl From<&str> for ErrorKind {
+    fn from(msg: &str) -> Self {
+        ErrorKind::Message(msg.to_owned())
+    }
+}
+
+impl From<String> for ErrorKind {
+    fn from(msg: String) -> Self {
+        ErrorKind::Message(msg)
+    }
+}
+
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ErrorKind::Message(msg) => f.write_str(msg),
             ErrorKind::UndefinedVar(ident) => {
                 write!(f, "undefined variable `{ident}`")
             }
@@ -160,7 +173,6 @@ impl fmt::Display for ErrorKind {
             ErrorKind::FuncCall(name, msg) => {
                 write!(f, "error calling function `{name}`: {msg}")
             }
-            ErrorKind::Parse(err) => write!(f, "{err}"),
             ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
         }
     }

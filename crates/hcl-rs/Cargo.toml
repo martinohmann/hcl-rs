@@ -26,23 +26,19 @@ name = "hcl"
 path = "src/lib.rs"
 
 [features]
-default = ["pest"]
-winnow = ["dep:winnow"]
+default = []
 perf = ["hcl-primitives/perf"]
-pest = ["dep:pest", "dep:pest_derive"]
 
 [dependencies]
 indexmap = { version = "1.9.2", features = ["serde"] }
 itoa = "1.0.5"
 hcl-primitives = { version = "0.0.1", path = "../hcl-primitives", features = ["serde"] }
-pest = { version = "2.5.2", optional = true }
-pest_derive = { version = "2.5.2", optional = true }
+pest = "2.5.2"
+pest_derive = "2.5.2"
 serde = { version = "1.0.151", features = ["derive"] }
 vecmap-rs = { version = "0.1.9", features = ["serde"] }
-winnow = { version = "0.3.3", features = ["simd"], optional = true }
 
 [dev-dependencies]
 indoc = "2.0"
 pretty_assertions = "1.3.0"
 serde_json = { version = "1.0.91", features = ["preserve_order"] }
-testdata = { path = "../testdata" }

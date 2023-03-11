@@ -13,8 +13,8 @@ fn parse(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(len as u64));
 
         group.bench_function(BenchmarkId::new("hcl-rs", test.name()), |b| {
-            hcl::parser::parse(&test.input).unwrap();
-            b.iter(|| black_box(hcl::parser::parse(&test.input).unwrap()))
+            hcl::parse(&test.input).unwrap();
+            b.iter(|| black_box(hcl::parse(&test.input).unwrap()))
         });
 
         group.bench_function(BenchmarkId::new("hcl-edit", test.name()), |b| {

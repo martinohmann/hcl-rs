@@ -12,7 +12,6 @@
     clippy::missing_panics_doc,
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
-    clippy::naive_bytecount,
     clippy::needless_pass_by_value,
     clippy::option_option,
     clippy::return_self_not_must_use,
@@ -31,7 +30,7 @@ pub mod eval;
 pub mod expr;
 pub mod format;
 mod ident;
-pub mod parser;
+mod parser;
 pub mod ser;
 pub mod structure;
 pub mod template;
