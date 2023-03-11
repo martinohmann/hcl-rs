@@ -1,10 +1,13 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::repr::{Decor, Decorate, Decorated, Despan, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
-use crate::{Error, Ident, InternalString, Number, RawString};
+use crate::{Ident, InternalString, Number, RawString};
 use std::fmt;
 use std::ops::Range;
-use std::str::FromStr;
+
+/// Re-exported for convenience.
+#[doc(inline)]
+pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
@@ -738,123 +741,5 @@ impl Despan for ForCond {
 impl From<Expression> for ForCond {
     fn from(value: Expression) -> Self {
         ForCond::new(value)
-    }
-}
-
-/// An operator that can be applied to an expression.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum UnaryOperator {
-    /// Negate operator (`-`).
-    Neg,
-    /// Not operator (`!`).
-    Not,
-}
-
-impl UnaryOperator {
-    /// Returns the `UnaryOperator` as a static `&str`.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            UnaryOperator::Neg => "-",
-            UnaryOperator::Not => "!",
-        }
-    }
-}
-
-impl fmt::Display for UnaryOperator {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.as_str().fmt(f)
-    }
-}
-
-impl FromStr for UnaryOperator {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "-" => Ok(UnaryOperator::Neg),
-            "!" => Ok(UnaryOperator::Not),
-            _ => Err(Error::new(format!("invalid unary operator: `{s}`"))),
-        }
-    }
-}
-
-/// An operator that can be applied to two expressions.
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum BinaryOperator {
-    /// Equal operator (`==`).
-    Eq,
-    /// Not-equal operator (`!=`).
-    NotEq,
-    /// Less-equal operator (`<=`).
-    LessEq,
-    /// Greater-equal operator (`>=`).
-    GreaterEq,
-    /// Less operator (`<`).
-    Less,
-    /// Greater operator (`>`).
-    Greater,
-    /// Plus operator (`+`).
-    Plus,
-    /// Minus operator (`-`).
-    Minus,
-    /// Multiply operator (`*`).
-    Mul,
-    /// Division operator (`/`).
-    Div,
-    /// Modulo operator (`%`).
-    Mod,
-    /// And operator (`&&`).
-    And,
-    /// Or operator (`||`).
-    Or,
-}
-
-impl BinaryOperator {
-    /// Returns the `BinaryOperator` as a static `&str`.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            BinaryOperator::Eq => "==",
-            BinaryOperator::NotEq => "!=",
-            BinaryOperator::LessEq => "<=",
-            BinaryOperator::GreaterEq => ">=",
-            BinaryOperator::Less => "<",
-            BinaryOperator::Greater => ">",
-            BinaryOperator::Plus => "+",
-            BinaryOperator::Minus => "-",
-            BinaryOperator::Mul => "*",
-            BinaryOperator::Div => "/",
-            BinaryOperator::Mod => "%",
-            BinaryOperator::And => "&&",
-            BinaryOperator::Or => "||",
-        }
-    }
-}
-
-impl fmt::Display for BinaryOperator {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.as_str().fmt(f)
-    }
-}
-
-impl FromStr for BinaryOperator {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "==" => Ok(BinaryOperator::Eq),
-            "!=" => Ok(BinaryOperator::NotEq),
-            "<=" => Ok(BinaryOperator::LessEq),
-            ">=" => Ok(BinaryOperator::GreaterEq),
-            "<" => Ok(BinaryOperator::Less),
-            ">" => Ok(BinaryOperator::Greater),
-            "+" => Ok(BinaryOperator::Plus),
-            "-" => Ok(BinaryOperator::Minus),
-            "*" => Ok(BinaryOperator::Mul),
-            "/" => Ok(BinaryOperator::Div),
-            "%" => Ok(BinaryOperator::Mod),
-            "&&" => Ok(BinaryOperator::And),
-            "||" => Ok(BinaryOperator::Or),
-            _ => Err(Error::new(format!("invalid binary operator: `{s}`"))),
-        }
     }
 }

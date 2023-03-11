@@ -6,7 +6,6 @@ extern crate alloc;
 mod macros;
 
 pub(crate) mod encode;
-pub mod error;
 pub mod expr;
 pub mod parser;
 mod raw_string;
@@ -17,8 +16,6 @@ mod util;
 
 #[doc(inline)]
 pub use self::raw_string::RawString;
-
-use self::error::Error;
 
 /// Core concepts available for glob import.
 pub mod prelude {

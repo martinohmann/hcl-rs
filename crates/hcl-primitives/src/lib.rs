@@ -11,7 +11,10 @@
 
 extern crate alloc;
 
+#[cfg(feature = "serde")]
+mod de;
 mod error;
+pub mod expr;
 pub mod ident;
 mod internal_string;
 mod number;
