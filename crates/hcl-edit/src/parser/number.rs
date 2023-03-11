@@ -1,6 +1,7 @@
 use super::{
     context::{Context, Expected},
-    from_utf8_unchecked, IResult, Input,
+    string::from_utf8_unchecked,
+    IResult, Input,
 };
 use crate::Number;
 use std::str::FromStr;

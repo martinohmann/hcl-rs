@@ -1,7 +1,5 @@
-#![allow(missing_docs)]
-
 mod context;
-mod error;
+pub mod error;
 mod expr;
 mod number;
 mod repr;
@@ -12,8 +10,12 @@ mod template;
 mod tests;
 mod trivia;
 
-pub use self::error::{Error, ParseResult};
-use self::{error::ParseError, expr::expr, structure::body, template::template};
+use self::{
+    error::{Error, ParseError, ParseResult},
+    expr::expr,
+    structure::body,
+    template::template,
+};
 use crate::{expr::Expression, repr::Despan, structure::Body, template::Template};
 use winnow::{prelude::*, stream::Located, Parser};
 
@@ -48,12 +50,4 @@ where
         .parse_next(input)
         .finish()
         .map_err(|err| Error::from_parse_error(input, err))
-}
-
-unsafe fn from_utf8_unchecked<'b>(bytes: &'b [u8], safety_justification: &'static str) -> &'b str {
-    if cfg!(debug_assertions) {
-        std::str::from_utf8(bytes).expect(safety_justification)
-    } else {
-        std::str::from_utf8_unchecked(bytes)
-    }
 }
