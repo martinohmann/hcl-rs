@@ -1,5 +1,5 @@
 use super::expr::expr;
-use super::parse_to_end;
+use super::parse_complete;
 use super::structure::body;
 use super::template::template;
 use crate::expr::Expression;
@@ -11,7 +11,7 @@ use pretty_assertions::assert_eq;
 #[test]
 fn parse_number() {
     assert_eq!(
-        parse_to_end("12e+10", expr),
+        parse_complete("12e+10", expr),
         Ok(Expression::Number(
             Decorated::new(Number::from_f64(120000000000.0).unwrap()).spanned(0..6)
         ))
@@ -20,7 +20,7 @@ fn parse_number() {
 
 macro_rules! assert_roundtrip {
     ($input:expr, $parser:expr) => {
-        let mut parsed = parse_to_end($input, $parser).unwrap();
+        let mut parsed = parse_complete($input, $parser).unwrap();
         parsed.despan($input);
         assert_eq!(&parsed.to_string(), $input);
     };
@@ -125,6 +125,6 @@ fn invalid_exprs() {
     let inputs = ["{ , }", "{ foo = 1 bar = 1 }"];
 
     for input in inputs {
-        assert!(parse_to_end(input, expr).is_err());
+        assert!(parse_complete(input, expr).is_err());
     }
 }

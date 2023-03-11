@@ -24,28 +24,29 @@ type Input<'a> = Located<&'a [u8]>;
 type IResult<I, O, E = ParseError<I>> = winnow::IResult<I, O, E>;
 
 pub fn parse_body(input: &str) -> ParseResult<Body> {
-    let mut body = parse_to_end(input, body)?;
+    let mut body = parse_complete(input, body)?;
     body.despan(input);
     Ok(body)
 }
 
 pub fn parse_expr(input: &str) -> ParseResult<Expression> {
-    let mut expr = parse_to_end(input, expr)?;
+    let mut expr = parse_complete(input, expr)?;
     expr.despan(input);
     Ok(expr)
 }
 
 pub fn parse_template(input: &str) -> ParseResult<Template> {
-    let mut template = parse_to_end(input, template)?;
+    let mut template = parse_complete(input, template)?;
     template.despan(input);
     Ok(template)
 }
 
-fn parse_to_end<'a, F, O>(input: &'a str, mut parser: F) -> ParseResult<O>
+fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> ParseResult<O>
 where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, O>,
+    P: Parser<Input<'a>, O, ParseError<Input<'a>>>,
 {
     let input = Input::new(input.as_bytes());
+
     parser
         .parse_next(input)
         .finish()
