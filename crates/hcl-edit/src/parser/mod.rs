@@ -2,6 +2,7 @@
 
 mod error;
 mod expr;
+mod number;
 mod repr;
 mod structure;
 mod template;
@@ -18,15 +19,14 @@ use crate::expr::Expression;
 use crate::repr::{Decorated, Despan};
 use crate::structure::Body;
 use crate::template::Template;
-use crate::{Ident, InternalString, Number};
+use crate::{Ident, InternalString};
 use hcl_primitives::ident;
 use std::borrow::Cow;
-use std::str::FromStr;
 use winnow::{
     branch::alt,
     bytes::{any, one_of, tag, take_until0, take_while0, take_while_m_n},
-    character::{digit1, multispace0, not_line_ending, space0},
-    combinator::{cut_err, fail, not, opt, peek, success},
+    character::{multispace0, not_line_ending, space0},
+    combinator::{cut_err, fail, not, peek, success},
     dispatch,
     multi::{many0, many1},
     prelude::*,
@@ -292,44 +292,6 @@ fn ident(input: Input) -> IResult<Input, Decorated<Ident>> {
     str_ident
         .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)
-}
-
-fn exponent(input: Input) -> IResult<Input, &[u8]> {
-    (
-        one_of("eE"),
-        opt(one_of("+-")),
-        cut_err(digit1).context(Context::Expected(Expected::Description("digit"))),
-    )
-        .recognize()
-        .parse_next(input)
-}
-
-fn float(input: Input) -> IResult<Input, f64> {
-    let fraction = preceded(b'.', digit1);
-
-    terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
-        .recognize()
-        .map_res(|s: &[u8]| {
-            f64::from_str(unsafe {
-                from_utf8_unchecked(s, "`digit1` and `exponent` filter out non-ascii")
-            })
-        })
-        .parse_next(input)
-}
-
-fn integer(input: Input) -> IResult<Input, u64> {
-    digit1
-        .map_res(|s: &[u8]| {
-            u64::from_str(unsafe { from_utf8_unchecked(s, "`digit1` filters out non-ascii") })
-        })
-        .parse_next(input)
-}
-
-fn number(input: Input) -> IResult<Input, Number> {
-    alt((
-        float.verify_map(Number::from_f64),
-        integer.map(Number::from),
-    ))(input)
 }
 
 fn any_except<'a, F, T>(inner: F) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>>
