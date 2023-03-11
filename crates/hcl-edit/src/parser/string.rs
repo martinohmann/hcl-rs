@@ -1,11 +1,16 @@
-use super::error::{Context, Expected, InternalError};
-use super::{any_except, from_utf8_unchecked, void, IResult, Input};
+use super::{
+    context::{Context, Expected},
+    error::InternalError,
+    from_utf8_unchecked,
+    trivia::void,
+    IResult, Input,
+};
 use crate::{InternalString, RawString};
 use std::borrow::Cow;
 use winnow::{
     branch::alt,
     bytes::{any, one_of, tag, take_while_m_n},
-    combinator::{cut_err, fail, success},
+    combinator::{cut_err, fail, not, success},
     dispatch,
     multi::many1,
     sequence::{preceded, terminated},
@@ -74,7 +79,7 @@ where
     void(many1(alt((
         tag("$${"),
         tag("%%{"),
-        any_except(literal_end),
+        preceded(not(literal_end), any).recognize(),
     ))))
     .recognize()
     .map_res(std::str::from_utf8)

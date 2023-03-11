@@ -1,6 +1,4 @@
-use super::error::InternalError;
-use super::string::raw;
-use super::Input;
+use super::{error::InternalError, string::raw, Input};
 use crate::repr::{Decorate, SetSpan};
 use winnow::Parser;
 

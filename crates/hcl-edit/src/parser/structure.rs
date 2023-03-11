@@ -1,15 +1,16 @@
-use super::ident::ident;
-use super::repr::{decor, prefix_decor, suffix_decor};
-use super::string::{raw, string};
-use super::trivia::{line_comment, sp, ws};
 use super::{
-    cut_char,
-    error::{Context, Expected},
+    context::{cut_char, Context, Expected},
     expr::expr,
+    ident::ident,
+    repr::{decor, prefix_decor, suffix_decor},
+    string::{raw, string},
+    trivia::{line_comment, sp, ws},
     IResult, Input,
 };
-use crate::expr::Expression;
-use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};
+use crate::{
+    expr::Expression,
+    structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure},
+};
 use winnow::{
     branch::alt,
     bytes::any,

@@ -1,4 +1,7 @@
-use super::{from_utf8_unchecked, Context, Expected, IResult, Input};
+use super::{
+    context::{Context, Expected},
+    from_utf8_unchecked, IResult, Input,
+};
 use crate::Number;
 use std::str::FromStr;
 use winnow::{

@@ -1,3 +1,4 @@
+use super::context::Context;
 use std::fmt;
 use winnow::{
     error::{ContextError, FromExternalError, ParseError},
@@ -15,33 +16,6 @@ pub struct Location {
 
 /// The result type used by this module.
 pub type ParseResult<T> = std::result::Result<T, Error>;
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Context {
-    Expression(&'static str),
-    Expected(Expected),
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Expected {
-    Char(char),
-    Literal(&'static str),
-    Description(&'static str),
-}
-
-impl std::fmt::Display for Expected {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expected::Char('\n') => write!(f, "newline"),
-            Expected::Char(c) if c.is_ascii_control() => {
-                write!(f, "`{}`", c.escape_debug())
-            }
-            Expected::Char(c) => write!(f, "`{c}`"),
-            Expected::Literal(l) => write!(f, "`{l}`"),
-            Expected::Description(d) => write!(f, "{d}"),
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct InternalError<I> {

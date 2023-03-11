@@ -1,5 +1,6 @@
 #![allow(missing_docs)]
 
+mod context;
 mod error;
 mod expr;
 mod ident;
@@ -12,25 +13,11 @@ mod template;
 mod tests;
 mod trivia;
 
-use self::error::{Context, Expected, InternalError};
 pub use self::error::{Error, ParseResult};
-use self::expr::expr;
-use self::ident::ident;
-use self::structure::body;
-use self::template::template;
-use crate::expr::Expression;
-use crate::repr::{Decorated, Despan};
-use crate::structure::Body;
-use crate::template::Template;
-use crate::Ident;
-use winnow::{
-    bytes::{any, one_of},
-    combinator::{cut_err, not},
-    prelude::*,
-    sequence::preceded,
-    stream::{AsChar, Located},
-    Parser,
-};
+
+use self::{error::InternalError, expr::expr, structure::body, template::template};
+use crate::{expr::Expression, repr::Despan, structure::Body, template::Template};
+use winnow::{prelude::*, stream::Located, Parser};
 
 pub(crate) type Input<'a> = Located<&'a [u8]>;
 
@@ -71,35 +58,4 @@ unsafe fn from_utf8_unchecked<'b>(bytes: &'b [u8], safety_justification: &'stati
     } else {
         std::str::from_utf8_unchecked(bytes)
     }
-}
-
-fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, InternalError<Input<'a>>> {
-    cut_err(one_of(c))
-        .map(AsChar::as_char)
-        .context(Context::Expected(Expected::Char(c)))
-}
-
-fn cut_tag<'a>(t: &'static str) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>> {
-    cut_err(t).context(Context::Expected(Expected::Literal(t)))
-}
-
-fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
-    cut_err(ident)
-        .context(Context::Expected(Expected::Description("identifier")))
-        .parse_next(input)
-}
-
-fn any_except<'a, F, T>(inner: F) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>>
-where
-    F: Parser<Input<'a>, T, InternalError<Input<'a>>>,
-{
-    preceded(not(inner), any).recognize()
-}
-
-#[inline]
-fn void<'a, P>(inner: P) -> impl Parser<Input<'a>, (), InternalError<Input<'a>>>
-where
-    P: Parser<Input<'a>, (), InternalError<Input<'a>>>,
-{
-    inner
 }

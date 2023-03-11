@@ -1,22 +1,24 @@
-use super::error::InternalError;
-use super::repr::{decor, spanned};
-use super::string::{build_string, literal_until, raw, string_fragment, string_literal};
-use super::trivia::ws;
-use super::{cut_char, cut_ident, cut_tag, expr::expr, IResult, Input};
-use crate::repr::{SetSpan, Span, Spanned};
-use crate::template::{
-    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip, Template,
+use super::{
+    context::{cut_char, cut_ident, cut_tag},
+    error::InternalError,
+    expr::expr,
+    repr::{decor, spanned},
+    string::{build_string, literal_until, raw, string_fragment, string_literal},
+    trivia::ws,
+    IResult, Input,
 };
-use crate::InternalString;
-use winnow::sequence::separated_pair;
-use winnow::Parser;
+use crate::{
+    repr::{SetSpan, Span, Spanned},
+    template::*,
+    InternalString,
+};
 use winnow::{
     branch::alt,
     character::{line_ending, space0},
     combinator::opt,
     multi::many0,
-    sequence::{delimited, preceded, terminated},
+    sequence::{delimited, preceded, separated_pair, terminated},
+    Parser,
 };
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {

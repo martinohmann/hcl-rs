@@ -1,7 +1,5 @@
 use super::{from_utf8_unchecked, IResult, Input};
-use crate::repr::Decorated;
-use crate::Ident;
-use hcl_primitives::ident;
+use crate::{repr::Decorated, Ident};
 use winnow::{
     bytes::{one_of, take_while0},
     stream::AsChar,
@@ -25,10 +23,10 @@ pub(super) fn str_ident(input: Input) -> IResult<Input, &str> {
 
 #[inline]
 fn is_id_start(b: u8) -> bool {
-    ident::is_id_start(b.as_char())
+    hcl_primitives::ident::is_id_start(b.as_char())
 }
 
 #[inline]
 fn is_id_continue(b: u8) -> bool {
-    ident::is_id_continue(b.as_char())
+    hcl_primitives::ident::is_id_continue(b.as_char())
 }

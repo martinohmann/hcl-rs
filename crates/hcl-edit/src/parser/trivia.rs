@@ -1,4 +1,4 @@
-use super::{void, IResult, Input};
+use super::{IResult, Input};
 use winnow::{
     branch::alt,
     bytes::{any, take_until0},
@@ -9,6 +9,39 @@ use winnow::{
     sequence::{delimited, preceded},
     Parser,
 };
+
+pub(super) fn ws(input: Input) -> IResult<Input, ()> {
+    (
+        multispace0.void(),
+        void(many0((comment, multispace0.void()))),
+    )
+        .void()
+        .parse_next(input)
+}
+
+pub(super) fn sp(input: Input) -> IResult<Input, ()> {
+    (space0.void(), void(many0((inline_comment, space0.void()))))
+        .void()
+        .parse_next(input)
+}
+
+fn comment(input: Input) -> IResult<Input, ()> {
+    dispatch! {peek(any);
+        b'#' => hash_line_comment,
+        b'/' => alt((double_slash_line_comment, inline_comment)),
+        _ => fail,
+    }
+    .parse_next(input)
+}
+
+pub(super) fn line_comment(input: Input) -> IResult<Input, ()> {
+    dispatch! {peek(any);
+        b'#' => hash_line_comment,
+        b'/' => double_slash_line_comment,
+        _ => fail,
+    }
+    .parse_next(input)
+}
 
 fn hash_line_comment(input: Input) -> IResult<Input, ()> {
     preceded(b'#', not_line_ending).void().parse_next(input)
@@ -24,35 +57,10 @@ fn inline_comment(input: Input) -> IResult<Input, ()> {
         .parse_next(input)
 }
 
-pub(super) fn line_comment(input: Input) -> IResult<Input, ()> {
-    dispatch! {peek(any);
-        b'#' => hash_line_comment,
-        b'/' => double_slash_line_comment,
-        _ => fail,
-    }
-    .parse_next(input)
-}
-
-fn comment(input: Input) -> IResult<Input, ()> {
-    dispatch! {peek(any);
-        b'#' => hash_line_comment,
-        b'/' => alt((double_slash_line_comment, inline_comment)),
-        _ => fail,
-    }
-    .parse_next(input)
-}
-
-pub(super) fn sp(input: Input) -> IResult<Input, ()> {
-    (space0.void(), void(many0((inline_comment, space0.void()))))
-        .void()
-        .parse_next(input)
-}
-
-pub(super) fn ws(input: Input) -> IResult<Input, ()> {
-    (
-        multispace0.void(),
-        void(many0((comment, multispace0.void()))),
-    )
-        .void()
-        .parse_next(input)
+#[inline]
+pub(super) fn void<'a, I, P, E>(inner: P) -> impl Parser<I, (), E>
+where
+    P: Parser<I, (), E>,
+{
+    inner
 }
