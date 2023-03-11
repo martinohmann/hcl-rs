@@ -203,7 +203,7 @@ where
     T: Encode,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f, None);
+        let mut state = EncodeState::new(f);
         self.encode(&mut state)
     }
 }
@@ -300,7 +300,7 @@ where
     T: Encode,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f, None);
+        let mut state = EncodeState::new(f);
         self.encode(&mut state)
     }
 }

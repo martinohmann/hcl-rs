@@ -22,16 +22,11 @@ pub(crate) trait Encode {
 pub(crate) struct EncodeState<'a> {
     buf: &'a mut dyn fmt::Write,
     escape: bool,
-    input: Option<&'a str>,
 }
 
 impl<'a> EncodeState<'a> {
-    pub fn new(buf: &'a mut dyn fmt::Write, input: Option<&'a str>) -> EncodeState<'a> {
-        EncodeState {
-            buf,
-            input,
-            escape: false,
-        }
+    pub fn new(buf: &'a mut dyn fmt::Write) -> EncodeState<'a> {
+        EncodeState { buf, escape: false }
     }
 
     pub fn escaped<F>(&mut self, f: F) -> fmt::Result
@@ -40,16 +35,6 @@ impl<'a> EncodeState<'a> {
     {
         self.escape = true;
         let result = f(self);
-        self.escape = false;
-        result
-    }
-
-    pub fn with_input<F>(&mut self, f: F) -> fmt::Result
-    where
-        F: FnOnce(&mut EncodeState, Option<&str>) -> fmt::Result,
-    {
-        self.escape = true;
-        let result = f(self, self.input);
         self.escape = false;
         result
     }

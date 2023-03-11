@@ -173,7 +173,7 @@ impl Despan for Template {
 
 impl fmt::Display for Template {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f, None);
+        let mut state = EncodeState::new(f);
         self.encode(&mut state)
     }
 }

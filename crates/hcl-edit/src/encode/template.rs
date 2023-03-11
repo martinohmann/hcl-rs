@@ -40,7 +40,7 @@ impl Encode for HeredocTemplate {
         match self.indent() {
             Some(n) => {
                 let mut indent_buf = String::new();
-                let mut indent_state = EncodeState::new(&mut indent_buf, buf.input);
+                let mut indent_state = EncodeState::new(&mut indent_buf);
                 self.template().encode(&mut indent_state)?;
                 let indented = indent_by(&indent_buf, n, false);
                 buf.write_str(&indented)?;

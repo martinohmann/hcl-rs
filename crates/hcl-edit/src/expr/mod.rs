@@ -59,7 +59,7 @@ impl Despan for Expression {
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f, None);
+        let mut state = EncodeState::new(f);
         self.encode_decorated(&mut state, NO_DECOR)
     }
 }

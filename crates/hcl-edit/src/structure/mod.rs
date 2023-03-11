@@ -44,7 +44,7 @@ impl From<Vec<Structure>> for Body {
 
 impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut state = EncodeState::new(f, None);
+        let mut state = EncodeState::new(f);
         self.encode(&mut state)
     }
 }

@@ -39,32 +39,12 @@ impl RawString {
         }
     }
 
-    pub(crate) fn to_str_with_default<'s>(
-        &'s self,
-        input: Option<&'s str>,
-        default: &'s str,
-    ) -> &'s str {
-        match &self.0 {
-            RawStringInner::Empty => "",
-            RawStringInner::Explicit(s) => s.as_str(),
-            RawStringInner::Spanned(span) => {
-                if let Some(input) = input {
-                    input.get(span.clone()).unwrap_or_else(|| {
-                        panic!("span {span:?} should be in input:\n```\n{input}\n```")
-                    })
-                } else {
-                    default
-                }
-            }
-        }
-    }
-
     pub(crate) fn encode_with_default(
         &self,
         buf: &mut EncodeState,
         default: &str,
     ) -> std::fmt::Result {
-        buf.with_input(|buf, input| buf.write_str(self.to_str_with_default(input, default)))
+        buf.write_str(self.as_str().unwrap_or(default))
     }
 }
 
