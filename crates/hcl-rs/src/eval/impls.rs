@@ -156,7 +156,7 @@ impl Evaluate for Template {
 
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let mut result = String::new();
-        template::evaluate_template(&mut result, self, ctx, StripMode::None)?;
+        template::evaluate_template(&mut result, self, ctx, Strip::None, Strip::None)?;
         Ok(result)
     }
 }

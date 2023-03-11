@@ -5,7 +5,7 @@ use crate::expr::{
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
+    Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
 };
 use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
@@ -594,7 +594,7 @@ where
     fmt.end_object()
 }
 
-fn format_strip<W, F>(fmt: &mut Formatter<W>, strip: StripMode, f: F) -> Result<()>
+fn format_strip<W, F>(fmt: &mut Formatter<W>, strip: Strip, f: F) -> Result<()>
 where
     W: io::Write,
     F: FnOnce(&mut Formatter<W>) -> Result<()>,
@@ -612,7 +612,7 @@ where
     Ok(())
 }
 
-fn format_interpolation<W, F>(fmt: &mut Formatter<W>, strip: StripMode, f: F) -> Result<()>
+fn format_interpolation<W, F>(fmt: &mut Formatter<W>, strip: Strip, f: F) -> Result<()>
 where
     W: io::Write,
     F: FnOnce(&mut Formatter<W>) -> Result<()>,
@@ -622,7 +622,7 @@ where
     fmt.write_bytes(b"}")
 }
 
-fn format_directive<W, F>(fmt: &mut Formatter<W>, strip: StripMode, f: F) -> Result<()>
+fn format_directive<W, F>(fmt: &mut Formatter<W>, strip: Strip, f: F) -> Result<()>
 where
     W: io::Write,
     F: FnOnce(&mut Formatter<W>) -> Result<()>,

@@ -6,8 +6,7 @@ use super::{
 use crate::repr::{SetSpan, Span, Spanned};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, StripMode,
-    Template,
+    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip, Template,
 };
 use crate::InternalString;
 use winnow::sequence::separated_pair;
@@ -29,7 +28,7 @@ fn interpolation(input: Input) -> IResult<Input, Interpolation> {
 fn control<'a, S, P, O1, O2>(
     intro: S,
     inner: P,
-) -> impl Parser<Input<'a>, (O2, StripMode), InternalError<Input<'a>>>
+) -> impl Parser<Input<'a>, (O2, Strip), InternalError<Input<'a>>>
 where
     S: Parser<Input<'a>, O1, InternalError<Input<'a>>>,
     P: Parser<Input<'a>, O2, InternalError<Input<'a>>>,

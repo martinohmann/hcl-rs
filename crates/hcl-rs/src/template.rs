@@ -90,6 +90,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
+// Re-exported for convenience.
+#[doc(inline)]
+pub use hcl_primitives::template::Strip;
+
+#[doc(hidden)]
+#[deprecated(since = "0.14.0", note = "use `hcl::template::Strip` instead")]
+pub type StripMode = Strip;
+
 /// The main type to represent the HCL template sub-languange.
 ///
 /// A template behaves like an expression that always returns a string value. The different
@@ -209,19 +217,11 @@ pub enum Element {
 }
 
 impl Element {
-    pub(crate) fn strip_start(&self) -> bool {
+    pub(crate) fn strip(&self) -> Strip {
         match self {
-            Element::Literal(_) => false,
-            Element::Interpolation(interp) => interp.strip.strip_start(),
-            Element::Directive(dir) => dir.strip_start(),
-        }
-    }
-
-    pub(crate) fn strip_end(&self) -> bool {
-        match self {
-            Element::Literal(_) => false,
-            Element::Interpolation(interp) => interp.strip.strip_end(),
-            Element::Directive(dir) => dir.strip_end(),
+            Element::Literal(_) => Strip::None,
+            Element::Interpolation(interp) => interp.strip,
+            Element::Directive(dir) => dir.strip(),
         }
     }
 }
@@ -258,7 +258,7 @@ pub struct Interpolation {
     pub expr: Expression,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// this interpolation sequence.
-    pub strip: StripMode,
+    pub strip: Strip,
 }
 
 impl Interpolation {
@@ -269,13 +269,13 @@ impl Interpolation {
     {
         Interpolation {
             expr: expr.into(),
-            strip: StripMode::None,
+            strip: Strip::None,
         }
     }
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after this interpolation sequence and returns the modified `Interpolation`.
-    pub fn with_strip(mut self, strip: StripMode) -> Interpolation {
+    pub fn with_strip(mut self, strip: Strip) -> Interpolation {
         self.strip = strip;
         self
     }
@@ -288,7 +288,7 @@ where
     fn from(expr: T) -> Self {
         Interpolation {
             expr: expr.into(),
-            strip: StripMode::default(),
+            strip: Strip::default(),
         }
     }
 }
@@ -303,18 +303,13 @@ pub enum Directive {
 }
 
 impl Directive {
-    fn strip_start(&self) -> bool {
-        match self {
-            Directive::If(dir) => dir.if_strip.strip_start(),
-            Directive::For(dir) => dir.for_strip.strip_start(),
-        }
-    }
+    fn strip(&self) -> Strip {
+        let (start, end) = match self {
+            Directive::If(dir) => (dir.if_strip, dir.endif_strip),
+            Directive::For(dir) => (dir.for_strip, dir.endfor_strip),
+        };
 
-    fn strip_end(&self) -> bool {
-        match self {
-            Directive::If(dir) => dir.endif_strip.strip_end(),
-            Directive::For(dir) => dir.endfor_strip.strip_end(),
-        }
+        Strip::from((start.strip_start(), end.strip_end()))
     }
 }
 
@@ -345,13 +340,13 @@ pub struct IfDirective {
     pub false_template: Option<Template>,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `if` expression.
-    pub if_strip: StripMode,
+    pub if_strip: Strip,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `else` expression. This has no effect if `false_template` is `None`.
-    pub else_strip: StripMode,
+    pub else_strip: Strip,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `endif` marker of this directive.
-    pub endif_strip: StripMode,
+    pub endif_strip: Strip,
 }
 
 impl IfDirective {
@@ -365,9 +360,9 @@ impl IfDirective {
             cond_expr: cond_expr.into(),
             true_template,
             false_template: None,
-            if_strip: StripMode::default(),
-            else_strip: StripMode::default(),
-            endif_strip: StripMode::default(),
+            if_strip: Strip::default(),
+            else_strip: Strip::default(),
+            endif_strip: Strip::default(),
         }
     }
 
@@ -383,21 +378,21 @@ impl IfDirective {
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after the `if` expression and returns the modified `IfDirective`.
-    pub fn with_if_strip(mut self, strip: StripMode) -> IfDirective {
+    pub fn with_if_strip(mut self, strip: Strip) -> IfDirective {
         self.if_strip = strip;
         self
     }
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after the `else` expression and returns the modified `IfDirective`.
-    pub fn with_else_strip(mut self, strip: StripMode) -> IfDirective {
+    pub fn with_else_strip(mut self, strip: Strip) -> IfDirective {
         self.else_strip = strip;
         self
     }
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after the `endif` marker of this directive and returns the modified `IfDirective`.
-    pub fn with_endif_strip(mut self, strip: StripMode) -> IfDirective {
+    pub fn with_endif_strip(mut self, strip: Strip) -> IfDirective {
         self.endif_strip = strip;
         self
     }
@@ -417,10 +412,10 @@ pub struct ForDirective {
     pub template: Template,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `for` expression.
-    pub for_strip: StripMode,
+    pub for_strip: Strip,
     /// The whitespace strip mode to use on the template elements preceeding and following after
     /// the `endfor` marker of this directive.
-    pub endfor_strip: StripMode,
+    pub endfor_strip: Strip,
 }
 
 impl ForDirective {
@@ -436,8 +431,8 @@ impl ForDirective {
             value_var: value,
             collection_expr: collection_expr.into(),
             template,
-            for_strip: StripMode::default(),
-            endfor_strip: StripMode::default(),
+            for_strip: Strip::default(),
+            endfor_strip: Strip::default(),
         }
     }
 
@@ -450,62 +445,16 @@ impl ForDirective {
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after the `for` expression and returns the modified `ForDirective`.
-    pub fn with_for_strip(mut self, strip: StripMode) -> ForDirective {
+    pub fn with_for_strip(mut self, strip: Strip) -> ForDirective {
         self.for_strip = strip;
         self
     }
 
     /// Sets the whitespace strip mode to use on the template elements preceeding and following
     /// after the `endfor` marker of this directive and returns the modified `ForDirective`.
-    pub fn with_endfor_strip(mut self, strip: StripMode) -> ForDirective {
+    pub fn with_endfor_strip(mut self, strip: Strip) -> ForDirective {
         self.endfor_strip = strip;
         self
-    }
-}
-
-/// Controls the whitespace strip behaviour on adjacent string literals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StripMode {
-    /// Don't strip adjacent spaces.
-    None,
-    /// Strip any adjacent spaces from the immediately preceeding string literal, if there is
-    /// one.
-    Start,
-    /// Strip any adjacent spaces from the immediately following string literal, if there is one.
-    End,
-    /// Strip any adjacent spaces from the immediately preceeding and following string literals,
-    /// if there are any.
-    Both,
-}
-
-impl StripMode {
-    pub(crate) fn from_adjacent(prev: StripMode, next: StripMode) -> Self {
-        StripMode::from((prev.strip_end(), next.strip_start()))
-    }
-
-    pub(crate) fn strip_start(self) -> bool {
-        matches!(self, StripMode::Start | StripMode::Both)
-    }
-
-    pub(crate) fn strip_end(self) -> bool {
-        matches!(self, StripMode::End | StripMode::Both)
-    }
-}
-
-impl Default for StripMode {
-    fn default() -> StripMode {
-        StripMode::None
-    }
-}
-
-impl From<(bool, bool)> for StripMode {
-    fn from((start, end): (bool, bool)) -> Self {
-        match (start, end) {
-            (true, true) => StripMode::Both,
-            (true, false) => StripMode::Start,
-            (false, true) => StripMode::End,
-            (false, false) => StripMode::None,
-        }
     }
 }
 

@@ -4,23 +4,24 @@ pub(super) fn evaluate_template(
     result: &mut String,
     template: &Template,
     ctx: &Context,
-    strip: StripMode,
+    prev_strip: Strip,
+    next_strip: Strip,
 ) -> EvalResult<()> {
     let elems = template.elements();
     let len = elems.len();
 
     for (index, elem) in elems.iter().enumerate() {
-        let strip = if index == 0 && len == 1 {
-            strip
+        let (prev, next) = if index == 0 && len == 1 {
+            (prev_strip, next_strip)
         } else if index == 0 {
-            StripMode::from((strip.strip_start(), elems[index + 1].strip_start()))
+            (prev_strip, elems[index + 1].strip())
         } else if index == len - 1 {
-            StripMode::from((elems[index - 1].strip_end(), strip.strip_end()))
+            (elems[index - 1].strip(), next_strip)
         } else {
-            StripMode::from((elems[index - 1].strip_end(), elems[index + 1].strip_start()))
+            (elems[index - 1].strip(), elems[index + 1].strip())
         };
 
-        evaluate_element(result, elem, ctx, strip)?;
+        evaluate_element(result, elem, ctx, prev, next)?;
     }
 
     Ok(())
@@ -30,11 +31,12 @@ fn evaluate_element(
     result: &mut String,
     element: &Element,
     ctx: &Context,
-    strip: StripMode,
+    prev_strip: Strip,
+    next_strip: Strip,
 ) -> EvalResult<()> {
     match element {
         Element::Literal(literal) => {
-            result.push_str(strip_literal(literal, strip));
+            result.push_str(strip_literal(literal, prev_strip, next_strip));
             Ok(())
         }
         Element::Interpolation(interp) => evaluate_interpolation(result, interp, ctx),
@@ -44,7 +46,7 @@ fn evaluate_element(
 
 // Depending on the `StripMode`, strips off leading and trailing spaces up until the first line
 // break that is encountered. The line break is stripped as well.
-fn strip_literal(literal: &str, strip: StripMode) -> &str {
+fn strip_literal(mut literal: &str, prev_strip: Strip, next_strip: Strip) -> &str {
     fn is_space(ch: char) -> bool {
         ch.is_whitespace() && ch != '\r' && ch != '\n'
     }
@@ -65,12 +67,15 @@ fn strip_literal(literal: &str, strip: StripMode) -> &str {
             .unwrap_or(s)
     }
 
-    match strip {
-        StripMode::Both => trim_start(trim_end(literal)),
-        StripMode::Start => trim_start(literal),
-        StripMode::End => trim_end(literal),
-        StripMode::None => literal,
+    if prev_strip.strip_end() {
+        literal = trim_start(literal);
     }
+
+    if next_strip.strip_start() {
+        literal = trim_end(literal);
+    }
+
+    literal
 }
 
 fn evaluate_interpolation(
@@ -101,11 +106,9 @@ fn evaluate_if_directive(result: &mut String, dir: &IfDirective, ctx: &Context) 
         } else {
             dir.endif_strip
         };
-        let strip = StripMode::from_adjacent(dir.if_strip, next_strip);
-        evaluate_template(result, &dir.true_template, ctx, strip)?;
+        evaluate_template(result, &dir.true_template, ctx, dir.if_strip, next_strip)?;
     } else if let Some(false_template) = &dir.false_template {
-        let strip = StripMode::from_adjacent(dir.else_strip, dir.endif_strip);
-        evaluate_template(result, false_template, ctx, strip)?;
+        evaluate_template(result, false_template, ctx, dir.else_strip, dir.endif_strip)?;
     }
 
     Ok(())
@@ -116,11 +119,16 @@ fn evaluate_for_directive(
     dir: &ForDirective,
     ctx: &Context,
 ) -> EvalResult<()> {
-    let strip = StripMode::from_adjacent(dir.for_strip, dir.endfor_strip);
     let collection = expr::Collection::from_for_directive(dir, ctx)?;
 
     for ctx in collection {
-        evaluate_template(result, &dir.template, &ctx?, strip)?;
+        evaluate_template(
+            result,
+            &dir.template,
+            &ctx?,
+            dir.for_strip,
+            dir.endfor_strip,
+        )?;
     }
 
     Ok(())

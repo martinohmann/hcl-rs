@@ -18,6 +18,7 @@ pub mod expr;
 pub mod ident;
 mod internal_string;
 mod number;
+pub mod template;
 
 #[doc(inline)]
 pub use self::error::Error;

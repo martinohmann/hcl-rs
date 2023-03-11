@@ -6,7 +6,7 @@ use hcl::expr::{
     HeredocStripMode, Traversal, TraversalOperator, Variable,
 };
 use hcl::format::Formatter;
-use hcl::template::{ForDirective, IfDirective, StripMode, Template};
+use hcl::template::{ForDirective, IfDirective, Strip, Template};
 use hcl::Identifier;
 use indoc::indoc;
 
@@ -179,14 +179,14 @@ fn template() {
                             .add_interpolation(Variable::unchecked("item"))
                             .add_literal("."),
                     )
-                    .with_if_strip(StripMode::Start)
-                    .with_else_strip(StripMode::Both)
-                    .with_endif_strip(StripMode::End),
+                    .with_if_strip(Strip::Start)
+                    .with_else_strip(Strip::Both)
+                    .with_endif_strip(Strip::End),
                 )
                 .add_literal("\n"),
         )
-        .with_for_strip(StripMode::End)
-        .with_endfor_strip(StripMode::End),
+        .with_for_strip(Strip::End)
+        .with_endfor_strip(Strip::End),
     );
 
     let expected = indoc! {r#"

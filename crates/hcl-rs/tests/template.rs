@@ -1,5 +1,5 @@
 use hcl::expr::{TemplateExpr, Variable};
-use hcl::template::{IfDirective, StripMode, Template};
+use hcl::template::{IfDirective, Strip, Template};
 use pretty_assertions::assert_eq;
 
 #[test]
@@ -15,8 +15,8 @@ fn from_expr() {
                 Variable::unchecked("cond"),
                 Template::new().add_literal("qux"),
             )
-            .with_if_strip(StripMode::Start)
-            .with_endif_strip(StripMode::End),
+            .with_if_strip(Strip::Start)
+            .with_endif_strip(Strip::End),
         );
 
     assert_eq!(Template::from_expr(&expr).unwrap(), expected);

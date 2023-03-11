@@ -6,6 +6,10 @@ use crate::{Ident, InternalString, RawString};
 use std::fmt;
 use std::ops::Range;
 
+// Re-exported for convenience.
+#[doc(inline)]
+pub use hcl_primitives::template::Strip;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StringTemplate {
     elements: Vec<Element>,
@@ -196,14 +200,14 @@ impl Despan for Element {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Interpolation {
     expr: Expression,
-    strip: StripMode,
+    strip: Strip,
     span: Option<Range<usize>>,
 }
 
 span_impl!(Interpolation);
 
 impl Interpolation {
-    pub fn new(expr: Expression, strip: StripMode) -> Interpolation {
+    pub fn new(expr: Expression, strip: Strip) -> Interpolation {
         Interpolation {
             expr,
             strip,
@@ -215,7 +219,7 @@ impl Interpolation {
         &self.expr
     }
 
-    pub fn strip(&self) -> StripMode {
+    pub fn strip(&self) -> Strip {
         self.strip
     }
 }
@@ -297,11 +301,11 @@ pub struct IfTemplateExpr {
     preamble: RawString,
     cond_expr: Expression,
     template: Template,
-    strip: StripMode,
+    strip: Strip,
 }
 
 impl IfTemplateExpr {
-    pub fn new(cond_expr: Expression, template: Template, strip: StripMode) -> IfTemplateExpr {
+    pub fn new(cond_expr: Expression, template: Template, strip: Strip) -> IfTemplateExpr {
         IfTemplateExpr {
             preamble: RawString::default(),
             cond_expr,
@@ -318,7 +322,7 @@ impl IfTemplateExpr {
         &self.template
     }
 
-    pub fn strip(&self) -> StripMode {
+    pub fn strip(&self) -> Strip {
         self.strip
     }
 
@@ -344,11 +348,11 @@ pub struct ElseTemplateExpr {
     preamble: RawString,
     trailing: RawString,
     template: Template,
-    strip: StripMode,
+    strip: Strip,
 }
 
 impl ElseTemplateExpr {
-    pub fn new(template: Template, strip: StripMode) -> ElseTemplateExpr {
+    pub fn new(template: Template, strip: Strip) -> ElseTemplateExpr {
         ElseTemplateExpr {
             preamble: RawString::default(),
             trailing: RawString::default(),
@@ -361,7 +365,7 @@ impl ElseTemplateExpr {
         &self.template
     }
 
-    pub fn strip(&self) -> StripMode {
+    pub fn strip(&self) -> Strip {
         self.strip
     }
 
@@ -394,11 +398,11 @@ impl Despan for ElseTemplateExpr {
 pub struct EndifTemplateExpr {
     preamble: RawString,
     trailing: RawString,
-    strip: StripMode,
+    strip: Strip,
 }
 
 impl EndifTemplateExpr {
-    pub fn new(strip: StripMode) -> EndifTemplateExpr {
+    pub fn new(strip: Strip) -> EndifTemplateExpr {
         EndifTemplateExpr {
             preamble: RawString::default(),
             trailing: RawString::default(),
@@ -406,7 +410,7 @@ impl EndifTemplateExpr {
         }
     }
 
-    pub fn strip(&self) -> StripMode {
+    pub fn strip(&self) -> Strip {
         self.strip
     }
 
@@ -475,7 +479,7 @@ pub struct ForTemplateExpr {
     value_var: Decorated<Ident>,
     collection_expr: Expression,
     template: Template,
-    strip: StripMode,
+    strip: Strip,
 }
 
 impl ForTemplateExpr {
@@ -484,7 +488,7 @@ impl ForTemplateExpr {
         value_var: Decorated<Ident>,
         collection_expr: Expression,
         template: Template,
-        strip: StripMode,
+        strip: Strip,
     ) -> ForTemplateExpr {
         ForTemplateExpr {
             preamble: RawString::default(),
@@ -512,7 +516,7 @@ impl ForTemplateExpr {
         &self.template
     }
 
-    pub fn strip(&self) -> StripMode {
+    pub fn strip(&self) -> Strip {
         self.strip
     }
 
@@ -543,11 +547,11 @@ impl Despan for ForTemplateExpr {
 pub struct EndforTemplateExpr {
     preamble: RawString,
     trailing: RawString,
-    strip: StripMode,
+    strip: Strip,
 }
 
 impl EndforTemplateExpr {
-    pub fn new(strip: StripMode) -> EndforTemplateExpr {
+    pub fn new(strip: Strip) -> EndforTemplateExpr {
         EndforTemplateExpr {
             preamble: RawString::default(),
             trailing: RawString::default(),
@@ -555,7 +559,7 @@ impl EndforTemplateExpr {
         }
     }
 
-    pub fn strip(&self) -> StripMode {
+    pub fn strip(&self) -> Strip {
         self.strip
     }
 
@@ -580,47 +584,5 @@ impl Despan for EndforTemplateExpr {
     fn despan(&mut self, input: &str) {
         self.preamble.despan(input);
         self.trailing.despan(input);
-    }
-}
-
-/// Controls the whitespace strip behaviour on adjacent string literals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StripMode {
-    /// Don't strip adjacent spaces.
-    None,
-    /// Strip any adjacent spaces from the immediately preceeding string literal, if there is
-    /// one.
-    Start,
-    /// Strip any adjacent spaces from the immediately following string literal, if there is one.
-    End,
-    /// Strip any adjacent spaces from the immediately preceeding and following string literals,
-    /// if there are any.
-    Both,
-}
-
-impl StripMode {
-    pub(crate) fn strip_start(self) -> bool {
-        matches!(self, StripMode::Start | StripMode::Both)
-    }
-
-    pub(crate) fn strip_end(self) -> bool {
-        matches!(self, StripMode::End | StripMode::Both)
-    }
-}
-
-impl Default for StripMode {
-    fn default() -> StripMode {
-        StripMode::None
-    }
-}
-
-impl From<(bool, bool)> for StripMode {
-    fn from((start, end): (bool, bool)) -> Self {
-        match (start, end) {
-            (true, true) => StripMode::Both,
-            (true, false) => StripMode::Start,
-            (false, true) => StripMode::End,
-            (false, false) => StripMode::None,
-        }
     }
 }

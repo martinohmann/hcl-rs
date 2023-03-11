@@ -5,7 +5,7 @@ use super::{
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
-    StripMode, Template,
+    Strip, Template,
 };
 use crate::util::indent_by;
 use std::fmt::{self, Write};
@@ -176,7 +176,7 @@ impl Encode for EndforTemplateExpr {
     }
 }
 
-fn encode_strip<F>(buf: &mut EncodeState, start_marker: &str, strip: StripMode, f: F) -> fmt::Result
+fn encode_strip<F>(buf: &mut EncodeState, start_marker: &str, strip: Strip, f: F) -> fmt::Result
 where
     F: FnOnce(&mut EncodeState) -> fmt::Result,
 {
