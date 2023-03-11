@@ -1,7 +1,8 @@
-use super::Input;
 use std::fmt;
-use winnow::error::{ContextError, FromExternalError, ParseError};
-use winnow::stream::{AsBytes, Offset};
+use winnow::{
+    error::{ContextError, FromExternalError, ParseError},
+    stream::{AsBytes, Offset},
+};
 
 /// Represents a location in the parser input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,9 +15,6 @@ pub struct Location {
 
 /// The result type used by this module.
 pub type ParseResult<T> = std::result::Result<T, Error>;
-
-/// The result type used by parsers internally.
-pub type IResult<I, O, E = InternalError<I>> = winnow::IResult<I, O, E>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Context {
@@ -173,10 +171,10 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_internal_error<'a>(
-        input: Input<'a>,
-        err: InternalError<Input<'a>>,
-    ) -> Error {
+    pub(super) fn from_internal_error<I>(input: I, err: InternalError<I>) -> Error
+    where
+        I: AsBytes + Offset,
+    {
         Error::new(ErrorInner::from_internal_error(input, err))
     }
 
@@ -222,7 +220,10 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_internal_error<'a>(input: Input<'a>, err: InternalError<Input<'a>>) -> ErrorInner {
+    fn from_internal_error<I>(input: I, err: InternalError<I>) -> ErrorInner
+    where
+        I: AsBytes + Offset,
+    {
         let offset = input.offset_to(&err.input);
         let (line, location) = locate_error(input.as_bytes(), offset);
 

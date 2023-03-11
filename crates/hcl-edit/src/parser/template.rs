@@ -1,8 +1,8 @@
 use super::error::InternalError;
-use super::{
-    build_string, cut_char, cut_ident, cut_tag, decor, expr::expr, literal_until, raw, spanned,
-    string_fragment, string_literal, ws, IResult, Input,
-};
+use super::repr::{decor, spanned};
+use super::string::{build_string, literal_until, raw, string_fragment, string_literal};
+use super::trivia::ws;
+use super::{cut_char, cut_ident, cut_tag, expr::expr, IResult, Input};
 use crate::repr::{SetSpan, Span, Spanned};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,

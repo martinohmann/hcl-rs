@@ -1,8 +1,12 @@
+use super::ident::ident;
+use super::repr::{decor, prefix_decor, suffix_decor};
+use super::string::{raw, string};
+use super::trivia::{line_comment, sp, ws};
 use super::{
-    cut_char, decor,
+    cut_char,
     error::{Context, Expected},
     expr::expr,
-    ident, line_comment, prefix_decor, raw, sp, string, suffix_decor, ws, IResult, Input,
+    IResult, Input,
 };
 use crate::expr::Expression;
 use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};

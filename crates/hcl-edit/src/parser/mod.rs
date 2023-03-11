@@ -2,40 +2,39 @@
 
 mod error;
 mod expr;
+mod ident;
 mod number;
 mod repr;
+mod string;
 mod structure;
 mod template;
 #[cfg(test)]
 mod tests;
+mod trivia;
 
-use self::error::{Context, Expected, IResult, InternalError};
+use self::error::{Context, Expected, InternalError};
 pub use self::error::{Error, ParseResult};
 use self::expr::expr;
-use self::repr::{decor, prefix_decor, raw, spanned, suffix_decor};
+use self::ident::ident;
 use self::structure::body;
 use self::template::template;
 use crate::expr::Expression;
 use crate::repr::{Decorated, Despan};
 use crate::structure::Body;
 use crate::template::Template;
-use crate::{Ident, InternalString};
-use hcl_primitives::ident;
-use std::borrow::Cow;
+use crate::Ident;
 use winnow::{
-    branch::alt,
-    bytes::{any, one_of, tag, take_until0, take_while0, take_while_m_n},
-    character::{multispace0, not_line_ending, space0},
-    combinator::{cut_err, fail, not, peek, success},
-    dispatch,
-    multi::{many0, many1},
+    bytes::{any, one_of},
+    combinator::{cut_err, not},
     prelude::*,
-    sequence::{delimited, preceded, terminated},
+    sequence::preceded,
     stream::{AsChar, Located},
     Parser,
 };
 
 pub(crate) type Input<'a> = Located<&'a [u8]>;
+
+pub(crate) type IResult<I, O, E = InternalError<I>> = winnow::IResult<I, O, E>;
 
 pub fn parse_body(input: &str) -> ParseResult<Body> {
     let mut body = parse_to_end(input, body)?;
@@ -66,10 +65,7 @@ where
         .map_err(|err| Error::from_internal_error(input, err))
 }
 
-pub(crate) unsafe fn from_utf8_unchecked<'b>(
-    bytes: &'b [u8],
-    safety_justification: &'static str,
-) -> &'b str {
+unsafe fn from_utf8_unchecked<'b>(bytes: &'b [u8], safety_justification: &'static str) -> &'b str {
     if cfg!(debug_assertions) {
         std::str::from_utf8(bytes).expect(safety_justification)
     } else {
@@ -87,210 +83,9 @@ fn cut_tag<'a>(t: &'static str) -> impl Parser<Input<'a>, &'a [u8], InternalErro
     cut_err(t).context(Context::Expected(Expected::Literal(t)))
 }
 
-fn hash_line_comment(input: Input) -> IResult<Input, ()> {
-    preceded(b'#', not_line_ending).void().parse_next(input)
-}
-
-fn double_slash_line_comment(input: Input) -> IResult<Input, ()> {
-    preceded(b"//", not_line_ending).void().parse_next(input)
-}
-
-fn inline_comment(input: Input) -> IResult<Input, ()> {
-    delimited(b"/*", take_until0("*/"), b"*/")
-        .void()
-        .parse_next(input)
-}
-
-fn line_comment(input: Input) -> IResult<Input, ()> {
-    dispatch! {peek(any);
-        b'#' => hash_line_comment,
-        b'/' => double_slash_line_comment,
-        _ => fail,
-    }
-    .parse_next(input)
-}
-
-fn comment(input: Input) -> IResult<Input, ()> {
-    dispatch! {peek(any);
-        b'#' => hash_line_comment,
-        b'/' => alt((double_slash_line_comment, inline_comment)),
-        _ => fail,
-    }
-    .parse_next(input)
-}
-
-fn sp(input: Input) -> IResult<Input, ()> {
-    (space0.void(), void(many0((inline_comment, space0.void()))))
-        .void()
-        .parse_next(input)
-}
-
-fn ws(input: Input) -> IResult<Input, ()> {
-    (
-        multispace0.void(),
-        void(many0((comment, multispace0.void()))),
-    )
-        .void()
-        .parse_next(input)
-}
-
-fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
-    let parse_hex =
-        take_while_m_n(1, N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
-
-    let parse_u32 = parse_hex.map_res(|hex: &[u8]| {
-        u32::from_str_radix(
-            unsafe { from_utf8_unchecked(hex, "`is_ascii_hexdigit` filters out non-ascii") },
-            16,
-        )
-    });
-
-    parse_u32.verify_map(std::char::from_u32).parse_next(input)
-}
-
-/// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
-fn escaped_char(input: Input) -> IResult<Input, char> {
-    let (input, _) = b'\\'.parse_next(input)?;
-
-    dispatch! {any;
-        b'n' => success('\n'),
-        b'r' => success('\r'),
-        b't' => success('\t'),
-        b'\\' => success('\\'),
-        b'"' => success('"'),
-        b'/' => success('/'),
-        b'b' => success('\u{08}'),
-        b'f' => success('\u{0C}'),
-        b'u' => cut_err(hexescape::<4>)
-            .context(Context::Expression("unicode 4-digit hex code")),
-        b'U' => cut_err(hexescape::<8>)
-            .context(Context::Expression("unicode 8-digit hex code")),
-        _ => cut_err(fail)
-            .context(Context::Expression("escape sequence"))
-            .context(Context::Expected(Expected::Char('b')))
-            .context(Context::Expected(Expected::Char('f')))
-            .context(Context::Expected(Expected::Char('n')))
-            .context(Context::Expected(Expected::Char('r')))
-            .context(Context::Expected(Expected::Char('t')))
-            .context(Context::Expected(Expected::Char('u')))
-            .context(Context::Expected(Expected::Char('U')))
-            .context(Context::Expected(Expected::Char('\\')))
-            .context(Context::Expected(Expected::Char('"'))),
-    }
-    .parse_next(input)
-}
-
-/// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
-/// interpolation/directive start markers.
-fn string_literal(input: Input) -> IResult<Input, &str> {
-    let literal_end = alt((b"\"", b"\\", b"${", b"%{"));
-    literal_until(literal_end).parse_next(input)
-}
-
-fn literal_until<'a, F, T>(
-    literal_end: F,
-) -> impl Parser<Input<'a>, &'a str, InternalError<Input<'a>>>
-where
-    F: Parser<Input<'a>, T, InternalError<Input<'a>>>,
-{
-    void(many1(alt((
-        tag("$${"),
-        tag("%%{"),
-        any_except(literal_end),
-    ))))
-    .recognize()
-    .map_res(std::str::from_utf8)
-}
-
-/// A string fragment contains a fragment of a string being parsed: either
-/// a non-empty Literal (a series of non-escaped characters) or a single
-/// parsed escaped character.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StringFragment<'a> {
-    Literal(&'a str),
-    EscapedChar(char),
-}
-
-fn string_fragment<'a, F>(
-    literal: F,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, &'a str>,
-{
-    alt((
-        literal.map(StringFragment::Literal),
-        escaped_char.map(StringFragment::EscapedChar),
-    ))
-}
-
-fn build_string<'a, F>(
-    mut string_fragment: F,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>,
-{
-    move |input: Input<'a>| {
-        let (mut input, mut string) = match string_fragment(input) {
-            Ok((input, fragment)) => match fragment {
-                StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
-                StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
-            },
-            Err(err) => return Err(err),
-        };
-
-        loop {
-            match string_fragment(input) {
-                Ok((rest, fragment)) => {
-                    match fragment {
-                        StringFragment::Literal(s) => string.to_mut().push_str(s),
-                        StringFragment::EscapedChar(c) => string.to_mut().push(c),
-                    };
-                    input = rest;
-                }
-                Err(_) => return Ok((input, string.into())),
-            }
-        }
-    }
-}
-
-fn string(input: Input) -> IResult<Input, InternalString> {
-    preceded(
-        b'"',
-        alt((
-            one_of('"').map(|_| InternalString::new()),
-            terminated(build_string(string_fragment(string_literal)), b'"'),
-        )),
-    )(input)
-}
-
-#[inline]
-fn is_id_start(b: u8) -> bool {
-    ident::is_id_start(b.as_char())
-}
-
-#[inline]
-fn is_id_continue(b: u8) -> bool {
-    ident::is_id_continue(b.as_char())
-}
-
-fn str_ident(input: Input) -> IResult<Input, &str> {
-    (one_of(is_id_start), take_while0(is_id_continue))
-        .recognize()
-        .map(|s: &[u8]| unsafe {
-            from_utf8_unchecked(s, "`alpha1` and `alphanumeric1` filter out non-ascii")
-        })
-        .parse_next(input)
-}
-
 fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
     cut_err(ident)
         .context(Context::Expected(Expected::Description("identifier")))
-        .parse_next(input)
-}
-
-fn ident(input: Input) -> IResult<Input, Decorated<Ident>> {
-    str_ident
-        .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)
 }
 

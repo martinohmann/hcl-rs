@@ -1,7 +1,7 @@
 use super::error::InternalError;
+use super::string::raw;
 use super::Input;
 use crate::repr::{Decorate, SetSpan};
-use crate::RawString;
 use winnow::Parser;
 
 pub(super) fn spanned<'a, F, O>(inner: F) -> impl Parser<Input<'a>, O, InternalError<Input<'a>>>
@@ -65,11 +65,4 @@ where
         value.set_span(span);
         value
     })
-}
-
-pub(super) fn raw<'a, P, O>(inner: P) -> impl Parser<Input<'a>, RawString, InternalError<Input<'a>>>
-where
-    P: Parser<Input<'a>, O, InternalError<Input<'a>>>,
-{
-    inner.span().map(RawString::from_span)
 }
