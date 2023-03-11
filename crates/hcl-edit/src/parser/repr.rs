@@ -13,7 +13,7 @@ where
     })
 }
 
-pub(super) fn decor<'a, F, G, H, O1, O2, O3>(
+pub(super) fn decorated<'a, F, G, H, O1, O2, O3>(
     prefix: F,
     inner: G,
     suffix: H,
@@ -35,7 +35,7 @@ where
     )
 }
 
-pub(super) fn prefix_decor<'a, F, G, O1, O2>(
+pub(super) fn prefix_decorated<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
 ) -> impl Parser<Input<'a>, O2, ParseError<Input<'a>>>
@@ -51,7 +51,7 @@ where
     })
 }
 
-pub(super) fn suffix_decor<'a, F, G, O1, O2>(
+pub(super) fn suffix_decorated<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
 ) -> impl Parser<Input<'a>, O1, ParseError<Input<'a>>>

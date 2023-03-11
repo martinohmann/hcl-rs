@@ -2,7 +2,7 @@ use super::{
     context::{cut_char, cut_ident, cut_tag, Context, Expected},
     error::ParseError,
     number::number,
-    repr::{decor, prefix_decor, spanned, suffix_decor},
+    repr::{decorated, prefix_decorated, spanned, suffix_decorated},
     string::{ident, raw_string, str_ident, string},
     template::{heredoc_template, string_template},
     trivia::{line_comment, sp, ws},
@@ -90,7 +90,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
             preceded((b'-', sp), number).map(|n| Expression::Number((-n).into())),
             (
                 spanned(one_of('-').value(UnaryOperator::Neg).map(Spanned::new)),
-                prefix_decor(sp, expr_term),
+                prefix_decorated(sp, expr_term),
             )
                 .map(|(operator, expr)| {
                     Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))
@@ -98,7 +98,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
         )),
         b'!' => (
             spanned(take(1usize).value(UnaryOperator::Not).map(Spanned::new)),
-            prefix_decor(sp, expr_term),
+            prefix_decorated(sp, expr_term),
         )
             .map(|(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))),
         b'(' => parenthesis.map(|expr| Expression::Parenthesis(Box::new(expr.into()))),
@@ -120,7 +120,7 @@ fn expr_term(input: Input) -> IResult<Input, Expression> {
 }
 
 fn apply_traversal(input: Input, expr_term: Expression) -> IResult<Input, Expression> {
-    let mut traversal = many1(prefix_decor(sp, traversal_operator.map(Decorated::new)));
+    let mut traversal = many1(prefix_decorated(sp, traversal_operator.map(Decorated::new)));
 
     let (input, operators) = traversal.parse_next(input)?;
     let traversal = Traversal::new(expr_term, operators);
@@ -130,7 +130,7 @@ fn apply_traversal(input: Input, expr_term: Expression) -> IResult<Input, Expres
 
 fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
     dispatch! {any;
-        b'.' => prefix_decor(
+        b'.' => prefix_decorated(
             ws,
             cut_err(alt((
                 one_of('*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
@@ -143,7 +143,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
             .context(Context::Expected(Expected::Description("unsigned integer"))),
         ),
         b'[' => terminated(
-            decor(
+            decorated(
                 ws,
                 cut_err(alt((
                     one_of('*').value(TraversalOperator::FullSplat(Decorated::new(()))),
@@ -164,7 +164,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
 fn apply_binary_op(input: Input, lhs_expr: Expression) -> IResult<Input, Expression> {
     let mut binary_op = (
         spanned(binary_operator.map(Spanned::new)),
-        prefix_decor(sp, expr),
+        prefix_decorated(sp, expr),
     );
 
     let (input, (operator, rhs_expr)) = binary_op.parse_next(input)?;
@@ -199,8 +199,8 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
 
 fn apply_conditional(input: Input, cond_expr: Expression) -> IResult<Input, Expression> {
     let mut conditional = (
-        preceded(b'?', decor(sp, expr, sp)),
-        preceded(cut_char(':'), prefix_decor(sp, expr)),
+        preceded(b'?', decorated(sp, expr, sp)),
+        preceded(cut_char(':'), prefix_decorated(sp, expr)),
     );
 
     let (input, (true_expr, false_expr)) = conditional.parse_next(input)?;
@@ -221,7 +221,7 @@ fn array(input: Input) -> IResult<Input, Expression> {
 }
 
 fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
-    (for_intro, decor(ws, expr, ws), opt(for_cond))
+    (for_intro, decorated(ws, expr, ws), opt(for_cond))
         .map(|(intro, value_expr, cond)| {
             let mut expr = ForExpr::new(intro, value_expr);
 
@@ -235,7 +235,7 @@ fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
 }
 
 fn array_items(input: Input) -> IResult<Input, Array> {
-    let values = separated1(decor(ws, preceded(peek(none_of("]")), expr), ws), b',');
+    let values = separated1(decorated(ws, preceded(peek(none_of("]")), expr), ws), b',');
 
     alt((
         (values, opt(preceded(b',', raw_string(ws)))).map(|(values, trailing)| {
@@ -268,7 +268,11 @@ fn object(input: Input) -> IResult<Input, Expression> {
 fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
     (
         for_intro,
-        separated_pair(decor(ws, expr, ws), cut_tag("=>"), decor(ws, expr, ws)),
+        separated_pair(
+            decorated(ws, expr, ws),
+            cut_tag("=>"),
+            decorated(ws, expr, ws),
+        ),
         opt(b"..."),
         opt(for_cond),
     )
@@ -362,7 +366,11 @@ fn object_items(input: Input) -> IResult<Input, Object> {
 }
 
 fn object_item(input: Input) -> IResult<Input, ObjectItem> {
-    (object_key, object_key_value_separator, decor(sp, expr, sp))
+    (
+        object_key,
+        object_key_value_separator,
+        decorated(sp, expr, sp),
+    )
         .map(|(key, key_value_separator, value)| {
             let mut item = ObjectItem::new(key, value);
             item.set_key_value_separator(key_value_separator);
@@ -372,7 +380,7 @@ fn object_item(input: Input) -> IResult<Input, ObjectItem> {
 }
 
 fn object_key(input: Input) -> IResult<Input, ObjectKey> {
-    suffix_decor(
+    suffix_decorated(
         expr.map(|expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
             //
@@ -403,7 +411,7 @@ fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSepa
 }
 
 fn for_intro(input: Input) -> IResult<Input, ForIntro> {
-    prefix_decor(
+    prefix_decorated(
         ws,
         delimited(
             // The `for` tag needs to be followed by either a space character or a comment start to
@@ -412,9 +420,9 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
             // call elements and objects with those as keys.
             (b"for", peek(one_of(" \t#/"))),
             (
-                decor(ws, cut_ident, ws),
-                opt(preceded(b',', decor(ws, cut_ident, ws))),
-                preceded(cut_tag("in"), decor(ws, expr, ws)),
+                decorated(ws, cut_ident, ws),
+                opt(preceded(b',', decorated(ws, cut_ident, ws))),
+                preceded(cut_tag("in"), decorated(ws, expr, ws)),
             ),
             cut_char(':'),
         )
@@ -431,11 +439,15 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
 }
 
 fn for_cond(input: Input) -> IResult<Input, ForCond> {
-    prefix_decor(ws, preceded(b"if", decor(ws, expr, ws)).map(ForCond::new)).parse_next(input)
+    prefix_decorated(
+        ws,
+        preceded(b"if", decorated(ws, expr, ws)).map(ForCond::new),
+    )
+    .parse_next(input)
 }
 
 fn parenthesis(input: Input) -> IResult<Input, Expression> {
-    delimited(cut_char('('), decor(ws, expr, ws), cut_char(')'))(input)
+    delimited(cut_char('('), decorated(ws, expr, ws), cut_char(')'))(input)
 }
 
 fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
@@ -474,7 +486,7 @@ fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
 }
 
 fn identlike(input: Input) -> IResult<Input, Expression> {
-    (str_ident.with_span(), opt(prefix_decor(ws, func_sig)))
+    (str_ident.with_span(), opt(prefix_decorated(ws, func_sig)))
         .map(|((ident, span), signature)| match signature {
             Some(signature) => {
                 let name = Decorated::new(Ident::new_unchecked(ident)).spanned(span);
@@ -496,7 +508,10 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         b'(',
         alt((
             (
-                separated1(decor(ws, preceded(peek(none_of(",.)")), expr), ws), b','),
+                separated1(
+                    decorated(ws, preceded(peek(none_of(",.)")), expr), ws),
+                    b',',
+                ),
                 opt((alt((b",", b"...")), raw_string(ws))),
             )
                 .map(|(args, trailer)| {

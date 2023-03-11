@@ -2,7 +2,7 @@ use super::{
     context::{cut_char, cut_ident, cut_tag},
     error::ParseError,
     expr::expr,
-    repr::{decor, spanned},
+    repr::{decorated, spanned},
     string::{build_string, literal_until, raw_string, string_fragment, string_literal},
     trivia::ws,
     IResult, Input,
@@ -86,7 +86,7 @@ where
 }
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
-    control(b"${", decor(ws, expr, ws))
+    control(b"${", decorated(ws, expr, ws))
         .map(|(expr, strip)| Interpolation::new(expr, strip))
         .parse_next(input)
 }
@@ -102,7 +102,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     let if_expr = (
         control(
             b"%{",
-            (terminated(raw_string(ws), b"if"), decor(ws, expr, ws)),
+            (terminated(raw_string(ws), b"if"), decorated(ws, expr, ws)),
         ),
         spanned(template),
     )
@@ -148,9 +148,9 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
             b"%{",
             (
                 terminated(raw_string(ws), b"for"),
-                decor(ws, cut_ident, ws),
-                opt(preceded(b',', decor(ws, cut_ident, ws))),
-                preceded(cut_tag("in"), decor(ws, expr, ws)),
+                decorated(ws, cut_ident, ws),
+                opt(preceded(b',', decorated(ws, cut_ident, ws))),
+                preceded(cut_tag("in"), decorated(ws, expr, ws)),
             ),
         ),
         spanned(template),
