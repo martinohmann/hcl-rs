@@ -3,7 +3,6 @@
 mod context;
 mod error;
 mod expr;
-mod ident;
 mod number;
 mod repr;
 mod string;
@@ -14,14 +13,13 @@ mod tests;
 mod trivia;
 
 pub use self::error::{Error, ParseResult};
-
-use self::{error::InternalError, expr::expr, structure::body, template::template};
+use self::{error::ParseError, expr::expr, structure::body, template::template};
 use crate::{expr::Expression, repr::Despan, structure::Body, template::Template};
 use winnow::{prelude::*, stream::Located, Parser};
 
-pub(crate) type Input<'a> = Located<&'a [u8]>;
+type Input<'a> = Located<&'a [u8]>;
 
-pub(crate) type IResult<I, O, E = InternalError<I>> = winnow::IResult<I, O, E>;
+type IResult<I, O, E = ParseError<I>> = winnow::IResult<I, O, E>;
 
 pub fn parse_body(input: &str) -> ParseResult<Body> {
     let mut body = parse_to_end(input, body)?;
@@ -49,7 +47,7 @@ where
     parser
         .parse_next(input)
         .finish()
-        .map_err(|err| Error::from_internal_error(input, err))
+        .map_err(|err| Error::from_parse_error(input, err))
 }
 
 unsafe fn from_utf8_unchecked<'b>(bytes: &'b [u8], safety_justification: &'static str) -> &'b str {

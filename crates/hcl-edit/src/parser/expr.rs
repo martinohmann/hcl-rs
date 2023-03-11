@@ -1,10 +1,9 @@
 use super::{
     context::{cut_char, cut_ident, cut_tag, Context, Expected},
-    error::InternalError,
-    ident::{ident, str_ident},
+    error::ParseError,
     number::number,
     repr::{decor, prefix_decor, spanned, suffix_decor},
-    string::{raw, string},
+    string::{ident, raw_string, str_ident, string},
     template::{heredoc_template, string_template},
     trivia::{line_comment, sp, ws},
     IResult, Input,
@@ -27,6 +26,189 @@ use winnow::{
     Parser,
 };
 
+pub(super) fn expr(input: Input) -> IResult<Input, Expression> {
+    let (mut input, mut expr) = spanned(expr_term).parse_next(input)?;
+
+    loop {
+        // Parse the next whitespace sequence and only add it as decor suffix to the expression if
+        // we actually encounter a traversal, conditional or binary operation. We'll rewind the
+        // parser if none of these follow.
+        let (remaining_input, suffix) = raw_string(sp).parse_next(input)?;
+
+        // This is essentially a `peek` for the next two bytes to identify the following operation.
+        if let Ok((_, peek)) = take::<_, _, ParseError<_>>(2usize).parse_next(remaining_input) {
+            match peek {
+                // This might be a `...` operator within a for object expr or after the last
+                // argument of a function call, do not mistakenly parse it as a traversal
+                // operator.
+                b".." => return Ok((input, expr)),
+                // Traversal operator.
+                //
+                // Note: after the traversal is consumed, the loop is entered again to consume
+                // a potentially following conditional or binary operation.
+                [b'.' | b'[', _] => {
+                    expr.decor_mut().set_suffix(suffix);
+                    (input, expr) = apply_traversal(remaining_input, expr)?;
+                    continue;
+                }
+                // Conditional.
+                [b'?', _] => {
+                    expr.decor_mut().set_suffix(suffix);
+                    return apply_conditional(remaining_input, expr);
+                }
+                // Binary operation.
+                //
+                // Note: matching a single `=` is ambiguous as it could also be an object
+                // key-value separator, so we'll need to match on `==`.
+                b"=="
+                | [b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _] => {
+                    expr.decor_mut().set_suffix(suffix);
+                    return apply_binary_op(remaining_input, expr);
+                }
+                // None of the above matched.
+                _ => return Ok((input, expr)),
+            }
+        }
+
+        // We hit the end of input.
+        return Ok((input, expr));
+    }
+}
+
+fn expr_term(input: Input) -> IResult<Input, Expression> {
+    dispatch! {peek(any);
+        b'"' => alt((
+            string.map(|s| Expression::String(s.into())),
+            string_template.map(Expression::Template),
+        )),
+        b'[' => array,
+        b'{' => object,
+        b'0'..=b'9' => number.map(|n| Expression::Number(n.into())),
+        b'<' => cut_err(heredoc.map(|heredoc| Expression::HeredocTemplate(Box::new(heredoc))))
+            .context(Context::Expression("heredoc template")),
+        b'-' => alt((
+            preceded((b'-', sp), number).map(|n| Expression::Number((-n).into())),
+            (
+                spanned(one_of('-').value(UnaryOperator::Neg).map(Spanned::new)),
+                prefix_decor(sp, expr_term),
+            )
+                .map(|(operator, expr)| {
+                    Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))
+                }),
+        )),
+        b'!' => (
+            spanned(take(1usize).value(UnaryOperator::Not).map(Spanned::new)),
+            prefix_decor(sp, expr_term),
+        )
+            .map(|(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))),
+        b'(' => parenthesis.map(|expr| Expression::Parenthesis(Box::new(expr.into()))),
+        b'_' | b'a'..=b'z' | b'A'..=b'Z' => identlike,
+        _ => cut_err(fail)
+            .context(Context::Expression("expression"))
+            .context(Context::Expected(Expected::Char('"')))
+            .context(Context::Expected(Expected::Char('[')))
+            .context(Context::Expected(Expected::Char('{')))
+            .context(Context::Expected(Expected::Char('-')))
+            .context(Context::Expected(Expected::Char('!')))
+            .context(Context::Expected(Expected::Char('(')))
+            .context(Context::Expected(Expected::Char('_')))
+            .context(Context::Expected(Expected::Char('<')))
+            .context(Context::Expected(Expected::Description("letter")))
+            .context(Context::Expected(Expected::Description("digit"))),
+    }
+    .parse_next(input)
+}
+
+fn apply_traversal(input: Input, expr_term: Expression) -> IResult<Input, Expression> {
+    let mut traversal = many1(prefix_decor(sp, traversal_operator.map(Decorated::new)));
+
+    let (input, operators) = traversal.parse_next(input)?;
+    let traversal = Traversal::new(expr_term, operators);
+    let expr = Expression::Traversal(Box::new(traversal));
+    Ok((input, expr))
+}
+
+fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
+    dispatch! {any;
+        b'.' => prefix_decor(
+            ws,
+            cut_err(alt((
+                one_of('*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
+                ident.map(TraversalOperator::GetAttr),
+                dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
+            )))
+            .context(Context::Expression("traversal operator"))
+            .context(Context::Expected(Expected::Char('*')))
+            .context(Context::Expected(Expected::Description("identifier")))
+            .context(Context::Expected(Expected::Description("unsigned integer"))),
+        ),
+        b'[' => terminated(
+            decor(
+                ws,
+                cut_err(alt((
+                    one_of('*').value(TraversalOperator::FullSplat(Decorated::new(()))),
+                    expr.map(TraversalOperator::Index),
+                )))
+                .context(Context::Expression("traversal operator"))
+                .context(Context::Expected(Expected::Char('*')))
+                .context(Context::Expected(Expected::Description("expression"))),
+                ws,
+            ),
+            cut_char(']'),
+        ),
+        _ => fail,
+    }
+    .parse_next(input)
+}
+
+fn apply_binary_op(input: Input, lhs_expr: Expression) -> IResult<Input, Expression> {
+    let mut binary_op = (
+        spanned(binary_operator.map(Spanned::new)),
+        prefix_decor(sp, expr),
+    );
+
+    let (input, (operator, rhs_expr)) = binary_op.parse_next(input)?;
+    let binary_op = BinaryOp::new(lhs_expr, operator, rhs_expr);
+    let expr = Expression::BinaryOp(Box::new(binary_op));
+    Ok((input, expr))
+}
+
+fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
+    dispatch! {any;
+        b'=' => one_of('=').value(BinaryOperator::Eq),
+        b'!' => one_of('=').value(BinaryOperator::NotEq),
+        b'<' => alt((
+            one_of('=').value(BinaryOperator::LessEq),
+            success(BinaryOperator::Less),
+        )),
+        b'>' => alt((
+            one_of('=').value(BinaryOperator::GreaterEq),
+            success(BinaryOperator::Greater),
+        )),
+        b'+' => success(BinaryOperator::Plus),
+        b'-' => success(BinaryOperator::Minus),
+        b'*' => success(BinaryOperator::Mul),
+        b'/' => success(BinaryOperator::Div),
+        b'%' => success(BinaryOperator::Mod),
+        b'&' => one_of('&').value(BinaryOperator::And),
+        b'|' => one_of('|').value(BinaryOperator::Or),
+        _ => fail,
+    }
+    .parse_next(input)
+}
+
+fn apply_conditional(input: Input, cond_expr: Expression) -> IResult<Input, Expression> {
+    let mut conditional = (
+        preceded(b'?', decor(sp, expr, sp)),
+        preceded(cut_char(':'), prefix_decor(sp, expr)),
+    );
+
+    let (input, (true_expr, false_expr)) = conditional.parse_next(input)?;
+    let conditional = Conditional::new(cond_expr, true_expr, false_expr);
+    let expr = Expression::Conditional(Box::new(conditional));
+    Ok((input, expr))
+}
+
 fn array(input: Input) -> IResult<Input, Expression> {
     delimited(
         b'[',
@@ -36,26 +218,6 @@ fn array(input: Input) -> IResult<Input, Expression> {
         )),
         cut_char(']'),
     )(input)
-}
-
-fn array_items(input: Input) -> IResult<Input, Array> {
-    let values = separated1(decor(ws, preceded(peek(none_of("]")), expr), ws), b',');
-
-    alt((
-        (values, opt(preceded(b',', raw(ws)))).map(|(values, trailing)| {
-            let mut array = Array::new(values);
-            if let Some(trailing) = trailing {
-                array.set_trailing_comma(true);
-                array.set_trailing(trailing);
-            }
-            array
-        }),
-        raw(ws).map(|trailing| {
-            let mut array = Array::default();
-            array.set_trailing(trailing);
-            array
-        }),
-    ))(input)
 }
 
 fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
@@ -72,6 +234,26 @@ fn for_list_expr(input: Input) -> IResult<Input, ForExpr> {
         .parse_next(input)
 }
 
+fn array_items(input: Input) -> IResult<Input, Array> {
+    let values = separated1(decor(ws, preceded(peek(none_of("]")), expr), ws), b',');
+
+    alt((
+        (values, opt(preceded(b',', raw_string(ws)))).map(|(values, trailing)| {
+            let mut array = Array::new(values);
+            if let Some(trailing) = trailing {
+                array.set_trailing_comma(true);
+                array.set_trailing(trailing);
+            }
+            array
+        }),
+        raw_string(ws).map(|trailing| {
+            let mut array = Array::default();
+            array.set_trailing(trailing);
+            array
+        }),
+    ))(input)
+}
+
 fn object(input: Input) -> IResult<Input, Expression> {
     delimited(
         b'{',
@@ -83,6 +265,27 @@ fn object(input: Input) -> IResult<Input, Expression> {
     )(input)
 }
 
+fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
+    (
+        for_intro,
+        separated_pair(decor(ws, expr, ws), cut_tag("=>"), decor(ws, expr, ws)),
+        opt(b"..."),
+        opt(for_cond),
+    )
+        .map(|(intro, (key_expr, value_expr), grouping, cond)| {
+            let mut expr = ForExpr::new(intro, value_expr);
+            expr.set_key_expr(key_expr);
+            expr.set_grouping(grouping.is_some());
+
+            if let Some(cond) = cond {
+                expr.set_cond(cond);
+            }
+
+            expr
+        })
+        .parse_next(input)
+}
+
 fn object_items(input: Input) -> IResult<Input, Object> {
     let mut remaining_input = input;
     let mut items = Vec::new();
@@ -90,7 +293,7 @@ fn object_items(input: Input) -> IResult<Input, Object> {
     loop {
         let start = remaining_input.location();
 
-        let (input, trailing) = raw(ws).parse_next(remaining_input)?;
+        let (input, trailing) = raw_string(ws).parse_next(remaining_input)?;
         let (input, ch) = peek(any)(input)?;
 
         let (input, mut item) = if ch == b'}' {
@@ -158,6 +361,16 @@ fn object_items(input: Input) -> IResult<Input, Object> {
     }
 }
 
+fn object_item(input: Input) -> IResult<Input, ObjectItem> {
+    (object_key, object_key_value_separator, decor(sp, expr, sp))
+        .map(|(key, key_value_separator, value)| {
+            let mut item = ObjectItem::new(key, value);
+            item.set_key_value_separator(key_value_separator);
+            item
+        })
+        .parse_next(input)
+}
+
 fn object_key(input: Input) -> IResult<Input, ObjectKey> {
     suffix_decor(
         expr.map(|expr| {
@@ -187,37 +400,6 @@ fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSepa
             .context(Context::Expected(Expected::Char(':'))),
     }
     .parse_next(input)
-}
-
-fn object_item(input: Input) -> IResult<Input, ObjectItem> {
-    (object_key, object_key_value_separator, decor(sp, expr, sp))
-        .map(|(key, key_value_separator, value)| {
-            let mut item = ObjectItem::new(key, value);
-            item.set_key_value_separator(key_value_separator);
-            item
-        })
-        .parse_next(input)
-}
-
-fn for_object_expr(input: Input) -> IResult<Input, ForExpr> {
-    (
-        for_intro,
-        separated_pair(decor(ws, expr, ws), cut_tag("=>"), decor(ws, expr, ws)),
-        opt(b"..."),
-        opt(for_cond),
-    )
-        .map(|(intro, (key_expr, value_expr), grouping, cond)| {
-            let mut expr = ForExpr::new(intro, value_expr);
-            expr.set_key_expr(key_expr);
-            expr.set_grouping(grouping.is_some());
-
-            if let Some(cond) = cond {
-                expr.set_cond(cond);
-            }
-
-            expr
-        })
-        .parse_next(input)
 }
 
 fn for_intro(input: Input) -> IResult<Input, ForIntro> {
@@ -256,23 +438,13 @@ fn parenthesis(input: Input) -> IResult<Input, Expression> {
     delimited(cut_char('('), decor(ws, expr, ws), cut_char(')'))(input)
 }
 
-fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
-    terminated(
-        (
-            preceded(b"<<", opt(b'-')).map(|indent| indent.is_some()),
-            cut_err(str_ident).context(Context::Expected(Expected::Description("identifier"))),
-        ),
-        cut_err(line_ending).context(Context::Expected(Expected::Char('\n'))),
-    )(input)
-}
-
 fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     let (input, (indented, delim)) = heredoc_start(input)?;
 
     let (input, (template, trailing)) = (
         spanned(heredoc_template(delim)),
         terminated(
-            raw(space0),
+            raw_string(space0),
             cut_err(delim).context(Context::Expected(Expected::Description(
                 "heredoc end delimiter",
             ))),
@@ -291,40 +463,17 @@ fn heredoc(input: Input) -> IResult<Input, HeredocTemplate> {
     Ok((input, heredoc))
 }
 
-fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
-    dispatch! {any;
-        b'.' => prefix_decor(
-            ws,
-            cut_err(alt((
-                one_of('*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
-                ident.map(TraversalOperator::GetAttr),
-                dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
-            )))
-            .context(Context::Expression("traversal operator"))
-            .context(Context::Expected(Expected::Char('*')))
-            .context(Context::Expected(Expected::Description("identifier")))
-            .context(Context::Expected(Expected::Description("unsigned integer"))),
+fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
+    terminated(
+        (
+            preceded(b"<<", opt(b'-')).map(|indent| indent.is_some()),
+            cut_err(str_ident).context(Context::Expected(Expected::Description("identifier"))),
         ),
-        b'[' => terminated(
-            decor(
-                ws,
-                cut_err(alt((
-                    one_of('*').value(TraversalOperator::FullSplat(Decorated::new(()))),
-                    expr.map(TraversalOperator::Index),
-                )))
-                .context(Context::Expression("traversal operator"))
-                .context(Context::Expected(Expected::Char('*')))
-                .context(Context::Expected(Expected::Description("expression"))),
-                ws,
-            ),
-            cut_char(']'),
-        ),
-        _ => fail,
-    }
-    .parse_next(input)
+        cut_err(line_ending).context(Context::Expected(Expected::Char('\n'))),
+    )(input)
 }
 
-fn ident_or_func_call(input: Input) -> IResult<Input, Expression> {
+fn identlike(input: Input) -> IResult<Input, Expression> {
     (str_ident.with_span(), opt(prefix_decor(ws, func_sig)))
         .map(|((ident, span), signature)| match signature {
             Some(signature) => {
@@ -348,7 +497,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         alt((
             (
                 separated1(decor(ws, preceded(peek(none_of(",.)")), expr), ws), b','),
-                opt((alt((b",", b"...")), raw(ws))),
+                opt((alt((b",", b"...")), raw_string(ws))),
             )
                 .map(|(args, trailer)| {
                     let mut sig = FuncSig::new(args);
@@ -365,7 +514,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
 
                     sig
                 }),
-            raw(ws).map(|trailing| {
+            raw_string(ws).map(|trailing| {
                 let mut sig = FuncSig::new(Vec::new());
                 sig.set_trailing(trailing);
                 sig
@@ -373,154 +522,4 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         )),
         cut_char(')'),
     )(input)
-}
-
-fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
-    dispatch! {any;
-        b'=' => one_of('=').value(BinaryOperator::Eq),
-        b'!' => one_of('=').value(BinaryOperator::NotEq),
-        b'<' => alt((
-            one_of('=').value(BinaryOperator::LessEq),
-            success(BinaryOperator::Less),
-        )),
-        b'>' => alt((
-            one_of('=').value(BinaryOperator::GreaterEq),
-            success(BinaryOperator::Greater),
-        )),
-        b'+' => success(BinaryOperator::Plus),
-        b'-' => success(BinaryOperator::Minus),
-        b'*' => success(BinaryOperator::Mul),
-        b'/' => success(BinaryOperator::Div),
-        b'%' => success(BinaryOperator::Mod),
-        b'&' => one_of('&').value(BinaryOperator::And),
-        b'|' => one_of('|').value(BinaryOperator::Or),
-        _ => fail,
-    }
-    .parse_next(input)
-}
-
-fn expr_term(input: Input) -> IResult<Input, Expression> {
-    dispatch! {peek(any);
-        b'"' => alt((
-            string.map(|s| Expression::String(s.into())),
-            string_template.map(Expression::Template),
-        )),
-        b'[' => array,
-        b'{' => object,
-        b'0'..=b'9' => number.map(|n| Expression::Number(n.into())),
-        b'<' => cut_err(heredoc.map(|heredoc| Expression::HeredocTemplate(Box::new(heredoc))))
-            .context(Context::Expression("heredoc template")),
-        b'-' => alt((
-            preceded((b'-', sp), number).map(|n| Expression::Number((-n).into())),
-            (
-                spanned(one_of('-').value(UnaryOperator::Neg).map(Spanned::new)),
-                prefix_decor(sp, expr_term),
-            )
-                .map(|(operator, expr)| {
-                    Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))
-                }),
-        )),
-        b'!' => (
-            spanned(take(1usize).value(UnaryOperator::Not).map(Spanned::new)),
-            prefix_decor(sp, expr_term),
-        )
-            .map(|(operator, expr)| Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)))),
-        b'(' => parenthesis.map(|expr| Expression::Parenthesis(Box::new(expr.into()))),
-        b'_' | b'a'..=b'z' | b'A'..=b'Z' => ident_or_func_call,
-        _ => cut_err(fail)
-            .context(Context::Expression("expression"))
-            .context(Context::Expected(Expected::Char('"')))
-            .context(Context::Expected(Expected::Char('[')))
-            .context(Context::Expected(Expected::Char('{')))
-            .context(Context::Expected(Expected::Char('-')))
-            .context(Context::Expected(Expected::Char('!')))
-            .context(Context::Expected(Expected::Char('(')))
-            .context(Context::Expected(Expected::Char('_')))
-            .context(Context::Expected(Expected::Char('<')))
-            .context(Context::Expected(Expected::Description("letter")))
-            .context(Context::Expected(Expected::Description("digit"))),
-    }
-    .parse_next(input)
-}
-
-pub fn expr(input: Input) -> IResult<Input, Expression> {
-    let (mut input, mut expr) = spanned(expr_term).parse_next(input)?;
-
-    loop {
-        // Parse the next whitespace sequence and only add it as decor suffix to the expression if
-        // we actually encounter a traversal, conditional or binary operation. We'll rewind the
-        // parser if none of these follow.
-        let (remaining_input, suffix) = raw(sp).parse_next(input)?;
-
-        // This is essentially a `peek` for the next two bytes to identify the following operation.
-        if let Ok((_, peek)) = take::<_, _, InternalError<_>>(2usize).parse_next(remaining_input) {
-            match peek {
-                // This might be a `...` operator within a for object expr or after the last
-                // argument of a function call, do not mistakenly parse it as a traversal
-                // operator.
-                b".." => return Ok((input, expr)),
-                // Traversal operator.
-                //
-                // Note: after the traversal is consumed, the loop is entered again to consume
-                // a potentially following conditional or binary operation.
-                [b'.' | b'[', _] => {
-                    expr.decor_mut().set_suffix(suffix);
-                    (input, expr) = apply_traversal(remaining_input, expr)?;
-                    continue;
-                }
-                // Conditional.
-                [b'?', _] => {
-                    expr.decor_mut().set_suffix(suffix);
-                    return apply_conditional(remaining_input, expr);
-                }
-                // Binary operation.
-                //
-                // Note: matching a single `=` is ambiguous as it could also be an object
-                // key-value separator, so we'll need to match on `==`.
-                b"=="
-                | [b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _] => {
-                    expr.decor_mut().set_suffix(suffix);
-                    return apply_binary_op(remaining_input, expr);
-                }
-                // None of the above matched.
-                _ => return Ok((input, expr)),
-            }
-        }
-
-        // We hit the end of input.
-        return Ok((input, expr));
-    }
-}
-
-fn apply_traversal(input: Input, expr_term: Expression) -> IResult<Input, Expression> {
-    let mut traversal = many1(prefix_decor(sp, traversal_operator.map(Decorated::new)));
-
-    let (input, operators) = traversal.parse_next(input)?;
-    let traversal = Traversal::new(expr_term, operators);
-    let expr = Expression::Traversal(Box::new(traversal));
-    Ok((input, expr))
-}
-
-fn apply_binary_op(input: Input, lhs_expr: Expression) -> IResult<Input, Expression> {
-    let mut binary_op = (
-        spanned(binary_operator.map(Spanned::new)),
-        prefix_decor(sp, expr),
-    );
-
-    let (input, (operator, rhs_expr)) = binary_op.parse_next(input)?;
-    let binary_op = BinaryOp::new(lhs_expr, operator, rhs_expr);
-    let expr = Expression::BinaryOp(Box::new(binary_op));
-    Ok((input, expr))
-}
-
-fn apply_conditional(input: Input, cond_expr: Expression) -> IResult<Input, Expression> {
-    let mut conditional = (
-        preceded(b'?', decor(sp, expr, sp)),
-        preceded(cut_char(':'), prefix_decor(sp, expr)),
-    );
-
-    let (input, (true_expr, false_expr)) = conditional.parse_next(input)?;
-    let conditional = Conditional::new(cond_expr, true_expr, false_expr);
-    let expr = Expression::Conditional(Box::new(conditional));
-    Ok((input, expr))
 }

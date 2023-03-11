@@ -1,4 +1,4 @@
-use super::{error::InternalError, ident::ident, IResult, Input};
+use super::{error::ParseError, string::ident, IResult, Input};
 use crate::{repr::Decorated, Ident};
 use std::fmt;
 use winnow::{bytes::one_of, combinator::cut_err, stream::AsChar, Parser};
@@ -30,7 +30,7 @@ impl fmt::Display for Expected {
     }
 }
 
-pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, InternalError<Input<'a>>> {
+pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, ParseError<Input<'a>>> {
     cut_err(one_of(c))
         .map(AsChar::as_char)
         .context(Context::Expected(Expected::Char(c)))
@@ -38,7 +38,7 @@ pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, InternalErro
 
 pub(super) fn cut_tag<'a>(
     tag: &'static str,
-) -> impl Parser<Input<'a>, &'a [u8], InternalError<Input<'a>>> {
+) -> impl Parser<Input<'a>, &'a [u8], ParseError<Input<'a>>> {
     cut_err(tag).context(Context::Expected(Expected::Literal(tag)))
 }
 
