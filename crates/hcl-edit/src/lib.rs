@@ -25,3 +25,12 @@ pub mod prelude {
 // Re-exported for convenience.
 #[doc(inline)]
 pub use hcl_primitives::{Ident, InternalString, Number};
+
+#[doc(inline)]
+pub use self::expr::Expression;
+
+#[doc(inline)]
+pub use self::structure::{Attribute, Block, Body, Structure};
+
+#[doc(inline)]
+pub use self::template::Template;
