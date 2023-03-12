@@ -4,7 +4,9 @@ pub(crate) fn dedent_by(s: &str, n: usize, skip_first: bool) -> Cow<str> {
     let mut dedented = String::with_capacity(s.len());
 
     for (i, line) in s.lines().enumerate() {
-        if !(line.is_empty() || i == 0 && skip_first) {
+        if i == 0 && skip_first {
+            dedented.push_str(line);
+        } else if !line.is_empty() {
             dedented.extend(line.chars().skip(n));
         }
 
@@ -26,7 +28,7 @@ pub(crate) fn min_leading_whitespace(s: &str, skip_first: bool) -> usize {
         return 0;
     }
 
-    let mut leading_ws = usize::MAX;
+    let mut leading_ws: Option<usize> = None;
 
     // Find the minimum number of possible leading units of whitespace that can be be stripped off
     // of each non-empty line.
@@ -43,10 +45,12 @@ pub(crate) fn min_leading_whitespace(s: &str, skip_first: bool) -> usize {
             return 0;
         }
 
-        leading_ws = leading_ws.min(line_leading_ws);
+        leading_ws = Some(leading_ws.map_or(line_leading_ws, |leading_ws| {
+            leading_ws.min(line_leading_ws)
+        }));
     }
 
-    leading_ws
+    leading_ws.unwrap_or(0)
 }
 
 pub(crate) fn indent_by(s: &str, n: usize, skip_first: bool) -> String {

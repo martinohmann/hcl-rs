@@ -58,7 +58,7 @@ fn inline_comment(input: Input) -> IResult<Input, ()> {
 }
 
 #[inline]
-pub(super) fn void<'a, I, P, E>(inner: P) -> impl Parser<I, (), E>
+pub(super) fn void<P, I, E>(inner: P) -> impl Parser<I, (), E>
 where
     P: Parser<I, (), E>,
 {

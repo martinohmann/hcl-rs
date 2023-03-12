@@ -85,7 +85,7 @@ fn roundtrip_body() {
         indoc! {r#"
             indented_heredoc = <<-EOT
                 ${foo}
-              %{if asdf}qux%{endif}
+              %{if asdf}qux%{endif}bar
                   heredoc
                 EOT
         "#},

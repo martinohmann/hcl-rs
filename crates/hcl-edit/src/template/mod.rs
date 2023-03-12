@@ -99,34 +99,34 @@ impl HeredocTemplate {
     }
 
     pub fn dedent(&mut self) {
-        let mut indent = usize::MAX;
+        let mut indent: Option<usize> = None;
         let mut skip_first = false;
 
         for element in &self.template.elements {
-            match element {
-                Element::Literal(literal) => {
-                    let leading_ws = min_leading_whitespace(literal, skip_first);
-                    indent = indent.min(leading_ws);
-                    skip_first = literal.ends_with('\n');
-                }
-                _other => skip_first = true,
+            if let Element::Literal(literal) = element {
+                let leading_ws = min_leading_whitespace(literal, skip_first);
+                indent = Some(indent.map_or(leading_ws, |indent| indent.min(leading_ws)));
+                skip_first = !literal.ends_with('\n');
+            } else {
+                skip_first = true;
             }
         }
 
-        skip_first = false;
+        if let Some(indent) = indent {
+            skip_first = false;
 
-        for element in &mut self.template.elements {
-            match element {
-                Element::Literal(literal) => {
+            for element in &mut self.template.elements {
+                if let Element::Literal(literal) = element {
                     let dedented = dedent_by(literal, indent, skip_first);
                     *literal.as_mut() = dedented.into();
-                    skip_first = literal.ends_with('\n');
+                    skip_first = !literal.ends_with('\n');
+                } else {
+                    skip_first = true;
                 }
-                _other => skip_first = true,
             }
-        }
 
-        self.set_indent(indent);
+            self.set_indent(indent);
+        }
     }
 }
 
