@@ -3,7 +3,10 @@ use super::{
     error::ParseError,
     expr::expr,
     repr::{decorated, spanned},
-    string::{build_string, literal_until, raw_string, string_fragment, string_literal},
+    string::{
+        build_string, from_utf8_unchecked, literal_until, raw_string, string_fragment,
+        string_literal,
+    },
     trivia::ws,
     IResult, Input,
 };
@@ -36,39 +39,43 @@ pub(super) fn heredoc_template<'a>(
     delim: &'a str,
 ) -> impl Parser<Input<'a>, Template, ParseError<Input<'a>>> {
     move |input: Input<'a>| {
-        // We'll need to look for a newline character followed by optional space and the heredoc
+        // We'll need to look for a line ending followed by optional space and the heredoc
         // delimiter.
         //
-        // Here's the catch though: the newline character has to be treated as part of
-        // the last template literal, but is still required to be matched when detecting the
-        // heredoc end. Matching only `(space0, delim)` is not sufficient, because heredocs can
-        // contain their delimiter as long as it's not preceeded by a newline character.
+        // Here's the catch though: the line ending has to be treated as part of the last template
+        // literal, but is still required to be matched when detecting the heredoc end. Matching
+        // only `(space0, delim)` is not sufficient, because heredocs can contain their delimiter
+        // as long as it's not preceeded by a line ending.
         //
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
-        // the newline character to the last template element below.
+        // the line ending to the last template element below.
         let heredoc_end = (line_ending, space0, delim).recognize();
         let literal_end = alt((b"${", b"%{", heredoc_end));
         let literal = literal_until(literal_end).output_into();
 
         // Use `opt` to handle an empty template.
-        opt(
-            (elements(literal), line_ending.span()).map(|(mut elements, newline_span)| {
-                // If there is a trailing literal, update its span and append the newline character to it.
-                // Otherwise just add a new literal containing only the newline character.
+        opt((elements(literal), line_ending.with_span()).map(
+            |(mut elements, (line_ending, line_ending_span))| {
+                let line_ending = unsafe {
+                    from_utf8_unchecked(line_ending, "`line_ending` filters out non-ascii")
+                };
+                // If there is a trailing literal, update its span and append the line ending to
+                // it. Otherwise just add a new literal containing only the line ending.
                 if let Some(Element::Literal(lit)) = elements.last_mut() {
                     let existing_span = lit.span().unwrap();
                     let mut existing = lit.to_string();
-                    existing.push('\n');
-                    *lit = Spanned::new(InternalString::from(existing))
-                        .spanned(existing_span.start..newline_span.end);
+                    existing.push_str(line_ending);
+                    *lit = Spanned::new(InternalString::from(existing));
+                    lit.set_span(existing_span.start..line_ending_span.end);
                 } else {
-                    let lit = Spanned::new(InternalString::from("\n")).spanned(newline_span);
+                    let mut lit = Spanned::new(InternalString::from(line_ending));
+                    lit.set_span(line_ending_span);
                     elements.push(Element::Literal(lit));
                 }
 
                 Template::new(elements)
-            }),
-        )
+            },
+        ))
         .map(Option::unwrap_or_default)
         .parse_next(input)
     }
@@ -79,7 +86,7 @@ where
     P: Parser<Input<'a>, InternalString, ParseError<Input<'a>>>,
 {
     many0(spanned(alt((
-        literal.map(|s| Element::Literal(s.into())),
+        literal.map(|s| Element::Literal(Spanned::new(s))),
         interpolation.map(Element::Interpolation),
         directive.map(Element::Directive),
     ))))
@@ -199,6 +206,9 @@ where
         terminated(opt(b'~'), cut_char('}')),
     )
         .map(|(strip_start, output, strip_end)| {
-            (output, (strip_start.is_some(), strip_end.is_some()).into())
+            (
+                output,
+                Strip::from((strip_start.is_some(), strip_end.is_some())),
+            )
         })
 }
