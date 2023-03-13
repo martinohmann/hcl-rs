@@ -36,6 +36,7 @@ fn roundtrip_expr() {
         "42",
         "var.enabled ? 1 : 0",
         r#"["bar", ["baz"]]"#,
+        "[1,]",
         r#"[format("prefix-%s", var.foo)]"#,
         r#"{"bar" = "baz","qux" = ident }"#,
         "{\"bar\" : \"baz\", \"qux\"= ident # a comment\n }",
@@ -57,6 +58,9 @@ fn roundtrip_expr() {
         r#""foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}""#,
         r#""${var.l ? "us-east-1." : ""}""#,
         "element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)",
+        "foo(bar...)",
+        "foo(bar,)",
+        "foo( )",
     ];
 
     for input in inputs {
@@ -122,9 +126,18 @@ fn roundtrip_template() {
 
 #[test]
 fn invalid_exprs() {
-    let inputs = ["{ , }", "{ foo = 1 bar = 1 }"];
+    let inputs = [
+        "{ , }",
+        "[ , ]",
+        "{ foo = 1 bar = 1 }",
+        "foo(...)",
+        "foo(,)",
+    ];
 
     for input in inputs {
-        assert!(parse_complete(input, expr).is_err());
+        assert!(
+            parse_complete(input, expr).is_err(),
+            "expected expression to be invalid: `{input}`",
+        );
     }
 }

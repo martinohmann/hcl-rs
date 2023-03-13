@@ -1,13 +1,17 @@
+use std::cell::RefCell;
+
 use super::{
     context::{cut_char, Context, Expected},
     expr::expr,
     repr::{decorated, prefix_decorated, suffix_decorated},
+    state::BodyParseState,
     string::{ident, raw_string, string},
-    trivia::{line_comment, sp, ws},
+    trivia::{line_comment, sp, void, ws},
     IResult, Input,
 };
 use crate::{
     expr::Expression,
+    repr::{Decorate, SetSpan},
     structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure},
 };
 use winnow::{
@@ -18,47 +22,64 @@ use winnow::{
     multi::many0,
     prelude::*,
     sequence::{delimited, preceded, terminated},
+    stream::Location,
 };
 
 pub(super) fn body(input: Input) -> IResult<Input, Body> {
-    suffix_decorated(
-        many0(terminated(
-            decorated(ws, structure, (sp, opt(line_comment))),
-            cut_err(alt((line_ending, eof)))
+    let state = RefCell::new(BodyParseState::default());
+
+    let (input, (span, suffix)) = (
+        void(many0(terminated(
+            (
+                ws.span().map(|span| state.borrow_mut().on_ws(span)),
+                structure(&state),
+                (sp, opt(line_comment))
+                    .span()
+                    .map(|span| state.borrow_mut().on_ws(span)),
+            ),
+            cut_err(alt((line_ending, eof)).map(|_| state.borrow_mut().on_line_ending()))
                 .context(Context::Expected(Expected::Description("newline")))
                 .context(Context::Expected(Expected::Description("eof"))),
-        ))
-        .map(Body::new),
-        ws,
+        )))
+        .span(),
+        raw_string(ws),
     )
-    .parse_next(input)
+        .parse_next(input)?;
+
+    let mut body = state.into_inner().into_body();
+    body.set_span(span);
+    body.decor_mut().set_suffix(suffix);
+    Ok((input, body))
 }
 
-fn structure(input: Input) -> IResult<Input, Structure> {
-    let (input, ident) = suffix_decorated(ident, sp).parse_next(input)?;
-    let (input, ch) = peek(any)(input)?;
+fn structure<'i, 's>(
+    state: &'s RefCell<BodyParseState>,
+) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+    move |input: Input<'i>| {
+        let start = input.location();
+        let (input, ident) = suffix_decorated(ident, sp).parse_next(input)?;
+        let (input, ch) = peek(any)(input)?;
 
-    if ch == b'=' {
-        let (input, expr) = attribute_expr(input)?;
-        Ok((
-            input,
-            Structure::Attribute(Box::new(Attribute::new(ident, expr))),
-        ))
-    } else {
-        let (input, (labels, body)) = block_parts(input)?;
-        Ok((
-            input,
-            Structure::Block(Box::new(Block::new_with_labels(ident, labels, body))),
-        ))
+        let (input, mut structure) = if ch == b'=' {
+            let (input, expr) = attribute_expr(input)?;
+            let attr = Structure::Attribute(Attribute::new(ident, expr));
+            (input, attr)
+        } else {
+            let (input, labels) = block_labels(input)?;
+            let (input, body) = block_body(input)?;
+            let block = Structure::Block(Block::new_with_labels(ident, labels, body));
+            (input, block)
+        };
+
+        let end = input.location();
+        structure.set_span(start..end);
+        state.borrow_mut().on_structure(structure);
+        Ok((input, ()))
     }
 }
 
 fn attribute_expr(input: Input) -> IResult<Input, Expression> {
     preceded(b'=', prefix_decorated(sp, expr))(input)
-}
-
-fn block_parts(input: Input) -> IResult<Input, (Vec<BlockLabel>, BlockBody)> {
-    (block_labels, block_body).parse_next(input)
 }
 
 fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
@@ -80,13 +101,10 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
         cut_char('{'),
         alt((
             // Multiline block.
-            prefix_decorated(
-                (sp, opt(line_comment)),
-                preceded(line_ending, body.map(Box::new)),
-            )
-            .map(BlockBody::Multiline),
+            prefix_decorated((sp, opt(line_comment)), preceded(line_ending, body))
+                .map(BlockBody::Multiline),
             // One-line block.
-            decorated(sp, attribute.map(Box::new), sp).map(BlockBody::Oneline),
+            decorated(sp, attribute, sp).map(BlockBody::Oneline),
             // Empty block.
             raw_string(sp).map(BlockBody::Empty),
         )),

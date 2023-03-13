@@ -51,8 +51,8 @@ impl fmt::Display for Body {
 
 #[derive(Debug, Clone)]
 pub enum Structure {
-    Attribute(Box<Attribute>),
-    Block(Box<Block>),
+    Attribute(Attribute),
+    Block(Block),
 }
 
 forward_decorate_span_impl!(Structure => { Attribute, Block });
@@ -176,8 +176,8 @@ impl Despan for BlockLabel {
 
 #[derive(Debug, Clone)]
 pub enum BlockBody {
-    Multiline(Box<Body>),
-    Oneline(Box<Attribute>),
+    Multiline(Body),
+    Oneline(Attribute),
     Empty(RawString),
 }
 

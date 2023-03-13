@@ -63,7 +63,7 @@ impl Encode for BlockBody {
         buf.write_char('{')?;
 
         match self {
-            BlockBody::Multiline(body) => encode_decorated(body.as_ref(), buf, NO_DECOR, |buf| {
+            BlockBody::Multiline(body) => encode_decorated(body, buf, NO_DECOR, |buf| {
                 buf.write_char('\n')?;
                 body.encode(buf)
             })?,

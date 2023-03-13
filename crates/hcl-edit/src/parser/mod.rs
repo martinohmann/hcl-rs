@@ -3,6 +3,7 @@ pub mod error;
 mod expr;
 mod number;
 mod repr;
+mod state;
 mod string;
 mod structure;
 mod template;
