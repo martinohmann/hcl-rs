@@ -1,6 +1,6 @@
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, Despan, SetSpan, Span, Spanned};
+use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span, Spanned};
 use crate::util::{dedent_by, min_leading_whitespace};
 use crate::{Ident, InternalString, RawString};
 use std::fmt;
@@ -35,10 +35,8 @@ impl StringTemplate {
     pub fn elements_mut(&mut self) -> &mut [Element] {
         &mut self.elements
     }
-}
 
-impl Despan for StringTemplate {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         for element in &mut self.elements {
             element.despan(input);
@@ -128,10 +126,8 @@ impl HeredocTemplate {
             self.set_indent(indent);
         }
     }
-}
 
-impl Despan for HeredocTemplate {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.template.despan(input);
         self.trailing.despan(input);
@@ -161,10 +157,8 @@ impl Template {
     pub fn elements_mut(&mut self) -> &mut [Element] {
         &mut self.elements
     }
-}
 
-impl Despan for Template {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         for element in &mut self.elements {
             element.despan(input);
         }
@@ -187,8 +181,8 @@ pub enum Element {
 
 forward_span_impl!(Element => { Literal, Interpolation, Directive });
 
-impl Despan for Element {
-    fn despan(&mut self, input: &str) {
+impl Element {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Element::Literal(_) => {}
             Element::Interpolation(interp) => interp.despan(input),
@@ -222,10 +216,8 @@ impl Interpolation {
     pub fn strip(&self) -> Strip {
         self.strip
     }
-}
 
-impl Despan for Interpolation {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.expr.despan(input);
     }
 }
@@ -238,8 +230,8 @@ pub enum Directive {
 
 forward_span_impl!(Directive => { If, For });
 
-impl Despan for Directive {
-    fn despan(&mut self, input: &str) {
+impl Directive {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Directive::If(dir) => dir.despan(input),
             Directive::For(dir) => dir.despan(input),
@@ -282,10 +274,8 @@ impl IfDirective {
     pub fn endif_expr(&self) -> &EndifTemplateExpr {
         &self.endif_expr
     }
-}
 
-impl Despan for IfDirective {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.if_expr.despan(input);
 
         if let Some(else_expr) = &mut self.else_expr {
@@ -333,10 +323,8 @@ impl IfTemplateExpr {
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
-}
 
-impl Despan for IfTemplateExpr {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.preamble.despan(input);
         self.cond_expr.despan(input);
         self.template.despan(input);
@@ -384,10 +372,8 @@ impl ElseTemplateExpr {
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
-}
 
-impl Despan for ElseTemplateExpr {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.preamble.despan(input);
         self.template.despan(input);
         self.trailing.despan(input);
@@ -429,10 +415,8 @@ impl EndifTemplateExpr {
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
-}
 
-impl Despan for EndifTemplateExpr {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.preamble.despan(input);
         self.trailing.despan(input);
     }
@@ -463,10 +447,8 @@ impl ForDirective {
     pub fn endfor_expr(&self) -> &EndforTemplateExpr {
         &self.endfor_expr
     }
-}
 
-impl Despan for ForDirective {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.for_expr.despan(input);
         self.endfor_expr.despan(input);
     }
@@ -527,10 +509,8 @@ impl ForTemplateExpr {
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
-}
 
-impl Despan for ForTemplateExpr {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.preamble.despan(input);
 
         if let Some(key_var) = &mut self.key_var {
@@ -578,10 +558,8 @@ impl EndforTemplateExpr {
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
-}
 
-impl Despan for EndforTemplateExpr {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.preamble.despan(input);
         self.trailing.despan(input);
     }

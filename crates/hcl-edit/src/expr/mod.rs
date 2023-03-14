@@ -1,5 +1,5 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::repr::{Decor, Decorate, Decorated, Despan, Formatted, SetSpan, Span, Spanned};
+use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{Ident, InternalString, Number, RawString};
 use std::fmt;
@@ -34,8 +34,8 @@ forward_decorate_span_impl!(Expression => {
     Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
 });
 
-impl Despan for Expression {
-    fn despan(&mut self, input: &str) {
+impl Expression {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Expression::Null(n) => n.decor_mut().despan(input),
             Expression::Bool(b) => b.decor_mut().despan(input),
@@ -109,10 +109,8 @@ impl Array {
     pub fn set_trailing_comma(&mut self, yes: bool) {
         self.trailing_comma = yes;
     }
-}
 
-impl Despan for Array {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.trailing.despan(input);
 
         for value in &mut self.values {
@@ -156,10 +154,8 @@ impl Object {
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
-}
 
-impl Despan for Object {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.trailing.despan(input);
 
@@ -234,10 +230,8 @@ impl ObjectItem {
     pub fn set_value_terminator(&mut self, terminator: ObjectValueTerminator) {
         self.value_terminator = terminator;
     }
-}
 
-impl Despan for ObjectItem {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.key.despan(input);
         self.value.despan(input);
     }
@@ -251,8 +245,8 @@ pub enum ObjectKey {
 
 forward_decorate_span_impl!(ObjectKey => { Identifier, Expression });
 
-impl Despan for ObjectKey {
-    fn despan(&mut self, input: &str) {
+impl ObjectKey {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             ObjectKey::Identifier(ident) => ident.decor_mut().despan(input),
             ObjectKey::Expression(expr) => expr.despan(input),
@@ -322,10 +316,8 @@ impl Conditional {
     pub fn false_expr(&self) -> &Expression {
         &self.false_expr
     }
-}
 
-impl Despan for Conditional {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.cond_expr.despan(input);
         self.true_expr.despan(input);
@@ -360,10 +352,8 @@ impl FuncCall {
     pub fn signature(&self) -> &FuncSig {
         &self.signature
     }
-}
 
-impl Despan for FuncCall {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.name.decor_mut().despan(input);
         self.signature.despan(input);
@@ -421,10 +411,8 @@ impl FuncSig {
     pub fn set_trailing_comma(&mut self, yes: bool) {
         self.trailing_comma = yes;
     }
-}
 
-impl Despan for FuncSig {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         for arg in &mut self.args {
             arg.despan(input);
@@ -461,10 +449,8 @@ impl Traversal {
     pub fn operators(&self) -> &[Decorated<TraversalOperator>] {
         &self.operators
     }
-}
 
-impl Despan for Traversal {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.expr.despan(input);
 
@@ -503,8 +489,8 @@ pub enum TraversalOperator {
 
 forward_decorate_span_impl!(TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex });
 
-impl Despan for TraversalOperator {
-    fn despan(&mut self, input: &str) {
+impl TraversalOperator {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
                 splat.decor_mut().despan(input);
@@ -543,10 +529,8 @@ impl UnaryOp {
     pub fn operator(&self) -> &Spanned<UnaryOperator> {
         &self.operator
     }
-}
 
-impl Despan for UnaryOp {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.expr.despan(input);
     }
@@ -589,10 +573,8 @@ impl BinaryOp {
     pub fn operator(&self) -> &Spanned<BinaryOperator> {
         &self.operator
     }
-}
 
-impl Despan for BinaryOp {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.lhs_expr.despan(input);
         self.rhs_expr.despan(input);
@@ -656,10 +638,8 @@ impl ForExpr {
     pub fn set_cond(&mut self, cond: ForCond) {
         self.cond = Some(cond);
     }
-}
 
-impl Despan for ForExpr {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.intro.despan(input);
 
@@ -712,10 +692,8 @@ impl ForIntro {
     pub fn collection_expr(&self) -> &Expression {
         &self.collection_expr
     }
-}
 
-impl Despan for ForIntro {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         if let Some(key_var) = &mut self.key_var {
             key_var.decor_mut().despan(input);
@@ -747,10 +725,8 @@ impl ForCond {
     pub fn expr(&self) -> &Expression {
         &self.expr
     }
-}
 
-impl Despan for ForCond {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.expr.despan(input);
     }

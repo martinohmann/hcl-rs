@@ -67,10 +67,8 @@ impl Decor {
             buf.write_str(default)
         }
     }
-}
 
-impl Despan for Decor {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         if let Some(prefix) = &mut self.prefix {
             prefix.despan(input);
         }
@@ -105,10 +103,6 @@ pub(crate) trait SetSpan {
         self.set_span(span);
         self
     }
-}
-
-pub(crate) trait Despan {
-    fn despan(&mut self, input: &str);
 }
 
 pub trait Decorate {
@@ -187,15 +181,6 @@ impl<T> Span for Spanned<T> {
 impl<T> SetSpan for Spanned<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
-    }
-}
-
-impl<T> Despan for Spanned<T>
-where
-    T: Despan,
-{
-    fn despan(&mut self, input: &str) {
-        self.inner.despan(input);
     }
 }
 
@@ -283,16 +268,6 @@ impl<T> Span for Decorated<T> {
 impl<T> SetSpan for Decorated<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
-    }
-}
-
-impl<T> Despan for Decorated<T>
-where
-    T: Despan,
-{
-    fn despan(&mut self, input: &str) {
-        self.decor.despan(input);
-        self.inner.despan(input);
     }
 }
 
@@ -420,19 +395,6 @@ impl<T> SetSpan for Formatted<T> {
     }
 }
 
-impl<T> Despan for Formatted<T>
-where
-    T: Despan,
-{
-    fn despan(&mut self, input: &str) {
-        self.decor.despan(input);
-        if let Some(repr) = &mut self.repr {
-            repr.despan(input);
-        }
-        self.inner.despan(input);
-    }
-}
-
 impl<T> fmt::Display for Formatted<T>
 where
     T: Encode,
@@ -471,14 +433,5 @@ where
 {
     fn set_span(&mut self, span: Range<usize>) {
         (**self).set_span(span);
-    }
-}
-
-impl<T> Despan for Box<T>
-where
-    T: Despan,
-{
-    fn despan(&mut self, input: &str) {
-        (**self).despan(input);
     }
 }

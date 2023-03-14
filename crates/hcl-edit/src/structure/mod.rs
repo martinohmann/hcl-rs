@@ -1,6 +1,6 @@
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, Despan, SetSpan, Span};
+use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::{Ident, InternalString, RawString};
 use std::fmt;
 use std::ops::Range;
@@ -25,10 +25,8 @@ impl Body {
     pub fn structures(&self) -> &[Structure] {
         &self.structures
     }
-}
 
-impl Despan for Body {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         for structure in &mut self.structures {
             structure.despan(input);
@@ -57,8 +55,8 @@ pub enum Structure {
 
 forward_decorate_span_impl!(Structure => { Attribute, Block });
 
-impl Despan for Structure {
-    fn despan(&mut self, input: &str) {
+impl Structure {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Structure::Attribute(attr) => attr.despan(input),
             Structure::Block(block) => block.despan(input),
@@ -93,10 +91,8 @@ impl Attribute {
     pub fn expr(&self) -> &Expression {
         &self.expr
     }
-}
 
-impl Despan for Attribute {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.key.decor_mut().despan(input);
         self.expr.despan(input);
@@ -144,10 +140,8 @@ impl Block {
     pub fn body(&self) -> &BlockBody {
         &self.body
     }
-}
 
-impl Despan for Block {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.identifier.decor_mut().despan(input);
         for label in &mut self.labels {
@@ -165,8 +159,8 @@ pub enum BlockLabel {
 
 forward_decorate_span_impl!(BlockLabel => { Identifier, String });
 
-impl Despan for BlockLabel {
-    fn despan(&mut self, input: &str) {
+impl BlockLabel {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             BlockLabel::Identifier(ident) => ident.decor_mut().despan(input),
             BlockLabel::String(expr) => expr.decor_mut().despan(input),
@@ -181,8 +175,8 @@ pub enum BlockBody {
     Empty(RawString),
 }
 
-impl Despan for BlockBody {
-    fn despan(&mut self, input: &str) {
+impl BlockBody {
+    pub(crate) fn despan(&mut self, input: &str) {
         match self {
             BlockBody::Multiline(body) => body.despan(input),
             BlockBody::Oneline(attr) => attr.despan(input),

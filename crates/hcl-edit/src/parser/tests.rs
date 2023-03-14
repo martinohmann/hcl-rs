@@ -2,7 +2,6 @@ use super::expr::expr;
 use super::parse_complete;
 use super::structure::body;
 use super::template::template;
-use crate::repr::Despan;
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 

@@ -1,5 +1,4 @@
 use crate::encode::EncodeState;
-use crate::repr::Despan;
 use crate::InternalString;
 use std::fmt::Write;
 use std::ops::Range;
@@ -46,10 +45,8 @@ impl RawString {
     ) -> std::fmt::Result {
         buf.write_str(self.as_str().unwrap_or(default))
     }
-}
 
-impl Despan for RawString {
-    fn despan(&mut self, input: &str) {
+    pub(crate) fn despan(&mut self, input: &str) {
         match &self.0 {
             RawStringInner::Empty | RawStringInner::Explicit(_) => {}
             RawStringInner::Spanned(span) => {
