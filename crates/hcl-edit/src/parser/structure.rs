@@ -1,11 +1,11 @@
 use std::cell::RefCell;
 
 use super::{
-    context::{cut_char, Context, Expected},
+    context::{cut_char, cut_ident, Context, Expected},
     expr::expr,
     repr::{decorated, prefix_decorated, suffix_decorated},
     state::BodyParseState,
-    string::{ident, raw_string, string},
+    string::{ident, is_id_start, raw_string, string},
     trivia::{line_comment, sp, void, ws},
     IResult, Input,
 };
@@ -16,9 +16,9 @@ use crate::{
 };
 use winnow::{
     branch::alt,
-    bytes::any,
+    bytes::{any, one_of},
     character::line_ending,
-    combinator::{cut_err, eof, opt, peek},
+    combinator::{cut_err, eof, fail, opt, peek},
     multi::many0,
     prelude::*,
     sequence::{delimited, preceded, terminated},
@@ -57,18 +57,36 @@ fn structure<'i, 's>(
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
         let start = input.location();
-        let (input, ident) = suffix_decorated(ident, sp).parse_next(input)?;
+        let (input, _) = peek(one_of(is_id_start)).parse_next(input)?;
+        let (input, ident) = suffix_decorated(cut_ident, sp).parse_next(input)?;
         let (input, ch) = peek(any)(input)?;
 
-        let (input, mut structure) = if ch == b'=' {
-            let (input, expr) = attribute_expr(input)?;
-            let attr = Structure::Attribute(Attribute::new(ident, expr));
-            (input, attr)
-        } else {
-            let (input, labels) = block_labels(input)?;
-            let (input, body) = block_body(input)?;
-            let block = Structure::Block(Block::new_with_labels(ident, labels, body));
-            (input, block)
+        let (input, mut structure) = match ch {
+            b'=' => {
+                let (input, expr) = attribute_expr(input)?;
+                let attr = Structure::Attribute(Attribute::new(ident, expr));
+                (input, attr)
+            }
+            b'{' => {
+                let (input, body) = block_body(input)?;
+                let block = Structure::Block(Block::new(ident, body));
+                (input, block)
+            }
+            ch if ch == b'"' || is_id_start(ch) => {
+                let (input, labels) = block_labels(input)?;
+                let (input, body) = block_body(input)?;
+                let block = Structure::Block(Block::new_with_labels(ident, labels, body));
+                (input, block)
+            }
+            _ => {
+                return cut_err(fail)
+                    .context(Context::Expression("structure"))
+                    .context(Context::Expected(Expected::Char('{')))
+                    .context(Context::Expected(Expected::Char('=')))
+                    .context(Context::Expected(Expected::Char('"')))
+                    .context(Context::Expected(Expected::Description("identifier")))
+                    .parse_next(input)
+            }
         };
 
         let end = input.location();
@@ -79,7 +97,10 @@ fn structure<'i, 's>(
 }
 
 fn attribute_expr(input: Input) -> IResult<Input, Expression> {
-    preceded(b'=', prefix_decorated(sp, expr))(input)
+    preceded(
+        cut_char('=').context(Context::Expression("attribute")),
+        prefix_decorated(sp, expr),
+    )(input)
 }
 
 fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
@@ -108,6 +129,9 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
             // Empty block.
             raw_string(sp).map(BlockBody::Empty),
         )),
-        cut_char('}'),
+        cut_char('}')
+            .context(Context::Expression("block body"))
+            .context(Context::Expected(Expected::Char('\n')))
+            .context(Context::Expected(Expected::Description("identifier"))),
     )(input)
 }
