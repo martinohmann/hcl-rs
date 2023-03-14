@@ -40,11 +40,6 @@ impl Error {
     pub fn location(&self) -> &Location {
         &self.inner.location
     }
-
-    /// Returns the zero-based byte offset into the input where the error occurred.
-    pub fn offset(&self) -> usize {
-        self.inner.offset
-    }
 }
 
 impl std::error::Error for Error {}
@@ -60,7 +55,6 @@ struct ErrorInner {
     message: String,
     line: String,
     location: Location,
-    offset: usize,
 }
 
 impl ErrorInner {
@@ -68,13 +62,11 @@ impl ErrorInner {
     where
         I: AsBytes + Offset,
     {
-        let offset = input.offset_to(&err.input);
-        let (line, location) = locate_error(input.as_bytes(), offset);
+        let (line, location) = locate_error(input.as_bytes(), err.input.as_bytes());
 
         ErrorInner {
             message: err.to_string(),
             line: String::from_utf8_lossy(line).to_string(),
-            offset,
             location,
         }
     }
@@ -96,7 +88,7 @@ impl fmt::Display for ErrorInner {
                  {s} = {message}",
             s = self.spacing(),
             l = self.location.line,
-            c = self.location.col,
+            c = self.location.column,
             line = self.line,
             caret = '^',
             message = self.message,
@@ -107,15 +99,31 @@ impl fmt::Display for ErrorInner {
 /// Represents a location in the parser input.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Location {
-    /// The one-based line number of the error.
-    pub line: usize,
-    /// The one-based column number of the error.
-    pub col: usize,
+    line: usize,
+    column: usize,
+    offset: usize,
 }
 
-fn locate_error(input: &[u8], offset: usize) -> (&[u8], Location) {
+impl Location {
+    /// Returns the line number (one-based) in the parser input.
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    /// Returns the column number (one-based) in the parser input.
+    pub fn column(&self) -> usize {
+        self.column
+    }
+
+    /// Returns the byte offset (zero-based) in the parser input.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+}
+
+fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Location) {
+    let offset = input.offset_to(remaining_input);
     let consumed_input = &input[..offset];
-    let remaining_input = &input[offset..];
 
     // Find the line that includes the subslice:
     // Find the *last* newline before the remaining input starts
@@ -126,7 +134,7 @@ fn locate_error(input: &[u8], offset: usize) -> (&[u8], Location) {
         .map_or(0, |pos| offset - pos);
 
     // Find the full line after that newline
-    let line = input[line_begin..]
+    let line_context = input[line_begin..]
         .iter()
         .position(|&b| b == b'\n')
         .map_or(&input[line_begin..], |pos| {
@@ -134,16 +142,17 @@ fn locate_error(input: &[u8], offset: usize) -> (&[u8], Location) {
         });
 
     // Count the number of newlines in the first `offset` bytes of input
-    let line_number = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
+    let line = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
 
-    // The (1-indexed) column number is the offset of the remaining input into that line
-    let column_number = line.offset_to(remaining_input) + 1;
+    // The (1-indexed) column number is the offset of the remaining input into that line.
+    let column = line_context.offset_to(remaining_input) + 1;
 
     (
-        line,
+        line_context,
         Location {
-            line: line_number,
-            col: column_number,
+            line,
+            column,
+            offset,
         },
     )
 }
