@@ -5,7 +5,7 @@ use crate::{Ident, InternalString, Number, RawString};
 use std::fmt;
 use std::ops::Range;
 
-/// Re-exported for convenience.
+// Re-exported for convenience.
 #[doc(inline)]
 pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 

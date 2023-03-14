@@ -71,7 +71,7 @@ mod tests {
     use winnow::FinishIResult;
 
     #[test]
-    fn whitespace_comments() {
+    fn parse_comments() {
         let inline_comments = [
             "",
             " ",

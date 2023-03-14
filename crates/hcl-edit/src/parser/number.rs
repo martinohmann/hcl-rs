@@ -51,3 +51,44 @@ fn exponent(input: Input) -> IResult<Input, &[u8]> {
         .recognize()
         .parse_next(input)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+    use winnow::FinishIResult;
+
+    #[test]
+    fn parse_integer() {
+        let tests: &[(&str, u64)] = &[
+            ("1", 1),
+            ("99", 99),
+            ("0", 0),
+            ("18446744073709551615", u64::MAX),
+        ];
+
+        for (input, expected) in tests {
+            let parsed = integer.parse_next(Input::new(input.as_bytes())).finish();
+            assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
+            assert_eq!(parsed.unwrap(), *expected);
+        }
+    }
+
+    #[test]
+    fn parse_float() {
+        let tests: &[(&str, f64)] = &[
+            ("1.0", 1.0),
+            ("1e10", 10000000000.0),
+            ("2.5E3", 2500.0),
+            ("42e-3", 0.042),
+            ("0.1E-4", 0.00001),
+            ("1.7976931348623157e308", f64::MAX),
+        ];
+
+        for (input, expected) in tests {
+            let parsed = float.parse_next(Input::new(input.as_bytes())).finish();
+            assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
+            assert_eq!(parsed.unwrap(), *expected);
+        }
+    }
+}
