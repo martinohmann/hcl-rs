@@ -81,7 +81,11 @@ where
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
 pub(super) fn string_literal(input: Input) -> IResult<Input, &str> {
-    let literal_end = alt((b"\"", b"\\", b"${", b"%{"));
+    let literal_end = dispatch! {any;
+        b'\"' | b'\\' => success(true),
+        b'$' | b'%' => one_of(b'{').value(true),
+        _ => fail,
+    };
     literal_until(literal_end).parse_next(input)
 }
 
@@ -171,7 +175,7 @@ pub(super) fn str_ident(input: Input) -> IResult<Input, &str> {
 }
 
 #[inline]
-fn is_id_start(b: u8) -> bool {
+pub(super) fn is_id_start(b: u8) -> bool {
     hcl_primitives::ident::is_id_start(b.as_char())
 }
 

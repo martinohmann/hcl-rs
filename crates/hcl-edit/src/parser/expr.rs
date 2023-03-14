@@ -4,7 +4,7 @@ use super::{
     number::number as num,
     repr::{decorated, prefix_decorated, spanned, suffix_decorated},
     state::ExprParseState,
-    string::{ident, raw_string, str_ident, string},
+    string::{ident, is_id_start, raw_string, str_ident, string},
     template::{heredoc_template, string_template},
     trivia::{line_comment, sp, ws},
     IResult, Input,
@@ -24,7 +24,7 @@ use winnow::{
     dispatch,
     multi::{many1, separated0, separated1},
     sequence::{delimited, preceded, separated_pair, terminated},
-    stream::{AsBytes, Location},
+    stream::Location,
     Parser,
 };
 
@@ -102,7 +102,7 @@ fn expr_term<'i, 's>(
             b'-' => alt((neg_number(state), unary_op(state))),
             b'!' => unary_op(state),
             b'(' => parenthesis(state),
-            b'_' | b'a'..=b'z' | b'A'..=b'Z' => identlike(state),
+            b if is_id_start(b) => identlike(state),
             _ => cut_err(fail)
                 .context(Context::Expression("expression"))
                 .context(Context::Expected(Expected::Char('"')))
@@ -181,26 +181,24 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
     dispatch! {any;
         b'.' => prefix_decorated(
             ws,
-            cut_err(alt((
-                one_of('*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
-                ident.map(TraversalOperator::GetAttr),
-                dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
-            )))
-            .context(Context::Expression("traversal operator"))
-            .context(Context::Expected(Expected::Char('*')))
-            .context(Context::Expected(Expected::Description("identifier")))
-            .context(Context::Expected(Expected::Description("unsigned integer"))),
+            dispatch! {peek(any);
+                b'*' => one_of(b'*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
+                b'0'..=b'9' => dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
+                b if is_id_start(b) => ident.map(TraversalOperator::GetAttr),
+                _ => cut_err(fail)
+                    .context(Context::Expression("traversal operator"))
+                    .context(Context::Expected(Expected::Char('*')))
+                    .context(Context::Expected(Expected::Description("identifier")))
+                    .context(Context::Expected(Expected::Description("unsigned integer"))),
+            },
         ),
         b'[' => terminated(
             decorated(
                 ws,
-                cut_err(alt((
-                    one_of('*').value(TraversalOperator::FullSplat(Decorated::new(()))),
-                    expr.map(TraversalOperator::Index),
-                )))
-                .context(Context::Expression("traversal operator"))
-                .context(Context::Expected(Expected::Char('*')))
-                .context(Context::Expected(Expected::Description("expression"))),
+                dispatch! {peek(any);
+                    b'*' => one_of(b'*').value(TraversalOperator::FullSplat(Decorated::new(()))),
+                    _ => expr.map(TraversalOperator::Index),
+                },
                 ws,
             ),
             cut_char(']'),
@@ -248,14 +246,14 @@ fn binary_op<'i, 's>(
 
 fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
     dispatch! {any;
-        b'=' => one_of('=').value(BinaryOperator::Eq),
-        b'!' => one_of('=').value(BinaryOperator::NotEq),
+        b'=' => one_of(b'=').value(BinaryOperator::Eq),
+        b'!' => one_of(b'=').value(BinaryOperator::NotEq),
         b'<' => alt((
-            one_of('=').value(BinaryOperator::LessEq),
+            one_of(b'=').value(BinaryOperator::LessEq),
             success(BinaryOperator::Less),
         )),
         b'>' => alt((
-            one_of('=').value(BinaryOperator::GreaterEq),
+            one_of(b'=').value(BinaryOperator::GreaterEq),
             success(BinaryOperator::Greater),
         )),
         b'+' => success(BinaryOperator::Plus),
@@ -263,8 +261,8 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
         b'*' => success(BinaryOperator::Mul),
         b'/' => success(BinaryOperator::Div),
         b'%' => success(BinaryOperator::Mod),
-        b'&' => one_of('&').value(BinaryOperator::And),
-        b'|' => one_of('|').value(BinaryOperator::Or),
+        b'&' => one_of(b'&').value(BinaryOperator::And),
+        b'|' => one_of(b'|').value(BinaryOperator::Or),
         _ => fail,
     }
     .parse_next(input)
@@ -628,7 +626,17 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
         b',',
     );
 
-    let trailer = alt((b",", b"..."));
+    #[derive(Copy, Clone)]
+    enum Trailer {
+        Comma,
+        Ellipsis,
+    }
+
+    let trailer = dispatch! {any;
+        b',' => success(Trailer::Comma),
+        b'.' => cut_tag("..").value(Trailer::Ellipsis),
+        _ => fail,
+    };
 
     delimited(
         b'(',
@@ -636,7 +644,7 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
             let mut sig = match sig {
                 Some((args, Some(trailer))) => {
                     let mut sig = FuncSig::new(args);
-                    if trailer.as_bytes() == b"..." {
+                    if let Trailer::Ellipsis = trailer {
                         sig.set_expand_final(true);
                     } else {
                         sig.set_trailing_comma(true);
