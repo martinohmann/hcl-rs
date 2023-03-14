@@ -64,3 +64,50 @@ where
 {
     inner
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use winnow::FinishIResult;
+
+    #[test]
+    fn whitespace_comments() {
+        let inline_comments = [
+            "",
+            " ",
+            "/**/  ",
+            "/*foo*/",
+            " /* foo
+                bar
+                */  /* baz */\t",
+        ];
+
+        let multiline_comments = [
+            "# foo
+                # bar",
+            "
+            /* foo
+                bar
+                */  # baz */",
+            "
+                // foo #
+                // bar /*
+                # baz",
+        ];
+
+        for input in inline_comments {
+            let parsed = sp.parse_next(Input::new(input.as_bytes())).finish();
+            assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
+        }
+
+        for input in multiline_comments {
+            let parsed = sp.parse_next(Input::new(input.as_bytes())).finish();
+            assert!(parsed.is_err(), "expected parse error for `{input}`");
+        }
+
+        for input in inline_comments.iter().chain(multiline_comments.iter()) {
+            let parsed = ws.parse_next(Input::new(input.as_bytes())).finish();
+            assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
+        }
+    }
+}
