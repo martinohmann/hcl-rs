@@ -1,27 +1,35 @@
 use super::{
-    encode_decorated, encode_escaped, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
+    encode_decorated, encode_quoted_string, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
 use crate::expr::{
-    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig,
-    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Traversal,
-    TraversalOperator, UnaryOp,
+    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig, Null,
+    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Splat,
+    Traversal, TraversalOperator, UnaryOp,
 };
 use std::fmt::{self, Write};
+
+impl Encode for Null {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        write!(buf, "{self}")
+    }
+}
+
+impl Encode for Splat {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        write!(buf, "{self}")
+    }
+}
 
 impl EncodeDecorated for Expression {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            Expression::Null(v) => {
-                encode_decorated(v, buf, default_decor, |buf| write!(buf, "{}", v.as_ref()))
-            }
+            Expression::Null(v) => v.encode_decorated(buf, default_decor),
             Expression::Bool(v) => v.encode_decorated(buf, default_decor),
             Expression::Number(v) => v.encode_decorated(buf, default_decor),
-            Expression::String(v) => encode_decorated(v, buf, default_decor, |buf| {
-                buf.write_char('"')?;
-                encode_escaped(buf, v)?;
-                buf.write_char('"')
-            }),
+            Expression::String(v) => {
+                encode_decorated(v, buf, default_decor, |buf| encode_quoted_string(buf, v))
+            }
             Expression::Array(v) => v.encode_decorated(buf, default_decor),
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
             Expression::Template(v) => v.encode_decorated(buf, default_decor),
@@ -245,17 +253,11 @@ impl Encode for TraversalOperator {
 
         match self {
             TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                encode_decorated(splat, buf, NO_DECOR, |buf| {
-                    write!(buf, "{}", splat.as_ref())
-                })?;
+                splat.encode_decorated(buf, NO_DECOR)?
             }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
-            TraversalOperator::LegacyIndex(index) => {
-                encode_decorated(index, buf, NO_DECOR, |buf| {
-                    write!(buf, "{}", index.as_ref())
-                })?;
-            }
+            TraversalOperator::LegacyIndex(index) => index.encode_decorated(buf, NO_DECOR)?,
         }
 
         match self {

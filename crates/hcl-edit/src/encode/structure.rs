@@ -1,5 +1,5 @@
 use super::{
-    encode_decorated, encode_escaped, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
+    encode_decorated, encode_quoted_string, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
 use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};
@@ -49,9 +49,7 @@ impl EncodeDecorated for BlockLabel {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
             BlockLabel::String(string) => encode_decorated(string, buf, default_decor, |buf| {
-                buf.write_char('"')?;
-                encode_escaped(buf, string)?;
-                buf.write_char('"')
+                encode_quoted_string(buf, string)
             }),
             BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),
         }

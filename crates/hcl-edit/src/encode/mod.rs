@@ -59,31 +59,35 @@ where
     }
 }
 
-impl<T> EncodeDecorated for Decorated<T>
+impl<T> Encode for Decorated<T>
 where
     T: Encode,
 {
-    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
-        encode_decorated(self, buf, default_decor, |buf| self.encode(buf))
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        (&**self).encode(buf)
     }
 }
 
-impl<T> EncodeDecorated for Formatted<T>
+impl<T> Encode for Formatted<T>
 where
     T: Encode + ValueRepr,
 {
-    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
-        encode_decorated(self, buf, default_decor, |buf| {
-            if let Some(repr) = self.repr() {
-                repr.encode_with_default(buf, "")
-            } else {
-                self.encode(buf)
-            }
-        })
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        if let Some(repr) = self.repr() {
+            repr.encode_with_default(buf, "")
+        } else {
+            (&**self).encode(buf)
+        }
     }
 }
 
 impl Encode for bool {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        write!(buf, "{self}")
+    }
+}
+
+impl Encode for u64 {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         write!(buf, "{self}")
     }
@@ -115,6 +119,12 @@ where
     decor.encode_prefix(buf, default_decor.0)?;
     f(buf)?;
     decor.encode_suffix(buf, default_decor.1)
+}
+
+fn encode_quoted_string(buf: &mut dyn fmt::Write, value: &str) -> fmt::Result {
+    buf.write_char('"')?;
+    encode_escaped(buf, value)?;
+    buf.write_char('"')
 }
 
 fn encode_escaped(buf: &mut dyn fmt::Write, value: &str) -> fmt::Result {
