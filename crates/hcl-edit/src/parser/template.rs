@@ -8,7 +8,7 @@ use super::{
     IResult, Input,
 };
 use crate::{
-    repr::{SetSpan, Span, Spanned},
+    repr::{SetSpan, Spanned},
     template::*,
     InternalString,
 };

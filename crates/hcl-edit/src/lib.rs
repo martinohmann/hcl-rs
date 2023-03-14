@@ -19,7 +19,7 @@ pub use self::raw_string::RawString;
 
 /// Core concepts available for glob import.
 pub mod prelude {
-    pub use crate::repr::{Decorate, Span};
+    pub use crate::repr::Decorate;
 }
 
 // Re-exported for convenience.

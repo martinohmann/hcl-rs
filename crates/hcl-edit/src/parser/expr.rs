@@ -431,16 +431,16 @@ fn object_items<'i, 's>(
                 b'#' | b'/' => {
                     let (input, comment_span) = line_comment.span().parse_next(input)?;
 
-                    // Associate the trailing comment with the item value, updating
-                    // the span if it already has a decor suffix.
-                    let suffix_start = match item.value().decor().suffix() {
+                    let decor = item.value_mut().decor_mut();
+
+                    // Associate the trailing comment with the item value, updating the span if it
+                    // already has a decor suffix.
+                    let suffix_start = match decor.suffix() {
                         Some(suffix) => suffix.span().unwrap().start,
                         None => comment_span.start,
                     };
 
-                    item.value_mut()
-                        .decor_mut()
-                        .set_suffix(RawString::from_span(suffix_start..comment_span.end));
+                    decor.set_suffix(RawString::from_span(suffix_start..comment_span.end));
 
                     line_ending
                         .value(ObjectValueTerminator::Newline)
@@ -608,7 +608,8 @@ fn identlike<'i, 's>(
             .map(|((ident, span), signature)| {
                 let expr = match signature {
                     Some(signature) => {
-                        let name = Decorated::new(Ident::new_unchecked(ident)).spanned(span);
+                        let mut name = Decorated::new(Ident::new_unchecked(ident));
+                        name.set_span(span);
                         let func_call = FuncCall::new(name, signature);
                         Expression::FuncCall(Box::new(func_call))
                     }
