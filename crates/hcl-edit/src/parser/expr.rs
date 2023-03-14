@@ -4,14 +4,14 @@ use super::{
     number::number as num,
     repr::{decorated, prefix_decorated, spanned, suffix_decorated},
     state::ExprParseState,
-    string::{ident, is_id_start, raw_string, str_ident, string},
+    string::{from_utf8_unchecked, ident, is_id_start, raw_string, str_ident, string},
     template::{heredoc_template, string_template},
     trivia::{line_comment, sp, ws},
     IResult, Input,
 };
 use crate::{
     expr::*,
-    repr::{Decorate, Decorated, SetSpan, Spanned},
+    repr::{Decorate, Decorated, Formatted, SetSpan, Spanned},
     template::HeredocTemplate,
     Ident, RawString,
 };
@@ -144,12 +144,15 @@ fn number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
-        num.map(|num| {
-            state
-                .borrow_mut()
-                .on_expr_term(Expression::Number(Decorated::new(num)))
-        })
-        .parse_next(input)
+        num.with_recognized()
+            .map(|(num, repr)| {
+                state
+                    .borrow_mut()
+                    .on_expr_term(Expression::Number(Formatted::new(num).with_repr(unsafe {
+                        from_utf8_unchecked(repr, "`num` filters out non-ascii")
+                    })))
+            })
+            .parse_next(input)
     }
 }
 
@@ -158,10 +161,13 @@ fn neg_number<'i, 's>(
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
         preceded((b'-', sp), num)
-            .map(|num| {
+            .with_recognized()
+            .map(|(num, repr)| {
                 state
                     .borrow_mut()
-                    .on_expr_term(Expression::Number(Decorated::new(-num)))
+                    .on_expr_term(Expression::Number(Formatted::new(-num).with_repr(unsafe {
+                        from_utf8_unchecked(repr, "`num` filters out non-ascii")
+                    })))
             })
             .parse_next(input)
     }
@@ -182,7 +188,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
         b'.' => prefix_decorated(
             ws,
             dispatch! {peek(any);
-                b'*' => one_of(b'*').value(TraversalOperator::AttrSplat(Decorated::new(()))),
+                b'*' => one_of(b'*').value(TraversalOperator::AttrSplat(Decorated::new(Splat))),
                 b'0'..=b'9' => dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
                 b if is_id_start(b) => ident.map(TraversalOperator::GetAttr),
                 _ => cut_err(fail)
@@ -196,7 +202,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
             decorated(
                 ws,
                 dispatch! {peek(any);
-                    b'*' => one_of(b'*').value(TraversalOperator::FullSplat(Decorated::new(()))),
+                    b'*' => one_of(b'*').value(TraversalOperator::FullSplat(Decorated::new(Splat))),
                     _ => expr.map(TraversalOperator::Index),
                 },
                 ws,
@@ -607,7 +613,7 @@ fn identlike<'i, 's>(
                         Expression::FuncCall(Box::new(func_call))
                     }
                     None => match ident {
-                        "null" => Expression::Null(().into()),
+                        "null" => Expression::Null(Null.into()),
                         "true" => Expression::Bool(true.into()),
                         "false" => Expression::Bool(false.into()),
                         var => Expression::Variable(Ident::new_unchecked(var).into()),

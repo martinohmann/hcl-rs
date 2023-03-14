@@ -34,3 +34,7 @@ pub use self::structure::{Attribute, Block, Body, Structure};
 
 #[doc(inline)]
 pub use self::template::Template;
+
+mod private {
+    pub trait Sealed {}
+}

@@ -1,5 +1,5 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::repr::{Decor, Decorate, Decorated, Despan, SetSpan, Span, Spanned};
+use crate::repr::{Decor, Decorate, Decorated, Despan, Formatted, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{Ident, InternalString, Number, RawString};
 use std::fmt;
@@ -11,9 +11,9 @@ pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
-    Null(Decorated<()>),
+    Null(Decorated<Null>),
     Bool(Decorated<bool>),
-    Number(Decorated<Number>),
+    Number(Formatted<Number>),
     String(Decorated<InternalString>),
     Array(Array),
     Object(Object),
@@ -474,10 +474,28 @@ impl Despan for Traversal {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Null;
+
+impl fmt::Display for Null {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "null")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Splat;
+
+impl fmt::Display for Splat {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "*")
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TraversalOperator {
-    AttrSplat(Decorated<()>),
-    FullSplat(Decorated<()>),
+    AttrSplat(Decorated<Splat>),
+    FullSplat(Decorated<Splat>),
     GetAttr(Decorated<Ident>),
     Index(Expression),
     LegacyIndex(Decorated<u64>),

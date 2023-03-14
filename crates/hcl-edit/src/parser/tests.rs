@@ -2,21 +2,9 @@ use super::expr::expr;
 use super::parse_complete;
 use super::structure::body;
 use super::template::template;
-use crate::expr::Expression;
-use crate::repr::{Decorated, Despan, SetSpan};
-use crate::Number;
+use crate::repr::Despan;
 use indoc::indoc;
 use pretty_assertions::assert_eq;
-
-#[test]
-fn parse_number() {
-    assert_eq!(
-        parse_complete("12e+10", expr),
-        Ok(Expression::Number(
-            Decorated::new(Number::from_f64(120000000000.0).unwrap()).spanned(0..6)
-        ))
-    );
-}
 
 macro_rules! assert_roundtrip {
     ($input:expr, $parser:expr) => {
@@ -32,7 +20,11 @@ fn roundtrip_expr() {
         "_an-id3nt1fieR",
         r#""a string""#,
         r#""\\""#,
-        // "12e+10",
+        "12e+10",
+        "- 12e+10",
+        "-34.0012e+10",
+        "-1.0000",
+        "1.0000E10",
         "42",
         "var.enabled ? 1 : 0",
         r#"["bar", ["baz"]]"#,

@@ -2,8 +2,8 @@ mod expr;
 mod structure;
 mod template;
 
-use crate::repr::{Decorate, Decorated};
-use crate::Ident;
+use crate::repr::{Decorate, Decorated, Formatted, ValueRepr};
+use crate::{Ident, Number};
 use std::fmt::{self, Write};
 
 pub(crate) const NO_DECOR: (&str, &str) = ("", "");
@@ -64,7 +64,34 @@ where
     T: Encode,
 {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
-        encode_decorated(self, buf, default_decor, |buf| self.as_ref().encode(buf))
+        encode_decorated(self, buf, default_decor, |buf| self.encode(buf))
+    }
+}
+
+impl<T> EncodeDecorated for Formatted<T>
+where
+    T: Encode + ValueRepr,
+{
+    fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
+        encode_decorated(self, buf, default_decor, |buf| {
+            if let Some(repr) = self.repr() {
+                repr.encode_with_default(buf, "")
+            } else {
+                self.encode(buf)
+            }
+        })
+    }
+}
+
+impl Encode for bool {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        write!(buf, "{self}")
+    }
+}
+
+impl Encode for Number {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        write!(buf, "{self}")
     }
 }
 

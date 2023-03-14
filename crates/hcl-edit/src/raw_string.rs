@@ -78,6 +78,17 @@ impl From<&str> for RawString {
     }
 }
 
+impl From<String> for RawString {
+    #[inline]
+    fn from(s: String) -> Self {
+        if s.is_empty() {
+            RawString(RawStringInner::Empty)
+        } else {
+            RawString::from(InternalString::from(s))
+        }
+    }
+}
+
 impl From<InternalString> for RawString {
     #[inline]
     fn from(inner: InternalString) -> Self {

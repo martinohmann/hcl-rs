@@ -1,5 +1,6 @@
 use crate::encode::{Encode, EncodeState};
 use crate::raw_string::RawString;
+use crate::{private, Number};
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
 
@@ -296,6 +297,143 @@ where
 }
 
 impl<T> fmt::Display for Decorated<T>
+where
+    T: Encode,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut state = EncodeState::new(f);
+        self.encode(&mut state)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Formatted<T> {
+    inner: T,
+    decor: Decor,
+    repr: Option<RawString>,
+    span: Option<Range<usize>>,
+}
+
+impl<T> Formatted<T>
+where
+    T: ValueRepr,
+{
+    pub fn new(inner: T) -> Formatted<T> {
+        Formatted {
+            inner,
+            decor: Decor::default(),
+            repr: None,
+            span: None,
+        }
+    }
+
+    pub fn repr(&self) -> Option<&RawString> {
+        self.repr.as_ref()
+    }
+
+    pub(crate) fn set_repr(&mut self, repr: impl Into<RawString>) {
+        self.repr = Some(repr.into());
+    }
+
+    pub(crate) fn with_repr(mut self, repr: impl Into<RawString>) -> Formatted<T> {
+        self.set_repr(repr);
+        self
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
+    pub fn format(&mut self) {
+        self.set_repr(self.inner.to_repr())
+    }
+}
+
+pub trait ValueRepr: private::Sealed {
+    fn to_repr(&self) -> RawString;
+}
+
+impl private::Sealed for Number {}
+
+impl ValueRepr for Number {
+    fn to_repr(&self) -> RawString {
+        RawString::from(self.to_string())
+    }
+}
+
+impl<T> AsRef<T> for Formatted<T> {
+    fn as_ref(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<T> AsMut<T> for Formatted<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.inner
+    }
+}
+
+impl<T> Deref for Formatted<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &T {
+        self.as_ref()
+    }
+}
+
+impl<T> DerefMut for Formatted<T> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut T {
+        self.as_mut()
+    }
+}
+
+impl<T> From<T> for Formatted<T>
+where
+    T: ValueRepr,
+{
+    fn from(value: T) -> Self {
+        Formatted::new(value)
+    }
+}
+
+impl<T> Decorate for Formatted<T> {
+    fn decor(&self) -> &Decor {
+        &self.decor
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        &mut self.decor
+    }
+}
+
+impl<T> Span for Formatted<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+}
+
+impl<T> SetSpan for Formatted<T> {
+    fn set_span(&mut self, span: Range<usize>) {
+        self.span = Some(span);
+    }
+}
+
+impl<T> Despan for Formatted<T>
+where
+    T: Despan,
+{
+    fn despan(&mut self, input: &str) {
+        self.decor.despan(input);
+        if let Some(repr) = &mut self.repr {
+            repr.despan(input);
+        }
+        self.inner.despan(input);
+    }
+}
+
+impl<T> fmt::Display for Formatted<T>
 where
     T: Encode,
 {

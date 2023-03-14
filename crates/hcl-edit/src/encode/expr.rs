@@ -13,14 +13,10 @@ impl EncodeDecorated for Expression {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
             Expression::Null(v) => {
-                encode_decorated(v, buf, default_decor, |buf| buf.write_str("null"))
-            }
-            Expression::Bool(v) => {
                 encode_decorated(v, buf, default_decor, |buf| write!(buf, "{}", v.as_ref()))
             }
-            Expression::Number(v) => {
-                encode_decorated(v, buf, default_decor, |buf| write!(buf, "{}", v.as_ref()))
-            }
+            Expression::Bool(v) => v.encode_decorated(buf, default_decor),
+            Expression::Number(v) => v.encode_decorated(buf, default_decor),
             Expression::String(v) => encode_decorated(v, buf, default_decor, |buf| {
                 buf.write_char('"')?;
                 encode_escaped(buf, v)?;
@@ -249,7 +245,9 @@ impl Encode for TraversalOperator {
 
         match self {
             TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                encode_decorated(splat, buf, NO_DECOR, |buf| buf.write_char('*'))?;
+                encode_decorated(splat, buf, NO_DECOR, |buf| {
+                    write!(buf, "{}", splat.as_ref())
+                })?;
             }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,
