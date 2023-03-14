@@ -68,7 +68,8 @@ impl ExprParseState {
         }
     }
 
-    pub(super) fn on_expr_term(&mut self, mut expr: Expression) {
+    pub(super) fn on_expr_term(&mut self, expr: impl Into<Expression>) {
+        let mut expr = expr.into();
         if let Some(operator) = self.unary.take() {
             expr = Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)));
         }

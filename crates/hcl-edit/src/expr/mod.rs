@@ -19,7 +19,7 @@ pub enum Expression {
     Object(Object),
     Template(StringTemplate),
     HeredocTemplate(Box<HeredocTemplate>),
-    Parenthesis(Box<Decorated<Expression>>),
+    Parenthesis(Box<Parenthesis>),
     Variable(Decorated<Ident>),
     Conditional(Box<Conditional>),
     FuncCall(Box<FuncCall>),
@@ -57,12 +57,54 @@ impl Expression {
     }
 }
 
+impl From<Parenthesis> for Expression {
+    fn from(value: Parenthesis) -> Self {
+        Expression::Parenthesis(Box::new(value))
+    }
+}
+
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
         self.encode_decorated(&mut state, NO_DECOR)
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Parenthesis {
+    inner: Expression,
+    decor: Decor,
+    span: Option<Range<usize>>,
+}
+
+impl Parenthesis {
+    pub fn new(inner: Expression) -> Parenthesis {
+        Parenthesis {
+            inner,
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+
+    pub fn inner(&self) -> &Expression {
+        &self.inner
+    }
+
+    pub fn inner_mut(&mut self) -> &mut Expression {
+        &mut self.inner
+    }
+
+    pub fn into_inner(self) -> Expression {
+        self.inner
+    }
+
+    pub(crate) fn despan(&mut self, input: &str) {
+        self.decor.despan(input);
+        self.inner.despan(input);
+    }
+}
+
+decorate_span_impl!(Parenthesis);
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Array {

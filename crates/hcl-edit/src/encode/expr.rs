@@ -4,8 +4,8 @@ use super::{
 };
 use crate::expr::{
     Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig, Null,
-    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Splat,
-    Traversal, TraversalOperator, UnaryOp,
+    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Parenthesis,
+    Splat, Traversal, TraversalOperator, UnaryOp,
 };
 use std::fmt::{self, Write};
 
@@ -34,11 +34,7 @@ impl EncodeDecorated for Expression {
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
             Expression::Template(v) => v.encode_decorated(buf, default_decor),
             Expression::HeredocTemplate(v) => v.encode_decorated(buf, default_decor),
-            Expression::Parenthesis(v) => encode_decorated(&**v, buf, default_decor, |buf| {
-                buf.write_char('(')?;
-                v.as_ref().encode_decorated(buf, NO_DECOR)?;
-                buf.write_char(')')
-            }),
+            Expression::Parenthesis(v) => v.encode_decorated(buf, default_decor),
             Expression::Variable(v) => v.encode_decorated(buf, default_decor),
             Expression::ForExpr(v) => v.encode_decorated(buf, default_decor),
             Expression::Conditional(v) => v.encode_decorated(buf, default_decor),
@@ -47,6 +43,14 @@ impl EncodeDecorated for Expression {
             Expression::BinaryOp(v) => v.encode_decorated(buf, default_decor),
             Expression::Traversal(v) => v.encode_decorated(buf, default_decor),
         }
+    }
+}
+
+impl Encode for Parenthesis {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        buf.write_char('(')?;
+        self.inner().encode_decorated(buf, NO_DECOR)?;
+        buf.write_char(')')
     }
 }
 

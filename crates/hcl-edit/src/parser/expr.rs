@@ -548,11 +548,8 @@ fn parenthesis<'i, 's>(
     move |input: Input<'i>| {
         delimited(
             cut_char('('),
-            decorated(ws, expr, ws).map(|expr| {
-                state
-                    .borrow_mut()
-                    .on_expr_term(Expression::Parenthesis(Box::new(Decorated::new(expr))))
-            }),
+            decorated(ws, expr, ws)
+                .map(|expr| state.borrow_mut().on_expr_term(Parenthesis::new(expr))),
             cut_char(')'),
         )(input)
     }
