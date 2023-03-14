@@ -9,50 +9,39 @@ use std::borrow::Cow;
 use winnow::{
     branch::alt,
     bytes::{any, one_of, tag, take_while0, take_while_m_n},
-    combinator::{cut_err, fail, not, success},
+    combinator::{cut_err, fail, not, opt, success},
     dispatch,
     multi::many1,
-    sequence::{preceded, terminated},
+    sequence::{delimited, preceded},
     stream::AsChar,
     Parser,
 };
 
 pub(super) fn string(input: Input) -> IResult<Input, InternalString> {
-    preceded(
-        b'"',
-        alt((
-            one_of('"').map(|_| InternalString::new()),
-            terminated(build_string(string_fragment(string_literal)), b'"'),
-        )),
-    )(input)
+    delimited(b'"', opt(build_string), b'"')
+        .map(Option::unwrap_or_default)
+        .parse_next(input)
 }
 
-pub(super) fn build_string<'a, F>(
-    mut string_fragment: F,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, InternalString>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>,
-{
-    move |input: Input<'a>| {
-        let (mut input, mut string) = match string_fragment(input) {
-            Ok((input, fragment)) => match fragment {
-                StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
-                StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
-            },
-            Err(err) => return Err(err),
-        };
+pub(super) fn build_string<'a>(input: Input<'a>) -> IResult<Input<'a>, InternalString> {
+    let (mut input, mut string) = match string_fragment(input) {
+        Ok((input, fragment)) => match fragment {
+            StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
+            StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
+        },
+        Err(err) => return Err(err),
+    };
 
-        loop {
-            match string_fragment(input) {
-                Ok((rest, fragment)) => {
-                    match fragment {
-                        StringFragment::Literal(s) => string.to_mut().push_str(s),
-                        StringFragment::EscapedChar(c) => string.to_mut().push(c),
-                    };
-                    input = rest;
-                }
-                Err(_) => return Ok((input, string.into())),
+    loop {
+        match string_fragment(input) {
+            Ok((rest, fragment)) => {
+                match fragment {
+                    StringFragment::Literal(s) => string.to_mut().push_str(s),
+                    StringFragment::EscapedChar(c) => string.to_mut().push(c),
+                };
+                input = rest;
             }
+            Err(_) => return Ok((input, string.into())),
         }
     }
 }
@@ -61,26 +50,21 @@ where
 /// a non-empty Literal (a series of non-escaped characters) or a single
 /// parsed escaped character.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum StringFragment<'a> {
+enum StringFragment<'a> {
     Literal(&'a str),
     EscapedChar(char),
 }
 
-pub(super) fn string_fragment<'a, F>(
-    literal: F,
-) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, StringFragment<'a>>
-where
-    F: FnMut(Input<'a>) -> IResult<Input<'a>, &'a str>,
-{
+fn string_fragment<'a>(input: Input<'a>) -> IResult<Input<'a>, StringFragment<'a>> {
     alt((
-        literal.map(StringFragment::Literal),
+        string_literal.map(StringFragment::Literal),
         escaped_char.map(StringFragment::EscapedChar),
-    ))
+    ))(input)
 }
 
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
 /// interpolation/directive start markers.
-pub(super) fn string_literal(input: Input) -> IResult<Input, &str> {
+fn string_literal(input: Input) -> IResult<Input, &str> {
     let literal_end = dispatch! {any;
         b'\"' | b'\\' => success(true),
         b'$' | b'%' => one_of(b'{').value(true),

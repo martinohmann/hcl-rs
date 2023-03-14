@@ -3,10 +3,7 @@ use super::{
     error::ParseError,
     expr::expr,
     repr::{decorated, spanned},
-    string::{
-        build_string, from_utf8_unchecked, literal_until, raw_string, string_fragment,
-        string_literal,
-    },
+    string::{build_string, from_utf8_unchecked, literal_until, raw_string},
     trivia::ws,
     IResult, Input,
 };
@@ -25,8 +22,9 @@ use winnow::{
 };
 
 pub(super) fn string_template(input: Input) -> IResult<Input, StringTemplate> {
-    let literal = build_string(string_fragment(string_literal));
-    delimited(b'"', elements(literal).map(StringTemplate::new), b'"')(input)
+    delimited(b'"', elements(build_string), b'"')
+        .map(StringTemplate::new)
+        .parse_next(input)
 }
 
 pub(super) fn template(input: Input) -> IResult<Input, Template> {
