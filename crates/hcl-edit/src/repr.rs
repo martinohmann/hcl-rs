@@ -386,25 +386,3 @@ where
         self.encode(&mut state)
     }
 }
-
-impl<T> Decorate for Box<T>
-where
-    T: Decorate,
-{
-    fn decor(&self) -> &Decor {
-        (**self).decor()
-    }
-
-    fn decor_mut(&mut self) -> &mut Decor {
-        (**self).decor_mut()
-    }
-}
-
-impl<T> SetSpan for Box<T>
-where
-    T: SetSpan,
-{
-    fn set_span(&mut self, span: Range<usize>) {
-        (**self).set_span(span);
-    }
-}
