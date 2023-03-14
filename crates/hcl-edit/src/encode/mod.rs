@@ -64,7 +64,7 @@ where
     T: Encode,
 {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        (&**self).encode(buf)
+        (**self).encode(buf)
     }
 }
 
@@ -76,7 +76,7 @@ where
         if let Some(repr) = self.repr() {
             repr.encode_with_default(buf, "")
         } else {
-            (&**self).encode(buf)
+            (**self).encode(buf)
         }
     }
 }

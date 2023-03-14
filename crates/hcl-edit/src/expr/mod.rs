@@ -254,29 +254,19 @@ impl ObjectKey {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectKeyValueSeparator {
     Colon,
+    #[default]
     Equals,
 }
 
-impl Default for ObjectKeyValueSeparator {
-    fn default() -> Self {
-        ObjectKeyValueSeparator::Equals
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectValueTerminator {
     None,
     Newline,
+    #[default]
     Comma,
-}
-
-impl Default for ObjectValueTerminator {
-    fn default() -> Self {
-        ObjectValueTerminator::Comma
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

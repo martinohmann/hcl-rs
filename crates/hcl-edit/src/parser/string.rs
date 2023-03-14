@@ -23,7 +23,7 @@ pub(super) fn string(input: Input) -> IResult<Input, InternalString> {
         .parse_next(input)
 }
 
-pub(super) fn build_string<'a>(input: Input<'a>) -> IResult<Input<'a>, InternalString> {
+pub(super) fn build_string(input: Input) -> IResult<Input, InternalString> {
     let (mut input, mut string) = match string_fragment(input) {
         Ok((input, fragment)) => match fragment {
             StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
@@ -55,7 +55,7 @@ enum StringFragment<'a> {
     EscapedChar(char),
 }
 
-fn string_fragment<'a>(input: Input<'a>) -> IResult<Input<'a>, StringFragment<'a>> {
+fn string_fragment(input: Input) -> IResult<Input, StringFragment> {
     alt((
         string_literal.map(StringFragment::Literal),
         escaped_char.map(StringFragment::EscapedChar),
