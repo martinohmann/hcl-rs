@@ -92,7 +92,11 @@ where
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     control(b"${", decorated(ws, expr, ws))
-        .map(|(expr, strip)| Interpolation::new(expr, strip))
+        .map(|(expr, strip)| {
+            let mut interp = Interpolation::new(expr);
+            interp.set_strip(strip);
+            interp
+        })
         .parse_next(input)
 }
 
@@ -112,7 +116,8 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         spanned(template),
     )
         .map(|(((preamble, cond_expr), strip), template)| {
-            let mut expr = IfTemplateExpr::new(cond_expr, template, strip);
+            let mut expr = IfTemplateExpr::new(cond_expr, template);
+            expr.set_strip(strip);
             expr.set_preamble(preamble);
             expr
         });
@@ -125,7 +130,8 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         spanned(template),
     )
         .map(|(((preamble, trailing), strip), template)| {
-            let mut expr = ElseTemplateExpr::new(template, strip);
+            let mut expr = ElseTemplateExpr::new(template);
+            expr.set_strip(strip);
             expr.set_preamble(preamble);
             expr.set_trailing(trailing);
             expr
@@ -136,7 +142,8 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         separated_pair(raw_string(ws), cut_tag("endif"), raw_string(ws)),
     )
     .map(|((preamble, trailing), strip)| {
-        let mut expr = EndifTemplateExpr::new(strip);
+        let mut expr = EndifTemplateExpr::new();
+        expr.set_strip(strip);
         expr.set_preamble(preamble);
         expr.set_trailing(trailing);
         expr
@@ -167,8 +174,8 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
                     None => (None, key_var),
                 };
 
-                let mut expr =
-                    ForTemplateExpr::new(key_var, value_var, collection_expr, template, strip);
+                let mut expr = ForTemplateExpr::new(key_var, value_var, collection_expr, template);
+                expr.set_strip(strip);
                 expr.set_preamble(preamble);
                 expr
             },
@@ -179,7 +186,8 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
         separated_pair(raw_string(ws), cut_tag("endfor"), raw_string(ws)),
     )
     .map(|((preamble, trailing), strip)| {
-        let mut expr = EndforTemplateExpr::new(strip);
+        let mut expr = EndforTemplateExpr::new();
+        expr.set_strip(strip);
         expr.set_preamble(preamble);
         expr.set_trailing(trailing);
         expr

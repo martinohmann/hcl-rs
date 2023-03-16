@@ -201,10 +201,10 @@ pub struct Interpolation {
 span_impl!(Interpolation);
 
 impl Interpolation {
-    pub fn new(expr: Expression, strip: Strip) -> Interpolation {
+    pub fn new(expr: Expression) -> Interpolation {
         Interpolation {
             expr,
-            strip,
+            strip: Strip::default(),
             span: None,
         }
     }
@@ -215,6 +215,10 @@ impl Interpolation {
 
     pub fn strip(&self) -> Strip {
         self.strip
+    }
+
+    pub fn set_strip(&mut self, strip: Strip) {
+        self.strip = strip;
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -295,12 +299,12 @@ pub struct IfTemplateExpr {
 }
 
 impl IfTemplateExpr {
-    pub fn new(cond_expr: Expression, template: Template, strip: Strip) -> IfTemplateExpr {
+    pub fn new(cond_expr: Expression, template: Template) -> IfTemplateExpr {
         IfTemplateExpr {
             preamble: RawString::default(),
             cond_expr,
             template,
-            strip,
+            strip: Strip::default(),
         }
     }
 
@@ -314,6 +318,10 @@ impl IfTemplateExpr {
 
     pub fn strip(&self) -> Strip {
         self.strip
+    }
+
+    pub fn set_strip(&mut self, strip: Strip) {
+        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -340,12 +348,12 @@ pub struct ElseTemplateExpr {
 }
 
 impl ElseTemplateExpr {
-    pub fn new(template: Template, strip: Strip) -> ElseTemplateExpr {
+    pub fn new(template: Template) -> ElseTemplateExpr {
         ElseTemplateExpr {
             preamble: RawString::default(),
             trailing: RawString::default(),
             template,
-            strip,
+            strip: Strip::default(),
         }
     }
 
@@ -355,6 +363,10 @@ impl ElseTemplateExpr {
 
     pub fn strip(&self) -> Strip {
         self.strip
+    }
+
+    pub fn set_strip(&mut self, strip: Strip) {
+        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -388,16 +400,20 @@ pub struct EndifTemplateExpr {
 }
 
 impl EndifTemplateExpr {
-    pub fn new(strip: Strip) -> EndifTemplateExpr {
+    pub fn new() -> EndifTemplateExpr {
         EndifTemplateExpr {
             preamble: RawString::default(),
             trailing: RawString::default(),
-            strip,
+            strip: Strip::default(),
         }
     }
 
     pub fn strip(&self) -> Strip {
         self.strip
+    }
+
+    pub fn set_strip(&mut self, strip: Strip) {
+        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -470,7 +486,6 @@ impl ForTemplateExpr {
         value_var: Decorated<Ident>,
         collection_expr: Expression,
         template: Template,
-        strip: Strip,
     ) -> ForTemplateExpr {
         ForTemplateExpr {
             preamble: RawString::default(),
@@ -478,7 +493,7 @@ impl ForTemplateExpr {
             value_var,
             collection_expr,
             template,
-            strip,
+            strip: Strip::default(),
         }
     }
 
@@ -500,6 +515,10 @@ impl ForTemplateExpr {
 
     pub fn strip(&self) -> Strip {
         self.strip
+    }
+
+    pub fn set_strip(&mut self, strip: Strip) {
+        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -531,16 +550,20 @@ pub struct EndforTemplateExpr {
 }
 
 impl EndforTemplateExpr {
-    pub fn new(strip: Strip) -> EndforTemplateExpr {
+    pub fn new() -> EndforTemplateExpr {
         EndforTemplateExpr {
             preamble: RawString::default(),
             trailing: RawString::default(),
-            strip,
+            strip: Strip::default(),
         }
     }
 
     pub fn strip(&self) -> Strip {
         self.strip
+    }
+
+    pub fn set_strip(&mut self, strip: Strip) {
+        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
