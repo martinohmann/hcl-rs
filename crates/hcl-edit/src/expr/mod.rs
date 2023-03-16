@@ -9,9 +9,9 @@ use std::ops::Range;
 #[doc(inline)]
 pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 
-pub type ArrayIter<'a> = Box<dyn Iterator<Item = &'a Expression> + 'a>;
+pub type Iter<'a> = Box<dyn Iterator<Item = &'a Expression> + 'a>;
 
-pub type ArrayIterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
+pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
 
 pub type ObjectIter<'a> = Box<dyn Iterator<Item = &'a ObjectItem> + 'a>;
 
@@ -140,11 +140,11 @@ impl Array {
         }
     }
 
-    pub fn iter(&self) -> ArrayIter<'_> {
+    pub fn iter(&self) -> Iter<'_> {
         Box::new(self.values.iter())
     }
 
-    pub fn iter_mut(&mut self) -> ArrayIterMut<'_> {
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.values.iter_mut())
     }
 
@@ -372,7 +372,7 @@ impl Conditional {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
     name: Decorated<Ident>,
-    signature: FuncSig,
+    args: FuncArgs,
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -380,10 +380,10 @@ pub struct FuncCall {
 decorate_span_impl!(FuncCall);
 
 impl FuncCall {
-    pub fn new(name: Decorated<Ident>, signature: FuncSig) -> FuncCall {
+    pub fn new(name: Decorated<Ident>, args: FuncArgs) -> FuncCall {
         FuncCall {
             name,
-            signature,
+            args,
             decor: Decor::default(),
             span: None,
         }
@@ -393,23 +393,23 @@ impl FuncCall {
         &self.name
     }
 
-    pub fn signature(&self) -> &FuncSig {
-        &self.signature
+    pub fn args(&self) -> &FuncArgs {
+        &self.args
     }
 
-    pub fn signature_mut(&mut self) -> &mut FuncSig {
-        &mut self.signature
+    pub fn args_mut(&mut self) -> &mut FuncArgs {
+        &mut self.args
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.name.decor_mut().despan(input);
-        self.signature.despan(input);
+        self.args.despan(input);
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FuncSig {
+pub struct FuncArgs {
     args: Vec<Expression>,
     expand_final: bool,
     trailing: RawString,
@@ -418,11 +418,11 @@ pub struct FuncSig {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(FuncSig);
+decorate_span_impl!(FuncArgs);
 
-impl FuncSig {
-    pub fn new(args: Vec<Expression>) -> FuncSig {
-        FuncSig {
+impl FuncArgs {
+    pub fn new(args: Vec<Expression>) -> FuncArgs {
+        FuncArgs {
             args,
             expand_final: false,
             trailing: RawString::default(),
@@ -436,11 +436,11 @@ impl FuncSig {
         self.args.is_empty()
     }
 
-    pub fn args(&self) -> ArrayIter<'_> {
+    pub fn iter(&self) -> Iter<'_> {
         Box::new(self.args.iter())
     }
 
-    pub fn args_mut(&mut self) -> ArrayIterMut<'_> {
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.args.iter_mut())
     }
 

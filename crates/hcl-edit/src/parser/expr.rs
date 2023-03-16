@@ -601,13 +601,13 @@ fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
-        (str_ident.with_span(), opt(prefix_decorated(ws, func_sig)))
-            .map(|((ident, span), signature)| {
-                let expr = match signature {
-                    Some(signature) => {
+        (str_ident.with_span(), opt(prefix_decorated(ws, func_args)))
+            .map(|((ident, span), func_args)| {
+                let expr = match func_args {
+                    Some(func_args) => {
                         let mut name = Decorated::new(Ident::new_unchecked(ident));
                         name.set_span(span);
-                        let func_call = FuncCall::new(name, signature);
+                        let func_call = FuncCall::new(name, func_args);
                         Expression::FuncCall(Box::new(func_call))
                     }
                     None => match ident {
@@ -624,7 +624,7 @@ fn identlike<'i, 's>(
     }
 }
 
-fn func_sig(input: Input) -> IResult<Input, FuncSig> {
+fn func_args(input: Input) -> IResult<Input, FuncArgs> {
     let args = separated1(
         decorated(ws, preceded(peek(none_of(",.)")), expr), ws),
         b',',
@@ -644,23 +644,23 @@ fn func_sig(input: Input) -> IResult<Input, FuncSig> {
 
     delimited(
         b'(',
-        (opt((args, opt(trailer))), raw_string(ws)).map(|(sig, trailing)| {
-            let mut sig = match sig {
+        (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
+            let mut args = match args {
                 Some((args, Some(trailer))) => {
-                    let mut sig = FuncSig::new(args);
+                    let mut args = FuncArgs::new(args);
                     if let Trailer::Ellipsis = trailer {
-                        sig.set_expand_final(true);
+                        args.set_expand_final(true);
                     } else {
-                        sig.set_trailing_comma(true);
+                        args.set_trailing_comma(true);
                     }
-                    sig
+                    args
                 }
-                Some((args, None)) => FuncSig::new(args),
-                None => FuncSig::new(Vec::new()),
+                Some((args, None)) => FuncArgs::new(args),
+                None => FuncArgs::new(Vec::new()),
             };
 
-            sig.set_trailing(trailing);
-            sig
+            args.set_trailing(trailing);
+            args
         }),
         cut_char(')'),
     )(input)

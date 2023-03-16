@@ -3,7 +3,7 @@ use super::{
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
 use crate::expr::{
-    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncCall, FuncSig, Null,
+    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
     Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Parenthesis,
     Splat, Traversal, TraversalOperator, UnaryOp,
 };
@@ -188,15 +188,15 @@ impl Encode for Conditional {
 impl Encode for FuncCall {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         self.name().encode_decorated(buf, NO_DECOR)?;
-        self.signature().encode_decorated(buf, NO_DECOR)
+        self.args().encode_decorated(buf, NO_DECOR)
     }
 }
 
-impl Encode for FuncSig {
+impl Encode for FuncArgs {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('(')?;
 
-        for (i, arg) in self.args().enumerate() {
+        for (i, arg) in self.iter().enumerate() {
             let arg_decor = if i == 0 {
                 NO_DECOR
             } else {
