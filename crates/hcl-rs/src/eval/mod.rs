@@ -217,7 +217,7 @@ use crate::expr::{
 use crate::parser;
 use crate::structure::{Attribute, Block, Body, Structure};
 use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
+    Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
 };
 use crate::{Identifier, Map, Result, Value};
 use serde::{de, ser};

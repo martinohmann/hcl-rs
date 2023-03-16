@@ -895,6 +895,7 @@ impl<'de> de::MapAccess<'de> for UnaryOpAccess {
     {
         if let Some(operator) = self.operator.take() {
             seed.deserialize(operator.into_deserializer())
+                .map_err(de::Error::custom)
         } else if let Some(expr) = self.expr.take() {
             seed.deserialize(expr.into_deserializer())
         } else {
@@ -945,6 +946,7 @@ impl<'de> de::MapAccess<'de> for BinaryOpAccess {
             seed.deserialize(lhs_expr.into_deserializer())
         } else if let Some(operator) = self.operator.take() {
             seed.deserialize(operator.into_deserializer())
+                .map_err(de::Error::custom)
         } else if let Some(rhs_expr) = self.rhs_expr.take() {
             seed.deserialize(rhs_expr.into_deserializer())
         } else {
@@ -1215,33 +1217,21 @@ impl<'de> IntoDeserializer<'de, Error> for Variable {
     }
 }
 
-macro_rules! impl_deserialize_from_str {
-    ($($ty:ty => $expr:expr),*) => {
-        $(
-            impl<'de> de::Deserialize<'de> for $ty {
-                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-                where
-                    D: de::Deserializer<'de>,
-                {
-                    deserializer.deserialize_any(FromStrVisitor::<Self>::new($expr))
-                }
-            }
-
-            impl<'de> IntoDeserializer<'de, Error> for $ty {
-                type Deserializer = StrDeserializer<'static, Error>;
-
-                fn into_deserializer(self) -> Self::Deserializer {
-                    self.as_str().into_deserializer()
-                }
-            }
-        )*
-    };
+impl<'de> de::Deserialize<'de> for HeredocStripMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(FromStrVisitor::<Self>::new("a heredoc strip mode"))
+    }
 }
 
-impl_deserialize_from_str! {
-    UnaryOperator => "a unary operator",
-    BinaryOperator => "a binary operator",
-    HeredocStripMode => "a heredoc strip mode"
+impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
+    type Deserializer = StrDeserializer<'static, Error>;
+
+    fn into_deserializer(self) -> Self::Deserializer {
+        self.as_str().into_deserializer()
+    }
 }
 
 impl_variant_name! {

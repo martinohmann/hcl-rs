@@ -35,27 +35,18 @@ macro_rules! impl_serialize_for_expr {
     };
 }
 
-macro_rules! impl_serialize_for_operator {
-    ($($ty:ty)*) => {
-        $(
-            impl ser::Serialize for $ty {
-                fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-                where
-                    S: ser::Serializer,
-                {
-                    serializer.serialize_str(self.as_str())
-                }
-            }
-        )*
-    };
-}
-
 impl_serialize_for_expr! {
     Conditional ForExpr FuncCall Operation UnaryOp BinaryOp
     TemplateExpr Heredoc RawExpression Traversal Variable
 }
-impl_serialize_for_operator! {
-    UnaryOperator BinaryOperator HeredocStripMode
+
+impl ser::Serialize for HeredocStripMode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
 }
 
 impl ser::Serialize for Expression {
