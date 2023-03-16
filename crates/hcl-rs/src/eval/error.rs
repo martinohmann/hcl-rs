@@ -162,13 +162,11 @@ impl fmt::Display for ErrorKind {
             ErrorKind::KeyExists(key) => write!(f, "key `{key}` already exists"),
             ErrorKind::UnaryOp(operator, value) => write!(
                 f,
-                "unary operator `{}` is not applicable to `{}`",
-                operator, value,
+                "unary operator `{operator}` is not applicable to `{value}`",
             ),
             ErrorKind::BinaryOp(lhs, operator, rhs) => write!(
                 f,
-                "binary operator `{}` is not applicable to `{}` and `{}`",
-                operator, lhs, rhs
+                "binary operator `{operator}` is not applicable to `{lhs}` and `{rhs}`",
             ),
             ErrorKind::FuncCall(name, msg) => {
                 write!(f, "error calling function `{name}`: {msg}")

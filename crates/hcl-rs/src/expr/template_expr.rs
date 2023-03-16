@@ -91,9 +91,10 @@ impl Heredoc {
 }
 
 /// The strip behaviour for the template contained in the heredoc.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum HeredocStripMode {
     /// Do not strip leading whitespace.
+    #[default]
     None,
     /// Any literal string at the start of each line is analyzed to find the minimum number
     /// of leading spaces, and then that number of prefix spaces is removed from all line-leading
@@ -110,12 +111,6 @@ impl HeredocStripMode {
             HeredocStripMode::None => "<<",
             HeredocStripMode::Indent => "<<-",
         }
-    }
-}
-
-impl Default for HeredocStripMode {
-    fn default() -> Self {
-        HeredocStripMode::None
     }
 }
 
