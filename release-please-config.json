@@ -18,7 +18,8 @@
   "release-type": "rust",
   "packages": {
     "crates/hcl-primitives": {
-      "component": "hcl-primitives"
+      "component": "hcl-primitives",
+      "release-as": "0.0.2"
     },
     "crates/hcl-rs": {
       "component": "hcl-rs"
