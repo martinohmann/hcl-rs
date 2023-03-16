@@ -392,7 +392,7 @@ impl ElseTemplateExpr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EndifTemplateExpr {
     preamble: RawString,
     trailing: RawString,
@@ -401,11 +401,7 @@ pub struct EndifTemplateExpr {
 
 impl EndifTemplateExpr {
     pub fn new() -> EndifTemplateExpr {
-        EndifTemplateExpr {
-            preamble: RawString::default(),
-            trailing: RawString::default(),
-            strip: Strip::default(),
-        }
+        EndifTemplateExpr::default()
     }
 
     pub fn strip(&self) -> Strip {
@@ -542,7 +538,7 @@ impl ForTemplateExpr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EndforTemplateExpr {
     preamble: RawString,
     trailing: RawString,
@@ -551,11 +547,7 @@ pub struct EndforTemplateExpr {
 
 impl EndforTemplateExpr {
     pub fn new() -> EndforTemplateExpr {
-        EndforTemplateExpr {
-            preamble: RawString::default(),
-            trailing: RawString::default(),
-            strip: Strip::default(),
-        }
+        EndforTemplateExpr::default()
     }
 
     pub fn strip(&self) -> Strip {
