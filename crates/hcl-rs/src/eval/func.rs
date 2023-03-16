@@ -122,7 +122,7 @@ impl fmt::Display for ParamType {
 ///
 /// # Function call evaluation
 ///
-/// When a [`FuncCall`][crate::structure::FuncCall] is evaluated (via its
+/// When a [`FuncCall`][crate::expr::FuncCall] is evaluated (via its
 /// [`evaluate`][crate::eval::Evaluate::evaluate] method), the arguments are validated against the
 /// defined function parameters before calling the function. The evaluation will stop with an error
 /// if too few or too many arguments are provided, of if their types do not match the expected
