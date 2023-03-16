@@ -29,8 +29,8 @@ macro_rules! forward_decorate_impl {
 
 macro_rules! forward_span_impl {
     ($ty:ident => { $($variant:ident),+ }) => {
-        impl $ty {
-            pub fn span(&self) -> Option<Range<usize>> {
+        impl Span for $ty {
+            fn span(&self) -> Option<Range<usize>> {
                 match self {
                     $(
                         $ty::$variant(v) => v.span(),
@@ -74,8 +74,8 @@ macro_rules! decorate_impl {
 
 macro_rules! span_impl {
     ($ty:ident) => {
-        impl $ty {
-            pub fn span(&self) -> Option<Range<usize>> {
+        impl Span for $ty {
+            fn span(&self) -> Option<Range<usize>> {
                 self.span.clone()
             }
         }

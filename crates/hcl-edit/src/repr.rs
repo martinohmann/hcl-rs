@@ -89,6 +89,10 @@ where
     }
 }
 
+pub trait Span {
+    fn span(&self) -> Option<Range<usize>>;
+}
+
 pub(crate) trait SetSpan {
     fn set_span(&mut self, span: Range<usize>);
 }
@@ -123,10 +127,6 @@ impl<T> Spanned<T> {
 
     pub fn into_inner(self) -> T {
         self.inner
-    }
-
-    pub fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
     }
 }
 
@@ -164,6 +164,12 @@ impl<T> From<T> for Spanned<T> {
     }
 }
 
+impl<T> Span for Spanned<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+}
+
 impl<T> SetSpan for Spanned<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
@@ -198,10 +204,6 @@ impl<T> Decorated<T> {
 
     pub fn into_inner(self) -> T {
         self.inner
-    }
-
-    pub fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
     }
 }
 
@@ -249,6 +251,12 @@ impl<T> Decorate for Decorated<T> {
     }
 }
 
+impl<T> Span for Decorated<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
+    }
+}
+
 impl<T> SetSpan for Decorated<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
@@ -286,20 +294,8 @@ where
         }
     }
 
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-
-    pub fn span(&self) -> Option<Range<usize>> {
-        self.span.clone()
-    }
-
     pub fn repr(&self) -> Option<&RawString> {
         self.repr.as_ref()
-    }
-
-    pub fn format(&mut self) {
-        self.set_repr(self.inner.to_repr())
     }
 
     pub(crate) fn set_repr(&mut self, repr: impl Into<RawString>) {
@@ -309,6 +305,14 @@ where
     pub(crate) fn with_repr(mut self, repr: impl Into<RawString>) -> Formatted<T> {
         self.set_repr(repr);
         self
+    }
+
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
+    pub fn format(&mut self) {
+        self.set_repr(self.inner.to_repr())
     }
 }
 
@@ -368,6 +372,12 @@ impl<T> Decorate for Formatted<T> {
 
     fn decor_mut(&mut self) -> &mut Decor {
         &mut self.decor
+    }
+}
+
+impl<T> Span for Formatted<T> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.span.clone()
     }
 }
 

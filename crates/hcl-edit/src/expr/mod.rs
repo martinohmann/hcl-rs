@@ -1,5 +1,5 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Spanned};
+use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{Ident, InternalString, Number, RawString};
 use std::fmt;

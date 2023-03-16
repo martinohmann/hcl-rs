@@ -1,6 +1,6 @@
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, SetSpan};
+use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::{Ident, InternalString, RawString};
 use std::fmt;
 use std::ops::Range;
