@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.14.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.3...hcl-rs-v0.14.0) (2023-03-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove methods and type aliases deprecated in 0.9.0 and 0.9.1
+
+### Features
+
+* move `Strip`, `BinaryOperator` and `UnaryOperator` type defs ([20a8366](https://github.com/martinohmann/hcl-rs/commit/20a8366447e5f8673562cf37b9dda6bc8ffc6295))
+
+
+### Miscellaneous Chores
+
+* remove methods and type aliases deprecated in 0.9.0 and 0.9.1 ([db24593](https://github.com/martinohmann/hcl-rs/commit/db245934ca38d0dd3c0e12f3781192b43d49cb7a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.0.1 to 0.0.2
+
 ## [0.13.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.2...hcl-rs-v0.13.3) (2023-03-10)
 
 
