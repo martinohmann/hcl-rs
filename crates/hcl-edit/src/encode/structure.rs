@@ -7,7 +7,7 @@ use std::fmt::{self, Write};
 
 impl Encode for Body {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        for structure in self.structures() {
+        for structure in self.iter() {
             structure.encode_decorated(buf, NO_DECOR)?;
             buf.write_char('\n')?;
         }
@@ -37,7 +37,7 @@ impl Encode for Block {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         self.ident().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
 
-        for label in self.labels().iter() {
+        for label in self.labels() {
             label.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         }
 
@@ -51,7 +51,7 @@ impl EncodeDecorated for BlockLabel {
             BlockLabel::String(string) => encode_decorated(string, buf, default_decor, |buf| {
                 encode_quoted_string(buf, string)
             }),
-            BlockLabel::Identifier(ident) => ident.encode_decorated(buf, default_decor),
+            BlockLabel::Ident(ident) => ident.encode_decorated(buf, default_decor),
         }
     }
 }

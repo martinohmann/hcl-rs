@@ -64,19 +64,20 @@ fn structure<'i, 's>(
         let (input, mut structure) = match ch {
             b'=' => {
                 let (input, expr) = attribute_expr(input)?;
-                let attr = Structure::Attribute(Attribute::new(ident, expr));
-                (input, attr)
+                let attr = Attribute::new(ident, expr);
+                (input, Structure::Attribute(attr))
             }
             b'{' => {
                 let (input, body) = block_body(input)?;
-                let block = Structure::Block(Block::new(ident, body));
-                (input, block)
+                let block = Block::new(ident, body);
+                (input, Structure::Block(block))
             }
             ch if ch == b'"' || is_id_start(ch) => {
                 let (input, labels) = block_labels(input)?;
                 let (input, body) = block_body(input)?;
-                let block = Structure::Block(Block::new_with_labels(ident, labels, body));
-                (input, block)
+                let mut block = Block::new(ident, body);
+                block.set_labels(labels);
+                (input, Structure::Block(block))
             }
             _ => {
                 return cut_err(fail)
@@ -110,7 +111,7 @@ fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
         string.map(|string| BlockLabel::String(string.into())),
-        ident.map(BlockLabel::Identifier),
+        ident.map(BlockLabel::Ident),
     ))(input)
 }
 

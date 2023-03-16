@@ -5,6 +5,14 @@ use crate::{Ident, InternalString, RawString};
 use std::fmt;
 use std::ops::Range;
 
+pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
+
+pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
+
+pub type BlockLabelIter<'a> = Box<dyn Iterator<Item = &'a BlockLabel> + 'a>;
+
+pub type BlockLabelIterMut<'a> = Box<dyn Iterator<Item = &'a mut BlockLabel> + 'a>;
+
 #[derive(Debug, Clone, Default)]
 pub struct Body {
     structures: Vec<Structure>,
@@ -22,8 +30,12 @@ impl Body {
         }
     }
 
-    pub fn structures(&self) -> &[Structure] {
-        &self.structures
+    pub fn iter(&self) -> Iter<'_> {
+        Box::new(self.structures.iter())
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        Box::new(self.structures.iter_mut())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -31,12 +43,6 @@ impl Body {
         for structure in &mut self.structures {
             structure.despan(input);
         }
-    }
-}
-
-impl From<Vec<Structure>> for Body {
-    fn from(structures: Vec<Structure>) -> Self {
-        Body::new(structures)
     }
 }
 
@@ -112,17 +118,9 @@ decorate_span_impl!(Block);
 
 impl Block {
     pub fn new(ident: Decorated<Ident>, body: BlockBody) -> Block {
-        Block::new_with_labels(ident, Vec::new(), body)
-    }
-
-    pub fn new_with_labels(
-        ident: Decorated<Ident>,
-        labels: Vec<BlockLabel>,
-        body: BlockBody,
-    ) -> Block {
         Block {
             identifier: ident,
-            labels,
+            labels: Vec::new(),
             body,
             decor: Decor::default(),
             span: None,
@@ -133,12 +131,24 @@ impl Block {
         &self.identifier
     }
 
-    pub fn labels(&self) -> &[BlockLabel] {
-        &self.labels
+    pub fn labels(&self) -> BlockLabelIter<'_> {
+        Box::new(self.labels.iter())
+    }
+
+    pub fn labels_mut(&mut self) -> BlockLabelIterMut<'_> {
+        Box::new(self.labels.iter_mut())
+    }
+
+    pub fn set_labels(&mut self, labels: Vec<BlockLabel>) {
+        self.labels = labels;
     }
 
     pub fn body(&self) -> &BlockBody {
         &self.body
+    }
+
+    pub fn body_mut(&mut self) -> &mut BlockBody {
+        &mut self.body
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -153,16 +163,16 @@ impl Block {
 
 #[derive(Debug, Clone)]
 pub enum BlockLabel {
-    Identifier(Decorated<Ident>),
+    Ident(Decorated<Ident>),
     String(Decorated<InternalString>),
 }
 
-forward_decorate_span_impl!(BlockLabel => { Identifier, String });
+forward_decorate_span_impl!(BlockLabel => { Ident, String });
 
 impl BlockLabel {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
-            BlockLabel::Identifier(ident) => ident.decor_mut().despan(input),
+            BlockLabel::Ident(ident) => ident.decor_mut().despan(input),
             BlockLabel::String(expr) => expr.decor_mut().despan(input),
         }
     }
