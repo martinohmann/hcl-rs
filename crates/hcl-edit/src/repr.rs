@@ -302,11 +302,6 @@ where
         self.repr = Some(repr.into());
     }
 
-    pub(crate) fn with_repr(mut self, repr: impl Into<RawString>) -> Formatted<T> {
-        self.set_repr(repr);
-        self
-    }
-
     pub fn into_inner(self) -> T {
         self.inner
     }

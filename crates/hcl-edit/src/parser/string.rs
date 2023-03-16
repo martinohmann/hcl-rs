@@ -153,7 +153,7 @@ pub(super) fn str_ident(input: Input) -> IResult<Input, &str> {
     (one_of(is_id_start), take_while0(is_id_continue))
         .recognize()
         .map(|s: &[u8]| unsafe {
-            from_utf8_unchecked(s, "`alpha1` and `alphanumeric1` filter out non-ascii")
+            from_utf8_unchecked(s, "`is_id_start` and `is_id_continue` filter out non-utf8")
         })
         .parse_next(input)
 }
