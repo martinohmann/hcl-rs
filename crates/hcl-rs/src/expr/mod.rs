@@ -295,17 +295,6 @@ pub enum ObjectKey {
     Expression(Expression),
 }
 
-impl ObjectKey {
-    /// Creates an unquoted string identifier `ObjectKey`.
-    #[deprecated(since = "0.9.0", note = "use `ObjectKey::from(identifier)` instead")]
-    pub fn identifier<I>(identifier: I) -> Self
-    where
-        I: Into<Identifier>,
-    {
-        ObjectKey::Identifier(identifier.into())
-    }
-}
-
 impl<T> From<T> for ObjectKey
 where
     T: Into<Expression>,

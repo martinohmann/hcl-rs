@@ -120,24 +120,6 @@ pub enum BlockLabel {
 }
 
 impl BlockLabel {
-    /// Creates a new bare `BlockLabel` identifier.
-    #[deprecated(since = "0.9.0", note = "use `BlockLabel::from(identifier)` instead")]
-    pub fn identifier<I>(identifier: I) -> Self
-    where
-        I: Into<Identifier>,
-    {
-        BlockLabel::Identifier(identifier.into())
-    }
-
-    /// Creates a new quoted string `BlockLabel`.
-    #[deprecated(since = "0.9.0", note = "use `BlockLabel::from(string)` instead")]
-    pub fn string<S>(string: S) -> Self
-    where
-        S: Into<String>,
-    {
-        BlockLabel::String(string.into())
-    }
-
     /// Consumes `self` and returns the `String` wrapped by the `BlockLabel`.
     ///
     /// Beware that after calling `.into_inner()` it is not possible anymore to tell whether the
