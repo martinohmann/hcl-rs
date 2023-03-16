@@ -1,6 +1,6 @@
 use super::*;
 use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, StripMode, Template,
+    Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
 };
 
 pub fn template(pair: Pair<Rule>) -> Result<Template> {
@@ -50,7 +50,7 @@ fn if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
             expr = pairs.next().unwrap();
             (Some(false_template), else_strip)
         }
-        Rule::TemplateEndIfExpr => (None, StripMode::default()),
+        Rule::TemplateEndIfExpr => (None, Strip::default()),
         rule => unexpected_rule(rule),
     };
 
@@ -66,7 +66,7 @@ fn if_directive(pair: Pair<Rule>) -> Result<IfDirective> {
 
 struct IfExpr {
     cond_expr: Expression,
-    if_strip: StripMode,
+    if_strip: Strip,
 }
 
 fn if_expr(pair: Pair<Rule>) -> Result<IfExpr> {
@@ -81,7 +81,7 @@ fn if_expr(pair: Pair<Rule>) -> Result<IfExpr> {
     })
 }
 
-fn else_expr_strip_mode(pair: Pair<Rule>) -> StripMode {
+fn else_expr_strip_mode(pair: Pair<Rule>) -> Strip {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let end = pairs.next().unwrap();
@@ -108,7 +108,7 @@ struct ForExpr {
     key_var: Option<Identifier>,
     value_var: Identifier,
     collection_expr: Expression,
-    for_strip: StripMode,
+    for_strip: Strip,
 }
 
 fn for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
@@ -137,14 +137,14 @@ fn for_expr(pair: Pair<Rule>) -> Result<ForExpr> {
     })
 }
 
-fn end_expr_strip_mode(pair: Pair<Rule>) -> StripMode {
+fn end_expr_strip_mode(pair: Pair<Rule>) -> Strip {
     let mut pairs = pair.into_inner();
     let start = pairs.next().unwrap();
     let end = pairs.next().unwrap();
     strip_mode(start, end)
 }
 
-fn strip_mode(start: Pair<Rule>, end: Pair<Rule>) -> StripMode {
+fn strip_mode(start: Pair<Rule>, end: Pair<Rule>) -> Strip {
     let strip_start = match start.as_rule() {
         Rule::TemplateIExprStartStrip | Rule::TemplateDExprStartStrip => true,
         Rule::TemplateIExprStartNormal | Rule::TemplateDExprStartNormal => false,
@@ -157,5 +157,5 @@ fn strip_mode(start: Pair<Rule>, end: Pair<Rule>) -> StripMode {
         rule => unexpected_rule(rule),
     };
 
-    StripMode::from((strip_start, strip_end))
+    Strip::from((strip_start, strip_end))
 }
