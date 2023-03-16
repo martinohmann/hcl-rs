@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.3...hcl-rs-v0.14.0) (2023-03-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove methods and type aliases deprecated in 0.9.0 and 0.9.1
+
+### Miscellaneous Chores
+
+* remove methods and type aliases deprecated in 0.9.0 and 0.9.1 ([e0fc551](https://github.com/martinohmann/hcl-rs/commit/e0fc551e027860b051963b09dd5608c0679e28ab))
+
 ## [0.13.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.2...hcl-rs-v0.13.3) (2023-03-10)
 
 
