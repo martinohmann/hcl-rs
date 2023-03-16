@@ -30,7 +30,7 @@ perf = ["hcl-primitives/perf"]
 serde = ["hcl-primitives/serde"]
 
 [dependencies]
-hcl-primitives = { version = "0.0.1", path = "../hcl-primitives", features = ["serde"] }
+hcl-primitives = { version = "0.0.2", path = "../hcl-primitives", features = ["serde"] }
 winnow = "0.3.5"
 
 [dev-dependencies]

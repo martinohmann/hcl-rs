@@ -213,8 +213,7 @@ impl FuncDef {
 
         if args_len < params_len || (self.variadic_param.is_none() && args_len > params_len) {
             return Err(format!(
-                "expected {} positional arguments, got {}",
-                params_len, args_len,
+                "expected {params_len} positional arguments, got {args_len}"
             ));
         }
 
@@ -223,8 +222,7 @@ impl FuncDef {
         for (pos, (arg, param)) in pos_args.iter().zip(self.params.iter()).enumerate() {
             if !param.is_satisfied_by(arg) {
                 return Err(format!(
-                    "expected argument at position {} to be of type {}, got `{}`",
-                    pos, param, arg
+                    "expected argument at position {pos} to be of type {param}, got `{arg}`",
                 ));
             }
         }

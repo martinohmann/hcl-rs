@@ -13,9 +13,10 @@ use std::fmt;
 pub type Map<K, V> = indexmap::IndexMap<K, V>;
 
 /// Represents any valid HCL value.
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
 pub enum Value {
     /// Represents a HCL null value.
+    #[default]
     Null,
     /// Represents a HCL boolean.
     Bool(bool),
@@ -27,12 +28,6 @@ pub enum Value {
     Array(Vec<Value>),
     /// Represents a HCL object.
     Object(Map<String, Value>),
-}
-
-impl Default for Value {
-    fn default() -> Value {
-        Value::Null
-    }
 }
 
 impl Value {
