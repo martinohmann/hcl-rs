@@ -35,8 +35,7 @@
 //! ```
 //!
 //! Template directives like `for` loops can be evaluated as well, this time using a
-//! [`Template`][crate::template::Template] instead of
-//! [`TemplateExpr`][crate::structure::TemplateExpr]:
+//! [`Template`][crate::template::Template] instead of [`TemplateExpr`][crate::expr::TemplateExpr]:
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {

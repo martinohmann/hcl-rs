@@ -5,6 +5,9 @@ use core::fmt;
 use core::str::FromStr;
 
 /// An operator that can be applied to an expression.
+///
+/// For more details, check the section about operations in the [HCL syntax
+/// specification](https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#operations).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum UnaryOperator {
     /// Negate operator (`-`).
@@ -42,6 +45,9 @@ impl FromStr for UnaryOperator {
 }
 
 /// An operator that can be applied to two expressions.
+///
+/// For more details, check the section about operations in the [HCL syntax
+/// specification](https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#operations).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BinaryOperator {
     /// Equal operator (`==`).
