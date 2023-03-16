@@ -140,6 +140,10 @@ impl Array {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.values.iter())
     }

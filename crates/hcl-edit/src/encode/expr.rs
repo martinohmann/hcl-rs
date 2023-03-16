@@ -58,18 +58,20 @@ impl Encode for Array {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('[')?;
 
-        for (i, value) in self.iter().enumerate() {
-            let value_decor = if i == 0 {
-                NO_DECOR
-            } else {
-                buf.write_char(',')?;
-                LEADING_SPACE_DECOR
-            };
-            value.encode_decorated(buf, value_decor)?;
-        }
+        if !self.is_empty() {
+            for (i, value) in self.iter().enumerate() {
+                let value_decor = if i == 0 {
+                    NO_DECOR
+                } else {
+                    buf.write_char(',')?;
+                    LEADING_SPACE_DECOR
+                };
+                value.encode_decorated(buf, value_decor)?;
+            }
 
-        if self.trailing_comma() {
-            buf.write_char(',')?;
+            if self.trailing_comma() {
+                buf.write_char(',')?;
+            }
         }
 
         self.trailing().encode_with_default(buf, "")?;
