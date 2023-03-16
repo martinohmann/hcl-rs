@@ -58,7 +58,7 @@ impl Encode for Array {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('[')?;
 
-        for (i, value) in self.values().iter().enumerate() {
+        for (i, value) in self.iter().enumerate() {
             let value_decor = if i == 0 {
                 NO_DECOR
             } else {
@@ -81,7 +81,7 @@ impl Encode for Object {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('{')?;
 
-        for item in self.items().iter() {
+        for item in self.iter() {
             item.encode(buf)?;
         }
 
@@ -114,7 +114,7 @@ impl Encode for ObjectItem {
 impl EncodeDecorated for ObjectKey {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
-            ObjectKey::Identifier(ident) => ident.encode_decorated(buf, default_decor),
+            ObjectKey::Ident(ident) => ident.encode_decorated(buf, default_decor),
             ObjectKey::Expression(expr) => expr.encode_decorated(buf, default_decor),
         }
     }
@@ -196,7 +196,7 @@ impl Encode for FuncSig {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('(')?;
 
-        for (i, arg) in self.args().iter().enumerate() {
+        for (i, arg) in self.args().enumerate() {
             let arg_decor = if i == 0 {
                 NO_DECOR
             } else {
@@ -207,7 +207,7 @@ impl Encode for FuncSig {
             arg.encode_decorated(buf, arg_decor)?;
         }
 
-        if !self.args().is_empty() {
+        if !self.is_empty() {
             if self.expand_final() {
                 buf.write_str("...")?;
             } else if self.trailing_comma() {
@@ -240,7 +240,7 @@ impl Encode for Traversal {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         self.expr().encode_decorated(buf, NO_DECOR)?;
 
-        for operator in self.operators().iter() {
+        for operator in self.operators() {
             operator.encode_decorated(buf, NO_DECOR)?;
         }
 

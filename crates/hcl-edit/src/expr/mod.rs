@@ -9,6 +9,18 @@ use std::ops::Range;
 #[doc(inline)]
 pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 
+pub type ArrayIter<'a> = Box<dyn Iterator<Item = &'a Expression> + 'a>;
+
+pub type ArrayIterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
+
+pub type ObjectIter<'a> = Box<dyn Iterator<Item = &'a ObjectItem> + 'a>;
+
+pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = &'a mut ObjectItem> + 'a>;
+
+pub type TraversalIter<'a> = Box<dyn Iterator<Item = &'a Decorated<TraversalOperator>> + 'a>;
+
+pub type TraversalIterMut<'a> = Box<dyn Iterator<Item = &'a mut Decorated<TraversalOperator>> + 'a>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Null(Decorated<Null>),
@@ -128,12 +140,12 @@ impl Array {
         }
     }
 
-    pub fn values(&self) -> &[Expression] {
-        &self.values
+    pub fn iter(&self) -> ArrayIter<'_> {
+        Box::new(self.values.iter())
     }
 
-    pub fn values_mut(&mut self) -> &mut [Expression] {
-        &mut self.values
+    pub fn iter_mut(&mut self) -> ArrayIterMut<'_> {
+        Box::new(self.values.iter_mut())
     }
 
     pub fn trailing(&self) -> &RawString {
@@ -181,12 +193,12 @@ impl Object {
         }
     }
 
-    pub fn items(&self) -> &[ObjectItem] {
-        &self.items
+    pub fn iter(&self) -> ObjectIter<'_> {
+        Box::new(self.items.iter())
     }
 
-    pub fn items_mut(&mut self) -> &mut [ObjectItem] {
-        &mut self.items
+    pub fn iter_mut(&mut self) -> ObjectIterMut<'_> {
+        Box::new(self.items.iter_mut())
     }
 
     pub fn trailing(&self) -> &RawString {
@@ -261,12 +273,12 @@ impl ObjectItem {
         self.key_value_separator
     }
 
-    pub fn value_terminator(&self) -> ObjectValueTerminator {
-        self.value_terminator
-    }
-
     pub fn set_key_value_separator(&mut self, sep: ObjectKeyValueSeparator) {
         self.key_value_separator = sep;
+    }
+
+    pub fn value_terminator(&self) -> ObjectValueTerminator {
+        self.value_terminator
     }
 
     pub fn set_value_terminator(&mut self, terminator: ObjectValueTerminator) {
@@ -281,16 +293,16 @@ impl ObjectItem {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
-    Identifier(Decorated<Ident>),
+    Ident(Decorated<Ident>),
     Expression(Expression),
 }
 
-forward_decorate_span_impl!(ObjectKey => { Identifier, Expression });
+forward_decorate_span_impl!(ObjectKey => { Ident, Expression });
 
 impl ObjectKey {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
-            ObjectKey::Identifier(ident) => ident.decor_mut().despan(input),
+            ObjectKey::Ident(ident) => ident.decor_mut().despan(input),
             ObjectKey::Expression(expr) => expr.despan(input),
         }
     }
@@ -385,6 +397,10 @@ impl FuncCall {
         &self.signature
     }
 
+    pub fn signature_mut(&mut self) -> &mut FuncSig {
+        &mut self.signature
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.name.decor_mut().despan(input);
@@ -416,8 +432,16 @@ impl FuncSig {
         }
     }
 
-    pub fn args(&self) -> &[Expression] {
-        &self.args
+    pub fn is_empty(&self) -> bool {
+        self.args.is_empty()
+    }
+
+    pub fn args(&self) -> ArrayIter<'_> {
+        Box::new(self.args.iter())
+    }
+
+    pub fn args_mut(&mut self) -> ArrayIterMut<'_> {
+        Box::new(self.args.iter_mut())
     }
 
     pub fn expand_final(&self) -> bool {
@@ -478,8 +502,12 @@ impl Traversal {
         &self.expr
     }
 
-    pub fn operators(&self) -> &[Decorated<TraversalOperator>] {
-        &self.operators
+    pub fn operators(&self) -> TraversalIter<'_> {
+        Box::new(self.operators.iter())
+    }
+
+    pub fn operators_mut(&mut self) -> TraversalIterMut<'_> {
+        Box::new(self.operators.iter_mut())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -554,12 +582,12 @@ impl UnaryOp {
         }
     }
 
-    pub fn expr(&self) -> &Expression {
-        &self.expr
-    }
-
     pub fn operator(&self) -> &Spanned<UnaryOperator> {
         &self.operator
+    }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -598,12 +626,12 @@ impl BinaryOp {
         &self.lhs_expr
     }
 
-    pub fn rhs_expr(&self) -> &Expression {
-        &self.rhs_expr
-    }
-
     pub fn operator(&self) -> &Spanned<BinaryOperator> {
         &self.operator
+    }
+
+    pub fn rhs_expr(&self) -> &Expression {
+        &self.rhs_expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
