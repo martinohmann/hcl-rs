@@ -3,7 +3,7 @@
 /// Controls the whitespace strip behaviour for template interpolations and directives on adjacent
 /// string literals.
 ///
-/// The strip behaviour is controlled by a `~` immediately following the an interpolation (`${`) or
+/// The strip behaviour is controlled by a `~` immediately following an interpolation (`${`) or
 /// directive (`%{`) introduction, or preceding the closing `}`.
 ///
 /// Whitespace is stripped up until (and including) the next line break:
