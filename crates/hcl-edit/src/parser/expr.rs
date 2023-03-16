@@ -24,7 +24,6 @@ use winnow::{
     dispatch,
     multi::{many1, separated0, separated1},
     sequence::{delimited, preceded, separated_pair, terminated},
-    stream::Location,
     Parser,
 };
 
@@ -389,21 +388,19 @@ fn object_items<'i, 's>(
         let mut items = Vec::new();
 
         loop {
-            let start = remaining_input.location();
-
             let (input, trailing) = raw_string(ws).parse_next(remaining_input)?;
             let (input, ch) = peek(any)(input)?;
 
-            let (input, mut item) = if ch == b'}' {
+            if ch == b'}' {
                 let mut object = Object::new(items);
                 object.set_trailing(trailing);
                 state.borrow_mut().on_expr_term(Expression::Object(object));
                 return Ok((input, ()));
-            } else {
-                let (input, mut item) = object_item(input)?;
-                item.key_mut().decor_mut().set_prefix(trailing);
-                (input, item)
-            };
+            }
+
+            let (input, mut key) = object_key(input)?;
+            let (input, mut value) = object_value(input)?;
+            key.decor_mut().set_prefix(trailing);
 
             // Look for the closing brace and return or consume the object item separator and proceed
             // with the next object item, if any.
@@ -411,9 +408,8 @@ fn object_items<'i, 's>(
 
             let (input, value_terminator) = match ch {
                 b'}' => {
-                    item.set_span(start..input.location());
-                    item.set_value_terminator(ObjectValueTerminator::None);
-                    items.push(item);
+                    value.set_terminator(ObjectValueTerminator::None);
+                    items.push((key, value));
                     state
                         .borrow_mut()
                         .on_expr_term(Expression::Object(Object::new(items)));
@@ -431,7 +427,7 @@ fn object_items<'i, 's>(
                 b'#' | b'/' => {
                     let (input, comment_span) = line_comment.span().parse_next(input)?;
 
-                    let decor = item.value_mut().decor_mut();
+                    let decor = value.expr_mut().decor_mut();
 
                     // Associate the trailing comment with the item value, updating the span if it
                     // already has a decor suffix.
@@ -456,50 +452,48 @@ fn object_items<'i, 's>(
                 }
             };
 
-            item.set_span(start..input.location());
-            item.set_value_terminator(value_terminator);
-            items.push(item);
+            value.set_terminator(value_terminator);
+            items.push((key, value));
             remaining_input = input;
         }
     }
 }
 
-fn object_item(input: Input) -> IResult<Input, ObjectItem> {
-    (
-        suffix_decorated(object_key, sp),
-        object_key_value_separator,
-        decorated(sp, expr, sp),
+fn object_key(input: Input) -> IResult<Input, ObjectKey> {
+    suffix_decorated(
+        expr.map(|expr| {
+            // Variable identifiers without traversal are treated as identifier object keys.
+            //
+            // Handle this case here by converting the variable into an identifier. This
+            // avoids re-parsing the whole key-value pair when an identifier followed by a
+            // traversal operator is encountered.
+            if let Expression::Variable(variable) = expr {
+                ObjectKey::Ident(Decorated::new(variable.into_inner()))
+            } else {
+                ObjectKey::Expression(expr)
+            }
+        }),
+        sp,
     )
-        .map(|(key, key_value_separator, value)| {
-            let mut item = ObjectItem::new(key, value);
-            item.set_key_value_separator(key_value_separator);
-            item
+    .parse_next(input)
+}
+
+fn object_value(input: Input) -> IResult<Input, ObjectValue> {
+    (object_value_assignment, decorated(sp, expr, sp))
+        .map(|(assignment, expr)| {
+            let mut value = ObjectValue::new(expr);
+            value.set_assignment(assignment);
+            value
         })
         .parse_next(input)
 }
 
-fn object_key(input: Input) -> IResult<Input, ObjectKey> {
-    expr.map(|expr| {
-        // Variable identifiers without traversal are treated as identifier object keys.
-        //
-        // Handle this case here by converting the variable into an identifier. This
-        // avoids re-parsing the whole key-value pair when an identifier followed by a
-        // traversal operator is encountered.
-        if let Expression::Variable(variable) = expr {
-            ObjectKey::Ident(Decorated::new(variable.into_inner()))
-        } else {
-            ObjectKey::Expression(expr)
-        }
-    })
-    .parse_next(input)
-}
-
-fn object_key_value_separator(input: Input) -> IResult<Input, ObjectKeyValueSeparator> {
+fn object_value_assignment(input: Input) -> IResult<Input, ObjectValueAssignment> {
     dispatch! {any;
-        b'=' => success(ObjectKeyValueSeparator::Equals),
-        b':' => success(ObjectKeyValueSeparator::Colon),
+        b'=' => success(ObjectValueAssignment::Equals),
+        b':' => success(ObjectValueAssignment::Colon),
         _ => cut_err(fail)
-            .context(Context::Expression("object key-value separator"))
+            .context(Context::Expression("object value assignment"))
             .context(Context::Expected(Expected::Char('=')))
             .context(Context::Expected(Expected::Char(':'))),
     }

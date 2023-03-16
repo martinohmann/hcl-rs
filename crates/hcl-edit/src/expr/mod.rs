@@ -13,9 +13,9 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Expression> + 'a>;
 
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
 
-pub type ObjectIter<'a> = Box<dyn Iterator<Item = &'a ObjectItem> + 'a>;
+pub type ObjectIter<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a ObjectValue)> + 'a>;
 
-pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = &'a mut ObjectItem> + 'a>;
+pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a mut ObjectValue)> + 'a>;
 
 pub type TraversalIter<'a> = Box<dyn Iterator<Item = &'a Decorated<TraversalOperator>> + 'a>;
 
@@ -175,7 +175,7 @@ impl Array {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Object {
-    items: Vec<ObjectItem>,
+    items: Vec<(ObjectKey, ObjectValue)>,
     trailing: RawString,
     decor: Decor,
     span: Option<Range<usize>>,
@@ -184,7 +184,7 @@ pub struct Object {
 decorate_span_impl!(Object);
 
 impl Object {
-    pub fn new(items: Vec<ObjectItem>) -> Object {
+    pub fn new(items: Vec<(ObjectKey, ObjectValue)>) -> Object {
         Object {
             items,
             trailing: RawString::default(),
@@ -194,11 +194,11 @@ impl Object {
     }
 
     pub fn iter(&self) -> ObjectIter<'_> {
-        Box::new(self.items.iter())
+        Box::new(self.items.iter().map(|(key, value)| (key, value)))
     }
 
     pub fn iter_mut(&mut self) -> ObjectIterMut<'_> {
-        Box::new(self.items.iter_mut())
+        Box::new(self.items.iter_mut().map(|(key, value)| (&*key, value)))
     }
 
     pub fn trailing(&self) -> &RawString {
@@ -213,81 +213,10 @@ impl Object {
         self.decor.despan(input);
         self.trailing.despan(input);
 
-        for item in &mut self.items {
-            item.despan(input);
+        for (key, value) in &mut self.items {
+            key.despan(input);
+            value.despan(input);
         }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ObjectItem {
-    key: ObjectKey,
-    key_value_separator: ObjectKeyValueSeparator,
-    value: Expression,
-    value_terminator: ObjectValueTerminator,
-    span: Option<Range<usize>>,
-}
-
-span_impl!(ObjectItem);
-
-impl ObjectItem {
-    pub fn new(key: ObjectKey, value: Expression) -> ObjectItem {
-        ObjectItem {
-            key,
-            key_value_separator: ObjectKeyValueSeparator::default(),
-            value,
-            value_terminator: ObjectValueTerminator::default(),
-            span: None,
-        }
-    }
-
-    pub fn key(&self) -> &ObjectKey {
-        &self.key
-    }
-
-    pub fn key_mut(&mut self) -> &mut ObjectKey {
-        &mut self.key
-    }
-
-    pub fn value(&self) -> &Expression {
-        &self.value
-    }
-
-    pub fn value_mut(&mut self) -> &mut Expression {
-        &mut self.value
-    }
-
-    pub fn into_key(self) -> ObjectKey {
-        self.key
-    }
-
-    pub fn into_value(self) -> Expression {
-        self.value
-    }
-
-    pub fn into_key_value(self) -> (ObjectKey, Expression) {
-        (self.key, self.value)
-    }
-
-    pub fn key_value_separator(&self) -> ObjectKeyValueSeparator {
-        self.key_value_separator
-    }
-
-    pub fn set_key_value_separator(&mut self, sep: ObjectKeyValueSeparator) {
-        self.key_value_separator = sep;
-    }
-
-    pub fn value_terminator(&self) -> ObjectValueTerminator {
-        self.value_terminator
-    }
-
-    pub fn set_value_terminator(&mut self, terminator: ObjectValueTerminator) {
-        self.value_terminator = terminator;
-    }
-
-    pub(crate) fn despan(&mut self, input: &str) {
-        self.key.despan(input);
-        self.value.despan(input);
     }
 }
 
@@ -309,7 +238,7 @@ impl ObjectKey {
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum ObjectKeyValueSeparator {
+pub enum ObjectValueAssignment {
     Colon,
     #[default]
     Equals,
@@ -321,6 +250,55 @@ pub enum ObjectValueTerminator {
     Newline,
     #[default]
     Comma,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectValue {
+    expr: Expression,
+    assignment: ObjectValueAssignment,
+    terminator: ObjectValueTerminator,
+}
+
+impl ObjectValue {
+    pub fn new(expr: Expression) -> ObjectValue {
+        ObjectValue {
+            expr,
+            assignment: ObjectValueAssignment::default(),
+            terminator: ObjectValueTerminator::default(),
+        }
+    }
+
+    pub fn expr(&self) -> &Expression {
+        &self.expr
+    }
+
+    pub fn expr_mut(&mut self) -> &mut Expression {
+        &mut self.expr
+    }
+
+    pub fn into_expr(self) -> Expression {
+        self.expr
+    }
+
+    pub fn assignment(&self) -> ObjectValueAssignment {
+        self.assignment
+    }
+
+    pub fn set_assignment(&mut self, sep: ObjectValueAssignment) {
+        self.assignment = sep;
+    }
+
+    pub fn terminator(&self) -> ObjectValueTerminator {
+        self.terminator
+    }
+
+    pub fn set_terminator(&mut self, terminator: ObjectValueTerminator) {
+        self.terminator = terminator;
+    }
+
+    pub(crate) fn despan(&mut self, input: &str) {
+        self.expr.despan(input);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -4,7 +4,7 @@ use super::{
 };
 use crate::expr::{
     Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
-    Object, ObjectItem, ObjectKey, ObjectKeyValueSeparator, ObjectValueTerminator, Parenthesis,
+    Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
     Splat, Traversal, TraversalOperator, UnaryOp,
 };
 use std::fmt::{self, Write};
@@ -81,33 +81,13 @@ impl Encode for Object {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('{')?;
 
-        for item in self.iter() {
-            item.encode(buf)?;
+        for (key, value) in self.iter() {
+            key.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
+            value.encode(buf)?;
         }
 
         self.trailing().encode_with_default(buf, "")?;
         buf.write_char('}')
-    }
-}
-
-impl Encode for ObjectItem {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.key().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
-
-        match self.key_value_separator() {
-            ObjectKeyValueSeparator::Colon => buf.write_char(':')?,
-            ObjectKeyValueSeparator::Equals => buf.write_char('=')?,
-        }
-
-        self.value().encode_decorated(buf, LEADING_SPACE_DECOR)?;
-
-        match self.value_terminator() {
-            ObjectValueTerminator::Comma => buf.write_char(',')?,
-            ObjectValueTerminator::Newline => buf.write_char('\n')?,
-            ObjectValueTerminator::None => {}
-        }
-
-        Ok(())
     }
 }
 
@@ -117,6 +97,25 @@ impl EncodeDecorated for ObjectKey {
             ObjectKey::Ident(ident) => ident.encode_decorated(buf, default_decor),
             ObjectKey::Expression(expr) => expr.encode_decorated(buf, default_decor),
         }
+    }
+}
+
+impl Encode for ObjectValue {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        match self.assignment() {
+            ObjectValueAssignment::Colon => buf.write_char(':')?,
+            ObjectValueAssignment::Equals => buf.write_char('=')?,
+        }
+
+        self.expr().encode_decorated(buf, LEADING_SPACE_DECOR)?;
+
+        match self.terminator() {
+            ObjectValueTerminator::Comma => buf.write_char(',')?,
+            ObjectValueTerminator::Newline => buf.write_char('\n')?,
+            ObjectValueTerminator::None => {}
+        }
+
+        Ok(())
     }
 }
 
