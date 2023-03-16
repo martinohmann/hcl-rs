@@ -10,6 +10,10 @@ use std::ops::Range;
 #[doc(inline)]
 pub use hcl_primitives::template::Strip;
 
+pub type Iter<'a> = Box<dyn Iterator<Item = &'a Element> + 'a>;
+
+pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Element> + 'a>;
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct StringTemplate {
     elements: Vec<Element>,
@@ -28,12 +32,12 @@ impl StringTemplate {
         }
     }
 
-    pub fn elements(&self) -> &[Element] {
-        &self.elements
+    pub fn iter(&self) -> Iter<'_> {
+        Box::new(self.elements.iter())
     }
 
-    pub fn elements_mut(&mut self) -> &mut [Element] {
-        &mut self.elements
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        Box::new(self.elements.iter_mut())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -76,10 +80,6 @@ impl HeredocTemplate {
         &self.template
     }
 
-    pub fn template_mut(&mut self) -> &mut Template {
-        &mut self.template
-    }
-
     pub fn indent(&self) -> Option<usize> {
         self.indent
     }
@@ -100,7 +100,7 @@ impl HeredocTemplate {
         let mut indent: Option<usize> = None;
         let mut skip_first = false;
 
-        for element in &self.template.elements {
+        for element in self.template.iter() {
             if let Element::Literal(literal) = element {
                 let leading_ws = min_leading_whitespace(literal, skip_first);
                 indent = Some(indent.map_or(leading_ws, |indent| indent.min(leading_ws)));
@@ -113,7 +113,7 @@ impl HeredocTemplate {
         if let Some(indent) = indent {
             skip_first = false;
 
-            for element in &mut self.template.elements {
+            for element in self.template.iter_mut() {
                 if let Element::Literal(literal) = element {
                     let dedented = dedent_by(literal, indent, skip_first);
                     *literal.as_mut() = dedented.into();
@@ -136,7 +136,7 @@ impl HeredocTemplate {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Template {
-    pub(crate) elements: Vec<Element>,
+    elements: Vec<Element>,
     span: Option<Range<usize>>,
 }
 
@@ -150,12 +150,12 @@ impl Template {
         }
     }
 
-    pub fn elements(&self) -> &[Element] {
-        &self.elements
+    pub fn iter(&self) -> Iter<'_> {
+        Box::new(self.elements.iter())
     }
 
-    pub fn elements_mut(&mut self) -> &mut [Element] {
-        &mut self.elements
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        Box::new(self.elements.iter_mut())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
