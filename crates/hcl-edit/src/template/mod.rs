@@ -21,8 +21,6 @@ pub struct StringTemplate {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(StringTemplate);
-
 impl StringTemplate {
     pub fn new(elements: Vec<Element>) -> StringTemplate {
         StringTemplate {
@@ -57,8 +55,6 @@ pub struct HeredocTemplate {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(HeredocTemplate);
 
 impl HeredocTemplate {
     pub fn new(delimiter: Ident, template: Template) -> HeredocTemplate {
@@ -140,8 +136,6 @@ pub struct Template {
     span: Option<Range<usize>>,
 }
 
-span_impl!(Template);
-
 impl Template {
     pub fn new(elements: Vec<Element>) -> Template {
         Template {
@@ -179,8 +173,6 @@ pub enum Element {
     Directive(Directive),
 }
 
-forward_span_impl!(Element => { Literal, Interpolation, Directive });
-
 impl Element {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
@@ -197,8 +189,6 @@ pub struct Interpolation {
     strip: Strip,
     span: Option<Range<usize>>,
 }
-
-span_impl!(Interpolation);
 
 impl Interpolation {
     pub fn new(expr: Expression) -> Interpolation {
@@ -232,8 +222,6 @@ pub enum Directive {
     For(ForDirective),
 }
 
-forward_span_impl!(Directive => { If, For });
-
 impl Directive {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
@@ -250,8 +238,6 @@ pub struct IfDirective {
     endif_expr: EndifTemplateExpr,
     span: Option<Range<usize>>,
 }
-
-span_impl!(IfDirective);
 
 impl IfDirective {
     pub fn new(
@@ -441,8 +427,6 @@ pub struct ForDirective {
     span: Option<Range<usize>>,
 }
 
-span_impl!(ForDirective);
-
 impl ForDirective {
     pub fn new(for_expr: ForTemplateExpr, endfor_expr: EndforTemplateExpr) -> ForDirective {
         ForDirective {
@@ -578,4 +562,16 @@ impl EndforTemplateExpr {
         self.preamble.despan(input);
         self.trailing.despan(input);
     }
+}
+
+decorate_impl! { StringTemplate, HeredocTemplate }
+
+span_impl! {
+    StringTemplate, HeredocTemplate, Template,
+    Interpolation, IfDirective, ForDirective
+}
+
+forward_span_impl! {
+    Element => { Literal, Interpolation, Directive },
+    Directive => { If, For }
 }

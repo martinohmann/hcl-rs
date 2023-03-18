@@ -41,11 +41,6 @@ pub enum Expression {
     ForExpr(Box<ForExpr>),
 }
 
-forward_decorate_span_impl!(Expression => {
-    Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
-    Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
-});
-
 impl Expression {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
@@ -116,8 +111,6 @@ impl Parenthesis {
     }
 }
 
-decorate_span_impl!(Parenthesis);
-
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Array {
     values: Vec<Expression>,
@@ -126,8 +119,6 @@ pub struct Array {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(Array);
 
 impl Array {
     pub fn new(values: Vec<Expression>) -> Array {
@@ -185,8 +176,6 @@ pub struct Object {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(Object);
-
 impl Object {
     pub fn new(items: Vec<(ObjectKey, ObjectValue)>) -> Object {
         Object {
@@ -229,8 +218,6 @@ pub enum ObjectKey {
     Ident(Decorated<Ident>),
     Expression(Expression),
 }
-
-forward_decorate_span_impl!(ObjectKey => { Ident, Expression });
 
 impl ObjectKey {
     pub(crate) fn despan(&mut self, input: &str) {
@@ -314,8 +301,6 @@ pub struct Conditional {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(Conditional);
-
 impl Conditional {
     pub fn new(
         cond_expr: Expression,
@@ -359,8 +344,6 @@ pub struct FuncCall {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(FuncCall);
-
 impl FuncCall {
     pub fn new(name: Decorated<Ident>, args: FuncArgs) -> FuncCall {
         FuncCall {
@@ -399,8 +382,6 @@ pub struct FuncArgs {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(FuncArgs);
 
 impl FuncArgs {
     pub fn new(args: Vec<Expression>) -> FuncArgs {
@@ -468,8 +449,6 @@ pub struct Traversal {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(Traversal);
-
 impl Traversal {
     pub fn new(expr: Expression, operators: Vec<Decorated<TraversalOperator>>) -> Traversal {
         Traversal {
@@ -529,8 +508,6 @@ pub enum TraversalOperator {
     LegacyIndex(Decorated<u64>),
 }
 
-forward_decorate_span_impl!(TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex });
-
 impl TraversalOperator {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
@@ -551,8 +528,6 @@ pub struct UnaryOp {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(UnaryOp);
 
 impl UnaryOp {
     pub fn new(operator: Spanned<UnaryOperator>, expr: Expression) -> UnaryOp {
@@ -586,8 +561,6 @@ pub struct BinaryOp {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(BinaryOp);
 
 impl BinaryOp {
     pub fn new(
@@ -633,8 +606,6 @@ pub struct ForExpr {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(ForExpr);
 
 impl ForExpr {
     pub fn new(intro: ForIntro, value_expr: Expression) -> ForExpr {
@@ -706,8 +677,6 @@ pub struct ForIntro {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(ForIntro);
-
 impl ForIntro {
     pub fn new(value_var: Decorated<Ident>, collection_expr: Expression) -> ForIntro {
         ForIntro {
@@ -753,8 +722,6 @@ pub struct ForCond {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(ForCond);
-
 impl ForCond {
     pub fn new(expr: Expression) -> ForCond {
         ForCond {
@@ -778,4 +745,32 @@ impl From<Expression> for ForCond {
     fn from(value: Expression) -> Self {
         ForCond::new(value)
     }
+}
+
+decorate_impl! {
+    Array, Object, Parenthesis, FuncCall, FuncArgs, Conditional,
+    Traversal, UnaryOp, BinaryOp, ForExpr, ForIntro, ForCond
+}
+
+span_impl! {
+    Array, Object, Parenthesis, FuncCall, FuncArgs, Conditional,
+    Traversal, UnaryOp, BinaryOp, ForExpr, ForIntro, ForCond
+}
+
+forward_decorate_impl! {
+    Expression => {
+        Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+        Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
+    },
+    TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex },
+    ObjectKey => { Ident, Expression }
+}
+
+forward_span_impl! {
+    Expression => {
+        Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+        Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
+    },
+    TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex },
+    ObjectKey => { Ident, Expression }
 }

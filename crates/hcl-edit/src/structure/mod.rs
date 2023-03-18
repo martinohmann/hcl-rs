@@ -20,8 +20,6 @@ pub struct Body {
     span: Option<Range<usize>>,
 }
 
-decorate_span_impl!(Body);
-
 impl Body {
     pub fn new(structures: Vec<Structure>) -> Body {
         Body {
@@ -59,8 +57,6 @@ pub enum Structure {
     Block(Block),
 }
 
-forward_decorate_span_impl!(Structure => { Attribute, Block });
-
 impl Structure {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
@@ -77,8 +73,6 @@ pub struct Attribute {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(Attribute);
 
 impl Attribute {
     pub fn new(key: Decorated<Ident>, expr: Expression) -> Attribute {
@@ -113,8 +107,6 @@ pub struct Block {
     decor: Decor,
     span: Option<Range<usize>>,
 }
-
-decorate_span_impl!(Block);
 
 impl Block {
     pub fn new(ident: Decorated<Ident>, body: BlockBody) -> Block {
@@ -167,8 +159,6 @@ pub enum BlockLabel {
     String(Decorated<InternalString>),
 }
 
-forward_decorate_span_impl!(BlockLabel => { Ident, String });
-
 impl BlockLabel {
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
@@ -193,4 +183,18 @@ impl BlockBody {
             BlockBody::Empty(raw) => raw.despan(input),
         }
     }
+}
+
+decorate_impl! { Body, Attribute, Block }
+
+span_impl! { Body, Attribute, Block }
+
+forward_decorate_impl! {
+    Structure => { Attribute, Block },
+    BlockLabel => { Ident, String },
+}
+
+forward_span_impl! {
+    Structure => { Attribute, Block },
+    BlockLabel => { Ident, String }
 }
