@@ -383,14 +383,13 @@ fn object_items<'i, 's>(
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
         let mut remaining_input = input;
-        let mut items = Vec::new();
+        let mut object = Object::new();
 
         loop {
             let (input, trailing) = raw_string(ws).parse_next(remaining_input)?;
             let (input, ch) = peek(any)(input)?;
 
             if ch == b'}' {
-                let mut object = Object::new(items);
                 object.set_trailing(trailing);
                 state.borrow_mut().on_expr_term(Expression::Object(object));
                 return Ok((input, ()));
@@ -407,10 +406,8 @@ fn object_items<'i, 's>(
             let (input, value_terminator) = match ch {
                 b'}' => {
                     value.set_terminator(ObjectValueTerminator::None);
-                    items.push((key, value));
-                    state
-                        .borrow_mut()
-                        .on_expr_term(Expression::Object(Object::new(items)));
+                    object.insert(key, value);
+                    state.borrow_mut().on_expr_term(Expression::Object(object));
                     return Ok((input, ()));
                 }
                 b'\r' => crlf
@@ -451,7 +448,7 @@ fn object_items<'i, 's>(
             };
 
             value.set_terminator(value_terminator);
-            items.push((key, value));
+            object.insert(key, value);
             remaining_input = input;
         }
     }

@@ -4,6 +4,7 @@ use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{Ident, InternalString, Number, RawString};
 use std::fmt;
 use std::ops::Range;
+use vecmap::map::{MutableKeys, VecMap};
 
 // Re-exported for convenience.
 #[doc(inline)]
@@ -170,28 +171,52 @@ impl Array {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Object {
-    items: Vec<(ObjectKey, ObjectValue)>,
+    items: VecMap<ObjectKey, ObjectValue>,
     trailing: RawString,
     decor: Decor,
     span: Option<Range<usize>>,
 }
 
 impl Object {
-    pub fn new(items: Vec<(ObjectKey, ObjectValue)>) -> Object {
+    pub fn new() -> Object {
         Object {
-            items,
+            items: VecMap::new(),
             trailing: RawString::default(),
             decor: Decor::default(),
             span: None,
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items.is_empty()
+    }
+
+    pub fn contains_key(&self, key: &ObjectKey) -> bool {
+        self.items.contains_key(key)
+    }
+
+    pub fn get(&self, key: &ObjectKey) -> Option<&ObjectValue> {
+        self.items.get(key)
+    }
+
+    pub fn insert(&mut self, key: ObjectKey, value: ObjectValue) -> Option<ObjectValue> {
+        self.items.insert(key, value)
+    }
+
+    pub fn remove(&mut self, key: &ObjectKey) -> Option<ObjectValue> {
+        self.items.remove(key)
+    }
+
     pub fn iter(&self) -> ObjectIter<'_> {
-        Box::new(self.items.iter().map(|(key, value)| (key, value)))
+        Box::new(self.items.iter())
     }
 
     pub fn iter_mut(&mut self) -> ObjectIterMut<'_> {
-        Box::new(self.items.iter_mut().map(|(key, value)| (&*key, value)))
+        Box::new(self.items.iter_mut())
     }
 
     pub fn trailing(&self) -> &RawString {
@@ -206,10 +231,27 @@ impl Object {
         self.decor.despan(input);
         self.trailing.despan(input);
 
-        for (key, value) in &mut self.items {
+        for (key, value) in self.items.iter_mut2() {
             key.despan(input);
             value.despan(input);
         }
+    }
+}
+
+impl From<VecMap<ObjectKey, ObjectValue>> for Object {
+    fn from(items: VecMap<ObjectKey, ObjectValue>) -> Self {
+        Object {
+            items,
+            trailing: RawString::default(),
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+}
+
+impl Default for Object {
+    fn default() -> Self {
+        Object::new()
     }
 }
 
