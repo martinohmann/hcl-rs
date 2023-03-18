@@ -122,9 +122,9 @@ pub struct Array {
 }
 
 impl Array {
-    pub fn new(values: Vec<Expression>) -> Array {
+    pub fn new() -> Array {
         Array {
-            values,
+            values: Vec::new(),
             trailing: RawString::default(),
             trailing_comma: false,
             decor: Decor::default(),
@@ -132,8 +132,28 @@ impl Array {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    pub fn get(&self, index: usize) -> Option<&Expression> {
+        self.values.get(index)
+    }
+
+    pub fn insert(&mut self, index: usize, value: impl Into<Expression>) {
+        self.values.insert(index, value.into());
+    }
+
+    pub fn push(&mut self, value: impl Into<Expression>) {
+        self.values.push(value.into());
+    }
+
+    pub fn remove(&mut self, index: usize) -> Expression {
+        self.values.remove(index)
     }
 
     pub fn iter(&self) -> Iter<'_> {
@@ -169,7 +189,19 @@ impl Array {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl From<Vec<Expression>> for Array {
+    fn from(values: Vec<Expression>) -> Self {
+        Array {
+            values,
+            trailing: RawString::default(),
+            trailing_comma: false,
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Object {
     items: VecMap<ObjectKey, ObjectValue>,
     trailing: RawString,
@@ -203,8 +235,12 @@ impl Object {
         self.items.get(key)
     }
 
-    pub fn insert(&mut self, key: ObjectKey, value: ObjectValue) -> Option<ObjectValue> {
-        self.items.insert(key, value)
+    pub fn insert(
+        &mut self,
+        key: impl Into<ObjectKey>,
+        value: impl Into<ObjectValue>,
+    ) -> Option<ObjectValue> {
+        self.items.insert(key.into(), value.into())
     }
 
     pub fn remove(&mut self, key: &ObjectKey) -> Option<ObjectValue> {
@@ -246,12 +282,6 @@ impl From<VecMap<ObjectKey, ObjectValue>> for Object {
             decor: Decor::default(),
             span: None,
         }
-    }
-}
-
-impl Default for Object {
-    fn default() -> Self {
-        Object::new()
     }
 }
 

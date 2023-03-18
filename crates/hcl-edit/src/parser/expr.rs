@@ -324,7 +324,8 @@ fn array_items<'i, 's>(
 
         (values, opt(b','), raw_string(ws))
             .map(|(values, comma, trailing)| {
-                let mut array = Array::new(values);
+                let values: Vec<_> = values;
+                let mut array = Array::from(values);
                 if comma.is_some() {
                     array.set_trailing_comma(true);
                 }
