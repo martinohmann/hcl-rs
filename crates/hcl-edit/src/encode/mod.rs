@@ -2,7 +2,7 @@ mod expr;
 mod structure;
 mod template;
 
-use crate::repr::{Decorate, Decorated, Formatted, ValueRepr};
+use crate::repr::{Decorate, Decorated, Formatted};
 use crate::{Ident, Number};
 use std::fmt::{self, Write};
 
@@ -70,7 +70,7 @@ where
 
 impl<T> Encode for Formatted<T>
 where
-    T: Encode + ValueRepr,
+    T: Encode + ToString,
 {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         if let Some(repr) = self.repr() {

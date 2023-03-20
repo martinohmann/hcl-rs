@@ -1,6 +1,5 @@
 use crate::encode::{Encode, EncodeState};
 use crate::raw_string::RawString;
-use crate::{private, Number};
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
 
@@ -14,20 +13,6 @@ impl Decor {
     pub fn new(prefix: impl Into<RawString>, suffix: impl Into<RawString>) -> Decor {
         Decor {
             prefix: Some(prefix.into()),
-            suffix: Some(suffix.into()),
-        }
-    }
-
-    pub fn from_prefix(prefix: impl Into<RawString>) -> Decor {
-        Decor {
-            prefix: Some(prefix.into()),
-            suffix: None,
-        }
-    }
-
-    pub fn from_suffix(suffix: impl Into<RawString>) -> Decor {
-        Decor {
-            prefix: None,
             suffix: Some(suffix.into()),
         }
     }
@@ -48,8 +33,9 @@ impl Decor {
         self.suffix.as_ref()
     }
 
-    pub fn replace(&mut self, other: Decor) -> Decor {
-        std::mem::replace(self, other)
+    pub fn clear(&mut self) {
+        self.prefix = None;
+        self.suffix = None;
     }
 
     pub(crate) fn encode_prefix(&self, buf: &mut EncodeState, default: &str) -> fmt::Result {
@@ -114,7 +100,7 @@ pub trait Decorate {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Spanned<T> {
     inner: T,
     span: Option<Range<usize>>,
@@ -127,6 +113,19 @@ impl<T> Spanned<T> {
 
     pub fn into_inner(self) -> T {
         self.inner
+    }
+
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<T> PartialEq for Spanned<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
     }
 }
 
@@ -186,7 +185,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Decorated<T> {
     inner: T,
     decor: Decor,
@@ -204,6 +203,19 @@ impl<T> Decorated<T> {
 
     pub fn into_inner(self) -> T {
         self.inner
+    }
+
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<T> PartialEq for Decorated<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
     }
 }
 
@@ -273,7 +285,7 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Formatted<T> {
     inner: T,
     decor: Decor,
@@ -283,7 +295,7 @@ pub struct Formatted<T> {
 
 impl<T> Formatted<T>
 where
-    T: ValueRepr,
+    T: ToString,
 {
     pub fn new(inner: T) -> Formatted<T> {
         Formatted {
@@ -302,24 +314,25 @@ where
         self.repr = Some(repr.into());
     }
 
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
+
     pub fn into_inner(self) -> T {
         self.inner
     }
 
     pub fn format(&mut self) {
-        self.set_repr(self.inner.to_repr())
+        self.set_repr(self.inner.to_string())
     }
 }
 
-pub trait ValueRepr: private::Sealed {
-    fn to_repr(&self) -> RawString;
-}
-
-impl private::Sealed for Number {}
-
-impl ValueRepr for Number {
-    fn to_repr(&self) -> RawString {
-        RawString::from(self.to_string())
+impl<T> PartialEq for Formatted<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
     }
 }
 
@@ -353,7 +366,7 @@ impl<T> DerefMut for Formatted<T> {
 
 impl<T> From<T> for Formatted<T>
 where
-    T: ValueRepr,
+    T: ToString,
 {
     fn from(value: T) -> Self {
         Formatted::new(value)

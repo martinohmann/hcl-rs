@@ -65,6 +65,42 @@ impl Expression {
     }
 }
 
+impl From<&str> for Expression {
+    fn from(s: &str) -> Self {
+        Expression::from(InternalString::from(s))
+    }
+}
+
+impl From<String> for Expression {
+    fn from(s: String) -> Self {
+        Expression::from(InternalString::from(s))
+    }
+}
+
+impl From<InternalString> for Expression {
+    fn from(s: InternalString) -> Self {
+        Expression::from(Decorated::new(s))
+    }
+}
+
+impl From<Decorated<InternalString>> for Expression {
+    fn from(s: Decorated<InternalString>) -> Self {
+        Expression::String(s)
+    }
+}
+
+impl From<Array> for Expression {
+    fn from(array: Array) -> Self {
+        Expression::Array(array)
+    }
+}
+
+impl From<Object> for Expression {
+    fn from(object: Object) -> Self {
+        Expression::Object(object)
+    }
+}
+
 impl From<Parenthesis> for Expression {
     fn from(value: Parenthesis) -> Self {
         Expression::Parenthesis(Box::new(value))
@@ -78,7 +114,7 @@ impl fmt::Display for Expression {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Parenthesis {
     inner: Expression,
     decor: Decor,
@@ -112,7 +148,13 @@ impl Parenthesis {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+impl PartialEq for Parenthesis {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+#[derive(Debug, Clone, Eq, Default)]
 pub struct Array {
     values: Vec<Expression>,
     trailing: RawString,
@@ -189,6 +231,14 @@ impl Array {
     }
 }
 
+impl PartialEq for Array {
+    fn eq(&self, other: &Self) -> bool {
+        self.values == other.values
+            && self.trailing_comma == other.trailing_comma
+            && self.trailing == other.trailing
+    }
+}
+
 impl From<Vec<Expression>> for Array {
     fn from(values: Vec<Expression>) -> Self {
         Array {
@@ -201,7 +251,7 @@ impl From<Vec<Expression>> for Array {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Eq, Default)]
 pub struct Object {
     items: VecMap<ObjectKey, ObjectValue>,
     trailing: RawString,
@@ -247,6 +297,10 @@ impl Object {
         self.items.remove(key)
     }
 
+    pub fn remove_entry(&mut self, key: &ObjectKey) -> Option<(ObjectKey, ObjectValue)> {
+        self.items.remove_entry(key)
+    }
+
     pub fn iter(&self) -> ObjectIter<'_> {
         Box::new(self.items.iter())
     }
@@ -274,6 +328,12 @@ impl Object {
     }
 }
 
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        self.items == other.items && self.trailing == other.trailing
+    }
+}
+
 impl From<VecMap<ObjectKey, ObjectValue>> for Object {
     fn from(items: VecMap<ObjectKey, ObjectValue>) -> Self {
         Object {
@@ -297,6 +357,24 @@ impl ObjectKey {
             ObjectKey::Ident(ident) => ident.decor_mut().despan(input),
             ObjectKey::Expression(expr) => expr.despan(input),
         }
+    }
+}
+
+impl From<Decorated<Ident>> for ObjectKey {
+    fn from(ident: Decorated<Ident>) -> Self {
+        ObjectKey::Ident(ident)
+    }
+}
+
+impl From<Ident> for ObjectKey {
+    fn from(ident: Ident) -> Self {
+        ObjectKey::from(Decorated::new(ident))
+    }
+}
+
+impl From<Expression> for ObjectKey {
+    fn from(expr: Expression) -> Self {
+        ObjectKey::Expression(expr)
     }
 }
 
@@ -364,7 +442,61 @@ impl ObjectValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl From<Expression> for ObjectValue {
+    fn from(expr: Expression) -> Self {
+        ObjectValue::new(expr)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn object_access() {
+        // Ident key.
+        let mut obj = Object::new();
+        let mut key = ObjectKey::from(Ident::new_unchecked("foo"));
+        key.decorate(("/* prefix */", "/* suffix */"));
+
+        let value = ObjectValue::from(Expression::from("bar"));
+
+        obj.insert(key.clone(), value.clone());
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        key.decor_mut().clear();
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        let (key, _) = obj.remove_entry(&key).unwrap();
+        assert_eq!(key.decor().prefix(), Some(&RawString::from("/* prefix */")));
+        assert_eq!(key.decor().suffix(), Some(&RawString::from("/* suffix */")));
+
+        // Expression key.
+        let mut array = Array::new();
+        array.push("foo");
+        let mut key = ObjectKey::from(Expression::from(array));
+        key.decorate(("/* prefix */", "/* suffix */"));
+
+        let value = ObjectValue::from(Expression::from("bar"));
+
+        obj.insert(key.clone(), value.clone());
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        key.decor_mut().clear();
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        let (key, _) = obj.remove_entry(&key).unwrap();
+        assert_eq!(key.decor().prefix(), Some(&RawString::from("/* prefix */")));
+        assert_eq!(key.decor().suffix(), Some(&RawString::from("/* suffix */")));
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct Conditional {
     cond_expr: Expression,
     true_expr: Expression,
@@ -408,7 +540,15 @@ impl Conditional {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for Conditional {
+    fn eq(&self, other: &Self) -> bool {
+        self.cond_expr == other.cond_expr
+            && self.true_expr == other.true_expr
+            && self.false_expr == other.false_expr
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct FuncCall {
     name: Decorated<Ident>,
     args: FuncArgs,
@@ -445,7 +585,13 @@ impl FuncCall {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for FuncCall {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.args == other.args
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct FuncArgs {
     args: Vec<Expression>,
     expand_final: bool,
@@ -513,7 +659,15 @@ impl FuncArgs {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for FuncArgs {
+    fn eq(&self, other: &Self) -> bool {
+        self.args == other.args
+            && self.trailing_comma == other.trailing_comma
+            && self.trailing == other.trailing
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct Traversal {
     expr: Expression,
     operators: Vec<Decorated<TraversalOperator>>,
@@ -550,6 +704,12 @@ impl Traversal {
         for operator in &mut self.operators {
             operator.despan(input);
         }
+    }
+}
+
+impl PartialEq for Traversal {
+    fn eq(&self, other: &Self) -> bool {
+        self.expr == other.expr && self.operators == other.operators
     }
 }
 
@@ -593,7 +753,7 @@ impl TraversalOperator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct UnaryOp {
     operator: Spanned<UnaryOperator>,
     expr: Expression,
@@ -625,7 +785,13 @@ impl UnaryOp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for UnaryOp {
+    fn eq(&self, other: &Self) -> bool {
+        self.operator == other.operator && self.expr == other.expr
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct BinaryOp {
     lhs_expr: Expression,
     operator: Spanned<BinaryOperator>,
@@ -668,7 +834,15 @@ impl BinaryOp {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for BinaryOp {
+    fn eq(&self, other: &Self) -> bool {
+        self.lhs_expr == other.lhs_expr
+            && self.operator == other.operator
+            && self.rhs_expr == other.rhs_expr
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct ForExpr {
     intro: ForIntro,
     key_expr: Option<Expression>,
@@ -740,7 +914,17 @@ impl ForExpr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for ForExpr {
+    fn eq(&self, other: &Self) -> bool {
+        self.intro == other.intro
+            && self.key_expr == other.key_expr
+            && self.value_expr == other.value_expr
+            && self.grouping == other.grouping
+            && self.cond == other.cond
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct ForIntro {
     key_var: Option<Decorated<Ident>>,
     value_var: Decorated<Ident>,
@@ -787,7 +971,15 @@ impl ForIntro {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for ForIntro {
+    fn eq(&self, other: &Self) -> bool {
+        self.key_var == other.key_var
+            && self.value_var == other.value_var
+            && self.collection_expr == other.collection_expr
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct ForCond {
     expr: Expression,
     decor: Decor,
@@ -810,6 +1002,12 @@ impl ForCond {
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.expr.despan(input);
+    }
+}
+
+impl PartialEq for ForCond {
+    fn eq(&self, other: &Self) -> bool {
+        self.expr == other.expr
     }
 }
 

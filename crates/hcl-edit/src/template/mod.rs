@@ -14,7 +14,7 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Element> + 'a>;
 
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Element> + 'a>;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Eq, Default)]
 pub struct StringTemplate {
     elements: Vec<Element>,
     decor: Decor,
@@ -46,7 +46,13 @@ impl StringTemplate {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl PartialEq for StringTemplate {
+    fn eq(&self, other: &Self) -> bool {
+        self.elements == other.elements
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct HeredocTemplate {
     delimiter: Ident,
     template: Template,
@@ -130,7 +136,16 @@ impl HeredocTemplate {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+impl PartialEq for HeredocTemplate {
+    fn eq(&self, other: &Self) -> bool {
+        self.delimiter == other.delimiter
+            && self.template == other.template
+            && self.indent == other.indent
+            && self.trailing == other.trailing
+    }
+}
+
+#[derive(Debug, Clone, Eq, Default)]
 pub struct Template {
     elements: Vec<Element>,
     span: Option<Range<usize>>,
@@ -159,6 +174,12 @@ impl Template {
     }
 }
 
+impl PartialEq for Template {
+    fn eq(&self, other: &Self) -> bool {
+        self.elements == other.elements
+    }
+}
+
 impl fmt::Display for Template {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
@@ -183,7 +204,7 @@ impl Element {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Interpolation {
     expr: Expression,
     strip: Strip,
@@ -216,6 +237,12 @@ impl Interpolation {
     }
 }
 
+impl PartialEq for Interpolation {
+    fn eq(&self, other: &Self) -> bool {
+        self.expr == other.expr && self.strip == other.strip
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Directive {
     If(IfDirective),
@@ -231,7 +258,7 @@ impl Directive {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct IfDirective {
     if_expr: IfTemplateExpr,
     else_expr: Option<ElseTemplateExpr>,
@@ -273,6 +300,14 @@ impl IfDirective {
         }
 
         self.endif_expr.despan(input);
+    }
+}
+
+impl PartialEq for IfDirective {
+    fn eq(&self, other: &Self) -> bool {
+        self.if_expr == other.if_expr
+            && self.else_expr == other.else_expr
+            && self.endif_expr == other.endif_expr
     }
 }
 
@@ -420,7 +455,7 @@ impl EndifTemplateExpr {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct ForDirective {
     for_expr: ForTemplateExpr,
     endfor_expr: EndforTemplateExpr,
@@ -447,6 +482,12 @@ impl ForDirective {
     pub(crate) fn despan(&mut self, input: &str) {
         self.for_expr.despan(input);
         self.endfor_expr.despan(input);
+    }
+}
+
+impl PartialEq for ForDirective {
+    fn eq(&self, other: &Self) -> bool {
+        self.for_expr == other.for_expr && self.endfor_expr == other.endfor_expr
     }
 }
 

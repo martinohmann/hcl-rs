@@ -13,7 +13,7 @@ pub type BlockLabelIter<'a> = Box<dyn Iterator<Item = &'a BlockLabel> + 'a>;
 
 pub type BlockLabelIterMut<'a> = Box<dyn Iterator<Item = &'a mut BlockLabel> + 'a>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq)]
 pub struct Body {
     structures: Vec<Structure>,
     decor: Decor,
@@ -44,6 +44,12 @@ impl Body {
     }
 }
 
+impl PartialEq for Body {
+    fn eq(&self, other: &Self) -> bool {
+        self.structures == other.structures
+    }
+}
+
 impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
@@ -51,7 +57,7 @@ impl fmt::Display for Body {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Structure {
     Attribute(Attribute),
     Block(Block),
@@ -66,7 +72,7 @@ impl Structure {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq)]
 pub struct Attribute {
     key: Decorated<Ident>,
     expr: Expression,
@@ -99,7 +105,13 @@ impl Attribute {
     }
 }
 
-#[derive(Debug, Clone)]
+impl PartialEq for Attribute {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key && self.expr == other.expr
+    }
+}
+
+#[derive(Debug, Clone, Eq)]
 pub struct Block {
     identifier: Decorated<Ident>,
     labels: Vec<BlockLabel>,
@@ -153,7 +165,15 @@ impl Block {
     }
 }
 
-#[derive(Debug, Clone)]
+impl PartialEq for Block {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier
+            && self.labels == other.labels
+            && self.body == other.body
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockLabel {
     Ident(Decorated<Ident>),
     String(Decorated<InternalString>),
@@ -168,7 +188,7 @@ impl BlockLabel {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockBody {
     Multiline(Body),
     Oneline(Attribute),
