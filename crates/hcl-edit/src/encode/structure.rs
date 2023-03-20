@@ -2,7 +2,7 @@ use super::{
     encode_decorated, encode_quoted_string, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
-use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};
+use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Oneline, Structure};
 use std::fmt::{self, Write};
 
 impl Encode for Body {
@@ -65,10 +65,19 @@ impl Encode for BlockBody {
                 buf.write_char('\n')?;
                 body.encode(buf)
             })?,
-            BlockBody::Oneline(attr) => attr.encode_decorated(buf, BOTH_SPACE_DECOR)?,
-            BlockBody::Empty(raw) => raw.encode_with_default(buf, "")?,
+            BlockBody::Oneline(oneline) => oneline.encode(buf)?,
         }
 
         buf.write_char('}')
+    }
+}
+
+impl Encode for Oneline {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        if let Some(attr) = self.as_attribute() {
+            attr.encode_decorated(buf, BOTH_SPACE_DECOR)?;
+        }
+
+        self.trailing().encode_with_default(buf, "")
     }
 }

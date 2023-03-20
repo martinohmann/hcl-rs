@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use super::{
     context::{cut_char, cut_ident, Context, Expected},
     expr::expr,
@@ -12,8 +10,9 @@ use super::{
 use crate::{
     expr::Expression,
     repr::{Decorate, SetSpan},
-    structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure},
+    structure::{Attribute, Block, BlockBody, BlockLabel, Body, Oneline, Structure},
 };
+use std::cell::RefCell;
 use winnow::{
     branch::alt,
     bytes::{any, one_of},
@@ -126,9 +125,14 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
             prefix_decorated((sp, opt(line_comment)), preceded(line_ending, body))
                 .map(BlockBody::Multiline),
             // One-line block.
-            decorated(sp, attribute, sp).map(BlockBody::Oneline),
-            // Empty block.
-            raw_string(sp).map(BlockBody::Empty),
+            (opt(decorated(sp, attribute, sp)), raw_string(sp)).map(|(attr, trailing)| {
+                let mut oneline = Oneline::new();
+                if let Some(attr) = attr {
+                    oneline.set_attribute(attr);
+                }
+                oneline.set_trailing(trailing);
+                BlockBody::Oneline(Box::new(oneline))
+            }),
         )),
         cut_char('}')
             .context(Context::Expression("block body"))

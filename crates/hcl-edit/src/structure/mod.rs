@@ -28,6 +28,14 @@ impl Body {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.structures.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.structures.len()
+    }
+
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.structures.iter())
     }
@@ -64,6 +72,42 @@ pub enum Structure {
 }
 
 impl Structure {
+    pub fn is_attribute(&self) -> bool {
+        self.as_attribute().is_some()
+    }
+
+    pub fn is_block(&self) -> bool {
+        self.as_block().is_some()
+    }
+
+    pub fn as_attribute(&self) -> Option<&Attribute> {
+        match self {
+            Structure::Attribute(attr) => Some(attr),
+            Structure::Block(_) => None,
+        }
+    }
+
+    pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
+        match self {
+            Structure::Attribute(attr) => Some(attr),
+            Structure::Block(_) => None,
+        }
+    }
+
+    pub fn as_block(&self) -> Option<&Block> {
+        match self {
+            Structure::Block(block) => Some(block),
+            Structure::Attribute(_) => None,
+        }
+    }
+
+    pub fn as_block_mut(&mut self) -> Option<&mut Block> {
+        match self {
+            Structure::Block(block) => Some(block),
+            Structure::Attribute(_) => None,
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Structure::Attribute(attr) => attr.despan(input),
@@ -191,16 +235,146 @@ impl BlockLabel {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockBody {
     Multiline(Body),
-    Oneline(Attribute),
-    Empty(RawString),
+    Oneline(Box<Oneline>),
 }
 
 impl BlockBody {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            BlockBody::Multiline(body) => body.is_empty(),
+            BlockBody::Oneline(oneline) => oneline.is_empty(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            BlockBody::Multiline(body) => body.len(),
+            BlockBody::Oneline(oneline) => {
+                if oneline.is_empty() {
+                    0
+                } else {
+                    1
+                }
+            }
+        }
+    }
+
+    pub fn is_multiline(&self) -> bool {
+        self.as_multiline().is_some()
+    }
+
+    pub fn is_oneline(&self) -> bool {
+        self.as_oneline().is_some()
+    }
+
+    pub fn as_multiline(&self) -> Option<&Body> {
+        match self {
+            BlockBody::Multiline(body) => Some(body),
+            BlockBody::Oneline(_) => None,
+        }
+    }
+
+    pub fn as_multiline_mut(&mut self) -> Option<&mut Body> {
+        match self {
+            BlockBody::Multiline(body) => Some(body),
+            BlockBody::Oneline(_) => None,
+        }
+    }
+
+    pub fn as_oneline(&self) -> Option<&Oneline> {
+        match self {
+            BlockBody::Multiline(_) => None,
+            BlockBody::Oneline(oneline) => Some(oneline),
+        }
+    }
+
+    pub fn as_oneline_mut(&mut self) -> Option<&mut Oneline> {
+        match self {
+            BlockBody::Multiline(_) => None,
+            BlockBody::Oneline(oneline) => Some(oneline),
+        }
+    }
+
+    pub fn iter(&self) -> Iter<'_> {
+        match self {
+            BlockBody::Multiline(body) => body.iter(),
+            BlockBody::Oneline(oneline) => oneline.iter(),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        match self {
+            BlockBody::Multiline(body) => body.iter_mut(),
+            BlockBody::Oneline(oneline) => oneline.iter_mut(),
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             BlockBody::Multiline(body) => body.despan(input),
-            BlockBody::Oneline(attr) => attr.despan(input),
-            BlockBody::Empty(raw) => raw.despan(input),
+            BlockBody::Oneline(oneline) => oneline.despan(input),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Oneline {
+    attr: Option<Structure>,
+    trailing: RawString,
+}
+
+impl Oneline {
+    pub fn new() -> Oneline {
+        Oneline::default()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.attr.is_none()
+    }
+
+    pub fn iter(&self) -> Iter<'_> {
+        match &self.attr {
+            Some(attr) => Box::new(std::iter::once(attr)),
+            None => Box::new(std::iter::empty()),
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        match &mut self.attr {
+            Some(attr) => Box::new(std::iter::once(attr)),
+            None => Box::new(std::iter::empty()),
+        }
+    }
+
+    pub fn set_attribute(&mut self, attr: Attribute) {
+        self.attr = Some(Structure::Attribute(attr))
+    }
+
+    pub fn as_attribute(&self) -> Option<&Attribute> {
+        self.attr.as_ref().and_then(|s| s.as_attribute())
+    }
+
+    pub fn trailing(&self) -> &RawString {
+        &self.trailing
+    }
+
+    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
+        self.trailing = trailing.into();
+    }
+
+    pub(crate) fn despan(&mut self, input: &str) {
+        if let Some(attr) = &mut self.attr {
+            attr.despan(input);
+        }
+        self.trailing.despan(input);
+    }
+}
+
+impl From<Attribute> for Oneline {
+    fn from(attr: Attribute) -> Self {
+        Oneline {
+            attr: Some(Structure::Attribute(attr)),
+            trailing: RawString::default(),
         }
     }
 }
