@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
     expr::Expression,
-    repr::{Decorate, SetSpan},
+    repr::{Decorate, Decorated, SetSpan},
     structure::{Attribute, Block, BlockBody, BlockLabel, Body, Oneline, Structure},
 };
 use std::cell::RefCell;
@@ -109,7 +109,7 @@ fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
-        string.map(|string| BlockLabel::String(string.into())),
+        string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
     ))(input)
 }

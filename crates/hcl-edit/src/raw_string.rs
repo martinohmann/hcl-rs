@@ -1,5 +1,5 @@
 use crate::encode::EncodeState;
-use crate::InternalString;
+use hcl_primitives::InternalString;
 use std::fmt::Write;
 use std::ops::Range;
 

@@ -10,7 +10,6 @@ use super::{
 use crate::{
     repr::{SetSpan, Span, Spanned},
     template::*,
-    InternalString,
 };
 use winnow::{
     branch::alt,
@@ -61,12 +60,10 @@ pub(super) fn heredoc_template<'a>(
                 // it. Otherwise just add a new literal containing only the line ending.
                 if let Some(Element::Literal(lit)) = elements.last_mut() {
                     let existing_span = lit.span().unwrap();
-                    let mut existing = lit.to_string();
-                    existing.push_str(line_ending);
-                    *lit = Spanned::new(InternalString::from(existing));
+                    lit.push_str(line_ending);
                     lit.set_span(existing_span.start..line_ending_span.end);
                 } else {
-                    let mut lit = Spanned::new(InternalString::from(line_ending));
+                    let mut lit = Spanned::new(String::from(line_ending));
                     lit.set_span(line_ending_span);
                     elements.push(Element::Literal(lit));
                 }
@@ -81,7 +78,7 @@ pub(super) fn heredoc_template<'a>(
 
 fn elements<'a, P>(literal: P) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Vec<Element>>
 where
-    P: Parser<Input<'a>, InternalString, ParseError<Input<'a>>>,
+    P: Parser<Input<'a>, String, ParseError<Input<'a>>>,
 {
     many0(spanned(alt((
         literal.map(|s| Element::Literal(Spanned::new(s))),

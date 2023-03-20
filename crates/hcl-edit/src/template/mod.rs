@@ -2,7 +2,7 @@ use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span, Spanned};
 use crate::util::{dedent_by, min_leading_whitespace};
-use crate::{Ident, InternalString, RawString};
+use crate::{Ident, RawString};
 use std::fmt;
 use std::ops::Range;
 
@@ -189,7 +189,7 @@ impl fmt::Display for Template {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
-    Literal(Spanned<InternalString>),
+    Literal(Spanned<String>),
     Interpolation(Interpolation),
     Directive(Directive),
 }

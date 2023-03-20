@@ -1,7 +1,7 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
-use crate::{Ident, InternalString, Number, RawString};
+use crate::{Ident, Number, RawString};
 use std::fmt;
 use std::ops::Range;
 use vecmap::map::{MutableKeys, VecMap};
@@ -27,7 +27,7 @@ pub enum Expression {
     Null(Decorated<Null>),
     Bool(Decorated<bool>),
     Number(Formatted<Number>),
-    String(Decorated<InternalString>),
+    String(Decorated<String>),
     Array(Array),
     Object(Object),
     Template(StringTemplate),
@@ -67,24 +67,18 @@ impl Expression {
 
 impl From<&str> for Expression {
     fn from(s: &str) -> Self {
-        Expression::from(InternalString::from(s))
+        Expression::from(String::from(s))
     }
 }
 
 impl From<String> for Expression {
     fn from(s: String) -> Self {
-        Expression::from(InternalString::from(s))
-    }
-}
-
-impl From<InternalString> for Expression {
-    fn from(s: InternalString) -> Self {
         Expression::from(Decorated::new(s))
     }
 }
 
-impl From<Decorated<InternalString>> for Expression {
-    fn from(s: Decorated<InternalString>) -> Self {
+impl From<Decorated<String>> for Expression {
+    fn from(s: Decorated<String>) -> Self {
         Expression::String(s)
     }
 }

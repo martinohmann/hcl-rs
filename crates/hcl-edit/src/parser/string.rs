@@ -4,7 +4,7 @@ use super::{
     trivia::void,
     IResult, Input,
 };
-use crate::{repr::Decorated, Ident, InternalString, RawString};
+use crate::{repr::Decorated, Ident, RawString};
 use std::borrow::Cow;
 use winnow::{
     branch::alt,
@@ -17,13 +17,13 @@ use winnow::{
     Parser,
 };
 
-pub(super) fn string(input: Input) -> IResult<Input, InternalString> {
+pub(super) fn string(input: Input) -> IResult<Input, String> {
     delimited(b'"', opt(build_string), b'"')
         .map(Option::unwrap_or_default)
         .parse_next(input)
 }
 
-pub(super) fn build_string(input: Input) -> IResult<Input, InternalString> {
+pub(super) fn build_string(input: Input) -> IResult<Input, String> {
     let (mut input, mut string) = match string_fragment(input) {
         Ok((input, fragment)) => match fragment {
             StringFragment::Literal(s) => (input, Cow::Borrowed(s)),

@@ -24,7 +24,7 @@ pub mod prelude {
 
 // Re-exported for convenience.
 #[doc(inline)]
-pub use hcl_primitives::{Ident, InternalString, Number};
+pub use hcl_primitives::{Ident, Number};
 
 #[doc(inline)]
 pub use self::expr::Expression;

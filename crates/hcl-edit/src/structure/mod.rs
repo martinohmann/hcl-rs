@@ -1,7 +1,7 @@
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
-use crate::{Ident, InternalString, RawString};
+use crate::{Ident, RawString};
 use std::fmt;
 use std::ops::Range;
 
@@ -220,7 +220,7 @@ impl PartialEq for Block {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockLabel {
     Ident(Decorated<Ident>),
-    String(Decorated<InternalString>),
+    String(Decorated<String>),
 }
 
 impl BlockLabel {
