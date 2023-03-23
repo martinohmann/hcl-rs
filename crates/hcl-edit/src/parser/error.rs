@@ -194,11 +194,6 @@ impl<I> winnow::error::ParseError<I> for ParseError<I> {
     }
 
     #[inline]
-    fn from_char(input: I, _ch: char) -> Self {
-        ParseError::new(input)
-    }
-
-    #[inline]
     fn append(self, _input: I, _kind: winnow::error::ErrorKind) -> Self {
         self
     }

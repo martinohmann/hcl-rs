@@ -18,7 +18,8 @@ pub(super) fn number(input: Input) -> IResult<Input, Number> {
     alt((
         float.verify_map(Number::from_f64),
         integer.map(Number::from),
-    ))(input)
+    ))
+    .parse_next(input)
 }
 
 fn integer(input: Input) -> IResult<Input, u64> {

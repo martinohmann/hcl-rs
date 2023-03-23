@@ -76,7 +76,7 @@ pub(super) fn heredoc_template<'a>(
     }
 }
 
-fn elements<'a, P>(literal: P) -> impl FnMut(Input<'a>) -> IResult<Input<'a>, Vec<Element>>
+fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseError<Input<'a>>>
 where
     P: Parser<Input<'a>, String, ParseError<Input<'a>>>,
 {
@@ -101,7 +101,8 @@ fn directive(input: Input) -> IResult<Input, Directive> {
     alt((
         if_directive.map(Directive::If),
         for_directive.map(Directive::For),
-    ))(input)
+    ))
+    .parse_next(input)
 }
 
 fn if_directive(input: Input) -> IResult<Input, IfDirective> {

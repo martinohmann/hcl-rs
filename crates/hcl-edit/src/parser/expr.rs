@@ -36,7 +36,7 @@ pub(super) fn expr(input: Input) -> IResult<Input, Expression> {
 
 pub(super) fn expr_inner<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let (mut input, span) = expr_term(state).span().parse_next(input)?;
         state.borrow_mut().on_span(span);
@@ -90,7 +90,7 @@ pub(super) fn expr_inner<'i, 's>(
 
 fn expr_term<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         dispatch! {peek(any);
             b'"' => stringlike(state),
@@ -121,7 +121,7 @@ fn expr_term<'i, 's>(
 
 fn stringlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         alt((
             string.map(|string| {
@@ -141,7 +141,7 @@ fn stringlike<'i, 's>(
 
 fn number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         num.with_recognized()
             .map(|(num, repr)| {
@@ -155,7 +155,7 @@ fn number<'i, 's>(
 
 fn neg_number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         preceded((b'-', sp), num)
             .with_recognized()
@@ -172,7 +172,7 @@ fn neg_number<'i, 's>(
 
 fn traversal<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         many1(prefix_decorated(sp, traversal_operator.map(Decorated::new)))
             .map(|operators| state.borrow_mut().on_traversal(operators))
@@ -213,7 +213,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
 
 fn unary_op<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         preceded(
             (spanned(unary_operator.map(Spanned::new)), sp.span())
@@ -236,7 +236,7 @@ fn unary_operator(input: Input) -> IResult<Input, UnaryOperator> {
 
 fn binary_op<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (
             spanned(binary_operator.map(Spanned::new)),
@@ -273,7 +273,7 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
 
 fn conditional<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (
             preceded(b'?', decorated(sp, expr, sp)),
@@ -286,19 +286,20 @@ fn conditional<'i, 's>(
 
 fn array<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         delimited(
             b'[',
             alt((for_list_expr(state), array_items(state))),
             cut_char(']'),
-        )(input)
+        )
+        .parse_next(input)
     }
 }
 
 fn for_list_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (for_intro, decorated(ws, expr, ws), opt(for_cond))
             .map(|(intro, value_expr, cond)| {
@@ -318,7 +319,7 @@ fn for_list_expr<'i, 's>(
 
 fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let values = separated0(decorated(ws, preceded(not(b']'), expr), ws), b',');
 
@@ -338,19 +339,20 @@ fn array_items<'i, 's>(
 
 fn object<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         delimited(
             b'{',
             alt((for_object_expr(state), object_items(state))),
             cut_char('}'),
-        )(input)
+        )
+        .parse_next(input)
     }
 }
 
 fn for_object_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (
             for_intro,
@@ -381,14 +383,14 @@ fn for_object_expr<'i, 's>(
 
 fn object_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let mut remaining_input = input;
         let mut object = Object::new();
 
         loop {
             let (input, trailing) = raw_string(ws).parse_next(remaining_input)?;
-            let (input, ch) = peek(any)(input)?;
+            let (input, ch) = peek(any).parse_next(input)?;
 
             if ch == b'}' {
                 object.set_trailing(trailing);
@@ -402,7 +404,7 @@ fn object_items<'i, 's>(
 
             // Look for the closing brace and return or consume the object item separator and proceed
             // with the next object item, if any.
-            let (input, ch) = peek(any)(input)?;
+            let (input, ch) = peek(any).parse_next(input)?;
 
             let (input, value_terminator) = match ch {
                 b'}' => {
@@ -534,20 +536,21 @@ fn for_cond(input: Input) -> IResult<Input, ForCond> {
 
 fn parenthesis<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         delimited(
             cut_char('('),
             decorated(ws, expr, ws)
                 .map(|expr| state.borrow_mut().on_expr_term(Parenthesis::new(expr))),
             cut_char(')'),
-        )(input)
+        )
+        .parse_next(input)
     }
 }
 
 fn heredoc<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let (input, (indented, delim)) = heredoc_start(input)?;
 
@@ -584,12 +587,13 @@ fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
             cut_err(str_ident).context(Context::Expected(Expected::Description("identifier"))),
         ),
         cut_err(line_ending).context(Context::Expected(Expected::Char('\n'))),
-    )(input)
+    )
+    .parse_next(input)
 }
 
 fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (str_ident.with_span(), opt(prefix_decorated(ws, func_args)))
             .map(|((ident, span), func_args)| {
@@ -653,5 +657,6 @@ fn func_args(input: Input) -> IResult<Input, FuncArgs> {
             args
         }),
         cut_char(')'),
-    )(input)
+    )
+    .parse_next(input)
 }

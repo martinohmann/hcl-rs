@@ -67,8 +67,9 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use winnow::FinishIResult;
+
+    use super::*;
 
     #[test]
     fn parse_comments() {

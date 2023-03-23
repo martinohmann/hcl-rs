@@ -58,7 +58,7 @@ fn structure<'i, 's>(
         let start = input.location();
         let (input, _) = peek(one_of(is_id_start)).parse_next(input)?;
         let (input, ident) = suffix_decorated(cut_ident, sp).parse_next(input)?;
-        let (input, ch) = peek(any)(input)?;
+        let (input, ch) = peek(any).parse_next(input)?;
 
         let (input, mut structure) = match ch {
             b'=' => {
@@ -100,18 +100,20 @@ fn attribute_expr(input: Input) -> IResult<Input, Expression> {
     preceded(
         cut_char('=').context(Context::Expression("attribute")),
         prefix_decorated(sp, expr),
-    )(input)
+    )
+    .parse_next(input)
 }
 
 fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
-    many0(suffix_decorated(block_label, sp))(input)
+    many0(suffix_decorated(block_label, sp)).parse_next(input)
 }
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     alt((
         string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
-    ))(input)
+    ))
+    .parse_next(input)
 }
 
 fn block_body(input: Input) -> IResult<Input, BlockBody> {
@@ -138,5 +140,6 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
             .context(Context::Expression("block body"))
             .context(Context::Expected(Expected::Char('\n')))
             .context(Context::Expected(Expected::Description("identifier"))),
-    )(input)
+    )
+    .parse_next(input)
 }

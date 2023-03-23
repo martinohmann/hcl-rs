@@ -59,7 +59,8 @@ fn string_fragment(input: Input) -> IResult<Input, StringFragment> {
     alt((
         string_literal.map(StringFragment::Literal),
         escaped_char.map(StringFragment::EscapedChar),
-    ))(input)
+    ))
+    .parse_next(input)
 }
 
 /// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
