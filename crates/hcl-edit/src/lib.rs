@@ -27,15 +27,6 @@ pub mod prelude {
 #[doc(inline)]
 pub use hcl_primitives::{Ident, Number};
 
-#[doc(inline)]
-pub use self::expr::Expression;
-
-#[doc(inline)]
-pub use self::structure::{Attribute, Block, Body, Structure};
-
-#[doc(inline)]
-pub use self::template::Template;
-
 mod private {
     pub trait Sealed {}
 }

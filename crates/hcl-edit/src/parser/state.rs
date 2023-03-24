@@ -1,8 +1,12 @@
-use crate::expr::{
-    BinaryOp, BinaryOperator, Conditional, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
+use crate::{
+    expr::{
+        BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
+        UnaryOperator,
+    },
+    repr::{Decorate, Decorated, SetSpan, Spanned},
+    structure::{Body, Structure},
+    RawString,
 };
-use crate::repr::{Decorate, Decorated, SetSpan, Spanned};
-use crate::{Body, Expression, RawString, Structure};
 use std::ops::Range;
 
 #[derive(Debug, Default)]
