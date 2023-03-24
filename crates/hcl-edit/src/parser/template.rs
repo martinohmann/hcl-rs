@@ -22,14 +22,14 @@ use winnow::{
 
 pub(super) fn string_template(input: Input) -> IResult<Input, StringTemplate> {
     delimited(b'"', elements(build_string), b'"')
-        .map(StringTemplate::new)
+        .output_into()
         .parse_next(input)
 }
 
 pub(super) fn template(input: Input) -> IResult<Input, Template> {
     let literal_end = alt((b"${", b"%{"));
     let literal = literal_until(literal_end).output_into();
-    elements(literal).map(Template::new).parse_next(input)
+    elements(literal).output_into().parse_next(input)
 }
 
 pub(super) fn heredoc_template<'a>(
@@ -68,7 +68,7 @@ pub(super) fn heredoc_template<'a>(
                     elements.push(Element::Literal(lit));
                 }
 
-                Template::new(elements)
+                Template::from(elements)
             },
         ))
         .map(Option::unwrap_or_default)

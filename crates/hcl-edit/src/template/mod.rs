@@ -26,12 +26,8 @@ pub struct StringTemplate {
 }
 
 impl StringTemplate {
-    pub fn new(elements: Vec<Element>) -> StringTemplate {
-        StringTemplate {
-            elements,
-            decor: Decor::default(),
-            span: None,
-        }
+    pub fn new() -> StringTemplate {
+        StringTemplate::default()
     }
 
     pub fn iter(&self) -> Iter<'_> {
@@ -46,6 +42,16 @@ impl StringTemplate {
         self.decor.despan(input);
         for element in &mut self.elements {
             element.despan(input);
+        }
+    }
+}
+
+impl From<Vec<Element>> for StringTemplate {
+    fn from(elements: Vec<Element>) -> Self {
+        StringTemplate {
+            elements,
+            decor: Decor::default(),
+            span: None,
         }
     }
 }
@@ -156,11 +162,8 @@ pub struct Template {
 }
 
 impl Template {
-    pub fn new(elements: Vec<Element>) -> Template {
-        Template {
-            elements,
-            span: None,
-        }
+    pub fn new() -> Template {
+        Template::default()
     }
 
     pub fn iter(&self) -> Iter<'_> {
@@ -188,6 +191,15 @@ impl fmt::Display for Template {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
         self.encode(&mut state)
+    }
+}
+
+impl From<Vec<Element>> for Template {
+    fn from(elements: Vec<Element>) -> Self {
+        Template {
+            elements,
+            span: None,
+        }
     }
 }
 

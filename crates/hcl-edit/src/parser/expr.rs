@@ -650,7 +650,7 @@ fn func_args(input: Input) -> IResult<Input, FuncArgs> {
                     args
                 }
                 Some((args, None)) => FuncArgs::new(args),
-                None => FuncArgs::new(Vec::new()),
+                None => FuncArgs::default(),
             };
 
             args.set_trailing(trailing);

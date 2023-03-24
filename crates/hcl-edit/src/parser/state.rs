@@ -42,7 +42,7 @@ impl BodyParseState {
     }
 
     pub(super) fn into_body(self) -> Body {
-        Body::new(self.structures)
+        Body::from(self.structures)
     }
 }
 

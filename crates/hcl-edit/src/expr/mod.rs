@@ -446,54 +446,6 @@ impl From<Expression> for ObjectValue {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pretty_assertions::assert_eq;
-
-    #[test]
-    fn object_access() {
-        // Ident key.
-        let mut obj = Object::new();
-        let mut key = ObjectKey::from(Ident::new_unchecked("foo"));
-        key.decorate(("/* prefix */", "/* suffix */"));
-
-        let value = ObjectValue::from(Expression::from("bar"));
-
-        obj.insert(key.clone(), value.clone());
-
-        assert_eq!(obj.get(&key), Some(&value));
-
-        key.decor_mut().clear();
-
-        assert_eq!(obj.get(&key), Some(&value));
-
-        let (key, _) = obj.remove_entry(&key).unwrap();
-        assert_eq!(key.decor().prefix(), Some(&RawString::from("/* prefix */")));
-        assert_eq!(key.decor().suffix(), Some(&RawString::from("/* suffix */")));
-
-        // Expression key.
-        let mut array = Array::new();
-        array.push("foo");
-        let mut key = ObjectKey::from(Expression::from(array));
-        key.decorate(("/* prefix */", "/* suffix */"));
-
-        let value = ObjectValue::from(Expression::from("bar"));
-
-        obj.insert(key.clone(), value.clone());
-
-        assert_eq!(obj.get(&key), Some(&value));
-
-        key.decor_mut().clear();
-
-        assert_eq!(obj.get(&key), Some(&value));
-
-        let (key, _) = obj.remove_entry(&key).unwrap();
-        assert_eq!(key.decor().prefix(), Some(&RawString::from("/* prefix */")));
-        assert_eq!(key.decor().suffix(), Some(&RawString::from("/* suffix */")));
-    }
-}
-
 #[derive(Debug, Clone, Eq)]
 pub struct Conditional {
     cond_expr: Expression,
@@ -589,7 +541,7 @@ impl PartialEq for FuncCall {
     }
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Default)]
 pub struct FuncArgs {
     args: Vec<Expression>,
     expand_final: bool,
@@ -1041,4 +993,52 @@ forward_span_impl! {
     },
     TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex },
     ObjectKey => { Ident, Expression }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn object_access() {
+        // Ident key.
+        let mut obj = Object::new();
+        let mut key = ObjectKey::from(Ident::new_unchecked("foo"));
+        key.decorate(("/* prefix */", "/* suffix */"));
+
+        let value = ObjectValue::from(Expression::from("bar"));
+
+        obj.insert(key.clone(), value.clone());
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        key.decor_mut().clear();
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        let (key, _) = obj.remove_entry(&key).unwrap();
+        assert_eq!(key.decor().prefix(), Some(&RawString::from("/* prefix */")));
+        assert_eq!(key.decor().suffix(), Some(&RawString::from("/* suffix */")));
+
+        // Expression key.
+        let mut array = Array::new();
+        array.push("foo");
+        let mut key = ObjectKey::from(Expression::from(array));
+        key.decorate(("/* prefix */", "/* suffix */"));
+
+        let value = ObjectValue::from(Expression::from("bar"));
+
+        obj.insert(key.clone(), value.clone());
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        key.decor_mut().clear();
+
+        assert_eq!(obj.get(&key), Some(&value));
+
+        let (key, _) = obj.remove_entry(&key).unwrap();
+        assert_eq!(key.decor().prefix(), Some(&RawString::from("/* prefix */")));
+        assert_eq!(key.decor().suffix(), Some(&RawString::from("/* suffix */")));
+    }
 }

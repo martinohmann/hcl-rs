@@ -25,11 +25,8 @@ pub struct Body {
 }
 
 impl Body {
-    pub fn new(structures: Vec<Structure>) -> Body {
-        Body {
-            structures,
-            ..Default::default()
-        }
+    pub fn new() -> Body {
+        Body::default()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -66,6 +63,15 @@ impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
         self.encode(&mut state)
+    }
+}
+
+impl From<Vec<Structure>> for Body {
+    fn from(structures: Vec<Structure>) -> Self {
+        Body {
+            structures,
+            ..Default::default()
+        }
     }
 }
 
@@ -302,14 +308,20 @@ impl BlockBody {
     pub fn iter(&self) -> Iter<'_> {
         match self {
             BlockBody::Multiline(body) => body.iter(),
-            BlockBody::Oneline(oneline) => oneline.iter(),
+            BlockBody::Oneline(oneline) => match &oneline.attr {
+                Some(attr) => Box::new(std::iter::once(attr)),
+                None => Box::new(std::iter::empty()),
+            },
         }
     }
 
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         match self {
             BlockBody::Multiline(body) => body.iter_mut(),
-            BlockBody::Oneline(oneline) => oneline.iter_mut(),
+            BlockBody::Oneline(oneline) => match &mut oneline.attr {
+                Some(attr) => Box::new(std::iter::once(attr)),
+                None => Box::new(std::iter::empty()),
+            },
         }
     }
 
@@ -334,20 +346,6 @@ impl Oneline {
 
     pub fn is_empty(&self) -> bool {
         self.attr.is_none()
-    }
-
-    pub fn iter(&self) -> Iter<'_> {
-        match &self.attr {
-            Some(attr) => Box::new(std::iter::once(attr)),
-            None => Box::new(std::iter::empty()),
-        }
-    }
-
-    pub fn iter_mut(&mut self) -> IterMut<'_> {
-        match &mut self.attr {
-            Some(attr) => Box::new(std::iter::once(attr)),
-            None => Box::new(std::iter::empty()),
-        }
     }
 
     pub fn set_attribute(&mut self, attr: Attribute) {
