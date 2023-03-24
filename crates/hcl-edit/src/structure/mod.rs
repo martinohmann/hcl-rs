@@ -14,9 +14,9 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
 
-pub type BlockLabelIter<'a> = Box<dyn Iterator<Item = &'a BlockLabel> + 'a>;
+pub type LabelIter<'a> = Box<dyn Iterator<Item = &'a BlockLabel> + 'a>;
 
-pub type BlockLabelIterMut<'a> = Box<dyn Iterator<Item = &'a mut BlockLabel> + 'a>;
+pub type LabelIterMut<'a> = Box<dyn Iterator<Item = &'a mut BlockLabel> + 'a>;
 
 #[derive(Debug, Clone, Default, Eq)]
 pub struct Body {
@@ -198,11 +198,11 @@ impl Block {
         &self.identifier
     }
 
-    pub fn labels(&self) -> BlockLabelIter<'_> {
+    pub fn labels(&self) -> LabelIter<'_> {
         Box::new(self.labels.iter())
     }
 
-    pub fn labels_mut(&mut self) -> BlockLabelIterMut<'_> {
+    pub fn labels_mut(&mut self) -> LabelIterMut<'_> {
         Box::new(self.labels.iter_mut())
     }
 
