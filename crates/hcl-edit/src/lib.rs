@@ -18,11 +18,6 @@ mod util;
 #[doc(inline)]
 pub use self::raw_string::RawString;
 
-/// Core concepts available for glob import.
-pub mod prelude {
-    pub use crate::repr::{Decorate, Span};
-}
-
 // Re-exported for convenience.
 #[doc(inline)]
 pub use hcl_primitives::{Ident, Number};
