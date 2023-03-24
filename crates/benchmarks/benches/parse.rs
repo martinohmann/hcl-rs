@@ -12,9 +12,14 @@ fn parse(c: &mut Criterion) {
 
         group.throughput(Throughput::Bytes(len as u64));
 
-        group.bench_function(BenchmarkId::new("simple", test.name()), |b| {
+        group.bench_function(BenchmarkId::new("hcl-rs", test.name()), |b| {
             hcl::parse(&test.input).unwrap();
             b.iter(|| black_box(hcl::parse(&test.input).unwrap()))
+        });
+
+        group.bench_function(BenchmarkId::new("hcl-edit", test.name()), |b| {
+            hcl_edit::parser::parse_body(&test.input).unwrap();
+            b.iter(|| black_box(hcl_edit::parser::parse_body(&test.input).unwrap()))
         });
     });
 
