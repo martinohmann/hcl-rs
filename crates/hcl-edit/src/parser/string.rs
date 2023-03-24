@@ -68,7 +68,7 @@ fn string_fragment(input: Input) -> IResult<Input, StringFragment> {
 fn string_literal(input: Input) -> IResult<Input, &str> {
     let literal_end = dispatch! {any;
         b'\"' | b'\\' => success(true),
-        b'$' | b'%' => one_of(b'{').value(true),
+        b'$' | b'%' => b'{'.value(true),
         _ => fail,
     };
     literal_until(literal_end).parse_next(input)

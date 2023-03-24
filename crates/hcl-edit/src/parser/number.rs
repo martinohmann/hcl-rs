@@ -57,7 +57,6 @@ fn exponent(input: Input) -> IResult<Input, &[u8]> {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use winnow::FinishIResult;
 
     #[test]
     fn parse_integer() {
@@ -69,7 +68,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let parsed = integer.parse_next(Input::new(input.as_bytes())).finish();
+            let parsed = integer.parse(Input::new(input.as_bytes()));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
             assert_eq!(parsed.unwrap(), *expected);
         }
@@ -87,7 +86,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let parsed = float.parse_next(Input::new(input.as_bytes())).finish();
+            let parsed = float.parse(Input::new(input.as_bytes()));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
             assert_eq!(parsed.unwrap(), *expected);
         }

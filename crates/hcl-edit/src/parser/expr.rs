@@ -185,7 +185,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
         b'.' => prefix_decorated(
             ws,
             dispatch! {peek(any);
-                b'*' => one_of(b'*').value(TraversalOperator::AttrSplat(Decorated::new(Splat))),
+                b'*' => b'*'.value(TraversalOperator::AttrSplat(Decorated::new(Splat))),
                 b'0'..=b'9' => dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
                 b if is_id_start(b) => ident.map(TraversalOperator::GetAttr),
                 _ => cut_err(fail)
@@ -199,7 +199,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
             decorated(
                 ws,
                 dispatch! {peek(any);
-                    b'*' => one_of(b'*').value(TraversalOperator::FullSplat(Decorated::new(Splat))),
+                    b'*' => b'*'.value(TraversalOperator::FullSplat(Decorated::new(Splat))),
                     _ => expr.map(TraversalOperator::Index),
                 },
                 ws,
@@ -249,14 +249,14 @@ fn binary_op<'i, 's>(
 
 fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
     dispatch! {any;
-        b'=' => one_of(b'=').value(BinaryOperator::Eq),
-        b'!' => one_of(b'=').value(BinaryOperator::NotEq),
+        b'=' => b'='.value(BinaryOperator::Eq),
+        b'!' => b'='.value(BinaryOperator::NotEq),
         b'<' => alt((
-            one_of(b'=').value(BinaryOperator::LessEq),
+            b'='.value(BinaryOperator::LessEq),
             success(BinaryOperator::Less),
         )),
         b'>' => alt((
-            one_of(b'=').value(BinaryOperator::GreaterEq),
+            b'='.value(BinaryOperator::GreaterEq),
             success(BinaryOperator::Greater),
         )),
         b'+' => success(BinaryOperator::Plus),
@@ -264,8 +264,8 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
         b'*' => success(BinaryOperator::Mul),
         b'/' => success(BinaryOperator::Div),
         b'%' => success(BinaryOperator::Mod),
-        b'&' => one_of(b'&').value(BinaryOperator::And),
-        b'|' => one_of(b'|').value(BinaryOperator::Or),
+        b'&' => b'&'.value(BinaryOperator::And),
+        b'|' => b'|'.value(BinaryOperator::Or),
         _ => fail,
     }
     .parse_next(input)

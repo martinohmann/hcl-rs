@@ -1,7 +1,7 @@
 use super::{error::ParseError, string::ident, IResult, Input};
 use crate::{repr::Decorated, Ident};
 use std::fmt;
-use winnow::{bytes::one_of, combinator::cut_err, stream::AsChar, Parser};
+use winnow::{combinator::cut_err, stream::AsChar, Parser};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(super) enum Context {
@@ -31,7 +31,7 @@ impl fmt::Display for Expected {
 }
 
 pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, ParseError<Input<'a>>> {
-    cut_err(one_of(c))
+    cut_err(c)
         .map(AsChar::as_char)
         .context(Context::Expected(Expected::Char(c)))
 }

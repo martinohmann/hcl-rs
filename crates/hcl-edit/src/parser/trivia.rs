@@ -67,8 +67,6 @@ where
 
 #[cfg(test)]
 mod tests {
-    use winnow::FinishIResult;
-
     use super::*;
 
     #[test]
@@ -97,17 +95,17 @@ mod tests {
         ];
 
         for input in inline_comments {
-            let parsed = sp.parse_next(Input::new(input.as_bytes())).finish();
+            let parsed = sp.parse(Input::new(input.as_bytes()));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
         }
 
         for input in multiline_comments {
-            let parsed = sp.parse_next(Input::new(input.as_bytes())).finish();
+            let parsed = sp.parse(Input::new(input.as_bytes()));
             assert!(parsed.is_err(), "expected parse error for `{input}`");
         }
 
         for input in inline_comments.iter().chain(multiline_comments.iter()) {
-            let parsed = ws.parse_next(Input::new(input.as_bytes())).finish();
+            let parsed = ws.parse(Input::new(input.as_bytes()));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
         }
     }

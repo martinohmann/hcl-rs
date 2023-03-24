@@ -18,7 +18,7 @@ use self::{
     template::template,
 };
 use crate::{expr::Expression, structure::Body, template::Template};
-use winnow::{prelude::*, stream::Located, Parser};
+use winnow::{stream::Located, Parser};
 
 type Input<'a> = Located<&'a [u8]>;
 
@@ -49,7 +49,6 @@ where
     let input = Input::new(input.as_bytes());
 
     parser
-        .parse_next(input)
-        .finish()
+        .parse(input)
         .map_err(|err| Error::from_parse_error(input, err))
 }
