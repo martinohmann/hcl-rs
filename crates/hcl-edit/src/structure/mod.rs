@@ -5,9 +5,10 @@
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
-use crate::{Ident, RawString};
+use crate::{parser, Ident, RawString};
 use std::fmt;
 use std::ops::Range;
+use std::str::FromStr;
 
 pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 
@@ -63,6 +64,14 @@ impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
         self.encode(&mut state)
+    }
+}
+
+impl FromStr for Body {
+    type Err = parser::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parser::parse_body(s)
     }
 }
 

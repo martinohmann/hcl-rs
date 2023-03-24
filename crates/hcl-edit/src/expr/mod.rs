@@ -5,9 +5,10 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Span, Spanned};
 use crate::template::{HeredocTemplate, StringTemplate};
-use crate::{Ident, Number, RawString};
+use crate::{parser, Ident, Number, RawString};
 use std::fmt;
 use std::ops::Range;
+use std::str::FromStr;
 use vecmap::map::{MutableKeys, VecMap};
 
 // Re-exported for convenience.
@@ -66,6 +67,14 @@ impl Expression {
             Expression::BinaryOp(op) => op.despan(input),
             Expression::Traversal(traversal) => traversal.despan(input),
         }
+    }
+}
+
+impl FromStr for Expression {
+    type Err = parser::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parser::parse_expr(s)
     }
 }
 

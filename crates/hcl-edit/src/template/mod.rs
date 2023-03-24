@@ -6,9 +6,10 @@ use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span, Spanned};
 use crate::util::{dedent_by, min_leading_whitespace};
-use crate::{Ident, RawString};
+use crate::{parser, Ident, RawString};
 use std::fmt;
 use std::ops::Range;
+use std::str::FromStr;
 
 // Re-exported for convenience.
 #[doc(inline)]
@@ -191,6 +192,14 @@ impl fmt::Display for Template {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
         self.encode(&mut state)
+    }
+}
+
+impl FromStr for Template {
+    type Err = parser::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parser::parse_template(s)
     }
 }
 
