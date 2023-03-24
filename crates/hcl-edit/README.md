@@ -6,7 +6,19 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-WIP
+Parse and modify HCL documents while preserving whitespace and comments. This
+crate is to HCL what [`toml_edit`](https://docs.rs/toml_edit) is to TOML. In
+fact, its API is heavily inspired by `toml_edit`.
+
+## Notice
+
+**This crate is under heavy development right now** and the documentation as
+well as usage examples are scarce. There's still a lot of planned functionality
+missing and some APIs might even be cumbersome to use at the moment.
+
+This will improve over time as this project evolves.
+
+**Expect breaking changes at any time** until the biggest issues are fleshed out.
 
 ## Contributing
 
