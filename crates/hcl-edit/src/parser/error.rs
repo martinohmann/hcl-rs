@@ -5,9 +5,6 @@ use winnow::{
     stream::{AsBytes, Offset},
 };
 
-/// The result type used by this module.
-pub type ParseResult<T> = std::result::Result<T, Error>;
-
 /// Error type returned when the parser encountered an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {

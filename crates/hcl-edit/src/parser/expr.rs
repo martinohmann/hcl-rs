@@ -466,7 +466,7 @@ fn object_key(input: Input) -> IResult<Input, ObjectKey> {
             // avoids re-parsing the whole key-value pair when an identifier followed by a
             // traversal operator is encountered.
             if let Expression::Variable(variable) = expr {
-                ObjectKey::Ident(Decorated::new(variable.into_inner()))
+                ObjectKey::Ident(Decorated::new(variable.into_value()))
             } else {
                 ObjectKey::Expression(expr)
             }

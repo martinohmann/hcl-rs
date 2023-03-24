@@ -1,3 +1,7 @@
+//! Types to represent the HCL template sub-language.
+
+#![allow(missing_docs)]
+
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span, Spanned};

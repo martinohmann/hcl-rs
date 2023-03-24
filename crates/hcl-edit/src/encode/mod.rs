@@ -73,7 +73,7 @@ where
     T: Encode + ToString,
 {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        if let Some(repr) = self.repr() {
+        if let Some(repr) = self.as_repr() {
             repr.encode_with_default(buf, "")
         } else {
             (**self).encode(buf)

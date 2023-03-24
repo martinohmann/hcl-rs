@@ -1,8 +1,11 @@
+//! Representations of values within a HCL document.
+
 use crate::encode::{Encode, EncodeState};
 use crate::raw_string::RawString;
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
 
+/// Represents the whitespace and comments before (the "prefix") or after (the "suffix") a HCL value.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Decor {
     prefix: Option<RawString>,
@@ -10,6 +13,7 @@ pub struct Decor {
 }
 
 impl Decor {
+    /// Creates a new `Decor` for a prefix and a suffix.
     pub fn new(prefix: impl Into<RawString>, suffix: impl Into<RawString>) -> Decor {
         Decor {
             prefix: Some(prefix.into()),
@@ -17,22 +21,27 @@ impl Decor {
         }
     }
 
+    /// Sets the decor prefix.
     pub fn set_prefix(&mut self, prefix: impl Into<RawString>) {
         self.prefix = Some(prefix.into());
     }
 
+    /// Sets the decor suffix.
     pub fn set_suffix(&mut self, suffix: impl Into<RawString>) {
         self.suffix = Some(suffix.into());
     }
 
+    /// Returns a reference to the decor prefix, if one is present, `None` otherwise.
     pub fn prefix(&self) -> Option<&RawString> {
         self.prefix.as_ref()
     }
 
+    /// Returns a reference to the decor suffix, if one is present, `None` otherwise.
     pub fn suffix(&self) -> Option<&RawString> {
         self.suffix.as_ref()
     }
 
+    /// Clears the decor prefix and suffix.
     pub fn clear(&mut self) {
         self.prefix = None;
         self.suffix = None;
@@ -75,7 +84,13 @@ where
     }
 }
 
+/// A trait for objects which carry span information.
 pub trait Span {
+    /// Obtains the span information. This only returns `Some` if the value was emitted by the
+    /// parser.
+    ///
+    /// The returned range represents a zero-based start and end byte offset in the input from
+    /// which this object was parsed.
     fn span(&self) -> Option<Range<usize>>;
 }
 
@@ -83,14 +98,20 @@ pub(crate) trait SetSpan {
     fn set_span(&mut self, span: Range<usize>);
 }
 
+/// A trait for objects which can be decorated with whitespace and comments.
 pub trait Decorate {
+    /// Returns a reference to the object's [`Decor`].
     fn decor(&self) -> &Decor;
+
+    /// Returns a mutable reference to the object's [`Decor`].
     fn decor_mut(&mut self) -> &mut Decor;
 
+    /// Decorate the object with `decor` in-place.
     fn decorate(&mut self, decor: impl Into<Decor>) {
         *self.decor_mut() = decor.into();
     }
 
+    /// Decorate the object with `decor` and return the modified value.
     fn decorated(mut self, decor: impl Into<Decor>) -> Self
     where
         Self: Sized,
@@ -100,23 +121,32 @@ pub trait Decorate {
     }
 }
 
+/// A wrapper type for attaching span information to a value.
 #[derive(Debug, Clone, Eq)]
 pub struct Spanned<T> {
-    inner: T,
+    value: T,
     span: Option<Range<usize>>,
 }
 
 impl<T> Spanned<T> {
-    pub fn new(inner: T) -> Spanned<T> {
-        Spanned { inner, span: None }
+    /// Creates a new `Spanned<T>` from a `T`.
+    pub fn new(value: T) -> Spanned<T> {
+        Spanned { value, span: None }
     }
 
-    pub fn into_inner(self) -> T {
-        self.inner
+    /// Consumes the `Spanned<T>` and returns the wrapped value.
+    pub fn into_value(self) -> T {
+        self.value
     }
 
-    pub fn inner(&self) -> &T {
-        &self.inner
+    /// Returns a reference to the wrapped value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns a mutable reference to the wrapped value.
+    pub fn value_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }
 
@@ -125,19 +155,21 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.value == other.value
     }
 }
 
 impl<T> AsRef<T> for Spanned<T> {
+    #[inline]
     fn as_ref(&self) -> &T {
-        &self.inner
+        self.value()
     }
 }
 
 impl<T> AsMut<T> for Spanned<T> {
+    #[inline]
     fn as_mut(&mut self) -> &mut T {
-        &mut self.inner
+        self.value_mut()
     }
 }
 
@@ -185,28 +217,37 @@ where
     }
 }
 
+/// A wrapper type for attaching a [`Decor`] and span information to a value.
 #[derive(Debug, Clone, Eq)]
 pub struct Decorated<T> {
-    inner: T,
+    value: T,
     decor: Decor,
     span: Option<Range<usize>>,
 }
 
 impl<T> Decorated<T> {
-    pub fn new(inner: T) -> Decorated<T> {
+    /// Creates a new `Decorated<T>` from a `T`.
+    pub fn new(value: T) -> Decorated<T> {
         Decorated {
-            inner,
+            value,
             decor: Decor::default(),
             span: None,
         }
     }
 
-    pub fn into_inner(self) -> T {
-        self.inner
+    /// Consumes the `Decorated<T>` and returns the wrapped value.
+    pub fn into_value(self) -> T {
+        self.value
     }
 
-    pub fn inner(&self) -> &T {
-        &self.inner
+    /// Returns a reference to the wrapped value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns a mutable reference to the wrapped value.
+    pub fn value_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }
 
@@ -215,19 +256,21 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.value == other.value
     }
 }
 
 impl<T> AsRef<T> for Decorated<T> {
+    #[inline]
     fn as_ref(&self) -> &T {
-        &self.inner
+        self.value()
     }
 }
 
 impl<T> AsMut<T> for Decorated<T> {
+    #[inline]
     fn as_mut(&mut self) -> &mut T {
-        &mut self.inner
+        self.value_mut()
     }
 }
 
@@ -285,9 +328,11 @@ where
     }
 }
 
+/// A wrapper type for a value together with its `ToString` representation with additional
+/// [`Decor`] and span infromation attached.
 #[derive(Debug, Clone, Eq)]
 pub struct Formatted<T> {
-    inner: T,
+    value: T,
     decor: Decor,
     repr: Option<RawString>,
     span: Option<Range<usize>>,
@@ -297,16 +342,18 @@ impl<T> Formatted<T>
 where
     T: ToString,
 {
-    pub fn new(inner: T) -> Formatted<T> {
+    /// Creates a new `Formatted<T>` from a `T`.
+    pub fn new(value: T) -> Formatted<T> {
         Formatted {
-            inner,
+            value,
             decor: Decor::default(),
             repr: None,
             span: None,
         }
     }
 
-    pub fn repr(&self) -> Option<&RawString> {
+    /// Returns the raw string representation of the value, if any.
+    pub fn as_repr(&self) -> Option<&RawString> {
         self.repr.as_ref()
     }
 
@@ -314,16 +361,26 @@ where
         self.repr = Some(repr.into());
     }
 
-    pub fn inner(&self) -> &T {
-        &self.inner
-    }
-
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-
+    /// Formats the value using its `ToString` representation.
     pub fn format(&mut self) {
-        self.set_repr(self.inner.to_string())
+        self.set_repr(self.value.to_string())
+    }
+}
+
+impl<T> Formatted<T> {
+    /// Consumes the `Formatted<T>` and returns the wrapped value.
+    pub fn into_value(self) -> T {
+        self.value
+    }
+
+    /// Returns a reference to the wrapped value.
+    pub fn value(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns a mutable reference to the wrapped value.
+    pub fn value_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 }
 
@@ -332,19 +389,21 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.value == other.value
     }
 }
 
 impl<T> AsRef<T> for Formatted<T> {
+    #[inline]
     fn as_ref(&self) -> &T {
-        &self.inner
+        self.value()
     }
 }
 
 impl<T> AsMut<T> for Formatted<T> {
+    #[inline]
     fn as_mut(&mut self) -> &mut T {
-        &mut self.inner
+        self.value_mut()
     }
 }
 

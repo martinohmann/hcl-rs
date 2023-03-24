@@ -23,18 +23,18 @@ impl RawString {
         }
     }
 
-    pub fn span(&self) -> Option<Range<usize>> {
+    pub(crate) fn span(&self) -> Option<Range<usize>> {
         match &self.0 {
             RawStringInner::Empty | RawStringInner::Explicit(_) => None,
             RawStringInner::Spanned(span) => Some(span.clone()),
         }
     }
 
-    pub fn as_str(&self) -> Option<&str> {
+    /// Returns the `RawString` as a `&str`.
+    pub(crate) fn as_str(&self) -> &str {
         match &self.0 {
-            RawStringInner::Empty => Some(""),
-            RawStringInner::Explicit(s) => Some(s.as_str()),
-            RawStringInner::Spanned(_) => None,
+            RawStringInner::Empty | RawStringInner::Spanned(_) => "",
+            RawStringInner::Explicit(s) => s.as_str(),
         }
     }
 
@@ -43,7 +43,11 @@ impl RawString {
         buf: &mut EncodeState,
         default: &str,
     ) -> std::fmt::Result {
-        buf.write_str(self.as_str().unwrap_or(default))
+        if let RawStringInner::Spanned(_) = self.0 {
+            buf.write_str(default)
+        } else {
+            buf.write_str(self.as_str())
+        }
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
