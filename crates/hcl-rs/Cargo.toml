@@ -21,6 +21,10 @@ include = [
   "tests/**/*"
 ]
 
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+all-features = true
+
 [lib]
 name = "hcl"
 path = "src/lib.rs"
