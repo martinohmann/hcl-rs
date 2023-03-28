@@ -14,10 +14,6 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
 
-pub type LabelIter<'a> = Box<dyn Iterator<Item = &'a BlockLabel> + 'a>;
-
-pub type LabelIterMut<'a> = Box<dyn Iterator<Item = &'a mut BlockLabel> + 'a>;
-
 #[derive(Debug, Clone, Default, Eq)]
 pub struct Body {
     structures: Vec<Structure>,
@@ -137,48 +133,42 @@ impl Structure {
 
 #[derive(Debug, Clone, Eq)]
 pub struct Attribute {
-    key: Decorated<Ident>,
-    expr: Expression,
+    pub key: Decorated<Ident>,
+    pub value: Expression,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
 
 impl Attribute {
-    pub fn new(key: Decorated<Ident>, expr: Expression) -> Attribute {
+    pub fn new(key: Decorated<Ident>, value: Expression) -> Attribute {
         Attribute {
             key,
-            expr,
+            value,
             decor: Decor::default(),
             span: None,
         }
     }
 
-    pub fn key(&self) -> &Decorated<Ident> {
-        &self.key
-    }
-
-    pub fn expr(&self) -> &Expression {
-        &self.expr
-    }
-
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.key.decor_mut().despan(input);
-        self.expr.despan(input);
+        self.value.despan(input);
     }
 }
 
 impl PartialEq for Attribute {
     fn eq(&self, other: &Self) -> bool {
-        self.key == other.key && self.expr == other.expr
+        self.key == other.key && self.value == other.value
     }
 }
 
 #[derive(Debug, Clone, Eq)]
 pub struct Block {
-    identifier: Decorated<Ident>,
-    labels: Vec<BlockLabel>,
-    body: BlockBody,
+    pub ident: Decorated<Ident>,
+    pub labels: Vec<BlockLabel>,
+    pub body: BlockBody,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -186,7 +176,7 @@ pub struct Block {
 impl Block {
     pub fn new(ident: Decorated<Ident>, body: BlockBody) -> Block {
         Block {
-            identifier: ident,
+            ident,
             labels: Vec::new(),
             body,
             decor: Decor::default(),
@@ -194,33 +184,9 @@ impl Block {
         }
     }
 
-    pub fn ident(&self) -> &Decorated<Ident> {
-        &self.identifier
-    }
-
-    pub fn labels(&self) -> LabelIter<'_> {
-        Box::new(self.labels.iter())
-    }
-
-    pub fn labels_mut(&mut self) -> LabelIterMut<'_> {
-        Box::new(self.labels.iter_mut())
-    }
-
-    pub fn set_labels(&mut self, labels: Vec<BlockLabel>) {
-        self.labels = labels;
-    }
-
-    pub fn body(&self) -> &BlockBody {
-        &self.body
-    }
-
-    pub fn body_mut(&mut self) -> &mut BlockBody {
-        &mut self.body
-    }
-
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
-        self.identifier.decor_mut().despan(input);
+        self.ident.decor_mut().despan(input);
         for label in &mut self.labels {
             label.despan(input);
         }
@@ -230,9 +196,7 @@ impl Block {
 
 impl PartialEq for Block {
     fn eq(&self, other: &Self) -> bool {
-        self.identifier == other.identifier
-            && self.labels == other.labels
-            && self.body == other.body
+        self.ident == other.ident && self.labels == other.labels && self.body == other.body
     }
 }
 

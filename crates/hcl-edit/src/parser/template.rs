@@ -91,7 +91,7 @@ fn interpolation(input: Input) -> IResult<Input, Interpolation> {
     control(b"${", decorated(ws, expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
-            interp.set_strip(strip);
+            interp.strip = strip;
             interp
         })
         .parse_next(input)
@@ -115,7 +115,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     )
         .map(|(((preamble, cond_expr), strip), template)| {
             let mut expr = IfTemplateExpr::new(cond_expr, template);
-            expr.set_strip(strip);
+            expr.strip = strip;
             expr.set_preamble(preamble);
             expr
         });
@@ -129,7 +129,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     )
         .map(|(((preamble, trailing), strip), template)| {
             let mut expr = ElseTemplateExpr::new(template);
-            expr.set_strip(strip);
+            expr.strip = strip;
             expr.set_preamble(preamble);
             expr.set_trailing(trailing);
             expr
@@ -141,7 +141,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
     )
     .map(|((preamble, trailing), strip)| {
         let mut expr = EndifTemplateExpr::new();
-        expr.set_strip(strip);
+        expr.strip = strip;
         expr.set_preamble(preamble);
         expr.set_trailing(trailing);
         expr
@@ -173,7 +173,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
                 };
 
                 let mut expr = ForTemplateExpr::new(key_var, value_var, collection_expr, template);
-                expr.set_strip(strip);
+                expr.strip = strip;
                 expr.set_preamble(preamble);
                 expr
             },
@@ -185,7 +185,7 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
     )
     .map(|((preamble, trailing), strip)| {
         let mut expr = EndforTemplateExpr::new();
-        expr.set_strip(strip);
+        expr.strip = strip;
         expr.set_preamble(preamble);
         expr.set_trailing(trailing);
         expr

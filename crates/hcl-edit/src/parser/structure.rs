@@ -75,7 +75,7 @@ fn structure<'i, 's>(
                 let (input, labels) = block_labels(input)?;
                 let (input, body) = block_body(input)?;
                 let mut block = Block::new(ident, body);
-                block.set_labels(labels);
+                block.labels = labels;
                 (input, Structure::Block(block))
             }
             _ => {

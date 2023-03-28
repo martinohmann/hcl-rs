@@ -65,8 +65,9 @@ impl PartialEq for StringTemplate {
 
 #[derive(Debug, Clone, Eq)]
 pub struct HeredocTemplate {
-    delimiter: Ident,
-    template: Template,
+    pub delimiter: Ident,
+    pub template: Template,
+
     indent: Option<usize>,
     trailing: RawString,
     decor: Decor,
@@ -83,14 +84,6 @@ impl HeredocTemplate {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn delimiter(&self) -> &Ident {
-        &self.delimiter
-    }
-
-    pub fn template(&self) -> &Template {
-        &self.template
     }
 
     pub fn indent(&self) -> Option<usize> {
@@ -231,8 +224,9 @@ impl Element {
 
 #[derive(Debug, Clone, Eq)]
 pub struct Interpolation {
-    expr: Expression,
-    strip: Strip,
+    pub expr: Expression,
+    pub strip: Strip,
+
     span: Option<Range<usize>>,
 }
 
@@ -243,18 +237,6 @@ impl Interpolation {
             strip: Strip::default(),
             span: None,
         }
-    }
-
-    pub fn expr(&self) -> &Expression {
-        &self.expr
-    }
-
-    pub fn strip(&self) -> Strip {
-        self.strip
-    }
-
-    pub fn set_strip(&mut self, strip: Strip) {
-        self.strip = strip;
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -285,9 +267,10 @@ impl Directive {
 
 #[derive(Debug, Clone, Eq)]
 pub struct IfDirective {
-    if_expr: IfTemplateExpr,
-    else_expr: Option<ElseTemplateExpr>,
-    endif_expr: EndifTemplateExpr,
+    pub if_expr: IfTemplateExpr,
+    pub else_expr: Option<ElseTemplateExpr>,
+    pub endif_expr: EndifTemplateExpr,
+
     span: Option<Range<usize>>,
 }
 
@@ -303,18 +286,6 @@ impl IfDirective {
             endif_expr,
             span: None,
         }
-    }
-
-    pub fn if_expr(&self) -> &IfTemplateExpr {
-        &self.if_expr
-    }
-
-    pub fn else_expr(&self) -> Option<&ElseTemplateExpr> {
-        self.else_expr.as_ref()
-    }
-
-    pub fn endif_expr(&self) -> &EndifTemplateExpr {
-        &self.endif_expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -338,10 +309,11 @@ impl PartialEq for IfDirective {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfTemplateExpr {
+    pub cond_expr: Expression,
+    pub template: Template,
+    pub strip: Strip,
+
     preamble: RawString,
-    cond_expr: Expression,
-    template: Template,
-    strip: Strip,
 }
 
 impl IfTemplateExpr {
@@ -352,22 +324,6 @@ impl IfTemplateExpr {
             template,
             strip: Strip::default(),
         }
-    }
-
-    pub fn cond_expr(&self) -> &Expression {
-        &self.cond_expr
-    }
-
-    pub fn template(&self) -> &Template {
-        &self.template
-    }
-
-    pub fn strip(&self) -> Strip {
-        self.strip
-    }
-
-    pub fn set_strip(&mut self, strip: Strip) {
-        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -387,10 +343,11 @@ impl IfTemplateExpr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElseTemplateExpr {
+    pub template: Template,
+    pub strip: Strip,
+
     preamble: RawString,
     trailing: RawString,
-    template: Template,
-    strip: Strip,
 }
 
 impl ElseTemplateExpr {
@@ -401,18 +358,6 @@ impl ElseTemplateExpr {
             template,
             strip: Strip::default(),
         }
-    }
-
-    pub fn template(&self) -> &Template {
-        &self.template
-    }
-
-    pub fn strip(&self) -> Strip {
-        self.strip
-    }
-
-    pub fn set_strip(&mut self, strip: Strip) {
-        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -440,22 +385,15 @@ impl ElseTemplateExpr {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EndifTemplateExpr {
+    pub strip: Strip,
+
     preamble: RawString,
     trailing: RawString,
-    strip: Strip,
 }
 
 impl EndifTemplateExpr {
     pub fn new() -> EndifTemplateExpr {
         EndifTemplateExpr::default()
-    }
-
-    pub fn strip(&self) -> Strip {
-        self.strip
-    }
-
-    pub fn set_strip(&mut self, strip: Strip) {
-        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -482,8 +420,9 @@ impl EndifTemplateExpr {
 
 #[derive(Debug, Clone, Eq)]
 pub struct ForDirective {
-    for_expr: ForTemplateExpr,
-    endfor_expr: EndforTemplateExpr,
+    pub for_expr: ForTemplateExpr,
+    pub endfor_expr: EndforTemplateExpr,
+
     span: Option<Range<usize>>,
 }
 
@@ -494,14 +433,6 @@ impl ForDirective {
             endfor_expr,
             span: None,
         }
-    }
-
-    pub fn for_expr(&self) -> &ForTemplateExpr {
-        &self.for_expr
-    }
-
-    pub fn endfor_expr(&self) -> &EndforTemplateExpr {
-        &self.endfor_expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -518,12 +449,13 @@ impl PartialEq for ForDirective {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForTemplateExpr {
+    pub key_var: Option<Decorated<Ident>>,
+    pub value_var: Decorated<Ident>,
+    pub collection_expr: Expression,
+    pub template: Template,
+    pub strip: Strip,
+
     preamble: RawString,
-    key_var: Option<Decorated<Ident>>,
-    value_var: Decorated<Ident>,
-    collection_expr: Expression,
-    template: Template,
-    strip: Strip,
 }
 
 impl ForTemplateExpr {
@@ -541,30 +473,6 @@ impl ForTemplateExpr {
             template,
             strip: Strip::default(),
         }
-    }
-
-    pub fn key_var(&self) -> Option<&Decorated<Ident>> {
-        self.key_var.as_ref()
-    }
-
-    pub fn value_var(&self) -> &Decorated<Ident> {
-        &self.value_var
-    }
-
-    pub fn collection_expr(&self) -> &Expression {
-        &self.collection_expr
-    }
-
-    pub fn template(&self) -> &Template {
-        &self.template
-    }
-
-    pub fn strip(&self) -> Strip {
-        self.strip
-    }
-
-    pub fn set_strip(&mut self, strip: Strip) {
-        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {
@@ -590,22 +498,15 @@ impl ForTemplateExpr {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EndforTemplateExpr {
+    pub strip: Strip,
+
     preamble: RawString,
     trailing: RawString,
-    strip: Strip,
 }
 
 impl EndforTemplateExpr {
     pub fn new() -> EndforTemplateExpr {
         EndforTemplateExpr::default()
-    }
-
-    pub fn strip(&self) -> Strip {
-        self.strip
-    }
-
-    pub fn set_strip(&mut self, strip: Strip) {
-        self.strip = strip;
     }
 
     pub fn preamble(&self) -> &RawString {

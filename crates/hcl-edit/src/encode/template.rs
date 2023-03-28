@@ -35,22 +35,22 @@ impl Encode for HeredocTemplate {
             buf.write_char('-')?;
         }
 
-        writeln!(buf, "{}", self.delimiter().as_str())?;
+        writeln!(buf, "{}", self.delimiter.as_str())?;
 
         match self.indent() {
             Some(n) => {
                 let mut indent_buf = String::new();
                 let mut indent_state = EncodeState::new(&mut indent_buf);
-                self.template().encode(&mut indent_state)?;
+                self.template.encode(&mut indent_state)?;
                 let indented = indent_by(&indent_buf, n, false);
                 buf.write_str(&indented)?;
             }
-            None => self.template().encode(buf)?,
+            None => self.template.encode(buf)?,
         }
 
         self.trailing().encode_with_default(buf, "")?;
 
-        write!(buf, "{}", self.delimiter().as_str())
+        write!(buf, "{}", self.delimiter.as_str())
     }
 }
 
@@ -82,8 +82,8 @@ impl Encode for Element {
 
 impl Encode for Interpolation {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        encode_strip(buf, INTERPOLATION_START, self.strip(), |buf| {
-            self.expr().encode_decorated(buf, BOTH_SPACE_DECOR)
+        encode_strip(buf, INTERPOLATION_START, self.strip, |buf| {
+            self.expr.encode_decorated(buf, BOTH_SPACE_DECOR)
         })
     }
 }
@@ -99,39 +99,39 @@ impl Encode for Directive {
 
 impl Encode for IfDirective {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.if_expr().encode(buf)?;
-        if let Some(else_expr) = self.else_expr() {
+        self.if_expr.encode(buf)?;
+        if let Some(else_expr) = &self.else_expr {
             else_expr.encode(buf)?;
         }
-        self.endif_expr().encode(buf)
+        self.endif_expr.encode(buf)
     }
 }
 
 impl Encode for IfTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+        encode_strip(buf, DIRECTIVE_START, self.strip, |buf| {
             self.preamble().encode_with_default(buf, " ")?;
             buf.write_str("if")?;
-            self.cond_expr().encode_decorated(buf, TRAILING_SPACE_DECOR)
+            self.cond_expr.encode_decorated(buf, TRAILING_SPACE_DECOR)
         })?;
-        self.template().encode(buf)
+        self.template.encode(buf)
     }
 }
 
 impl Encode for ElseTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+        encode_strip(buf, DIRECTIVE_START, self.strip, |buf| {
             self.preamble().encode_with_default(buf, " ")?;
             buf.write_str("else")?;
             self.trailing().encode_with_default(buf, " ")
         })?;
-        self.template().encode(buf)
+        self.template.encode(buf)
     }
 }
 
 impl Encode for EndifTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+        encode_strip(buf, DIRECTIVE_START, self.strip, |buf| {
             self.preamble().encode_with_default(buf, " ")?;
             buf.write_str("endif")?;
             self.trailing().encode_with_default(buf, " ")
@@ -141,34 +141,33 @@ impl Encode for EndifTemplateExpr {
 
 impl Encode for ForDirective {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.for_expr().encode(buf)?;
-        self.endfor_expr().encode(buf)
+        self.for_expr.encode(buf)?;
+        self.endfor_expr.encode(buf)
     }
 }
 
 impl Encode for ForTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+        encode_strip(buf, DIRECTIVE_START, self.strip, |buf| {
             self.preamble().encode_with_default(buf, " ")?;
             buf.write_str("for")?;
 
-            if let Some(key_var) = self.key_var() {
+            if let Some(key_var) = &self.key_var {
                 key_var.encode_decorated(buf, LEADING_SPACE_DECOR)?;
                 buf.write_char(',')?;
             }
 
-            self.value_var().encode_decorated(buf, BOTH_SPACE_DECOR)?;
+            self.value_var.encode_decorated(buf, BOTH_SPACE_DECOR)?;
             buf.write_str("in")?;
-            self.collection_expr()
-                .encode_decorated(buf, BOTH_SPACE_DECOR)
+            self.collection_expr.encode_decorated(buf, BOTH_SPACE_DECOR)
         })?;
-        self.template().encode(buf)
+        self.template.encode(buf)
     }
 }
 
 impl Encode for EndforTemplateExpr {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        encode_strip(buf, DIRECTIVE_START, self.strip(), |buf| {
+        encode_strip(buf, DIRECTIVE_START, self.strip, |buf| {
             self.preamble().encode_with_default(buf, " ")?;
             buf.write_str("endfor")?;
             self.trailing().encode_with_default(buf, " ")
