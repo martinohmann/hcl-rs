@@ -23,10 +23,6 @@ pub type ObjectIter<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a ObjectValu
 
 pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a mut ObjectValue)> + 'a>;
 
-pub type TraversalIter<'a> = Box<dyn Iterator<Item = &'a Decorated<TraversalOperator>> + 'a>;
-
-pub type TraversalIterMut<'a> = Box<dyn Iterator<Item = &'a mut Decorated<TraversalOperator>> + 'a>;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     Null(Decorated<Null>),
@@ -457,9 +453,10 @@ impl From<Expression> for ObjectValue {
 
 #[derive(Debug, Clone, Eq)]
 pub struct Conditional {
-    cond_expr: Expression,
-    true_expr: Expression,
-    false_expr: Expression,
+    pub cond_expr: Expression,
+    pub true_expr: Expression,
+    pub false_expr: Expression,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -477,18 +474,6 @@ impl Conditional {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn cond_expr(&self) -> &Expression {
-        &self.cond_expr
-    }
-
-    pub fn true_expr(&self) -> &Expression {
-        &self.true_expr
-    }
-
-    pub fn false_expr(&self) -> &Expression {
-        &self.false_expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -509,44 +494,33 @@ impl PartialEq for Conditional {
 
 #[derive(Debug, Clone, Eq)]
 pub struct FuncCall {
-    name: Decorated<Ident>,
-    args: FuncArgs,
+    pub ident: Decorated<Ident>,
+    pub args: FuncArgs,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
 
 impl FuncCall {
-    pub fn new(name: Decorated<Ident>, args: FuncArgs) -> FuncCall {
+    pub fn new(ident: Decorated<Ident>, args: FuncArgs) -> FuncCall {
         FuncCall {
-            name,
+            ident,
             args,
             decor: Decor::default(),
             span: None,
         }
     }
 
-    pub fn name(&self) -> &Decorated<Ident> {
-        &self.name
-    }
-
-    pub fn args(&self) -> &FuncArgs {
-        &self.args
-    }
-
-    pub fn args_mut(&mut self) -> &mut FuncArgs {
-        &mut self.args
-    }
-
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
-        self.name.decor_mut().despan(input);
+        self.ident.decor_mut().despan(input);
         self.args.despan(input);
     }
 }
 
 impl PartialEq for FuncCall {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.args == other.args
+        self.ident == other.ident && self.args == other.args
     }
 }
 
@@ -628,8 +602,9 @@ impl PartialEq for FuncArgs {
 
 #[derive(Debug, Clone, Eq)]
 pub struct Traversal {
-    expr: Expression,
-    operators: Vec<Decorated<TraversalOperator>>,
+    pub expr: Expression,
+    pub operators: Vec<Decorated<TraversalOperator>>,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -642,18 +617,6 @@ impl Traversal {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn expr(&self) -> &Expression {
-        &self.expr
-    }
-
-    pub fn operators(&self) -> TraversalIter<'_> {
-        Box::new(self.operators.iter())
-    }
-
-    pub fn operators_mut(&mut self) -> TraversalIterMut<'_> {
-        Box::new(self.operators.iter_mut())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -714,8 +677,9 @@ impl TraversalOperator {
 
 #[derive(Debug, Clone, Eq)]
 pub struct UnaryOp {
-    operator: Spanned<UnaryOperator>,
-    expr: Expression,
+    pub operator: Spanned<UnaryOperator>,
+    pub expr: Expression,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -728,14 +692,6 @@ impl UnaryOp {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn operator(&self) -> &Spanned<UnaryOperator> {
-        &self.operator
-    }
-
-    pub fn expr(&self) -> &Expression {
-        &self.expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -752,9 +708,10 @@ impl PartialEq for UnaryOp {
 
 #[derive(Debug, Clone, Eq)]
 pub struct BinaryOp {
-    lhs_expr: Expression,
-    operator: Spanned<BinaryOperator>,
-    rhs_expr: Expression,
+    pub lhs_expr: Expression,
+    pub operator: Spanned<BinaryOperator>,
+    pub rhs_expr: Expression,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -774,18 +731,6 @@ impl BinaryOp {
         }
     }
 
-    pub fn lhs_expr(&self) -> &Expression {
-        &self.lhs_expr
-    }
-
-    pub fn operator(&self) -> &Spanned<BinaryOperator> {
-        &self.operator
-    }
-
-    pub fn rhs_expr(&self) -> &Expression {
-        &self.rhs_expr
-    }
-
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.lhs_expr.despan(input);
@@ -803,11 +748,12 @@ impl PartialEq for BinaryOp {
 
 #[derive(Debug, Clone, Eq)]
 pub struct ForExpr {
-    intro: ForIntro,
-    key_expr: Option<Expression>,
-    value_expr: Expression,
-    grouping: bool,
-    cond: Option<ForCond>,
+    pub intro: ForIntro,
+    pub key_expr: Option<Expression>,
+    pub value_expr: Expression,
+    pub grouping: bool,
+    pub cond: Option<ForCond>,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -823,38 +769,6 @@ impl ForExpr {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn intro(&self) -> &ForIntro {
-        &self.intro
-    }
-
-    pub fn key_expr(&self) -> Option<&Expression> {
-        self.key_expr.as_ref()
-    }
-
-    pub fn set_key_expr(&mut self, key_expr: Expression) {
-        self.key_expr = Some(key_expr);
-    }
-
-    pub fn value_expr(&self) -> &Expression {
-        &self.value_expr
-    }
-
-    pub fn grouping(&self) -> bool {
-        self.grouping
-    }
-
-    pub fn set_grouping(&mut self, yes: bool) {
-        self.grouping = yes;
-    }
-
-    pub fn cond(&self) -> Option<&ForCond> {
-        self.cond.as_ref()
-    }
-
-    pub fn set_cond(&mut self, cond: ForCond) {
-        self.cond = Some(cond);
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -885,9 +799,10 @@ impl PartialEq for ForExpr {
 
 #[derive(Debug, Clone, Eq)]
 pub struct ForIntro {
-    key_var: Option<Decorated<Ident>>,
-    value_var: Decorated<Ident>,
-    collection_expr: Expression,
+    pub key_var: Option<Decorated<Ident>>,
+    pub value_var: Decorated<Ident>,
+    pub collection_expr: Expression,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -901,22 +816,6 @@ impl ForIntro {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn key_var(&self) -> Option<&Decorated<Ident>> {
-        self.key_var.as_ref()
-    }
-
-    pub fn set_key_var(&mut self, key_var: Decorated<Ident>) {
-        self.key_var = Some(key_var);
-    }
-
-    pub fn value_var(&self) -> &Decorated<Ident> {
-        &self.value_var
-    }
-
-    pub fn collection_expr(&self) -> &Expression {
-        &self.collection_expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -940,7 +839,8 @@ impl PartialEq for ForIntro {
 
 #[derive(Debug, Clone, Eq)]
 pub struct ForCond {
-    expr: Expression,
+    pub expr: Expression,
+
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -952,10 +852,6 @@ impl ForCond {
             decor: Decor::default(),
             span: None,
         }
-    }
-
-    pub fn expr(&self) -> &Expression {
-        &self.expr
     }
 
     pub(crate) fn despan(&mut self, input: &str) {

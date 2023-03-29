@@ -304,10 +304,7 @@ fn for_list_expr<'i, 's>(
         (for_intro, decorated(ws, expr, ws), opt(for_cond))
             .map(|(intro, value_expr, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
-
-                if let Some(cond) = cond {
-                    expr.set_cond(cond);
-                }
+                expr.cond = cond;
 
                 state
                     .borrow_mut()
@@ -366,12 +363,9 @@ fn for_object_expr<'i, 's>(
         )
             .map(|(intro, (key_expr, value_expr), grouping, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
-                expr.set_key_expr(key_expr);
-                expr.set_grouping(grouping.is_some());
-
-                if let Some(cond) = cond {
-                    expr.set_cond(cond);
-                }
+                expr.key_expr = Some(key_expr);
+                expr.grouping = grouping.is_some();
+                expr.cond = cond;
 
                 state
                     .borrow_mut()
@@ -517,7 +511,7 @@ fn for_intro(input: Input) -> IResult<Input, ForIntro> {
         .map(|(first, second, expr)| match second {
             Some(second) => {
                 let mut intro = ForIntro::new(second, expr);
-                intro.set_key_var(first);
+                intro.key_var = Some(first);
                 intro
             }
             None => ForIntro::new(first, expr),
@@ -599,9 +593,9 @@ fn identlike<'i, 's>(
             .map(|((ident, span), func_args)| {
                 let expr = match func_args {
                     Some(func_args) => {
-                        let mut name = Decorated::new(Ident::new_unchecked(ident));
-                        name.set_span(span);
-                        let func_call = FuncCall::new(name, func_args);
+                        let mut ident = Decorated::new(Ident::new_unchecked(ident));
+                        ident.set_span(span);
+                        let func_call = FuncCall::new(ident, func_args);
                         Expression::FuncCall(Box::new(func_call))
                     }
                     None => match ident {

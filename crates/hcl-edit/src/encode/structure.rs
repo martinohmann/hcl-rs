@@ -27,21 +27,21 @@ impl EncodeDecorated for Structure {
 
 impl Encode for Attribute {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.key().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
+        self.key.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         buf.write_char('=')?;
-        self.expr().encode_decorated(buf, LEADING_SPACE_DECOR)
+        self.value.encode_decorated(buf, LEADING_SPACE_DECOR)
     }
 }
 
 impl Encode for Block {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.ident().encode_decorated(buf, TRAILING_SPACE_DECOR)?;
+        self.ident.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
 
-        for label in self.labels() {
+        for label in &self.labels {
             label.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         }
 
-        self.body().encode(buf)
+        self.body.encode(buf)
     }
 }
 
