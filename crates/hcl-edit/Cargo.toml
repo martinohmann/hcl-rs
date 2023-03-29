@@ -1,6 +1,6 @@
 [package]
 name = "hcl-edit"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Parse and modify HCL while preserving comments and whitespace"
