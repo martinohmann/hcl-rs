@@ -218,7 +218,7 @@ impl BlockLabel {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockBody {
     Multiline(Body),
-    Oneline(Box<Oneline>),
+    Oneline(Box<OnelineBody>),
 }
 
 impl BlockBody {
@@ -264,14 +264,14 @@ impl BlockBody {
         }
     }
 
-    pub fn as_oneline(&self) -> Option<&Oneline> {
+    pub fn as_oneline(&self) -> Option<&OnelineBody> {
         match self {
             BlockBody::Multiline(_) => None,
             BlockBody::Oneline(oneline) => Some(oneline),
         }
     }
 
-    pub fn as_oneline_mut(&mut self) -> Option<&mut Oneline> {
+    pub fn as_oneline_mut(&mut self) -> Option<&mut OnelineBody> {
         match self {
             BlockBody::Multiline(_) => None,
             BlockBody::Oneline(oneline) => Some(oneline),
@@ -307,14 +307,14 @@ impl BlockBody {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Oneline {
+pub struct OnelineBody {
     attr: Option<Structure>,
     trailing: RawString,
 }
 
-impl Oneline {
-    pub fn new() -> Oneline {
-        Oneline::default()
+impl OnelineBody {
+    pub fn new() -> OnelineBody {
+        OnelineBody::default()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -345,9 +345,9 @@ impl Oneline {
     }
 }
 
-impl From<Attribute> for Oneline {
+impl From<Attribute> for OnelineBody {
     fn from(attr: Attribute) -> Self {
-        Oneline {
+        OnelineBody {
             attr: Some(Structure::Attribute(attr)),
             trailing: RawString::default(),
         }

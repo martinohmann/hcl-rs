@@ -10,7 +10,7 @@ use super::{
 use crate::{
     expr::Expression,
     repr::{Decorate, Decorated, SetSpan},
-    structure::{Attribute, Block, BlockBody, BlockLabel, Body, Oneline, Structure},
+    structure::{Attribute, Block, BlockBody, BlockLabel, Body, OnelineBody, Structure},
 };
 use std::cell::RefCell;
 use winnow::{
@@ -128,7 +128,7 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
                 .map(BlockBody::Multiline),
             // One-line block.
             (opt(decorated(sp, attribute, sp)), raw_string(sp)).map(|(attr, trailing)| {
-                let mut oneline = Oneline::new();
+                let mut oneline = OnelineBody::new();
                 if let Some(attr) = attr {
                     oneline.set_attribute(attr);
                 }

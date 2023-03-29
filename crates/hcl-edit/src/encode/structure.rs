@@ -2,7 +2,7 @@ use super::{
     encode_decorated, encode_quoted_string, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
-use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Oneline, Structure};
+use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, OnelineBody, Structure};
 use std::fmt::{self, Write};
 
 impl Encode for Body {
@@ -72,7 +72,7 @@ impl Encode for BlockBody {
     }
 }
 
-impl Encode for Oneline {
+impl Encode for OnelineBody {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         if let Some(attr) = self.as_attribute() {
             attr.encode_decorated(buf, BOTH_SPACE_DECOR)?;
