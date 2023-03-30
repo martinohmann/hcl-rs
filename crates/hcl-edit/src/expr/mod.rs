@@ -7,7 +7,7 @@ use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Span, Spanned}
 use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{parser, Ident, Number, RawString};
 use std::fmt;
-use std::ops::Range;
+use std::ops::{self, Range};
 use std::str::FromStr;
 use vecmap::map::{MutableKeys, VecMap};
 
@@ -21,7 +21,7 @@ pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
 
 pub type ObjectIter<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a ObjectValue)> + 'a>;
 
-pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a mut ObjectValue)> + 'a>;
+pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)> + 'a>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
@@ -309,7 +309,11 @@ impl Object {
     }
 
     pub fn iter_mut(&mut self) -> ObjectIterMut<'_> {
-        Box::new(self.items.iter_mut())
+        Box::new(
+            self.items
+                .iter_mut2()
+                .map(|(k, v)| (ObjectKeyMut::new(k), v)),
+        )
     }
 
     pub fn trailing(&self) -> &RawString {
@@ -378,6 +382,50 @@ impl From<Ident> for ObjectKey {
 impl From<Expression> for ObjectKey {
     fn from(expr: Expression) -> Self {
         ObjectKey::Expression(expr)
+    }
+}
+
+/// Allows mutable access to the surrounding [`Decor`](crate::repr::Decor) of an [`ObjectKey`] but
+/// not to its value.
+///
+/// This type wraps the object key in the iterator returned by [`Object::iter_mut`].
+#[derive(Debug, Eq, PartialEq)]
+pub struct ObjectKeyMut<'k> {
+    key: &'k mut ObjectKey,
+}
+
+impl<'k> ObjectKeyMut<'k> {
+    pub(crate) fn new(key: &'k mut ObjectKey) -> ObjectKeyMut<'k> {
+        ObjectKeyMut { key }
+    }
+
+    /// Returns an immutable reference to the wrapped `ObjectKey`.
+    pub fn get(&self) -> &ObjectKey {
+        self.key
+    }
+}
+
+impl<'k> ops::Deref for ObjectKeyMut<'k> {
+    type Target = ObjectKey;
+
+    fn deref(&self) -> &Self::Target {
+        self.get()
+    }
+}
+
+impl<'k> Decorate for ObjectKeyMut<'k> {
+    fn decor(&self) -> &Decor {
+        self.key.decor()
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        self.key.decor_mut()
+    }
+}
+
+impl<'k> Span for ObjectKeyMut<'k> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.key.span()
     }
 }
 
