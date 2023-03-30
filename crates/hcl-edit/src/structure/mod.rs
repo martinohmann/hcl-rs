@@ -308,6 +308,8 @@ impl BlockBody {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct OnelineBody {
+    // Always of variant `Structure::Attribute` if not `None`. It's wrapped in a `Structure` to
+    // support the creation of iterators over (mutable) `Structure` references in `BlockBody`.
     attr: Option<Structure>,
     trailing: RawString,
 }
@@ -321,12 +323,16 @@ impl OnelineBody {
         self.attr.is_none()
     }
 
-    pub fn set_attribute(&mut self, attr: Attribute) {
-        self.attr = Some(Structure::Attribute(attr))
+    pub fn set_attribute(&mut self, attr: impl Into<Attribute>) {
+        self.attr = Some(Structure::Attribute(attr.into()))
     }
 
     pub fn as_attribute(&self) -> Option<&Attribute> {
-        self.attr.as_ref().and_then(|s| s.as_attribute())
+        self.attr.as_ref().and_then(Structure::as_attribute)
+    }
+
+    pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
+        self.attr.as_mut().and_then(Structure::as_attribute_mut)
     }
 
     pub fn trailing(&self) -> &RawString {

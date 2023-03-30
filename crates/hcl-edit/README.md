@@ -20,6 +20,16 @@ This will improve over time as this project evolves.
 
 **Expect breaking changes at any time** until the biggest issues are fleshed out.
 
+## HCL document traversal
+
+The [`visit`](https://docs.rs/hcl-edit/latest/hcl_edit/visit/index.html) module
+allows traversal of language items within a HCL document. Mutable document
+traversal is supported via the
+[`visit_mut`](https://docs.rs/hcl-edit/latest/hcl_edit/visit_mut/index.html)
+module.
+
+See the respective module's documentation for more.
+
 ## Contributing
 
 Contributions are welcome! Please read

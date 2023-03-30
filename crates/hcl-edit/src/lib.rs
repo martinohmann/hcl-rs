@@ -15,6 +15,8 @@ pub mod repr;
 pub mod structure;
 pub mod template;
 mod util;
+pub mod visit;
+pub mod visit_mut;
 
 #[doc(inline)]
 pub use self::raw_string::RawString;

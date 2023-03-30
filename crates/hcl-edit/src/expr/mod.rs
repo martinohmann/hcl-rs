@@ -110,6 +110,12 @@ impl From<Parenthesis> for Expression {
     }
 }
 
+impl From<Traversal> for Expression {
+    fn from(traversal: Traversal) -> Self {
+        Expression::Traversal(Box::new(traversal))
+    }
+}
+
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
