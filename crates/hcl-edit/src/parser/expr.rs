@@ -54,6 +54,8 @@ pub(super) fn expr_inner<'i, 's>(
                     // argument of a function call, do not mistakenly parse it as a traversal
                     // operator.
                     b".." => return Ok((input, ())),
+                    // This is a comment start, do not mistakenly parse a binary division operator.
+                    b"//" | b"/*" => return Ok((input, ())),
                     // Traversal operator.
                     //
                     // Note: after the traversal is consumed, the loop is entered again to consume

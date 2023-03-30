@@ -84,6 +84,8 @@ fn roundtrip_body() {
                   heredoc
                 EOT
         "#},
+        "ami = \"ami-5f6495430e7781fe5\" // Ubuntu 20.04 LTS\n",
+        "ami = \"ami-5f6495430e7781fe5\" /* Ubuntu 20.04 LTS */\n",
     ];
 
     let tests = testdata::load().unwrap();
