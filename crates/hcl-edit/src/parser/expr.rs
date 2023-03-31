@@ -147,7 +147,7 @@ fn number<'i, 's>(
     move |input: Input<'i>| {
         num.with_recognized()
             .map(|(num, repr)| {
-                let mut num = Formatted::new(-num);
+                let mut num = Formatted::new(num);
                 num.set_repr(unsafe { from_utf8_unchecked(repr, "`num` filters out non-ascii") });
                 state.borrow_mut().on_expr_term(Expression::Number(num))
             })

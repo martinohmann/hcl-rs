@@ -2,6 +2,7 @@ use super::expr::expr;
 use super::parse_complete;
 use super::structure::body;
 use super::template::template;
+use crate::{expr::Expression, repr::Formatted, Number};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 
@@ -11,6 +12,13 @@ macro_rules! assert_roundtrip {
         parsed.despan($input);
         assert_eq!(&parsed.to_string(), $input);
     };
+}
+
+#[test]
+fn number_expr() {
+    let parsed = parse_complete("42", expr).unwrap();
+    let expected = Expression::Number(Formatted::new(Number::from(42)));
+    assert_eq!(parsed, expected);
 }
 
 #[test]
