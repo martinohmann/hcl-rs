@@ -135,13 +135,23 @@ impl Indenter {
 }
 
 impl Formatter {
-    fn increase_indent(&mut self) -> &mut Self {
+    fn dedent(&mut self) -> &mut Self {
         self.indenter.increase();
         self
     }
 
-    fn decrease_indent(&mut self) -> &mut Self {
+    fn indent(&mut self) -> &mut Self {
         self.indenter.decrease();
+        self
+    }
+
+    fn descend<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut Formatter),
+    {
+        self.dedent();
+        f(self);
+        self.indent();
         self
     }
 
@@ -150,15 +160,12 @@ impl Formatter {
         self
     }
 
-    fn indent(&self) -> String {
-        self.indenter.prefix.repeat(self.indenter.level)
-    }
-
     fn newline_indented(&self, s: &str) -> String {
-        format!("\n{}{}", self.indent(), s)
+        let indent = self.indenter.prefix.repeat(self.indenter.level);
+        format!("\n{}{}", indent, s)
     }
 
-    fn indented<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
+    fn indent_decor<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
     where
         T: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut T),
@@ -172,12 +179,12 @@ impl Formatter {
 
 impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_body_mut(&mut self, node: &'ast mut Body) {
-        self.indented(node, |fmt, node| visit_body_mut(fmt, node));
+        self.indent_decor(node, |fmt, node| visit_body_mut(fmt, node));
     }
 
     fn visit_structure_mut(&mut self, node: &'ast mut Structure) {
         self.indent_next_line(true)
-            .indented(node, |fmt, node| visit_structure_mut(fmt, node));
+            .indent_decor(node, |fmt, node| visit_structure_mut(fmt, node));
     }
 
     fn visit_attr_mut(&mut self, node: &'ast mut Attribute) {
@@ -187,65 +194,63 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_ident_mut(&mut self, node: &'ast mut Decorated<Ident>) {
-        self.indented(node, |_, _| ());
+        self.indent_decor(node, |_, _| ());
     }
 
     fn visit_expr_mut(&mut self, node: &'ast mut Expression) {
-        self.indented(node, |fmt, node| visit_expr_mut(fmt, node));
+        self.indent_decor(node, |fmt, node| visit_expr_mut(fmt, node));
     }
 
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
-        if !is_multiline_array(node) {
-            return visit_array_mut(self, node);
+        if is_multiline_array(node) {
+            self.descend(|fmt| {
+                fmt.indent_decor(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
+            });
+
+            node.set_trailing(self.newline_indented(node.trailing().trim()));
+        } else {
+            visit_array_mut(self, node);
         }
-
-        self.increase_indent()
-            .indented(node, |fmt, node| {
-                for expr in node.iter_mut() {
-                    visit_expr_mut(fmt, expr);
-                    make_multiline_expr(fmt, expr);
-                }
-            })
-            .decrease_indent();
-
-        node.set_trailing(self.newline_indented(node.trailing().trim()));
     }
 
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
-        if !is_multiline_func_args(node) {
-            return visit_func_args_mut(self, node);
+        if is_multiline_func_args(node) {
+            self.descend(|fmt| {
+                fmt.indent_decor(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
+            });
+
+            node.set_trailing(self.newline_indented(node.trailing().trim()));
+        } else {
+            visit_func_args_mut(self, node);
         }
-
-        self.increase_indent()
-            .indented(node, |fmt, node| {
-                for expr in node.iter_mut() {
-                    visit_expr_mut(fmt, expr);
-                    make_multiline_expr(fmt, expr);
-                }
-            })
-            .decrease_indent();
-
-        node.set_trailing(self.newline_indented(node.trailing().trim()));
     }
 
     fn visit_block_body_mut(&mut self, node: &'ast mut BlockBody) {
         match node {
             BlockBody::Multiline(body) => {
-                self.indent_next_line(false).indented(body, |fmt, node| {
-                    fmt.increase_indent().visit_body_mut(node);
-                    fmt.decrease_indent().indent_next_line(true);
-                });
+                self.indent_next_line(false)
+                    .indent_decor(body, |fmt, node| {
+                        fmt.descend(|fmt| fmt.visit_body_mut(node))
+                            .indent_next_line(true);
+                    });
             }
             BlockBody::Oneline(body) => self.visit_oneline_body_mut(body),
         }
     }
 }
 
-fn make_multiline_expr(fmt: &mut Formatter, expr: &mut Expression) {
-    let decor = expr.decor_mut();
-    let prefix = decor.take_prefix().unwrap_or_default();
-    let suffix = decor.take_suffix().unwrap_or_default();
-    *decor = Decor::new(fmt.newline_indented(prefix.trim()), suffix.trim());
+fn make_multiline_exprs<'a>(
+    fmt: &'a mut Formatter,
+    iter: impl Iterator<Item = &'a mut Expression>,
+) {
+    for expr in iter {
+        visit_expr_mut(fmt, expr);
+
+        let decor = expr.decor_mut();
+        let prefix = decor.take_prefix().unwrap_or_default();
+        let suffix = decor.take_suffix().unwrap_or_default();
+        *decor = Decor::new(fmt.newline_indented(prefix.trim()), suffix.trim());
+    }
 }
 
 fn is_multiline_expr(expr: &Expression) -> bool {
