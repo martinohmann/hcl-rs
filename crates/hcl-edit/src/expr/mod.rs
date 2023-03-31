@@ -232,6 +232,7 @@ impl Array {
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
+        self.decor.despan(input);
         self.trailing.despan(input);
 
         for value in &mut self.values {

@@ -86,6 +86,7 @@ fn roundtrip_body() {
         "#},
         "ami = \"ami-5f6495430e7781fe5\" // Ubuntu 20.04 LTS\n",
         "ami = \"ami-5f6495430e7781fe5\" /* Ubuntu 20.04 LTS */\n",
+        "array =   [1, 2, 3]\n",
     ];
 
     let tests = testdata::load().unwrap();
