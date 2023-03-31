@@ -50,6 +50,29 @@ impl Decor {
         self.suffix.take()
     }
 
+    pub(crate) fn update_prefix<F, U>(&mut self, f: F)
+    where
+        F: FnOnce(RawString) -> U,
+        U: Into<RawString>,
+    {
+        let old_prefix = self.take_prefix().unwrap_or_default();
+        self.set_prefix(f(old_prefix));
+    }
+
+    pub(crate) fn update_suffix<F, U>(&mut self, f: F)
+    where
+        F: FnOnce(RawString) -> U,
+        U: Into<RawString>,
+    {
+        let old_suffix = self.take_suffix().unwrap_or_default();
+        self.set_suffix(f(old_suffix));
+    }
+
+    pub(crate) fn is_multiline(&self) -> bool {
+        self.prefix.as_ref().map_or(false, RawString::is_multiline)
+            || self.suffix.as_ref().map_or(false, RawString::is_multiline)
+    }
+
     /// Clears the decor prefix and suffix.
     pub fn clear(&mut self) {
         self.prefix = None;

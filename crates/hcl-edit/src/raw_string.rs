@@ -39,6 +39,10 @@ impl RawString {
         }
     }
 
+    pub(crate) fn is_multiline(&self) -> bool {
+        self.as_str().contains('\n')
+    }
+
     pub(crate) fn encode_with_default(
         &self,
         buf: &mut EncodeState,
