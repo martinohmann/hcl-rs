@@ -1,6 +1,7 @@
 //! Representations of values within a HCL document.
 
 use crate::encode::{Encode, EncodeState};
+use crate::format::Formatter;
 use crate::raw_string::RawString;
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
@@ -39,6 +40,14 @@ impl Decor {
     /// Returns a reference to the decor suffix, if one is present, `None` otherwise.
     pub fn suffix(&self) -> Option<&RawString> {
         self.suffix.as_ref()
+    }
+
+    pub(crate) fn take_prefix(&mut self) -> Option<RawString> {
+        self.prefix.take()
+    }
+
+    pub(crate) fn take_suffix(&mut self) -> Option<RawString> {
+        self.suffix.take()
     }
 
     /// Clears the decor prefix and suffix.
@@ -117,6 +126,36 @@ pub trait Decorate {
         Self: Sized,
     {
         self.decorate(decor);
+        self
+    }
+}
+
+/// A trait for objects which can be formatted.
+pub trait Format {
+    /// Formats an object.
+    fn format(&mut self, formatter: Formatter);
+
+    /// Applies the default format to an object.
+    fn default_format(&mut self) {
+        let formatter = Formatter::default();
+        self.format(formatter);
+    }
+
+    /// Formats an object and returns the modified value.
+    fn formatted(mut self, formatter: Formatter) -> Self
+    where
+        Self: Sized,
+    {
+        self.format(formatter);
+        self
+    }
+
+    /// Applies the default format to an object and returns the modified value.
+    fn default_formatted(mut self) -> Self
+    where
+        Self: Sized,
+    {
+        self.default_format();
         self
     }
 }

@@ -1,7 +1,8 @@
 use crate::encode::EncodeState;
 use hcl_primitives::InternalString;
+use std::borrow::Cow;
 use std::fmt::Write;
-use std::ops::Range;
+use std::ops::{self, Range};
 
 /// Opaque string storage for raw HCL.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,9 +69,29 @@ impl Default for RawString {
     }
 }
 
+impl ops::Deref for RawString {
+    type Target = str;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
 impl From<&str> for RawString {
     #[inline]
     fn from(s: &str) -> Self {
+        if s.is_empty() {
+            RawString(RawStringInner::Empty)
+        } else {
+            RawString::from(InternalString::from(s))
+        }
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for RawString {
+    #[inline]
+    fn from(s: Cow<'a, str>) -> Self {
         if s.is_empty() {
             RawString(RawStringInner::Empty)
         } else {
@@ -94,5 +115,25 @@ impl From<InternalString> for RawString {
     #[inline]
     fn from(inner: InternalString) -> Self {
         RawString(RawStringInner::Explicit(inner))
+    }
+}
+
+impl<'a> From<RawString> for Cow<'a, str> {
+    #[inline]
+    fn from(s: RawString) -> Self {
+        match s.0 {
+            RawStringInner::Empty | RawStringInner::Spanned(_) => Cow::Borrowed(""),
+            RawStringInner::Explicit(s) => Cow::Owned(s.into_string()),
+        }
+    }
+}
+
+impl<'a> From<&RawString> for Cow<'a, str> {
+    #[inline]
+    fn from(s: &RawString) -> Self {
+        match &s.0 {
+            RawStringInner::Empty | RawStringInner::Spanned(_) => Cow::Borrowed(""),
+            RawStringInner::Explicit(s) => Cow::Owned(s.to_string()),
+        }
     }
 }

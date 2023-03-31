@@ -2,9 +2,11 @@
 
 #![allow(missing_docs)]
 
-use crate::encode::{Encode, EncodeState};
+use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
+use crate::format::Formatter;
+use crate::repr::{Decor, Decorate, Decorated, Format, SetSpan, Span};
+use crate::visit_mut::VisitMut;
 use crate::{parser, Ident, RawString};
 use std::fmt;
 use std::ops::Range;
@@ -59,7 +61,7 @@ impl PartialEq for Body {
 impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
-        self.encode(&mut state)
+        self.encode_decorated(&mut state, NO_DECOR)
     }
 }
 
@@ -77,6 +79,12 @@ impl From<Vec<Structure>> for Body {
             structures,
             ..Default::default()
         }
+    }
+}
+
+impl Format for Body {
+    fn format(&mut self, mut formatter: Formatter) {
+        formatter.visit_body_mut(self);
     }
 }
 

@@ -121,7 +121,7 @@ impl HeredocTemplate {
 
             for element in self.template.iter_mut() {
                 if let Element::Literal(literal) = element {
-                    let dedented = dedent_by(literal, indent, skip_first);
+                    let dedented = dedent_by(literal.as_ref(), indent, skip_first);
                     *literal.as_mut() = dedented.into();
                     skip_first = !literal.ends_with('\n');
                 } else {

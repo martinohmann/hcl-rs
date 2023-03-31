@@ -1,6 +1,24 @@
 use std::borrow::Cow;
 
-pub(crate) fn dedent_by(s: &str, n: usize, skip_first: bool) -> Cow<str> {
+pub(crate) fn dedent<'a, S>(s: S, skip_first: bool) -> Cow<'a, str>
+where
+    S: Into<Cow<'a, str>>,
+{
+    let s = s.into();
+    let n = min_leading_whitespace(&s, skip_first);
+    dedent_by(s, n, skip_first)
+}
+
+pub(crate) fn dedent_by<'a, S>(s: S, n: usize, skip_first: bool) -> Cow<'a, str>
+where
+    S: Into<Cow<'a, str>>,
+{
+    let s = s.into();
+
+    if s.is_empty() || n == 0 {
+        return s;
+    }
+
     let mut dedented = String::with_capacity(s.len());
 
     for (i, line) in s.lines().enumerate() {
@@ -77,4 +95,38 @@ pub(crate) fn indent_by(s: &str, n: usize, skip_first: bool) -> String {
     }
 
     output
+}
+
+pub(crate) fn indent_with<'a, S>(s: S, prefix: &str, skip_first: bool) -> Cow<'a, str>
+where
+    S: Into<Cow<'a, str>>,
+{
+    let s = s.into();
+
+    if prefix.is_empty() {
+        return s;
+    }
+
+    let length = s.len();
+    let mut output = String::with_capacity(length + length / 2);
+
+    for (i, line) in s.lines().enumerate() {
+        if i > 0 {
+            output.push('\n');
+
+            if !line.is_empty() {
+                output.push_str(prefix);
+            }
+        } else if !skip_first && !line.is_empty() {
+            output.push_str(prefix);
+        }
+
+        output.push_str(line);
+    }
+
+    if s.ends_with('\n') {
+        output.push('\n');
+    }
+
+    Cow::Owned(output)
 }

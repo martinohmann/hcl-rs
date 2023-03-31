@@ -9,6 +9,7 @@ mod macros;
 
 pub(crate) mod encode;
 pub mod expr;
+pub mod format;
 pub mod parser;
 mod raw_string;
 pub mod repr;
