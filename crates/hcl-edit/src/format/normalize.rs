@@ -11,7 +11,7 @@ use winnow::{
 use crate::{repr::Decor, RawString};
 
 #[derive(Debug)]
-enum DecorPart<'i> {
+enum DecorFragment<'i> {
     Whitespace(&'i str),
     InlineComment(&'i str),
     HashLineComment(&'i str),
@@ -19,7 +19,7 @@ enum DecorPart<'i> {
 }
 
 #[derive(Debug)]
-struct DecorParts<'i>(Vec<DecorPart<'i>>);
+struct DecorFragments<'i>(Vec<DecorFragment<'i>>);
 
 #[derive(Default, Debug, Clone)]
 pub(crate) struct Normalizer {
@@ -55,16 +55,16 @@ impl Normalizer {
     }
 
     pub fn normalize<'i>(&self, input: &'i str) -> Option<Cow<'i, str>> {
-        let mut parts = if self.multiline {
+        let mut fragments = if self.multiline {
             parse_multiline(input)?
         } else {
             parse_inline(input)?
         };
 
-        self.normalize_start(&mut parts);
-        self.normalize_end(&mut parts);
-        self.normalize_leading_newline(&mut parts);
-        parts.into_cow_str()
+        self.normalize_start(&mut fragments);
+        self.normalize_end(&mut fragments);
+        self.normalize_leading_newline(&mut fragments);
+        fragments.into_cow_str()
     }
 
     pub fn normalize_raw(&self, input: &RawString) -> Option<RawString> {
@@ -89,126 +89,128 @@ impl Normalizer {
         }
     }
 
-    fn normalize_start(&self, parts: &mut Vec<DecorPart>) {
-        if let (Some(DecorPart::Whitespace(first)), second) = (parts.get(0), parts.get(1)) {
+    fn normalize_start(&self, fragments: &mut Vec<DecorFragment>) {
+        if let (Some(DecorFragment::Whitespace(first)), second) =
+            (fragments.get(0), fragments.get(1))
+        {
             let trimmed = trim(first);
             let has_second = second.is_some();
 
             if trimmed.is_empty() {
-                parts.remove(0);
+                fragments.remove(0);
             } else {
-                *parts.first_mut().unwrap() = DecorPart::Whitespace(trimmed);
+                *fragments.first_mut().unwrap() = DecorFragment::Whitespace(trimmed);
             }
 
             if self.leading_space && has_second {
-                parts.insert(0, DecorPart::Whitespace(" "));
+                fragments.insert(0, DecorFragment::Whitespace(" "));
             }
         }
     }
 
-    fn normalize_end(&self, parts: &mut Vec<DecorPart>) {
-        let len = parts.len();
+    fn normalize_end(&self, fragments: &mut Vec<DecorFragment>) {
+        let len = fragments.len();
 
-        if len > 1 && !matches!(&parts[len - 2], DecorPart::InlineComment(_)) {
+        if len > 1 && !matches!(&fragments[len - 2], DecorFragment::InlineComment(_)) {
             return;
         }
 
-        if let Some(DecorPart::Whitespace(last)) = parts.last() {
+        if let Some(DecorFragment::Whitespace(last)) = fragments.last() {
             let trimmed = trim(last);
 
             if trimmed.is_empty() {
-                parts.remove(len - 1);
+                fragments.remove(len - 1);
             } else {
-                *parts.last_mut().unwrap() = DecorPart::Whitespace(trimmed);
+                *fragments.last_mut().unwrap() = DecorFragment::Whitespace(trimmed);
             }
 
             if self.trailing_space {
-                parts.push(DecorPart::Whitespace(" "));
+                fragments.push(DecorFragment::Whitespace(" "));
             }
         }
     }
 
-    fn normalize_leading_newline(&self, parts: &mut Vec<DecorPart>) {
+    fn normalize_leading_newline(&self, fragments: &mut Vec<DecorFragment>) {
         if !self.leading_newline {
             return;
         }
 
-        if parts.is_empty() {
-            parts.push(DecorPart::Whitespace("\n"));
+        if fragments.is_empty() {
+            fragments.push(DecorFragment::Whitespace("\n"));
         } else {
-            if let Some(DecorPart::Whitespace(first)) = parts.first() {
+            if let Some(DecorFragment::Whitespace(first)) = fragments.first() {
                 if !first.starts_with('\n') {
-                    parts.insert(0, DecorPart::Whitespace("\n"));
+                    fragments.insert(0, DecorFragment::Whitespace("\n"));
                 }
             } else {
-                parts.insert(0, DecorPart::Whitespace("\n"));
+                fragments.insert(0, DecorFragment::Whitespace("\n"));
             }
         }
     }
 }
 
-impl<'i> DecorPart<'i> {
+impl<'i> DecorFragment<'i> {
     fn as_str(&self) -> &'i str {
         match self {
-            DecorPart::Whitespace(s)
-            | DecorPart::InlineComment(s)
-            | DecorPart::HashLineComment(s)
-            | DecorPart::DoubleSlashLineComment(s) => s,
+            DecorFragment::Whitespace(s)
+            | DecorFragment::InlineComment(s)
+            | DecorFragment::HashLineComment(s)
+            | DecorFragment::DoubleSlashLineComment(s) => s,
         }
     }
 }
 
-impl<'i> DecorParts<'i> {
+impl<'i> DecorFragments<'i> {
     fn into_cow_str(mut self) -> Option<Cow<'i, str>> {
         match self.len() {
             0 => None,
             1 => Some(Cow::Borrowed(self.remove(0).as_str())),
-            _ => Some(Cow::Owned(self.iter().map(DecorPart::as_str).collect())),
+            _ => Some(Cow::Owned(self.iter().map(DecorFragment::as_str).collect())),
         }
     }
 }
 
-impl<'i> ops::Deref for DecorParts<'i> {
-    type Target = Vec<DecorPart<'i>>;
+impl<'i> ops::Deref for DecorFragments<'i> {
+    type Target = Vec<DecorFragment<'i>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<'i> ops::DerefMut for DecorParts<'i> {
+impl<'i> ops::DerefMut for DecorFragments<'i> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-fn parse_multiline(input: &str) -> Option<DecorParts> {
+fn parse_multiline(input: &str) -> Option<DecorFragments> {
     many0::<_, _, _, (), _>(alt((
-        multispace1.map(DecorPart::Whitespace),
+        multispace1.map(DecorFragment::Whitespace),
         ('#', not_line_ending)
             .recognize()
-            .map(DecorPart::HashLineComment),
+            .map(DecorFragment::HashLineComment),
         ("//", not_line_ending)
             .recognize()
-            .map(DecorPart::DoubleSlashLineComment),
+            .map(DecorFragment::DoubleSlashLineComment),
         ("/*", take_until0("*/"), "*/")
             .recognize()
-            .map(DecorPart::InlineComment),
+            .map(DecorFragment::InlineComment),
     )))
     .parse(input)
-    .map(DecorParts)
+    .map(DecorFragments)
     .ok()
 }
 
-fn parse_inline(input: &str) -> Option<DecorParts> {
+fn parse_inline(input: &str) -> Option<DecorFragments> {
     many0::<_, _, _, (), _>(alt((
-        space1.map(DecorPart::Whitespace),
+        space1.map(DecorFragment::Whitespace),
         ("/*", take_until0("*/"), "*/")
             .recognize()
-            .map(DecorPart::InlineComment),
+            .map(DecorFragment::InlineComment),
     )))
     .parse(input)
-    .map(DecorParts)
+    .map(DecorFragments)
     .ok()
 }
 
