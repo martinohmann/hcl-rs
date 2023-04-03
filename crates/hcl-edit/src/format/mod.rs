@@ -1,5 +1,8 @@
 //! Format HCL language items.
 
+mod normalize;
+
+use self::normalize::Normalizer;
 use crate::expr::{
     Array, Expression, FuncArgs, Object, ObjectKeyMut, ObjectValue, ObjectValueAssignment,
     ObjectValueTerminator,
@@ -11,7 +14,7 @@ use crate::visit_mut::{
     visit_array_mut, visit_body_mut, visit_expr_mut, visit_func_args_mut, visit_object_mut,
     visit_object_value_mut, visit_structure_mut, VisitMut,
 };
-use crate::{Ident, RawString};
+use crate::Ident;
 use hcl_primitives::InternalString;
 use std::borrow::Cow;
 
@@ -171,9 +174,14 @@ impl Formatter {
         self
     }
 
-    fn newline_indented(&self, s: &str) -> String {
+    fn newline_indented<S: std::fmt::Display>(&self, s: S) -> String {
         let indent = self.indenter.prefix.repeat(self.indenter.level);
         format!("\n{}{}", indent, s)
+    }
+
+    fn newline_indent(&self) -> String {
+        let indent = self.indenter.prefix.repeat(self.indenter.level);
+        format!("\n{}", indent)
     }
 
     fn indent_decor<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
@@ -215,7 +223,15 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
         if is_multiline_array(node) {
             self.descend_indent_decor(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            node.set_trailing(self.newline_indented(node.trailing().trim()));
+            node.set_trailing(
+                self.newline_indented(
+                    Normalizer::new()
+                        .multiline()
+                        .normalize_raw(node.trailing())
+                        .unwrap_or_default()
+                        .as_str(),
+                ),
+            );
         } else {
             visit_array_mut(self, node);
         }
@@ -224,7 +240,15 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_object_mut(&mut self, node: &'ast mut Object) {
         if is_multiline_object(node) {
             self.descend_indent_decor(node, |fmt, node| make_multiline_items(fmt, node.iter_mut()));
-            node.set_trailing(self.newline_indented(node.trailing().trim()));
+            node.set_trailing(
+                self.newline_indented(
+                    Normalizer::new()
+                        .multiline()
+                        .normalize_raw(node.trailing())
+                        .unwrap_or_default()
+                        .as_str(),
+                ),
+            );
         } else {
             visit_object_mut(self, node);
         }
@@ -233,7 +257,15 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
         if is_multiline_func_args(node) {
             self.descend_indent_decor(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            node.set_trailing(self.newline_indented(node.trailing().trim()));
+            node.set_trailing(
+                self.newline_indented(
+                    Normalizer::new()
+                        .multiline()
+                        .normalize_raw(node.trailing())
+                        .unwrap_or_default()
+                        .as_str(),
+                ),
+            );
         } else {
             visit_func_args_mut(self, node);
         }
@@ -257,12 +289,22 @@ fn make_multiline_exprs<'a>(
     fmt: &'a mut Formatter,
     iter: impl Iterator<Item = &'a mut Expression>,
 ) {
+    let prefix_normalizer = Normalizer::new().trailing_space().multiline();
+    let suffix_normalizer = Normalizer::new().leading_space().multiline();
+
     for expr in iter {
         visit_expr_mut(fmt, expr);
 
         let decor = expr.decor_mut();
-        decor.update_prefix(|prefix| fmt.newline_indented(prefix.trim()));
-        decor.update_suffix(|suffix| RawString::from(suffix.trim()));
+
+        let prefix = decor
+            .take_prefix()
+            .and_then(|prefix| prefix_normalizer.normalize_raw(&prefix))
+            .map(|normalized| fmt.newline_indented(normalized.as_str()))
+            .unwrap_or_else(|| fmt.newline_indent());
+        decor.set_prefix(prefix);
+
+        suffix_normalizer.normalize_decor_suffix(decor);
     }
 }
 
@@ -270,19 +312,30 @@ fn make_multiline_items<'a>(
     fmt: &'a mut Formatter,
     iter: impl Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)>,
 ) {
+    let key_prefix_normalizer = Normalizer::new().multiline().trailing_space();
+    let prefix_normalizer = Normalizer::new().trailing_space();
+    let suffix_normalizer = Normalizer::new().leading_space();
+
     for (mut key, value) in iter {
         visit_object_value_mut(fmt, value);
 
         value.set_assignment(ObjectValueAssignment::Equals);
         value.set_terminator(ObjectValueTerminator::None);
 
-        key.decor_mut()
-            .update_prefix(|prefix| fmt.newline_indented(prefix.trim_start()));
+        let key_decor = key.decor_mut();
 
-        value
-            .expr_mut()
-            .decor_mut()
-            .update_suffix(|suffix| RawString::from(suffix.trim_end()));
+        let key_prefix = key_decor
+            .take_prefix()
+            .and_then(|prefix| key_prefix_normalizer.normalize_raw(&prefix))
+            .map(|normalized| fmt.newline_indented(normalized.as_str()))
+            .unwrap_or_else(|| fmt.newline_indent());
+        key_decor.set_prefix(key_prefix);
+
+        suffix_normalizer.normalize_decor_suffix(key_decor);
+
+        let value_decor = value.expr_mut().decor_mut();
+        prefix_normalizer.normalize_decor_prefix(value_decor);
+        suffix_normalizer.normalize_decor_suffix(value_decor);
     }
 }
 
@@ -369,15 +422,15 @@ block {  # comment
     multiline_object = {
       foo = bar /*comment */
       /* comment */ baz = qux
-      one =1
-      two=2
+      one = 1
+      two = 2
     }
   }
 
   array = [1, /* two */ 2, 3 , ]
 
   multiline_array = [
-    1/* comment */,
+    1 /* comment */,
     2,
     3,
   ]
@@ -391,7 +444,7 @@ block {  # comment
     1,
     [
       2,
-      /* three */3
+      /* three */ 3
     ]
   )
 }
