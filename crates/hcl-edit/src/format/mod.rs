@@ -10,8 +10,7 @@ use crate::expr::{
 use crate::repr::{Decor, Decorate, Decorated};
 use crate::structure::{Attribute, BlockBody, Body, Structure};
 use crate::visit_mut::{
-    visit_body_mut, visit_expr_mut, visit_func_args_mut, visit_object_mut, visit_structure_mut,
-    VisitMut,
+    visit_body_mut, visit_expr_mut, visit_object_mut, visit_structure_mut, VisitMut,
 };
 use crate::Ident;
 use hcl_primitives::InternalString;
@@ -275,7 +274,41 @@ impl<'ast> VisitMut<'ast> for Formatter {
                 .format(self);
             node.set_trailing(trailing);
         } else {
-            visit_func_args_mut(self, node);
+            for (i, expr) in node.iter_mut().enumerate() {
+                visit_expr_mut(self, expr);
+
+                let decor = expr.decor_mut();
+                let prefix = decor.prefix();
+                let mut parsed_prefix = prefix.parse_multiline();
+                parsed_prefix.trim_trailing_whitespace();
+
+                if i == 0 {
+                    parsed_prefix.space_padded_end();
+                } else {
+                    parsed_prefix.space_padded();
+                }
+
+                decor.set_prefix(parsed_prefix.format(self));
+
+                let suffix = decor
+                    .suffix()
+                    .parse_multiline()
+                    .trim_trailing_whitespace()
+                    .space_padded_start()
+                    .format(self);
+                decor.set_suffix(suffix);
+            }
+
+            let mut parsed_trailing = node.trailing().parse_multiline();
+            parsed_trailing.trim_trailing_whitespace();
+
+            if node.trailing_comma() {
+                parsed_trailing.space_padded();
+            } else {
+                parsed_trailing.space_padded_start();
+            }
+
+            node.set_trailing(parsed_trailing.format(self));
         }
     }
 
@@ -410,6 +443,8 @@ two:2 }
     baz = func(
      1, [
         2, /* three */ 3])
+
+qux = func( 1  , /*two*/3  ...  )
   }
 
   /* some trailing comment */"#;
@@ -463,6 +498,8 @@ block {  # comment
       /* three */ 3
     ]
   )
+
+  qux = func(1, /*two*/ 3...)
 }
 
 /* some trailing comment */"#;
