@@ -96,37 +96,3 @@ pub(crate) fn indent_by(s: &str, n: usize, skip_first: bool) -> String {
 
     output
 }
-
-pub(crate) fn indent_with<'a, S>(s: S, prefix: &str, skip_first: bool) -> Cow<'a, str>
-where
-    S: Into<Cow<'a, str>>,
-{
-    let s = s.into();
-
-    if prefix.is_empty() {
-        return s;
-    }
-
-    let length = s.len();
-    let mut output = String::with_capacity(length + length / 2);
-
-    for (i, line) in s.lines().enumerate() {
-        if i > 0 {
-            output.push('\n');
-
-            if !line.is_empty() {
-                output.push_str(prefix);
-            }
-        } else if !skip_first && !line.is_empty() {
-            output.push_str(prefix);
-        }
-
-        output.push_str(line);
-    }
-
-    if s.ends_with('\n') {
-        output.push('\n');
-    }
-
-    Cow::Owned(output)
-}

@@ -1,4 +1,5 @@
-use crate::util::dedent;
+use super::{Formatter, Indenter};
+use crate::{util::dedent, RawString};
 use std::borrow::Cow;
 use std::ops;
 use winnow::{
@@ -9,48 +10,27 @@ use winnow::{
     Parser,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum DecorKind {
     Inline,
     Multiline,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum CollapseMode {
-    None,
-    Start,
-    End,
-    Both,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum DecorFragment<'i> {
     Whitespace(&'i str),
     InlineComment(&'i str),
     HashLineComment(&'i str),
     DoubleSlashLineComment(&'i str),
+    Newline,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct DecorFragments<'i>(Vec<DecorFragment<'i>>);
 
 impl<'i> DecorFragment<'i> {
-    fn as_str(&self) -> &str {
-        match self {
-            DecorFragment::Whitespace(s) => s,
-            DecorFragment::InlineComment(s)
-            | DecorFragment::HashLineComment(s)
-            | DecorFragment::DoubleSlashLineComment(s) => s,
-        }
-    }
-
-    fn into_cow_str(self) -> Cow<'i, str> {
-        match self {
-            DecorFragment::Whitespace(s)
-            | DecorFragment::InlineComment(s)
-            | DecorFragment::HashLineComment(s)
-            | DecorFragment::DoubleSlashLineComment(s) => Cow::Borrowed(s),
-        }
+    fn is_whitespace(&self) -> bool {
+        matches!(self, DecorFragment::Newline | DecorFragment::Whitespace(_))
     }
 
     fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'i, str> {
@@ -92,50 +72,56 @@ impl<'i> DecorFragment<'i> {
                     }
                 }
             }
+            DecorFragment::Newline => Cow::Owned(format!("\n{}", prefix)),
         }
     }
 }
 
 impl<'i> DecorFragments<'i> {
-    fn parse(input: &str, kind: DecorKind) -> Option<DecorFragments> {
+    pub fn new(input: &str, kind: DecorKind) -> DecorFragments {
+        DecorFragments::parse(dbg!(input), kind).unwrap_or_default()
+    }
+
+    pub fn parse(input: &str, kind: DecorKind) -> Option<DecorFragments> {
         match kind {
             DecorKind::Inline => parse_inline(input),
             DecorKind::Multiline => parse_multiline(input),
         }
     }
 
-    fn into_cow_str(mut self) -> Option<Cow<'i, str>> {
-        match self.len() {
-            0 => None,
-            1 => Some(self.remove(0).into_cow_str()),
-            _ => Some(Cow::Owned(self.iter().map(DecorFragment::as_str).collect())),
+    pub fn indent(&self, prefix: &str, mut skip_first_line: bool) -> RawString {
+        if self.is_empty() && !prefix.is_empty() && !skip_first_line {
+            return prefix.into();
         }
-    }
 
-    fn indent(&self, prefix: &str, mut skip_first_line: bool) -> Cow<'i, str> {
         let mut result = Cow::Borrowed("");
 
-        for fragment in &self.0 {
+        for fragment in self.iter() {
             let indented = fragment.indent(prefix, skip_first_line);
             skip_first_line = !indented.ends_with('\n');
             result.to_mut().push_str(&indented);
         }
 
-        result
+        result.into()
     }
 
-    fn collapse_spaces(&mut self, mode: CollapseMode) {
-        if matches!(mode, CollapseMode::Start | CollapseMode::Both) {
-            if let Some(DecorFragment::Whitespace(s)) = self.first_mut() {
-                *s = " ";
-            }
-        }
+    pub fn format(&self, formatter: &mut Formatter) -> RawString {
+        self.indent_with(&mut formatter.indenter)
+    }
 
-        if matches!(mode, CollapseMode::End | CollapseMode::Both) {
-            if let Some(DecorFragment::Whitespace(s)) = self.last_mut() {
-                *s = " ";
-            }
+    pub fn indent_with(&self, indenter: &mut Indenter) -> RawString {
+        let indented = self.indent(&indenter.prefix(), indenter.skip_first_line);
+        indenter.skip_first_line = !indented.ends_with('\n');
+        indented
+    }
+
+    pub fn leading_newline(&mut self) -> &mut Self {
+        match self.first_mut() {
+            Some(first) if first.is_whitespace() => *first = DecorFragment::Newline,
+            Some(DecorFragment::Newline) => {}
+            _ => self.insert(0, DecorFragment::Newline),
         }
+        self
     }
 }
 
@@ -150,6 +136,31 @@ impl<'i> ops::Deref for DecorFragments<'i> {
 impl<'i> ops::DerefMut for DecorFragments<'i> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+pub(crate) trait ParseDecor {
+    fn parse_decor(&self, kind: DecorKind) -> DecorFragments;
+
+    fn multiline_decor(&self) -> DecorFragments {
+        self.parse_decor(DecorKind::Multiline)
+    }
+
+    fn inline_decor(&self) -> DecorFragments {
+        self.parse_decor(DecorKind::Inline)
+    }
+}
+
+impl ParseDecor for RawString {
+    fn parse_decor(&self, kind: DecorKind) -> DecorFragments {
+        DecorFragments::new(self, kind)
+    }
+}
+
+impl ParseDecor for Option<&RawString> {
+    fn parse_decor(&self, kind: DecorKind) -> DecorFragments {
+        let raw = self.map(RawString::as_str).unwrap_or_default();
+        DecorFragments::new(raw, kind)
     }
 }
 
@@ -183,15 +194,15 @@ fn parse_inline(input: &str) -> Option<DecorFragments> {
     .ok()
 }
 
-fn reindent<'a, S>(s: S, prefix: &str, skip_first: bool) -> Cow<'a, str>
+fn reindent<'a, S>(s: S, prefix: &str, skip_first_line: bool) -> Cow<'a, str>
 where
     S: Into<Cow<'a, str>>,
 {
-    let dedented = dedent(s, skip_first);
-    indent_with(dedented, prefix, skip_first)
+    let dedented = dedent(s, skip_first_line);
+    indent_with(dedented, prefix, skip_first_line)
 }
 
-fn indent_with<'a, S>(s: S, prefix: &str, skip_first: bool) -> Cow<'a, str>
+fn indent_with<'a, S>(s: S, prefix: &str, skip_first_line: bool) -> Cow<'a, str>
 where
     S: Into<Cow<'a, str>>,
 {
@@ -201,14 +212,20 @@ where
         return Cow::Owned(prefix.to_owned());
     }
 
+    if s == "\n" || s == "\r\n" {
+        return Cow::Owned(format!("\n{}", prefix));
+    }
+
     let length = s.len();
     let mut output = String::with_capacity(length + length / 2);
 
     for (i, line) in s.lines().enumerate() {
         if i > 0 {
             output.push('\n');
-            output.push_str(prefix);
-        } else if !skip_first {
+            if !line.is_empty() {
+                output.push_str(prefix);
+            }
+        } else if !skip_first_line && !line.is_empty() {
             output.push_str(prefix);
         }
 
@@ -245,7 +262,7 @@ mod tests {
         for (input, expected, kind) in tests {
             let fragments = DecorFragments::parse(input, kind).unwrap();
             let indented = fragments.indent("    ", false);
-            assert_eq!(indented, expected);
+            assert_eq!(indented, expected.into());
         }
     }
 }

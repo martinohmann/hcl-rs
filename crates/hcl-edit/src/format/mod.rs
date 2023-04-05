@@ -1,23 +1,20 @@
 //! Format HCL language items.
 
 mod fragments;
-mod normalize;
 
-use self::normalize::Normalizer;
+use self::fragments::{DecorKind, ParseDecor};
 use crate::expr::{
     Array, Expression, FuncArgs, Object, ObjectKeyMut, ObjectValue, ObjectValueAssignment,
     ObjectValueTerminator,
 };
-use crate::repr::{Decorate, Decorated};
+use crate::repr::{Decor, Decorate, Decorated};
 use crate::structure::{Attribute, BlockBody, Body, Structure};
-use crate::util::{dedent, indent_with};
 use crate::visit_mut::{
     visit_array_mut, visit_body_mut, visit_expr_mut, visit_func_args_mut, visit_object_mut,
     visit_object_value_mut, visit_structure_mut, VisitMut,
 };
 use crate::Ident;
 use hcl_primitives::InternalString;
-use std::borrow::Cow;
 
 /// Builds a [`Formatter`].
 pub struct FormatterBuilder {
@@ -63,7 +60,7 @@ impl Formatter {
 }
 
 #[derive(Debug, Clone)]
-struct Indenter {
+pub(crate) struct Indenter {
     level: usize,
     prefix: InternalString,
     skip_first_line: bool,
@@ -92,52 +89,8 @@ impl Indenter {
         self.level -= 1;
     }
 
-    fn reindent<'a>(&mut self, s: impl Into<Cow<'a, str>>) -> Cow<'a, str> {
-        let skip_first_line = dbg!(self.skip_first_line);
-        let dedented = dbg!(dedent(s, skip_first_line));
-        self.skip_first_line = !dedented.ends_with('\n');
-
-        if self.level == 0 {
-            dedented
-        } else {
-            let prefix = self.prefix.repeat(self.level);
-            if dedented.is_empty() {
-                if skip_first_line {
-                    dedented
-                } else {
-                    Cow::Owned(prefix)
-                }
-            } else {
-                indent_with(dedented, &prefix, skip_first_line)
-            }
-        }
-    }
-
-    fn reindent_prefix<T>(&mut self, value: &mut T)
-    where
-        T: Decorate + ?Sized,
-    {
-        let decor = value.decor_mut();
-
-        if let Some(prefix) = decor.prefix() {
-            decor.set_prefix(dbg!(self.reindent(prefix)));
-        } else if !self.skip_first_line {
-            if self.level > 0 {
-                decor.set_prefix(self.prefix.repeat(self.level));
-            }
-            self.skip_first_line = true;
-        }
-    }
-
-    fn reindent_suffix<T>(&mut self, value: &mut T)
-    where
-        T: Decorate + ?Sized,
-    {
-        let decor = value.decor_mut();
-
-        if let Some(suffix) = decor.suffix() {
-            decor.set_suffix(self.reindent(suffix));
-        }
+    fn prefix(&self) -> String {
+        self.prefix.repeat(self.level)
     }
 }
 
@@ -162,12 +115,12 @@ impl Formatter {
         self
     }
 
-    fn descend_indent_decor<F, T>(&mut self, value: &mut T, f: F) -> &mut Self
+    fn descend_indented<F, T>(&mut self, value: &mut T, f: F) -> &mut Self
     where
         T: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut T),
     {
-        self.indent().indent_decor(value, f).dedent()
+        self.indent().indented(value, f).dedent()
     }
 
     fn indent_next_line(&mut self, yes: bool) -> &mut Self {
@@ -175,36 +128,34 @@ impl Formatter {
         self
     }
 
-    fn newline_indented<S: std::fmt::Display>(&self, s: S) -> String {
-        let indent = self.indenter.prefix.repeat(self.indenter.level);
-        format!("\n{}{}", indent, s)
-    }
-
-    fn newline_indent(&self) -> String {
-        let indent = self.indenter.prefix.repeat(self.indenter.level);
-        format!("\n{}", indent)
-    }
-
-    fn indent_decor<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
+    fn indented<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
     where
         T: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut T),
     {
-        self.indenter.reindent_prefix(value);
+        self.indent_prefix(value.decor_mut(), DecorKind::Multiline);
         f(self, value);
-        self.indenter.reindent_suffix(value);
+        self.indent_suffix(value.decor_mut(), DecorKind::Multiline);
         self
+    }
+
+    fn indent_prefix(&mut self, decor: &mut Decor, kind: DecorKind) {
+        decor.set_prefix(decor.prefix().parse_decor(kind).format(self));
+    }
+
+    fn indent_suffix(&mut self, decor: &mut Decor, kind: DecorKind) {
+        decor.set_suffix(decor.suffix().parse_decor(kind).format(self));
     }
 }
 
 impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_body_mut(&mut self, node: &'ast mut Body) {
-        self.indent_decor(node, |fmt, node| visit_body_mut(fmt, node));
+        self.indented(node, |fmt, node| visit_body_mut(fmt, node));
     }
 
     fn visit_structure_mut(&mut self, node: &'ast mut Structure) {
         self.indent_next_line(true)
-            .indent_decor(node, |fmt, node| visit_structure_mut(fmt, node));
+            .indented(node, |fmt, node| visit_structure_mut(fmt, node));
     }
 
     fn visit_attr_mut(&mut self, node: &'ast mut Attribute) {
@@ -214,25 +165,22 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_ident_mut(&mut self, node: &'ast mut Decorated<Ident>) {
-        self.indent_decor(node, |_, _| ());
+        self.indented(node, |_, _| ());
     }
 
     fn visit_expr_mut(&mut self, node: &'ast mut Expression) {
-        self.indent_decor(node, |fmt, node| visit_expr_mut(fmt, node));
+        self.indented(node, |fmt, node| visit_expr_mut(fmt, node));
     }
 
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
         if is_multiline_array(node) {
-            self.descend_indent_decor(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            node.set_trailing(
-                self.newline_indented(
-                    Normalizer::new()
-                        .multiline()
-                        .normalize_raw(node.trailing())
-                        .unwrap_or_default()
-                        .as_str(),
-                ),
-            );
+            self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
+            let trailing = node
+                .trailing()
+                .multiline_decor()
+                .leading_newline()
+                .format(self);
+            node.set_trailing(trailing);
         } else {
             visit_array_mut(self, node);
         }
@@ -240,16 +188,13 @@ impl<'ast> VisitMut<'ast> for Formatter {
 
     fn visit_object_mut(&mut self, node: &'ast mut Object) {
         if is_multiline_object(node) {
-            self.descend_indent_decor(node, |fmt, node| make_multiline_items(fmt, node.iter_mut()));
-            node.set_trailing(
-                self.newline_indented(
-                    Normalizer::new()
-                        .multiline()
-                        .normalize_raw(node.trailing())
-                        .unwrap_or_default()
-                        .as_str(),
-                ),
-            );
+            self.descend_indented(node, |fmt, node| make_multiline_items(fmt, node.iter_mut()));
+            let trailing = node
+                .trailing()
+                .multiline_decor()
+                .leading_newline()
+                .format(self);
+            node.set_trailing(trailing);
         } else {
             visit_object_mut(self, node);
         }
@@ -257,16 +202,13 @@ impl<'ast> VisitMut<'ast> for Formatter {
 
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
         if is_multiline_func_args(node) {
-            self.descend_indent_decor(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            node.set_trailing(
-                self.newline_indented(
-                    Normalizer::new()
-                        .multiline()
-                        .normalize_raw(node.trailing())
-                        .unwrap_or_default()
-                        .as_str(),
-                ),
-            );
+            self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
+            let trailing = node
+                .trailing()
+                .multiline_decor()
+                .leading_newline()
+                .format(self);
+            node.set_trailing(trailing);
         } else {
             visit_func_args_mut(self, node);
         }
@@ -275,11 +217,10 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_block_body_mut(&mut self, node: &'ast mut BlockBody) {
         match node {
             BlockBody::Multiline(body) => {
-                self.indent_next_line(false)
-                    .indent_decor(body, |fmt, node| {
-                        fmt.descend(|fmt| fmt.visit_body_mut(node))
-                            .indent_next_line(true);
-                    });
+                self.indent_next_line(false).indented(body, |fmt, node| {
+                    fmt.descend(|fmt| fmt.visit_body_mut(node))
+                        .indent_next_line(true);
+                });
             }
             BlockBody::Oneline(body) => self.visit_oneline_body_mut(body),
         }
@@ -290,22 +231,18 @@ fn make_multiline_exprs<'a>(
     fmt: &'a mut Formatter,
     iter: impl Iterator<Item = &'a mut Expression>,
 ) {
-    let prefix_normalizer = Normalizer::new().trailing_space().multiline();
-    let suffix_normalizer = Normalizer::new().leading_space().multiline();
-
     for expr in iter {
         visit_expr_mut(fmt, expr);
 
         let decor = expr.decor_mut();
-
         let prefix = decor
-            .take_prefix()
-            .and_then(|prefix| prefix_normalizer.normalize_raw(&prefix))
-            .map(|normalized| fmt.newline_indented(normalized.as_str()))
-            .unwrap_or_else(|| fmt.newline_indent());
+            .prefix()
+            .multiline_decor()
+            .leading_newline()
+            .format(fmt);
         decor.set_prefix(prefix);
-
-        suffix_normalizer.normalize_decor_suffix(decor);
+        let suffix = decor.suffix().multiline_decor().format(fmt);
+        decor.set_suffix(suffix);
     }
 }
 
@@ -313,10 +250,6 @@ fn make_multiline_items<'a>(
     fmt: &'a mut Formatter,
     iter: impl Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)>,
 ) {
-    let key_prefix_normalizer = Normalizer::new().multiline().trailing_space();
-    let prefix_normalizer = Normalizer::new().trailing_space();
-    let suffix_normalizer = Normalizer::new().leading_space();
-
     for (mut key, value) in iter {
         visit_object_value_mut(fmt, value);
 
@@ -324,19 +257,20 @@ fn make_multiline_items<'a>(
         value.set_terminator(ObjectValueTerminator::None);
 
         let key_decor = key.decor_mut();
-
-        let key_prefix = key_decor
-            .take_prefix()
-            .and_then(|prefix| key_prefix_normalizer.normalize_raw(&prefix))
-            .map(|normalized| fmt.newline_indented(normalized.as_str()))
-            .unwrap_or_else(|| fmt.newline_indent());
-        key_decor.set_prefix(key_prefix);
-
-        suffix_normalizer.normalize_decor_suffix(key_decor);
+        let prefix = key_decor
+            .prefix()
+            .multiline_decor()
+            .leading_newline()
+            .format(fmt);
+        key_decor.set_prefix(prefix);
+        let suffix = key_decor.suffix().inline_decor().format(fmt);
+        key_decor.set_suffix(suffix);
 
         let value_decor = value.expr_mut().decor_mut();
-        prefix_normalizer.normalize_decor_prefix(value_decor);
-        suffix_normalizer.normalize_decor_suffix(value_decor);
+        let prefix = value_decor.prefix().inline_decor().format(fmt);
+        value_decor.set_prefix(prefix);
+        let suffix = value_decor.suffix().inline_decor().format(fmt);
+        value_decor.set_suffix(suffix);
     }
 }
 
@@ -379,7 +313,7 @@ attr1 = "value"
 
 // another comment
 nested_block {
-foo = 1 # comment
+foo = 1 # foo comment
 
     object = { foo =bar, baz = qux,  }
 
@@ -394,7 +328,7 @@ foo = 1 # comment
       /* comment */
       ,
     2,
-        3,
+        3 /* comment */,
         ]
 
     bar = func(1, [
@@ -416,24 +350,26 @@ block {  # comment
 
   // another comment
   nested_block {
-    foo = 1 # comment
+    foo = 1 # foo comment
 
     object = { foo =bar, baz = qux,  }
 
     multiline_object = {
       foo = bar /*comment */
       /* comment */ baz = qux
-      one = 1
-      two = 2
+      one =1
+      two=2 
     }
   }
 
   array = [1, /* two */ 2, 3 , ]
 
   multiline_array = [
-    1 /* comment */,
+    1
+    /* comment */
+    ,
     2,
-    3,
+    3 /* comment */,
   ]
 
   bar = func(1, [

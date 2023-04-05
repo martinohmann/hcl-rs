@@ -9,8 +9,8 @@ use std::ops::{Deref, DerefMut, Range};
 /// Represents the whitespace and comments before (the "prefix") or after (the "suffix") a HCL value.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Decor {
-    prefix: Option<RawString>,
-    suffix: Option<RawString>,
+    pub(crate) prefix: Option<RawString>,
+    pub(crate) suffix: Option<RawString>,
 }
 
 impl Decor {
@@ -40,32 +40,6 @@ impl Decor {
     /// Returns a reference to the decor suffix, if one is present, `None` otherwise.
     pub fn suffix(&self) -> Option<&RawString> {
         self.suffix.as_ref()
-    }
-
-    pub(crate) fn take_prefix(&mut self) -> Option<RawString> {
-        self.prefix.take()
-    }
-
-    pub(crate) fn take_suffix(&mut self) -> Option<RawString> {
-        self.suffix.take()
-    }
-
-    pub(crate) fn update_prefix<F, U>(&mut self, f: F)
-    where
-        F: FnOnce(RawString) -> U,
-        U: Into<RawString>,
-    {
-        let old_prefix = self.take_prefix().unwrap_or_default();
-        self.set_prefix(f(old_prefix));
-    }
-
-    pub(crate) fn update_suffix<F, U>(&mut self, f: F)
-    where
-        F: FnOnce(RawString) -> U,
-        U: Into<RawString>,
-    {
-        let old_suffix = self.take_suffix().unwrap_or_default();
-        self.set_suffix(f(old_suffix));
     }
 
     pub(crate) fn is_multiline(&self) -> bool {
