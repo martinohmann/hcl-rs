@@ -89,7 +89,37 @@ impl<'i> DecorFragments<'i> {
         }
     }
 
-    pub fn indent(&self, prefix: &str, mut skip_first_line: bool) -> RawString {
+    pub fn format(&self, formatter: &mut Formatter) -> RawString {
+        self.indent_with(&mut formatter.indenter)
+    }
+
+    pub fn leading_newline(&mut self) -> &mut Self {
+        match self.first_mut() {
+            Some(first) if first.is_whitespace() => *first = DecorFragment::Newline,
+            _ => self.insert(0, DecorFragment::Newline),
+        }
+        self
+    }
+
+    pub fn significant_trailing_newline(&mut self) -> &mut Self {
+        if let Some(DecorFragment::Whitespace(s)) = self.last() {
+            if let Some(trimmed) = s.trim_end_matches(is_space).strip_suffix('\n') {
+                *self.last_mut().unwrap() = DecorFragment::Whitespace(trimmed);
+                self.push(DecorFragment::Newline);
+            }
+        }
+
+        self
+    }
+
+    pub fn trim_trailing_whitespace(&mut self) -> &mut Self {
+        if let Some(DecorFragment::Whitespace(_)) = self.last() {
+            self.pop();
+        }
+        self
+    }
+
+    fn indent(&self, prefix: &str, mut skip_first_line: bool) -> RawString {
         if self.is_empty() && !prefix.is_empty() && !skip_first_line {
             return prefix.into();
         }
@@ -105,23 +135,10 @@ impl<'i> DecorFragments<'i> {
         result.into()
     }
 
-    pub fn format(&self, formatter: &mut Formatter) -> RawString {
-        self.indent_with(&mut formatter.indenter)
-    }
-
-    pub fn indent_with(&self, indenter: &mut Indenter) -> RawString {
+    fn indent_with(&self, indenter: &mut Indenter) -> RawString {
         let indented = self.indent(&indenter.prefix(), indenter.skip_first_line);
         indenter.skip_first_line = !indented.ends_with('\n');
         indented
-    }
-
-    pub fn leading_newline(&mut self) -> &mut Self {
-        match self.first_mut() {
-            Some(first) if first.is_whitespace() => *first = DecorFragment::Newline,
-            Some(DecorFragment::Newline) => {}
-            _ => self.insert(0, DecorFragment::Newline),
-        }
-        self
     }
 }
 
@@ -140,25 +157,25 @@ impl<'i> ops::DerefMut for DecorFragments<'i> {
 }
 
 pub(crate) trait ParseDecor {
-    fn parse_decor(&self, kind: DecorKind) -> DecorFragments;
+    fn parse_as(&self, kind: DecorKind) -> DecorFragments;
 
-    fn multiline_decor(&self) -> DecorFragments {
-        self.parse_decor(DecorKind::Multiline)
+    fn parse_multiline(&self) -> DecorFragments {
+        self.parse_as(DecorKind::Multiline)
     }
 
-    fn inline_decor(&self) -> DecorFragments {
-        self.parse_decor(DecorKind::Inline)
+    fn parse_inline(&self) -> DecorFragments {
+        self.parse_as(DecorKind::Inline)
     }
 }
 
 impl ParseDecor for RawString {
-    fn parse_decor(&self, kind: DecorKind) -> DecorFragments {
+    fn parse_as(&self, kind: DecorKind) -> DecorFragments {
         DecorFragments::new(self, kind)
     }
 }
 
 impl ParseDecor for Option<&RawString> {
-    fn parse_decor(&self, kind: DecorKind) -> DecorFragments {
+    fn parse_as(&self, kind: DecorKind) -> DecorFragments {
         let raw = self.map(RawString::as_str).unwrap_or_default();
         DecorFragments::new(raw, kind)
     }
@@ -192,6 +209,10 @@ fn parse_inline(input: &str) -> Option<DecorFragments> {
     .parse(input)
     .map(DecorFragments)
     .ok()
+}
+
+fn is_space(ch: char) -> bool {
+    ch.is_whitespace() && ch != '\r' && ch != '\n'
 }
 
 fn reindent<'a, S>(s: S, prefix: &str, skip_first_line: bool) -> Cow<'a, str>

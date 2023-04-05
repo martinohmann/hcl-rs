@@ -140,11 +140,11 @@ impl Formatter {
     }
 
     fn indent_prefix(&mut self, decor: &mut Decor, kind: DecorKind) {
-        decor.set_prefix(decor.prefix().parse_decor(kind).format(self));
+        decor.set_prefix(decor.prefix().parse_as(kind).format(self));
     }
 
     fn indent_suffix(&mut self, decor: &mut Decor, kind: DecorKind) {
-        decor.set_suffix(decor.suffix().parse_decor(kind).format(self));
+        decor.set_suffix(decor.suffix().parse_as(kind).format(self));
     }
 }
 
@@ -177,7 +177,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
             self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
             let trailing = node
                 .trailing()
-                .multiline_decor()
+                .parse_multiline()
                 .leading_newline()
                 .format(self);
             node.set_trailing(trailing);
@@ -191,7 +191,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
             self.descend_indented(node, |fmt, node| make_multiline_items(fmt, node.iter_mut()));
             let trailing = node
                 .trailing()
-                .multiline_decor()
+                .parse_multiline()
                 .leading_newline()
                 .format(self);
             node.set_trailing(trailing);
@@ -205,7 +205,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
             self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
             let trailing = node
                 .trailing()
-                .multiline_decor()
+                .parse_multiline()
                 .leading_newline()
                 .format(self);
             node.set_trailing(trailing);
@@ -237,11 +237,16 @@ fn make_multiline_exprs<'a>(
         let decor = expr.decor_mut();
         let prefix = decor
             .prefix()
-            .multiline_decor()
+            .parse_multiline()
             .leading_newline()
+            .significant_trailing_newline()
             .format(fmt);
         decor.set_prefix(prefix);
-        let suffix = decor.suffix().multiline_decor().format(fmt);
+        let suffix = decor
+            .suffix()
+            .parse_multiline()
+            .trim_trailing_whitespace()
+            .format(fmt);
         decor.set_suffix(suffix);
     }
 }
@@ -259,17 +264,17 @@ fn make_multiline_items<'a>(
         let key_decor = key.decor_mut();
         let prefix = key_decor
             .prefix()
-            .multiline_decor()
+            .parse_multiline()
             .leading_newline()
             .format(fmt);
         key_decor.set_prefix(prefix);
-        let suffix = key_decor.suffix().inline_decor().format(fmt);
+        let suffix = key_decor.suffix().parse_inline().format(fmt);
         key_decor.set_suffix(suffix);
 
         let value_decor = value.expr_mut().decor_mut();
-        let prefix = value_decor.prefix().inline_decor().format(fmt);
+        let prefix = value_decor.prefix().parse_inline().format(fmt);
         value_decor.set_prefix(prefix);
-        let suffix = value_decor.suffix().inline_decor().format(fmt);
+        let suffix = value_decor.suffix().parse_inline().format(fmt);
         value_decor.set_suffix(suffix);
     }
 }
@@ -329,6 +334,11 @@ foo = 1 # foo comment
       ,
     2,
         3 /* comment */,
+  /* comment*/
+
+  4
+
+  ,
         ]
 
     bar = func(1, [
@@ -366,10 +376,12 @@ block {  # comment
 
   multiline_array = [
     1
-    /* comment */
-    ,
+    /* comment */,
     2,
     3 /* comment */,
+    /* comment*/
+    
+    4,
   ]
 
   bar = func(1, [
