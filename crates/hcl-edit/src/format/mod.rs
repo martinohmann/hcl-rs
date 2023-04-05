@@ -10,8 +10,8 @@ use crate::expr::{
 use crate::repr::{Decor, Decorate, Decorated};
 use crate::structure::{Attribute, BlockBody, Body, Structure};
 use crate::visit_mut::{
-    visit_array_mut, visit_body_mut, visit_expr_mut, visit_func_args_mut, visit_object_mut,
-    visit_object_value_mut, visit_structure_mut, VisitMut,
+    visit_body_mut, visit_expr_mut, visit_func_args_mut, visit_object_mut, visit_structure_mut,
+    VisitMut,
 };
 use crate::Ident;
 use hcl_primitives::InternalString;
@@ -182,7 +182,38 @@ impl<'ast> VisitMut<'ast> for Formatter {
                 .format(self);
             node.set_trailing(trailing);
         } else {
-            visit_array_mut(self, node);
+            for (i, expr) in node.iter_mut().enumerate() {
+                visit_expr_mut(self, expr);
+
+                let decor = expr.decor_mut();
+                let prefix = decor.prefix();
+                let mut parsed_prefix = prefix.parse_multiline();
+                parsed_prefix.trim_trailing_whitespace();
+
+                if i == 0 {
+                    parsed_prefix.space_padded_end();
+                } else {
+                    parsed_prefix.space_padded();
+                }
+
+                decor.set_prefix(parsed_prefix.format(self));
+
+                let suffix = decor
+                    .suffix()
+                    .parse_multiline()
+                    .trim_trailing_whitespace()
+                    .space_padded_start()
+                    .format(self);
+                decor.set_suffix(suffix);
+            }
+
+            let trailing = node
+                .trailing()
+                .parse_multiline()
+                .trim_trailing_whitespace()
+                .space_padded()
+                .format(self);
+            node.set_trailing(trailing);
         }
     }
 
@@ -197,7 +228,41 @@ impl<'ast> VisitMut<'ast> for Formatter {
             node.set_trailing(trailing);
         } else {
             visit_object_mut(self, node);
+            let trailing = node
+                .trailing()
+                .parse_multiline()
+                .trim_trailing_whitespace()
+                .space_padded()
+                .format(self);
+            node.set_trailing(trailing);
         }
+    }
+
+    fn visit_object_key_mut(&mut self, mut node: ObjectKeyMut<'ast>) {
+        let decor = node.decor_mut();
+        let prefix = decor
+            .prefix()
+            .parse_multiline()
+            .space_padded_end()
+            .format(self);
+        decor.set_prefix(prefix);
+        let suffix = decor.suffix().parse_inline().space_padded().format(self);
+        decor.set_suffix(suffix);
+    }
+
+    fn visit_object_value_mut(&mut self, node: &'ast mut ObjectValue) {
+        node.set_assignment(ObjectValueAssignment::Equals);
+
+        let decor = node.expr_mut().decor_mut();
+        let prefix = decor.prefix().parse_inline().space_padded().format(self);
+        decor.set_prefix(prefix);
+
+        let suffix = decor
+            .suffix()
+            .parse_inline()
+            .space_padded_start()
+            .format(self);
+        decor.set_suffix(suffix);
     }
 
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
@@ -256,11 +321,6 @@ fn make_multiline_items<'a>(
     iter: impl Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)>,
 ) {
     for (mut key, value) in iter {
-        visit_object_value_mut(fmt, value);
-
-        value.set_assignment(ObjectValueAssignment::Equals);
-        value.set_terminator(ObjectValueTerminator::None);
-
         let key_decor = key.decor_mut();
         let prefix = key_decor
             .prefix()
@@ -272,19 +332,9 @@ fn make_multiline_items<'a>(
         let suffix = key_decor.suffix().parse_inline().space_padded().format(fmt);
         key_decor.set_suffix(suffix);
 
-        let value_decor = value.expr_mut().decor_mut();
-        let prefix = value_decor
-            .prefix()
-            .parse_inline()
-            .space_padded()
-            .format(fmt);
-        value_decor.set_prefix(prefix);
-        let suffix = value_decor
-            .suffix()
-            .parse_inline()
-            .space_padded_start()
-            .format(fmt);
-        value_decor.set_suffix(suffix);
+        value.set_terminator(ObjectValueTerminator::None);
+
+        fmt.visit_object_value_mut(value);
     }
 }
 
@@ -329,7 +379,7 @@ attr1 = "value"
 nested_block {
 foo = 1 # foo comment
 
-    object = { foo =bar, baz = qux,  }
+    object = { foo :bar, baz= qux,  }
 
     multiline_object = { foo = bar/*comment */,
      /* comment */baz = qux, one =/*comment*/1, multi = 42 /*
@@ -339,7 +389,7 @@ foo = 1 # foo comment
 two:2 }
 }
 
-    array = [1, /* two */ 2, 3 , ]
+    array = [1, /* two */ 2, 3 ,      ]
 
       multiline_array = [
       1
@@ -375,7 +425,7 @@ block {  # comment
   nested_block {
     foo = 1 # foo comment
 
-    object = { foo =bar, baz = qux,  }
+    object = { foo = bar, baz = qux, }
 
     multiline_object = {
       foo = bar /*comment */
@@ -389,7 +439,7 @@ block {  # comment
     }
   }
 
-  array = [1, /* two */ 2, 3 , ]
+  array = [1, /* two */ 2, 3, ]
 
   multiline_array = [
     1
