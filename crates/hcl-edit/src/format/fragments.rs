@@ -196,28 +196,34 @@ impl<'i> ops::DerefMut for DecorFragments<'i> {
     }
 }
 
-pub(crate) trait ParseDecor {
-    fn parse_as(&self, kind: DecorKind) -> DecorFragments;
+pub(crate) trait ParseDecor<'i>: Sized {
+    fn parse_as(self, kind: DecorKind) -> DecorFragments<'i>;
 
-    fn parse_multiline(&self) -> DecorFragments {
+    fn parse_multiline(self) -> DecorFragments<'i> {
         self.parse_as(DecorKind::Multiline)
     }
 
-    fn parse_inline(&self) -> DecorFragments {
+    fn parse_inline(self) -> DecorFragments<'i> {
         self.parse_as(DecorKind::Inline)
     }
 }
 
-impl ParseDecor for RawString {
-    fn parse_as(&self, kind: DecorKind) -> DecorFragments {
+impl<'i> ParseDecor<'i> for &'i RawString {
+    fn parse_as(self, kind: DecorKind) -> DecorFragments<'i> {
         DecorFragments::new(self, kind)
     }
 }
 
-impl ParseDecor for Option<&RawString> {
-    fn parse_as(&self, kind: DecorKind) -> DecorFragments {
+impl<'i> ParseDecor<'i> for Option<&'i RawString> {
+    fn parse_as(self, kind: DecorKind) -> DecorFragments<'i> {
         let raw = self.map(RawString::as_str).unwrap_or_default();
         DecorFragments::new(raw, kind)
+    }
+}
+
+impl<'i> ParseDecor<'i> for &'i Option<RawString> {
+    fn parse_as(self, kind: DecorKind) -> DecorFragments<'i> {
+        self.as_ref().parse_as(kind)
     }
 }
 

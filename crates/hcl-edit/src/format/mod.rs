@@ -174,141 +174,118 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
         if is_multiline_array(node) {
             self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            let trailing = node
-                .trailing()
-                .parse_multiline()
-                .leading_newline()
-                .format(self);
-            node.set_trailing(trailing);
+            let mut trailing = node.trailing().parse_multiline();
+            node.set_trailing(trailing.leading_newline().format(self));
         } else {
             for (i, expr) in node.iter_mut().enumerate() {
                 visit_expr_mut(self, expr);
 
                 let decor = expr.decor_mut();
-                let prefix = decor.prefix();
-                let mut parsed_prefix = prefix.parse_multiline();
-                parsed_prefix.trim_trailing_whitespace();
+                let mut prefix = decor.prefix().parse_multiline();
+                prefix.trim_trailing_whitespace();
 
                 if i == 0 {
-                    parsed_prefix.space_padded_end();
+                    prefix.space_padded_end();
                 } else {
-                    parsed_prefix.space_padded();
+                    prefix.space_padded();
                 }
 
-                decor.set_prefix(parsed_prefix.format(self));
+                decor.set_prefix(prefix.format(self));
 
-                let suffix = decor
-                    .suffix()
-                    .parse_multiline()
-                    .trim_trailing_whitespace()
-                    .space_padded_start()
-                    .format(self);
-                decor.set_suffix(suffix);
+                let mut suffix = decor.suffix().parse_multiline();
+                decor.set_suffix(
+                    suffix
+                        .trim_trailing_whitespace()
+                        .space_padded_start()
+                        .format(self),
+                );
             }
 
-            let trailing = node
-                .trailing()
-                .parse_multiline()
-                .trim_trailing_whitespace()
-                .space_padded()
-                .format(self);
-            node.set_trailing(trailing);
+            let mut trailing = node.trailing().parse_multiline();
+            node.set_trailing(
+                trailing
+                    .trim_trailing_whitespace()
+                    .space_padded()
+                    .format(self),
+            );
         }
     }
 
     fn visit_object_mut(&mut self, node: &'ast mut Object) {
         if is_multiline_object(node) {
             self.descend_indented(node, |fmt, node| make_multiline_items(fmt, node.iter_mut()));
-            let trailing = node
-                .trailing()
-                .parse_multiline()
-                .leading_newline()
-                .format(self);
-            node.set_trailing(trailing);
+            let mut trailing = node.trailing().parse_multiline();
+            node.set_trailing(trailing.leading_newline().format(self));
         } else {
             visit_object_mut(self, node);
-            let trailing = node
-                .trailing()
-                .parse_multiline()
-                .trim_trailing_whitespace()
-                .space_padded()
-                .format(self);
-            node.set_trailing(trailing);
+            let mut trailing = node.trailing().parse_multiline();
+            node.set_trailing(
+                trailing
+                    .trim_trailing_whitespace()
+                    .space_padded()
+                    .format(self),
+            );
         }
     }
 
     fn visit_object_key_mut(&mut self, mut node: ObjectKeyMut<'ast>) {
         let decor = node.decor_mut();
-        let prefix = decor
-            .prefix()
-            .parse_multiline()
-            .space_padded_end()
-            .format(self);
-        decor.set_prefix(prefix);
-        let suffix = decor.suffix().parse_inline().space_padded().format(self);
-        decor.set_suffix(suffix);
+        let mut prefix = decor.prefix().parse_multiline();
+        decor.set_prefix(prefix.space_padded_end().format(self));
+        let mut suffix = decor.suffix().parse_inline();
+        decor.set_suffix(suffix.space_padded().format(self));
     }
 
     fn visit_object_value_mut(&mut self, node: &'ast mut ObjectValue) {
         node.set_assignment(ObjectValueAssignment::Equals);
 
         let decor = node.expr_mut().decor_mut();
-        let prefix = decor.prefix().parse_inline().space_padded().format(self);
-        decor.set_prefix(prefix);
-
-        let suffix = decor
-            .suffix()
-            .parse_inline()
-            .space_padded_start()
-            .format(self);
-        decor.set_suffix(suffix);
+        let mut prefix = decor.prefix().parse_inline();
+        decor.set_prefix(prefix.space_padded().format(self));
+        let mut suffix = decor.suffix().parse_inline();
+        decor.set_suffix(suffix.space_padded_start().format(self));
     }
 
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
         if is_multiline_func_args(node) {
             self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            let trailing = node
-                .trailing()
-                .parse_multiline()
-                .leading_newline()
-                .format(self);
-            node.set_trailing(trailing);
+            let mut trailing = node.trailing().parse_multiline();
+            node.set_trailing(trailing.leading_newline().format(self));
         } else {
             for (i, expr) in node.iter_mut().enumerate() {
                 visit_expr_mut(self, expr);
 
                 let decor = expr.decor_mut();
-                let prefix = decor.prefix();
-                let mut parsed_prefix = prefix.parse_multiline();
-                parsed_prefix.trim_trailing_whitespace();
+                let mut prefix = decor.prefix().parse_multiline();
+                prefix.trim_trailing_whitespace();
 
                 if i == 0 {
-                    parsed_prefix.space_padded_end();
+                    prefix.space_padded_end();
                 } else {
-                    parsed_prefix.space_padded();
+                    prefix.space_padded();
                 }
 
-                decor.set_prefix(parsed_prefix.format(self));
+                decor.set_prefix(prefix.format(self));
 
-                let suffix = decor
-                    .suffix()
-                    .parse_multiline()
-                    .trim_trailing_whitespace()
-                    .space_padded_start()
-                    .format(self);
-                decor.set_suffix(suffix);
+                let mut suffix = decor.suffix().parse_multiline();
+                decor.set_suffix(
+                    suffix
+                        .trim_trailing_whitespace()
+                        .space_padded_start()
+                        .format(self),
+                );
             }
 
-            let mut parsed_trailing = node.trailing().parse_multiline();
-            parsed_trailing.trim_trailing_whitespace();
+            let mut trailing = node.trailing().parse_multiline();
+            trailing.trim_trailing_whitespace();
 
             if node.trailing_comma() {
-                parsed_trailing.space_padded();
+                trailing.space_padded();
             } else {
-                parsed_trailing.space_padded_start();
+                trailing.space_padded_start();
             }
 
-            node.set_trailing(parsed_trailing.format(self));
+            node.set_trailing(trailing.format(self));
         }
     }
 
@@ -333,19 +310,15 @@ fn make_multiline_exprs<'a>(
         visit_expr_mut(fmt, expr);
 
         let decor = expr.decor_mut();
-        let prefix = decor
-            .prefix()
-            .parse_multiline()
-            .leading_newline()
-            .indent_empty_trailing_line()
-            .format(fmt);
-        decor.set_prefix(prefix);
-        let suffix = decor
-            .suffix()
-            .parse_multiline()
-            .trim_trailing_whitespace()
-            .format(fmt);
-        decor.set_suffix(suffix);
+        let mut prefix = decor.prefix().parse_multiline();
+        decor.set_prefix(
+            prefix
+                .leading_newline()
+                .indent_empty_trailing_line()
+                .format(fmt),
+        );
+        let mut suffix = decor.suffix().parse_multiline();
+        decor.set_suffix(suffix.trim_trailing_whitespace().format(fmt));
     }
 }
 
@@ -355,15 +328,10 @@ fn make_multiline_items<'a>(
 ) {
     for (mut key, value) in iter {
         let key_decor = key.decor_mut();
-        let prefix = key_decor
-            .prefix()
-            .parse_multiline()
-            .leading_newline()
-            .space_padded_end()
-            .format(fmt);
-        key_decor.set_prefix(prefix);
-        let suffix = key_decor.suffix().parse_inline().space_padded().format(fmt);
-        key_decor.set_suffix(suffix);
+        let mut prefix = key_decor.prefix().parse_multiline();
+        key_decor.set_prefix(prefix.leading_newline().space_padded_end().format(fmt));
+        let mut suffix = key_decor.suffix().parse_inline();
+        key_decor.set_suffix(suffix.space_padded().format(fmt));
 
         value.set_terminator(ObjectValueTerminator::None);
 
