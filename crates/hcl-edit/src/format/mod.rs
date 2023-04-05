@@ -239,7 +239,7 @@ fn make_multiline_exprs<'a>(
             .prefix()
             .parse_multiline()
             .leading_newline()
-            .significant_trailing_newline()
+            .indent_empty_trailing_line()
             .format(fmt);
         decor.set_prefix(prefix);
         let suffix = decor
@@ -266,15 +266,24 @@ fn make_multiline_items<'a>(
             .prefix()
             .parse_multiline()
             .leading_newline()
+            .space_padded_end()
             .format(fmt);
         key_decor.set_prefix(prefix);
-        let suffix = key_decor.suffix().parse_inline().format(fmt);
+        let suffix = key_decor.suffix().parse_inline().space_padded().format(fmt);
         key_decor.set_suffix(suffix);
 
         let value_decor = value.expr_mut().decor_mut();
-        let prefix = value_decor.prefix().parse_inline().format(fmt);
+        let prefix = value_decor
+            .prefix()
+            .parse_inline()
+            .space_padded()
+            .format(fmt);
         value_decor.set_prefix(prefix);
-        let suffix = value_decor.suffix().parse_inline().format(fmt);
+        let suffix = value_decor
+            .suffix()
+            .parse_inline()
+            .space_padded_start()
+            .format(fmt);
         value_decor.set_suffix(suffix);
     }
 }
@@ -322,8 +331,12 @@ foo = 1 # foo comment
 
     object = { foo =bar, baz = qux,  }
 
-    multiline_object = { foo = bar /*comment */,
-     /* comment */ baz = qux, one =1, two:2 }
+    multiline_object = { foo = bar/*comment */,
+     /* comment */baz = qux, one =/*comment*/1, multi = 42 /*
+  multiline comment */
+    // another
+      # and another
+two:2 }
 }
 
     array = [1, /* two */ 2, 3 , ]
@@ -367,8 +380,12 @@ block {  # comment
     multiline_object = {
       foo = bar /*comment */
       /* comment */ baz = qux
-      one =1
-      two=2 
+      one = /*comment*/ 1
+      multi = 42 /*
+  multiline comment */
+      // another
+      # and another
+      two = 2 
     }
   }
 

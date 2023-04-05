@@ -20,24 +20,35 @@ pub(crate) enum DecorKind {
 pub(crate) enum DecorFragment<'i> {
     Whitespace(&'i str),
     InlineComment(&'i str),
-    HashLineComment(&'i str),
-    DoubleSlashLineComment(&'i str),
-    Newline,
+    LineComment(&'i str),
+    NewlineIndent,
 }
 
 #[derive(Debug, Default, Clone)]
 pub(crate) struct DecorFragments<'i>(Vec<DecorFragment<'i>>);
 
 impl<'i> DecorFragment<'i> {
+    fn is_inline_comment(&self) -> bool {
+        matches!(self, DecorFragment::InlineComment(_))
+    }
+
+    fn is_line_comment(&self) -> bool {
+        matches!(self, DecorFragment::LineComment(_))
+    }
+
+    fn is_comment(&self) -> bool {
+        self.is_inline_comment() || self.is_line_comment()
+    }
+
     fn is_whitespace(&self) -> bool {
-        matches!(self, DecorFragment::Newline | DecorFragment::Whitespace(_))
+        matches!(self, DecorFragment::Whitespace(_))
     }
 
     fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'i, str> {
         match self {
-            DecorFragment::Whitespace(s)
-            | DecorFragment::DoubleSlashLineComment(s)
-            | DecorFragment::HashLineComment(s) => reindent(*s, prefix, skip_first_line),
+            DecorFragment::Whitespace(s) | DecorFragment::LineComment(s) => {
+                reindent(*s, prefix, skip_first_line)
+            }
             // Since inline comments can contain significant newline characters, we must only
             // indent the first line.
             DecorFragment::InlineComment(s) => {
@@ -72,7 +83,7 @@ impl<'i> DecorFragment<'i> {
                     }
                 }
             }
-            DecorFragment::Newline => Cow::Owned(format!("\n{}", prefix)),
+            DecorFragment::NewlineIndent => Cow::Owned(format!("\n{prefix}")),
         }
     }
 }
@@ -94,18 +105,20 @@ impl<'i> DecorFragments<'i> {
     }
 
     pub fn leading_newline(&mut self) -> &mut Self {
-        match self.first_mut() {
-            Some(first) if first.is_whitespace() => *first = DecorFragment::Newline,
-            _ => self.insert(0, DecorFragment::Newline),
+        if self.first().map_or(false, DecorFragment::is_whitespace) {
+            *self.first_mut().unwrap() = DecorFragment::NewlineIndent;
+        } else {
+            self.insert(0, DecorFragment::NewlineIndent);
         }
+
         self
     }
 
-    pub fn significant_trailing_newline(&mut self) -> &mut Self {
+    pub fn indent_empty_trailing_line(&mut self) -> &mut Self {
         if let Some(DecorFragment::Whitespace(s)) = self.last() {
             if let Some(trimmed) = s.trim_end_matches(is_space).strip_suffix('\n') {
                 *self.last_mut().unwrap() = DecorFragment::Whitespace(trimmed);
-                self.push(DecorFragment::Newline);
+                self.push(DecorFragment::NewlineIndent);
             }
         }
 
@@ -113,9 +126,36 @@ impl<'i> DecorFragments<'i> {
     }
 
     pub fn trim_trailing_whitespace(&mut self) -> &mut Self {
-        if let Some(DecorFragment::Whitespace(_)) = self.last() {
+        if self.last().map_or(false, DecorFragment::is_whitespace) {
             self.pop();
         }
+
+        self
+    }
+
+    pub fn space_padded(&mut self) -> &mut Self {
+        if self.is_empty() {
+            self.push(DecorFragment::Whitespace(" "));
+        } else {
+            self.space_padded_start().space_padded_end();
+        }
+
+        self
+    }
+
+    pub fn space_padded_start(&mut self) -> &mut Self {
+        if self.first().map_or(false, DecorFragment::is_comment) {
+            self.insert(0, DecorFragment::Whitespace(" "));
+        }
+
+        self
+    }
+
+    pub fn space_padded_end(&mut self) -> &mut Self {
+        if self.last().map_or(false, DecorFragment::is_inline_comment) {
+            self.push(DecorFragment::Whitespace(" "));
+        }
+
         self
     }
 
@@ -186,10 +226,10 @@ fn parse_multiline(input: &str) -> Option<DecorFragments> {
         multispace1.map(DecorFragment::Whitespace),
         ('#', not_line_ending)
             .recognize()
-            .map(DecorFragment::HashLineComment),
+            .map(DecorFragment::LineComment),
         ("//", not_line_ending)
             .recognize()
-            .map(DecorFragment::DoubleSlashLineComment),
+            .map(DecorFragment::LineComment),
         ("/*", take_until0("*/"), "*/")
             .recognize()
             .map(DecorFragment::InlineComment),
