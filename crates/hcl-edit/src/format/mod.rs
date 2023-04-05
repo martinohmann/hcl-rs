@@ -1,5 +1,6 @@
 //! Format HCL language items.
 
+mod fragments;
 mod normalize;
 
 use self::normalize::Normalizer;
