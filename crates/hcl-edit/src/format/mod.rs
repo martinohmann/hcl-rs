@@ -2,12 +2,12 @@
 
 mod fragments;
 
-use self::fragments::{DecorKind, ParseDecor};
+use self::fragments::{ModifyDecor, Padding};
 use crate::expr::{
     Array, Expression, FuncArgs, Object, ObjectKeyMut, ObjectValue, ObjectValueAssignment,
     ObjectValueTerminator,
 };
-use crate::repr::{Decor, Decorate, Decorated};
+use crate::repr::{Decorate, Decorated};
 use crate::structure::{Attribute, BlockBody, Body, Structure};
 use crate::visit_mut::{
     visit_body_mut, visit_expr_mut, visit_object_mut, visit_structure_mut, VisitMut,
@@ -16,19 +16,14 @@ use crate::Ident;
 use hcl_primitives::InternalString;
 
 /// Builds a [`Formatter`].
+#[derive(Default)]
 pub struct FormatterBuilder {
-    indent: usize,
-}
-
-impl Default for FormatterBuilder {
-    fn default() -> Self {
-        FormatterBuilder { indent: 2 }
-    }
+    indent: Indent,
 }
 
 impl FormatterBuilder {
-    /// Set the indent.
-    pub fn indent(&mut self, indent: usize) -> &mut Self {
+    /// Sets the indent.
+    pub fn indent(&mut self, indent: Indent) -> &mut Self {
         self.indent = indent;
         self
     }
@@ -36,7 +31,7 @@ impl FormatterBuilder {
     /// Builds a [`Formatter`] from the builder's configuration.
     pub fn build(&self) -> Formatter {
         Formatter {
-            indenter: Indenter::new("  ".repeat(self.indent)),
+            indent: self.indent.clone(),
         }
     }
 }
@@ -44,13 +39,15 @@ impl FormatterBuilder {
 /// A configurable formatter for HCL language items.
 #[derive(Debug, Clone, Default)]
 pub struct Formatter {
-    indenter: Indenter,
+    indent: Indent,
 }
 
 // Public API.
 impl Formatter {
     /// Resets the formatter state.
-    pub fn reset(&mut self) {}
+    pub fn reset(&mut self) {
+        self.indent.reset();
+    }
 
     /// Creates a builder for configuring a [`Formatter`].
     pub fn builder() -> FormatterBuilder {
@@ -58,26 +55,33 @@ impl Formatter {
     }
 }
 
+/// Applies indentation.
 #[derive(Debug, Clone)]
-pub(crate) struct Indenter {
+pub struct Indent {
     level: usize,
     prefix: InternalString,
     skip_first_line: bool,
 }
 
-impl Default for Indenter {
+impl Default for Indent {
     fn default() -> Self {
-        Indenter::new("  ")
+        Indent::new("  ")
     }
 }
 
-impl Indenter {
-    fn new(prefix: impl Into<InternalString>) -> Indenter {
-        Indenter {
+impl Indent {
+    /// Creates a new `Indent` from a prefix.
+    pub fn new(prefix: impl Into<InternalString>) -> Indent {
+        Indent {
             level: 0,
             prefix: prefix.into(),
             skip_first_line: false,
         }
+    }
+
+    /// Creates a new `Indent` from a number of spaces.
+    pub fn spaces(n: usize) -> Indent {
+        Indent::new(" ".repeat(n))
     }
 
     fn increase(&mut self) {
@@ -88,73 +92,62 @@ impl Indenter {
         self.level -= 1;
     }
 
+    fn reset(&mut self) {
+        self.level = 0;
+        self.skip_first_line = false;
+    }
+
     fn prefix(&self) -> String {
         self.prefix.repeat(self.level)
     }
 }
 
 impl Formatter {
-    fn indent(&mut self) -> &mut Self {
-        self.indenter.increase();
+    fn indent_next_line(&mut self, yes: bool) -> &mut Self {
+        self.indent.skip_first_line = !yes;
         self
     }
 
-    fn dedent(&mut self) -> &mut Self {
-        self.indenter.decrease();
-        self
-    }
-
-    fn descend<F>(&mut self, f: F) -> &mut Self
+    fn indented<F>(&mut self, f: F) -> &mut Self
     where
         F: FnOnce(&mut Formatter),
     {
-        self.indent();
+        self.indent.increase();
         f(self);
-        self.dedent();
+        self.indent.decrease();
         self
     }
 
-    fn descend_indented<F, T>(&mut self, value: &mut T, f: F) -> &mut Self
+    fn indented_format_decor<F, T>(&mut self, value: &mut T, f: F) -> &mut Self
     where
         T: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut T),
     {
-        self.indent().indented(value, f).dedent()
+        self.indented(|fmt| {
+            fmt.format_decor(value, f);
+        })
     }
 
-    fn indent_next_line(&mut self, yes: bool) -> &mut Self {
-        self.indenter.skip_first_line = !yes;
-        self
-    }
-
-    fn indented<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
+    fn format_decor<T, F>(&mut self, value: &mut T, f: F) -> &mut Self
     where
         T: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut T),
     {
-        self.indent_prefix(value.decor_mut(), DecorKind::Multiline);
+        value.decor_mut().prefix.modify().format(self);
         f(self, value);
-        self.indent_suffix(value.decor_mut(), DecorKind::Multiline);
+        value.decor_mut().suffix.modify().format(self);
         self
-    }
-
-    fn indent_prefix(&mut self, decor: &mut Decor, kind: DecorKind) {
-        decor.set_prefix(decor.prefix().parse_as(kind).format(self));
-    }
-
-    fn indent_suffix(&mut self, decor: &mut Decor, kind: DecorKind) {
-        decor.set_suffix(decor.suffix().parse_as(kind).format(self));
     }
 }
 
 impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_body_mut(&mut self, node: &'ast mut Body) {
-        self.indented(node, |fmt, node| visit_body_mut(fmt, node));
+        self.format_decor(node, |fmt, node| visit_body_mut(fmt, node));
     }
 
     fn visit_structure_mut(&mut self, node: &'ast mut Structure) {
         self.indent_next_line(true)
-            .indented(node, |fmt, node| visit_structure_mut(fmt, node));
+            .format_decor(node, |fmt, node| visit_structure_mut(fmt, node));
     }
 
     fn visit_attr_mut(&mut self, node: &'ast mut Attribute) {
@@ -164,138 +157,145 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_ident_mut(&mut self, node: &'ast mut Decorated<Ident>) {
-        self.indented(node, |_, _| ());
+        self.format_decor(node, |_, _| ());
     }
 
     fn visit_expr_mut(&mut self, node: &'ast mut Expression) {
-        self.indented(node, |fmt, node| visit_expr_mut(fmt, node));
+        self.format_decor(node, |fmt, node| visit_expr_mut(fmt, node));
     }
 
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
         if is_multiline_array(node) {
-            self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            let mut trailing = node.trailing().parse_multiline();
-            node.set_trailing(trailing.leading_newline().format(self));
+            self.indented_format_decor(node, |fmt, node| {
+                make_multiline_exprs(fmt, node.iter_mut())
+            });
+            node.trailing.modify().leading_newline().format(self);
         } else {
             for (i, expr) in node.iter_mut().enumerate() {
                 visit_expr_mut(self, expr);
 
                 let decor = expr.decor_mut();
-                let mut prefix = decor.prefix().parse_multiline();
-                prefix.trim_trailing_whitespace();
+                let mut prefix = decor.prefix.modify();
 
                 if i == 0 {
-                    prefix.space_padded_end();
+                    prefix.padding(Padding::End);
                 } else {
-                    prefix.space_padded();
+                    prefix.padding(Padding::Both);
                 }
 
-                decor.set_prefix(prefix.format(self));
+                prefix.trim_trailing_whitespace().format(self);
 
-                let mut suffix = decor.suffix().parse_multiline();
-                decor.set_suffix(
-                    suffix
-                        .trim_trailing_whitespace()
-                        .space_padded_start()
-                        .format(self),
-                );
+                decor
+                    .suffix
+                    .modify()
+                    .trim_trailing_whitespace()
+                    .padding(Padding::Start)
+                    .format(self);
             }
 
-            let mut trailing = node.trailing().parse_multiline();
-            node.set_trailing(
-                trailing
-                    .trim_trailing_whitespace()
-                    .space_padded()
-                    .format(self),
-            );
+            node.trailing
+                .modify()
+                .trim_trailing_whitespace()
+                .padding(Padding::Both)
+                .format(self);
         }
     }
 
     fn visit_object_mut(&mut self, node: &'ast mut Object) {
         if is_multiline_object(node) {
-            self.descend_indented(node, |fmt, node| make_multiline_items(fmt, node.iter_mut()));
-            let mut trailing = node.trailing().parse_multiline();
-            node.set_trailing(trailing.leading_newline().format(self));
+            self.indented_format_decor(node, |fmt, node| {
+                make_multiline_items(fmt, node.iter_mut())
+            });
+            node.trailing.modify().leading_newline().format(self);
         } else {
             visit_object_mut(self, node);
-            let mut trailing = node.trailing().parse_multiline();
-            node.set_trailing(
-                trailing
-                    .trim_trailing_whitespace()
-                    .space_padded()
-                    .format(self),
-            );
+            node.trailing
+                .modify()
+                .trim_trailing_whitespace()
+                .padding(Padding::Both)
+                .format(self);
         }
     }
 
     fn visit_object_key_mut(&mut self, mut node: ObjectKeyMut<'ast>) {
         let decor = node.decor_mut();
-        let mut prefix = decor.prefix().parse_multiline();
-        decor.set_prefix(prefix.space_padded_end().format(self));
-        let mut suffix = decor.suffix().parse_inline();
-        decor.set_suffix(suffix.space_padded().format(self));
+        decor.prefix.modify().padding(Padding::End).format(self);
+        decor
+            .suffix
+            .modify()
+            .inline()
+            .padding(Padding::Both)
+            .format(self);
     }
 
     fn visit_object_value_mut(&mut self, node: &'ast mut ObjectValue) {
         node.set_assignment(ObjectValueAssignment::Equals);
 
         let decor = node.expr_mut().decor_mut();
-        let mut prefix = decor.prefix().parse_inline();
-        decor.set_prefix(prefix.space_padded().format(self));
-        let mut suffix = decor.suffix().parse_inline();
-        decor.set_suffix(suffix.space_padded_start().format(self));
+        decor
+            .prefix
+            .modify()
+            .inline()
+            .padding(Padding::Both)
+            .format(self);
+        decor
+            .suffix
+            .modify()
+            .inline()
+            .padding(Padding::Start)
+            .format(self);
     }
 
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
         if is_multiline_func_args(node) {
-            self.descend_indented(node, |fmt, node| make_multiline_exprs(fmt, node.iter_mut()));
-            let mut trailing = node.trailing().parse_multiline();
-            node.set_trailing(trailing.leading_newline().format(self));
+            self.indented_format_decor(node, |fmt, node| {
+                make_multiline_exprs(fmt, node.iter_mut())
+            });
+            node.trailing.modify().leading_newline().format(self);
         } else {
             for (i, expr) in node.iter_mut().enumerate() {
                 visit_expr_mut(self, expr);
 
                 let decor = expr.decor_mut();
-                let mut prefix = decor.prefix().parse_multiline();
-                prefix.trim_trailing_whitespace();
+                let mut prefix = decor.prefix.modify();
 
                 if i == 0 {
-                    prefix.space_padded_end();
+                    prefix.padding(Padding::End);
                 } else {
-                    prefix.space_padded();
+                    prefix.padding(Padding::Both);
                 }
 
-                decor.set_prefix(prefix.format(self));
+                prefix.trim_trailing_whitespace().format(self);
 
-                let mut suffix = decor.suffix().parse_multiline();
-                decor.set_suffix(
-                    suffix
-                        .trim_trailing_whitespace()
-                        .space_padded_start()
-                        .format(self),
-                );
+                decor
+                    .suffix
+                    .modify()
+                    .trim_trailing_whitespace()
+                    .padding(Padding::Start)
+                    .format(self);
             }
 
-            let mut trailing = node.trailing().parse_multiline();
-            trailing.trim_trailing_whitespace();
+            let trailing_comma = node.trailing_comma();
+            let mut trailing = node.trailing.modify();
 
-            if node.trailing_comma() {
-                trailing.space_padded();
+            if trailing_comma {
+                trailing.padding(Padding::Both);
             } else {
-                trailing.space_padded_start();
+                trailing.padding(Padding::Start);
             }
 
-            node.set_trailing(trailing.format(self));
+            trailing.trim_trailing_whitespace().format(self);
         }
     }
 
     fn visit_block_body_mut(&mut self, node: &'ast mut BlockBody) {
         match node {
             BlockBody::Multiline(body) => {
-                self.indent_next_line(false).indented(body, |fmt, node| {
-                    fmt.descend(|fmt| fmt.visit_body_mut(node))
-                        .indent_next_line(true);
-                });
+                self.indent_next_line(false)
+                    .format_decor(body, |fmt, node| {
+                        fmt.indented(|fmt| fmt.visit_body_mut(node))
+                            .indent_next_line(true);
+                    });
             }
             BlockBody::Oneline(body) => self.visit_oneline_body_mut(body),
         }
@@ -310,15 +310,13 @@ fn make_multiline_exprs<'a>(
         visit_expr_mut(fmt, expr);
 
         let decor = expr.decor_mut();
-        let mut prefix = decor.prefix().parse_multiline();
-        decor.set_prefix(
-            prefix
-                .leading_newline()
-                .indent_empty_trailing_line()
-                .format(fmt),
-        );
-        let mut suffix = decor.suffix().parse_multiline();
-        decor.set_suffix(suffix.trim_trailing_whitespace().format(fmt));
+        decor
+            .prefix
+            .modify()
+            .leading_newline()
+            .indent_empty_trailing_line()
+            .format(fmt);
+        decor.suffix.modify().trim_trailing_whitespace().format(fmt);
     }
 }
 
@@ -328,10 +326,18 @@ fn make_multiline_items<'a>(
 ) {
     for (mut key, value) in iter {
         let key_decor = key.decor_mut();
-        let mut prefix = key_decor.prefix().parse_multiline();
-        key_decor.set_prefix(prefix.leading_newline().space_padded_end().format(fmt));
-        let mut suffix = key_decor.suffix().parse_inline();
-        key_decor.set_suffix(suffix.space_padded().format(fmt));
+        key_decor
+            .prefix
+            .modify()
+            .leading_newline()
+            .padding(Padding::End)
+            .format(fmt);
+        key_decor
+            .suffix
+            .modify()
+            .inline()
+            .padding(Padding::Both)
+            .format(fmt);
 
         value.set_terminator(ObjectValueTerminator::None);
 

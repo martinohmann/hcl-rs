@@ -166,7 +166,7 @@ impl PartialEq for Parenthesis {
 #[derive(Debug, Clone, Eq, Default)]
 pub struct Array {
     values: Vec<Expression>,
-    trailing: RawString,
+    pub(crate) trailing: RawString,
     trailing_comma: bool,
     decor: Decor,
     span: Option<Range<usize>>,
@@ -264,7 +264,7 @@ impl From<Vec<Expression>> for Array {
 #[derive(Debug, Clone, Eq, Default)]
 pub struct Object {
     items: VecMap<ObjectKey, ObjectValue>,
-    trailing: RawString,
+    pub(crate) trailing: RawString,
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -583,7 +583,7 @@ impl PartialEq for FuncCall {
 pub struct FuncArgs {
     args: Vec<Expression>,
     expand_final: bool,
-    trailing: RawString,
+    pub(crate) trailing: RawString,
     trailing_comma: bool,
     decor: Decor,
     span: Option<Range<usize>>,
