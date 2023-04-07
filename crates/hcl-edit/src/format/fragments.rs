@@ -121,6 +121,13 @@ impl<'i> DecorFragments<'i> {
         self
     }
 
+    fn trim(&mut self, trim: Trim) -> &mut Self {
+        match trim {
+            Trim::None => self,
+            Trim::TrailingWhitespace => self.trim_trailing_whitespace(),
+        }
+    }
+
     fn trim_trailing_whitespace(&mut self) -> &mut Self {
         if self.0.last().map_or(false, DecorFragment::is_whitespace) {
             self.0.pop();
@@ -129,17 +136,25 @@ impl<'i> DecorFragments<'i> {
         self
     }
 
-    fn space_padded(&mut self) -> &mut Self {
-        if self.0.is_empty() {
-            self.0.push(DecorFragment::Whitespace(" "));
-        } else {
-            self.space_padded_start().space_padded_end();
+    fn pad(&mut self, padding: Padding) -> &mut Self {
+        match padding {
+            Padding::None => self,
+            Padding::Start => self.pad_start(),
+            Padding::End => self.pad_end(),
+            Padding::Both => self.pad_both(),
         }
-
-        self
     }
 
-    fn space_padded_start(&mut self) -> &mut Self {
+    fn pad_both(&mut self) -> &mut Self {
+        if self.0.is_empty() {
+            self.0.push(DecorFragment::Whitespace(" "));
+            self
+        } else {
+            self.pad_start().pad_end()
+        }
+    }
+
+    fn pad_start(&mut self) -> &mut Self {
         if self.0.first().map_or(false, DecorFragment::is_comment) {
             self.0.insert(0, DecorFragment::Whitespace(" "));
         }
@@ -147,7 +162,7 @@ impl<'i> DecorFragments<'i> {
         self
     }
 
-    fn space_padded_end(&mut self) -> &mut Self {
+    fn pad_end(&mut self) -> &mut Self {
         if self
             .0
             .last()
@@ -182,12 +197,18 @@ impl<'i> DecorFragments<'i> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(super) enum Padding {
     None,
     Start,
     End,
     Both,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(super) enum Trim {
+    None,
+    TrailingWhitespace,
 }
 
 #[derive(Debug)]
@@ -196,7 +217,7 @@ pub(super) struct DecorFormatter<'i, R> {
     kind: DecorKind,
     leading_newline: bool,
     indent_empty_trailing_line: bool,
-    trim_trailing_whitespace: bool,
+    trim: Trim,
     padding: Padding,
 }
 
@@ -207,7 +228,7 @@ impl<'i, R> DecorFormatter<'i, R> {
             kind: DecorKind::Multiline,
             leading_newline: false,
             indent_empty_trailing_line: false,
-            trim_trailing_whitespace: false,
+            trim: Trim::None,
             padding: Padding::None,
         }
     }
@@ -227,8 +248,8 @@ impl<'i, R> DecorFormatter<'i, R> {
         self
     }
 
-    pub(super) fn trim_trailing_whitespace(&mut self) -> &mut Self {
-        self.trim_trailing_whitespace = true;
+    pub(super) fn trim(&mut self, trim: Trim) -> &mut Self {
+        self.trim = trim;
         self
     }
 
@@ -253,24 +274,12 @@ where
             fragments.indent_empty_trailing_line();
         }
 
-        if self.trim_trailing_whitespace {
-            fragments.trim_trailing_whitespace();
-        }
+        let formatted = fragments
+            .trim(self.trim)
+            .pad(self.padding)
+            .format(formatter);
 
-        match self.padding {
-            Padding::None => {}
-            Padding::Start => {
-                fragments.space_padded_start();
-            }
-            Padding::End => {
-                fragments.space_padded_end();
-            }
-            Padding::Both => {
-                fragments.space_padded();
-            }
-        }
-
-        self.raw.set(fragments.format(formatter));
+        self.raw.set(formatted);
     }
 }
 

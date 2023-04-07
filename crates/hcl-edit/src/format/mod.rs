@@ -2,7 +2,7 @@
 
 mod fragments;
 
-use self::fragments::{ModifyDecor, Padding};
+use self::fragments::{ModifyDecor, Padding, Trim};
 use crate::expr::{
     Array, Expression, FuncArgs, Object, ObjectKeyMut, ObjectValue, ObjectValueAssignment,
     ObjectValueTerminator,
@@ -183,19 +183,19 @@ impl<'ast> VisitMut<'ast> for Formatter {
                     prefix.padding(Padding::Both);
                 }
 
-                prefix.trim_trailing_whitespace().format(self);
+                prefix.trim(Trim::TrailingWhitespace).format(self);
 
                 decor
                     .suffix
                     .modify()
-                    .trim_trailing_whitespace()
+                    .trim(Trim::TrailingWhitespace)
                     .padding(Padding::Start)
                     .format(self);
             }
 
             node.trailing
                 .modify()
-                .trim_trailing_whitespace()
+                .trim(Trim::TrailingWhitespace)
                 .padding(Padding::Both)
                 .format(self);
         }
@@ -211,7 +211,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
             visit_object_mut(self, node);
             node.trailing
                 .modify()
-                .trim_trailing_whitespace()
+                .trim(Trim::TrailingWhitespace)
                 .padding(Padding::Both)
                 .format(self);
         }
@@ -265,12 +265,12 @@ impl<'ast> VisitMut<'ast> for Formatter {
                     prefix.padding(Padding::Both);
                 }
 
-                prefix.trim_trailing_whitespace().format(self);
+                prefix.trim(Trim::TrailingWhitespace).format(self);
 
                 decor
                     .suffix
                     .modify()
-                    .trim_trailing_whitespace()
+                    .trim(Trim::TrailingWhitespace)
                     .padding(Padding::Start)
                     .format(self);
             }
@@ -284,7 +284,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
                 trailing.padding(Padding::Start);
             }
 
-            trailing.trim_trailing_whitespace().format(self);
+            trailing.trim(Trim::TrailingWhitespace).format(self);
         }
     }
 
@@ -316,7 +316,11 @@ fn make_multiline_exprs<'a>(
             .leading_newline()
             .indent_empty_trailing_line()
             .format(fmt);
-        decor.suffix.modify().trim_trailing_whitespace().format(fmt);
+        decor
+            .suffix
+            .modify()
+            .trim(Trim::TrailingWhitespace)
+            .format(fmt);
     }
 }
 
