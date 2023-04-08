@@ -188,9 +188,18 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_attr_mut(&mut self, node: &'ast mut Attribute) {
-        self.visit_ident_mut(&mut node.key);
+        self.visit_decor(
+            &mut node.key,
+            |prefix| prefix.inline().trim(Trim::Both).padding(Padding::End),
+            |suffix| suffix.inline().trim(Trim::Both).padding(Padding::Both),
+        );
         self.indent_next_line(false);
-        self.visit_expr_mut(&mut node.value);
+        self.visit_decorated(
+            &mut node.value,
+            |prefix| prefix.inline().trim(Trim::Both).padding(Padding::Both),
+            |fmt, node| visit_expr_mut(fmt, node),
+            |suffix| suffix.inline().trim(Trim::Both).padding(Padding::Start),
+        );
     }
 
     fn visit_block_mut(&mut self, node: &'ast mut Block) {
@@ -428,7 +437,7 @@ two:2 }
 
     array = [1,     /* two */ 2, 3 ,      ]
 
-      multiline_array = [
+      multiline_array    =    [
       1
       /* comment */
       ,
@@ -441,10 +450,10 @@ two:2 }
   ,
         ]
 
-    bar = func(1, [
+    bar =   func(1, [
         2, 3])
 
-    baz = func(
+    baz  = func(
      1, [
         2, /* three */ 3])
 
