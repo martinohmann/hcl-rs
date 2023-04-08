@@ -7,12 +7,12 @@ use crate::expr::{
     Array, Expression, FuncArgs, Object, ObjectKeyMut, ObjectValue, ObjectValueAssignment,
     ObjectValueTerminator,
 };
-use crate::repr::{Decorate, Decorated};
-use crate::structure::{Attribute, BlockBody, Body, Structure};
+use crate::repr::Decorate;
+use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};
 use crate::visit_mut::{
     visit_body_mut, visit_expr_mut, visit_object_mut, visit_structure_mut, VisitMut,
 };
-use crate::{Ident, RawString};
+use crate::RawString;
 use hcl_primitives::InternalString;
 use std::ops;
 
@@ -179,7 +179,12 @@ impl<'ast> VisitMut<'ast> for Formatter {
 
     fn visit_structure_mut(&mut self, node: &'ast mut Structure) {
         self.indent_next_line(true);
-        self.visit(node, |fmt, node| visit_structure_mut(fmt, node));
+        self.visit_decorated(
+            node,
+            |prefix| prefix,
+            |fmt, node| visit_structure_mut(fmt, node),
+            |suffix| suffix.trim(Trim::Start).padding(Padding::Start),
+        );
     }
 
     fn visit_attr_mut(&mut self, node: &'ast mut Attribute) {
@@ -188,8 +193,24 @@ impl<'ast> VisitMut<'ast> for Formatter {
         self.visit_expr_mut(&mut node.value);
     }
 
-    fn visit_ident_mut(&mut self, node: &'ast mut Decorated<Ident>) {
-        self.visit(node, |_, _| ());
+    fn visit_block_mut(&mut self, node: &'ast mut Block) {
+        self.visit_decor(
+            &mut node.ident,
+            |prefix| prefix.inline().trim(Trim::Both).padding(Padding::End),
+            |suffix| suffix.inline().trim(Trim::Both).padding(Padding::Both),
+        );
+        for label in &mut node.labels {
+            self.visit_block_label_mut(label);
+        }
+        self.visit_block_body_mut(&mut node.body);
+    }
+
+    fn visit_block_label_mut(&mut self, node: &'ast mut BlockLabel) {
+        self.visit_decor(
+            node,
+            |prefix| prefix.inline().trim(Trim::Both).padding(Padding::End),
+            |suffix| suffix.inline().trim(Trim::Both).padding(Padding::Both),
+        )
     }
 
     fn visit_expr_mut(&mut self, node: &'ast mut Expression) {
@@ -307,11 +328,16 @@ impl<'ast> VisitMut<'ast> for Formatter {
         match node {
             BlockBody::Multiline(body) => {
                 self.indent_next_line(false);
-                self.visit(body, |fmt, node| {
-                    let mut guard = fmt.indent();
-                    guard.visit_body_mut(node);
-                    guard.indent_next_line(true);
-                });
+                self.visit_decorated(
+                    body,
+                    |prefix| prefix.trim(Trim::Both).padding(Padding::Start),
+                    |fmt, node| {
+                        let mut guard = fmt.indent();
+                        guard.visit_body_mut(node);
+                        guard.indent_next_line(true);
+                    },
+                    |suffix| suffix.trim(Trim::Both).padding(Padding::Both),
+                );
             }
             BlockBody::Oneline(body) => self.visit_oneline_body_mut(body),
         }
@@ -381,14 +407,14 @@ mod tests {
     fn default_format_body() {
         let input = r#"
     // comment
-block {  # comment
+block  "label"  {  # comment
     // comment
 attr1 = "value"
     attr2 = 42
 
 // another comment
 nested_block {
-foo = 1 # foo comment
+foo = 1  # foo comment
 
     object = { foo :bar, baz= qux,  }
 
@@ -429,7 +455,7 @@ qux = func( 1  , /*two*/3  ...  )
 
         let expected = r#"
 // comment
-block {  # comment
+block "label" { # comment
   // comment
   attr1 = "value"
   attr2 = 42
