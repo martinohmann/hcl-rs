@@ -124,12 +124,30 @@ impl<'i> DecorFragments<'i> {
     fn trim(&mut self, trim: Trim) -> &mut Self {
         match trim {
             Trim::None => self,
-            Trim::TrailingWhitespace => self.trim_trailing_whitespace(),
+            Trim::Start => self.trim_start(),
+            Trim::End => self.trim_end(),
+            Trim::Both => self.trim_start().trim_end(),
         }
     }
 
-    fn trim_trailing_whitespace(&mut self) -> &mut Self {
-        if self.0.last().map_or(false, DecorFragment::is_whitespace) {
+    fn trim_start(&mut self) -> &mut Self {
+        if self.0.first().map_or(false, DecorFragment::is_whitespace) {
+            self.0.remove(0);
+        }
+
+        self
+    }
+
+    fn trim_end(&mut self) -> &mut Self {
+        let len = self.0.len();
+
+        if len > 1 && matches!(&self.0[len - 2], DecorFragment::LineComment(_)) {
+            // Whitespace after a line comment contains significant newlines which must not be
+            // removed. Only remove spaces.
+            if let Some(DecorFragment::Whitespace(s)) = self.0.last_mut() {
+                *s = s.trim_matches(is_space);
+            }
+        } else if self.0.last().map_or(false, DecorFragment::is_whitespace) {
             self.0.pop();
         }
 
@@ -208,7 +226,9 @@ pub(super) enum Padding {
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Trim {
     None,
-    TrailingWhitespace,
+    Start,
+    End,
+    Both,
 }
 
 #[derive(Debug)]
@@ -233,27 +253,27 @@ impl<'i, R> DecorFormatter<'i, R> {
         }
     }
 
-    pub(super) fn inline(&mut self) -> &mut Self {
+    pub(super) fn inline(mut self) -> Self {
         self.kind = DecorKind::Inline;
         self
     }
 
-    pub(super) fn leading_newline(&mut self) -> &mut Self {
+    pub(super) fn leading_newline(mut self) -> Self {
         self.leading_newline = true;
         self
     }
 
-    pub(super) fn indent_empty_trailing_line(&mut self) -> &mut Self {
+    pub(super) fn indent_empty_trailing_line(mut self) -> Self {
         self.indent_empty_trailing_line = true;
         self
     }
 
-    pub(super) fn trim(&mut self, trim: Trim) -> &mut Self {
+    pub(super) fn trim(mut self, trim: Trim) -> Self {
         self.trim = trim;
         self
     }
 
-    pub(super) fn padding(&mut self, padding: Padding) -> &mut Self {
+    pub(super) fn padding(mut self, padding: Padding) -> Self {
         self.padding = padding;
         self
     }
@@ -263,7 +283,7 @@ impl<'i, R> DecorFormatter<'i, R>
 where
     R: RawStringAccess,
 {
-    pub(super) fn format(&mut self, formatter: &mut Formatter) {
+    pub(super) fn format(self, formatter: &mut Formatter) {
         let mut fragments = DecorFragments::parse(self.raw.get(), self.kind).unwrap_or_default();
 
         if self.leading_newline {
