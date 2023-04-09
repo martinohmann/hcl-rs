@@ -16,17 +16,17 @@ enum DecorKind {
 }
 
 #[derive(Debug, Clone)]
-enum DecorFragment<'i> {
-    Whitespace(&'i str),
-    InlineComment(&'i str),
-    LineComment(&'i str),
+enum DecorFragment<'a> {
+    Whitespace(&'a str),
+    InlineComment(&'a str),
+    LineComment(&'a str),
     NewlineIndent,
 }
 
 #[derive(Debug, Default, Clone)]
-struct DecorFragments<'i>(Vec<DecorFragment<'i>>);
+struct DecorFragments<'a>(Vec<DecorFragment<'a>>);
 
-impl<'i> DecorFragment<'i> {
+impl<'a> DecorFragment<'a> {
     fn is_inline_comment(&self) -> bool {
         matches!(self, DecorFragment::InlineComment(_))
     }
@@ -43,7 +43,7 @@ impl<'i> DecorFragment<'i> {
         matches!(self, DecorFragment::Whitespace(_))
     }
 
-    fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'i, str> {
+    fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'a, str> {
         match self {
             DecorFragment::Whitespace(s) | DecorFragment::LineComment(s) => {
                 reindent(*s, prefix, skip_first_line)
@@ -87,7 +87,7 @@ impl<'i> DecorFragment<'i> {
     }
 }
 
-impl<'i> DecorFragments<'i> {
+impl<'a> DecorFragments<'a> {
     fn parse(input: &str, kind: DecorKind) -> Option<DecorFragments> {
         let fragments = match kind {
             DecorKind::Inline => parse_inline(input)?,
@@ -231,9 +231,8 @@ pub(super) enum Trim {
     Both,
 }
 
-#[derive(Debug)]
-pub(super) struct DecorFormatter<'i, R> {
-    raw: &'i mut R,
+pub(super) struct DecorFormatter<'a> {
+    raw: &'a mut dyn RawStringAccess,
     kind: DecorKind,
     leading_newline: bool,
     indent_empty_trailing_line: bool,
@@ -241,8 +240,8 @@ pub(super) struct DecorFormatter<'i, R> {
     padding: Padding,
 }
 
-impl<'i, R> DecorFormatter<'i, R> {
-    fn new(raw: &'i mut R) -> DecorFormatter<'i, R> {
+impl<'a> DecorFormatter<'a> {
+    fn new(raw: &'a mut dyn RawStringAccess) -> DecorFormatter<'a> {
         DecorFormatter {
             raw,
             kind: DecorKind::Multiline,
@@ -277,12 +276,7 @@ impl<'i, R> DecorFormatter<'i, R> {
         self.padding = padding;
         self
     }
-}
 
-impl<'i, R> DecorFormatter<'i, R>
-where
-    R: RawStringAccess,
-{
     pub(super) fn format(self, formatter: &mut Formatter) {
         let mut fragments = DecorFragments::parse(self.raw.get(), self.kind).unwrap_or_default();
 
@@ -331,15 +325,15 @@ impl RawStringAccess for Option<RawString> {
     }
 }
 
-pub(super) trait ModifyDecor<'i, R> {
-    fn modify(&'i mut self) -> DecorFormatter<'i, R>;
+pub(super) trait ModifyDecor {
+    fn modify(&mut self) -> DecorFormatter<'_>;
 }
 
-impl<'i, R> ModifyDecor<'i, R> for R
+impl<R> ModifyDecor for R
 where
     R: RawStringAccess,
 {
-    fn modify(&'i mut self) -> DecorFormatter<'i, R> {
+    fn modify(&mut self) -> DecorFormatter<'_> {
         DecorFormatter::new(self)
     }
 }

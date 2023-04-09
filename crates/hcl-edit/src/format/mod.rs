@@ -12,7 +12,6 @@ use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure}
 use crate::visit_mut::{
     visit_body_mut, visit_expr_mut, visit_object_mut, visit_structure_mut, VisitMut,
 };
-use crate::RawString;
 use hcl_primitives::InternalString;
 use std::ops;
 
@@ -148,8 +147,8 @@ impl Formatter {
     fn visit_decor<V, P, S>(&mut self, value: &mut V, modify_prefix: P, modify_suffix: S)
     where
         V: Decorate + ?Sized,
-        P: FnOnce(DecorFormatter<Option<RawString>>) -> DecorFormatter<Option<RawString>>,
-        S: FnOnce(DecorFormatter<Option<RawString>>) -> DecorFormatter<Option<RawString>>,
+        P: FnOnce(DecorFormatter) -> DecorFormatter,
+        S: FnOnce(DecorFormatter) -> DecorFormatter,
     {
         self.visit_decorated(value, modify_prefix, |_, _| (), modify_suffix)
     }
@@ -162,9 +161,9 @@ impl Formatter {
         modify_suffix: S,
     ) where
         V: Decorate + ?Sized,
-        P: FnOnce(DecorFormatter<Option<RawString>>) -> DecorFormatter<Option<RawString>>,
+        P: FnOnce(DecorFormatter) -> DecorFormatter,
         F: FnOnce(&mut Formatter, &mut V),
-        S: FnOnce(DecorFormatter<Option<RawString>>) -> DecorFormatter<Option<RawString>>,
+        S: FnOnce(DecorFormatter) -> DecorFormatter,
     {
         modify_prefix(value.decor_mut().prefix.modify()).format(self);
         f(self, value);
