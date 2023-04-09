@@ -4,8 +4,8 @@ mod fragments;
 
 use self::fragments::{DecorFormatter, ModifyDecor, Padding, Trim};
 use crate::expr::{
-    Array, Expression, FuncArgs, Object, ObjectKeyMut, ObjectValue, ObjectValueAssignment,
-    ObjectValueTerminator,
+    Array, Expression, FuncArgs, Object, ObjectKey, ObjectKeyMut, ObjectValue,
+    ObjectValueAssignment, ObjectValueTerminator,
 };
 use crate::repr::Decorate;
 use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, Structure};
@@ -226,10 +226,8 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
-        if is_multiline_array(node) {
-            self.visit(node, |fmt, node| {
-                make_multiline_exprs(&mut fmt.indented(), node.iter_mut());
-            });
+        if has_multiline_elements(node.iter()) || node.trailing.is_multiline() {
+            self.visit(node, |fmt, node| multiline_exprs(fmt, node.iter_mut()));
             node.trailing.modify().leading_newline().format(self);
         } else {
             for (i, expr) in node.iter_mut().enumerate() {
@@ -260,10 +258,8 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_object_mut(&mut self, node: &'ast mut Object) {
-        if is_multiline_object(node) {
-            self.visit(node, |fmt, node| {
-                make_multiline_items(&mut fmt.indented(), node.iter_mut());
-            });
+        if has_multiline_items(node.iter()) || node.trailing.is_multiline() {
+            self.visit(node, |fmt, node| multiline_items(fmt, node.iter_mut()));
             node.trailing.modify().leading_newline().format(self);
         } else {
             visit_object_mut(self, node);
@@ -296,10 +292,8 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
-        if is_multiline_func_args(node) {
-            self.visit(node, |fmt, node| {
-                make_multiline_exprs(&mut fmt.indented(), node.iter_mut());
-            });
+        if has_multiline_elements(node.iter()) || node.trailing.is_multiline() {
+            self.visit(node, |fmt, node| multiline_exprs(fmt, node.iter_mut()));
             node.trailing.modify().leading_newline().format(self);
         } else {
             for (i, expr) in node.iter_mut().enumerate() {
@@ -354,10 +348,9 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 }
 
-fn make_multiline_exprs<'a>(
-    fmt: &'a mut Formatter,
-    iter: impl Iterator<Item = &'a mut Expression>,
-) {
+fn multiline_exprs<'a>(fmt: &'a mut Formatter, iter: impl Iterator<Item = &'a mut Expression>) {
+    let mut fmt = fmt.indented();
+
     for expr in iter {
         fmt.visit_decorated(
             expr,
@@ -368,10 +361,12 @@ fn make_multiline_exprs<'a>(
     }
 }
 
-fn make_multiline_items<'a>(
+fn multiline_items<'a>(
     fmt: &'a mut Formatter,
     iter: impl Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)>,
 ) {
+    let mut fmt = fmt.indented();
+
     for (mut key, value) in iter {
         fmt.visit_decor(
             &mut key,
@@ -385,26 +380,17 @@ fn make_multiline_items<'a>(
     }
 }
 
-fn has_multiline_decor<T>(value: &T) -> bool
+fn has_multiline_items<'a>(
+    mut iter: impl Iterator<Item = (&'a ObjectKey, &'a ObjectValue)>,
+) -> bool {
+    iter.any(|(k, v)| k.decor().is_multiline() || v.expr().decor().is_multiline())
+}
+
+fn has_multiline_elements<'a, T>(mut iter: impl Iterator<Item = &'a T>) -> bool
 where
-    T: Decorate + ?Sized,
+    T: Decorate + 'a,
 {
-    value.decor().is_multiline()
-}
-
-fn is_multiline_object(object: &Object) -> bool {
-    object
-        .iter()
-        .any(|(k, v)| has_multiline_decor(k) || has_multiline_decor(v.expr()))
-        || object.trailing().is_multiline()
-}
-
-fn is_multiline_array(array: &Array) -> bool {
-    array.iter().any(has_multiline_decor) || array.trailing().is_multiline()
-}
-
-fn is_multiline_func_args(args: &FuncArgs) -> bool {
-    args.iter().any(has_multiline_decor) || args.trailing().is_multiline()
+    iter.any(|v| v.decor().is_multiline())
 }
 
 #[cfg(test)]
