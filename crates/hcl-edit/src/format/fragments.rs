@@ -96,10 +96,6 @@ impl<'a> DecorFragments<'a> {
         Some(DecorFragments(fragments))
     }
 
-    fn format(&self, formatter: &mut Formatter) -> RawString {
-        self.indent_with(&mut formatter.indent)
-    }
-
     fn leading_newline(&mut self) -> &mut Self {
         if self.0.first().map_or(false, DecorFragment::is_whitespace) {
             *self.0.first_mut().unwrap() = DecorFragment::NewlineIndent;
@@ -208,9 +204,10 @@ impl<'a> DecorFragments<'a> {
         result.into()
     }
 
-    fn indent_with(&self, indent: &mut Indent) -> RawString {
-        let indented = self.indent(&indent.prefix(), indent.skip_first_line);
-        indent.skip_first_line = !indented.ends_with('\n');
+    fn indent_with(&self, indent: &mut Indent, indent_first_line: Option<bool>) -> RawString {
+        let indent_first_line = indent_first_line.unwrap_or(indent.indent_first_line);
+        let indented = self.indent(&indent.prefix(), !indent_first_line);
+        indent.indent_first_line = indented.ends_with('\n');
         indented
     }
 }
@@ -236,6 +233,7 @@ pub(super) struct DecorFormatter<'a> {
     kind: DecorKind,
     leading_newline: bool,
     indent_empty_trailing_line: bool,
+    indent_first_line: Option<bool>,
     trim: Trim,
     padding: Padding,
 }
@@ -247,6 +245,7 @@ impl<'a> DecorFormatter<'a> {
             kind: DecorKind::Multiline,
             leading_newline: false,
             indent_empty_trailing_line: false,
+            indent_first_line: None,
             trim: Trim::None,
             padding: Padding::None,
         }
@@ -267,6 +266,11 @@ impl<'a> DecorFormatter<'a> {
         self
     }
 
+    pub(super) fn indent_first_line(mut self, yes: bool) -> Self {
+        self.indent_first_line = Some(yes);
+        self
+    }
+
     pub(super) fn trim(mut self, trim: Trim) -> Self {
         self.trim = trim;
         self
@@ -280,6 +284,8 @@ impl<'a> DecorFormatter<'a> {
     pub(super) fn format(self, formatter: &mut Formatter) {
         let mut fragments = DecorFragments::parse(self.raw.get(), self.kind).unwrap_or_default();
 
+        fragments.trim(self.trim).pad(self.padding);
+
         if self.leading_newline {
             fragments.leading_newline();
         }
@@ -288,10 +294,7 @@ impl<'a> DecorFormatter<'a> {
             fragments.indent_empty_trailing_line();
         }
 
-        let formatted = fragments
-            .trim(self.trim)
-            .pad(self.padding)
-            .format(formatter);
+        let formatted = fragments.indent_with(&mut formatter.indent, self.indent_first_line);
 
         self.raw.set(formatted);
     }

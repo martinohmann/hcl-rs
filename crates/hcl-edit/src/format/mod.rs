@@ -60,7 +60,7 @@ impl Formatter {
 pub struct Indent {
     level: usize,
     prefix: InternalString,
-    skip_first_line: bool,
+    indent_first_line: bool,
 }
 
 impl Default for Indent {
@@ -75,7 +75,7 @@ impl Indent {
         Indent {
             level: 0,
             prefix: prefix.into(),
-            skip_first_line: false,
+            indent_first_line: true,
         }
     }
 
@@ -94,7 +94,7 @@ impl Indent {
 
     fn reset(&mut self) {
         self.level = 0;
-        self.skip_first_line = false;
+        self.indent_first_line = true;
     }
 
     fn prefix(&self) -> String {
@@ -127,11 +127,7 @@ impl Drop for IndentGuard<'_> {
 }
 
 impl Formatter {
-    fn indent_next_line(&mut self, yes: bool) {
-        self.indent.skip_first_line = !yes;
-    }
-
-    fn indent(&mut self) -> IndentGuard<'_> {
+    fn indented(&mut self) -> IndentGuard<'_> {
         self.indent.increase();
         IndentGuard { formatter: self }
     }
@@ -177,10 +173,9 @@ impl<'ast> VisitMut<'ast> for Formatter {
     }
 
     fn visit_structure_mut(&mut self, node: &'ast mut Structure) {
-        self.indent_next_line(true);
         self.visit_decorated(
             node,
-            |prefix| prefix,
+            |prefix| prefix.indent_first_line(true),
             |fmt, node| visit_structure_mut(fmt, node),
             |suffix| suffix.trim(Trim::Start).padding(Padding::Start),
         );
@@ -192,10 +187,15 @@ impl<'ast> VisitMut<'ast> for Formatter {
             |prefix| prefix.inline().trim(Trim::Both).padding(Padding::End),
             |suffix| suffix.inline().trim(Trim::Both).padding(Padding::Both),
         );
-        self.indent_next_line(false);
         self.visit_decorated(
             &mut node.value,
-            |prefix| prefix.inline().trim(Trim::Both).padding(Padding::Both),
+            |prefix| {
+                prefix
+                    .inline()
+                    .indent_first_line(false)
+                    .trim(Trim::Both)
+                    .padding(Padding::Both)
+            },
             |fmt, node| visit_expr_mut(fmt, node),
             |suffix| suffix.inline().trim(Trim::Both).padding(Padding::Start),
         );
@@ -228,8 +228,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_array_mut(&mut self, node: &'ast mut Array) {
         if is_multiline_array(node) {
             self.visit(node, |fmt, node| {
-                let mut guard = fmt.indent();
-                make_multiline_exprs(&mut guard, node.iter_mut());
+                make_multiline_exprs(&mut fmt.indented(), node.iter_mut());
             });
             node.trailing.modify().leading_newline().format(self);
         } else {
@@ -263,8 +262,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_object_mut(&mut self, node: &'ast mut Object) {
         if is_multiline_object(node) {
             self.visit(node, |fmt, node| {
-                let mut guard = fmt.indent();
-                make_multiline_items(&mut guard, node.iter_mut());
+                make_multiline_items(&mut fmt.indented(), node.iter_mut());
             });
             node.trailing.modify().leading_newline().format(self);
         } else {
@@ -300,8 +298,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_func_args_mut(&mut self, node: &'ast mut FuncArgs) {
         if is_multiline_func_args(node) {
             self.visit(node, |fmt, node| {
-                let mut guard = fmt.indent();
-                make_multiline_exprs(&mut guard, node.iter_mut());
+                make_multiline_exprs(&mut fmt.indented(), node.iter_mut());
             });
             node.trailing.modify().leading_newline().format(self);
         } else {
@@ -335,16 +332,21 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_block_body_mut(&mut self, node: &'ast mut BlockBody) {
         match node {
             BlockBody::Multiline(body) => {
-                self.indent_next_line(false);
                 self.visit_decorated(
                     body,
-                    |prefix| prefix.trim(Trim::Both).padding(Padding::Start),
-                    |fmt, node| {
-                        let mut guard = fmt.indent();
-                        guard.visit_body_mut(node);
-                        guard.indent_next_line(true);
+                    |prefix| {
+                        prefix
+                            .indent_first_line(false)
+                            .trim(Trim::Both)
+                            .padding(Padding::Start)
                     },
-                    |suffix| suffix.trim(Trim::Both).padding(Padding::Both),
+                    |fmt, node| fmt.indented().visit_body_mut(node),
+                    |suffix| {
+                        suffix
+                            .indent_first_line(true)
+                            .trim(Trim::Both)
+                            .padding(Padding::Both)
+                    },
                 );
             }
             BlockBody::Oneline(body) => self.visit_oneline_body_mut(body),
