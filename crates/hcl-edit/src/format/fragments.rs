@@ -20,7 +20,6 @@ enum DecorFragment<'a> {
     Whitespace(&'a str),
     InlineComment(&'a str),
     LineComment(&'a str),
-    NewlineIndent,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -39,10 +38,6 @@ impl<'a> DecorFragment<'a> {
         self.is_inline_comment() || self.is_line_comment()
     }
 
-    fn is_whitespace(&self) -> bool {
-        matches!(self, DecorFragment::Whitespace(_))
-    }
-
     fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'a, str> {
         match self {
             DecorFragment::Whitespace(s) | DecorFragment::LineComment(s) => {
@@ -51,38 +46,25 @@ impl<'a> DecorFragment<'a> {
             // Since inline comments can contain significant newline characters, we must only
             // indent the first line.
             DecorFragment::InlineComment(s) => {
-                let mut lines = s.lines();
+                if skip_first_line {
+                    Cow::Borrowed(s)
+                } else {
+                    let mut lines = s.lines();
+                    let first = lines.next().expect("there's always one line");
+                    let mut indented = reindent(first, prefix, false);
 
-                match lines.next() {
-                    None => {
-                        // Empty inline comment, this cannot be emitted by the parser, but we
-                        // handle it anyways.
-                        if skip_first_line {
-                            Cow::Borrowed("")
-                        } else {
-                            Cow::Owned(prefix.to_owned())
-                        }
+                    // Append the rest of the inline comment without altering the existing
+                    // indent.
+                    let res = indented.to_mut();
+
+                    for line in lines {
+                        res.push('\n');
+                        res.push_str(line);
                     }
-                    Some(first) => {
-                        let mut indented = reindent(first, prefix, skip_first_line);
 
-                        // Appends the rest of the inline comment without altering the existing
-                        // indent.
-                        for line in lines {
-                            let res = indented.to_mut();
-                            res.push('\n');
-                            res.push_str(line);
-                        }
-
-                        if s.ends_with('\n') {
-                            indented.to_mut().push('\n');
-                        }
-
-                        indented
-                    }
+                    indented
                 }
             }
-            DecorFragment::NewlineIndent => Cow::Owned(format!("\n{prefix}")),
         }
     }
 }
@@ -97,54 +79,35 @@ impl<'a> DecorFragments<'a> {
     }
 
     fn leading_newline(&mut self) -> &mut Self {
-        if self.0.first().map_or(false, DecorFragment::is_whitespace) {
-            *self.0.first_mut().unwrap() = DecorFragment::NewlineIndent;
-        } else {
-            self.0.insert(0, DecorFragment::NewlineIndent);
+        let insert_newline = match self.0.first() {
+            Some(DecorFragment::Whitespace(s)) => !s.starts_with('\n') && !s.starts_with("\r\n"),
+            _ => true,
+        };
+
+        if insert_newline {
+            self.0.insert(0, DecorFragment::Whitespace("\n"));
         }
 
         self
     }
 
-    fn indent_empty_trailing_line(&mut self) -> &mut Self {
+    fn trim(&mut self) -> &mut Self {
+        if let Some(DecorFragment::Whitespace(s)) = self.0.first() {
+            let trimmed = s.trim_matches(is_space);
+            if trimmed.is_empty() {
+                self.0.remove(0);
+            } else {
+                *self.0.first_mut().unwrap() = DecorFragment::Whitespace(trimmed);
+            }
+        }
+
         if let Some(DecorFragment::Whitespace(s)) = self.0.last() {
-            if let Some(trimmed) = s.trim_end_matches(is_space).strip_suffix('\n') {
+            let trimmed = s.trim_matches(is_space);
+            if trimmed.is_empty() {
+                self.0.pop();
+            } else {
                 *self.0.last_mut().unwrap() = DecorFragment::Whitespace(trimmed);
-                self.0.push(DecorFragment::NewlineIndent);
             }
-        }
-
-        self
-    }
-
-    fn trim(&mut self, trim: Trim) -> &mut Self {
-        match trim {
-            Trim::None => self,
-            Trim::Start => self.trim_start(),
-            Trim::End => self.trim_end(),
-            Trim::Both => self.trim_start().trim_end(),
-        }
-    }
-
-    fn trim_start(&mut self) -> &mut Self {
-        if self.0.first().map_or(false, DecorFragment::is_whitespace) {
-            self.0.remove(0);
-        }
-
-        self
-    }
-
-    fn trim_end(&mut self) -> &mut Self {
-        let len = self.0.len();
-
-        if len > 1 && matches!(&self.0[len - 2], DecorFragment::LineComment(_)) {
-            // Whitespace after a line comment contains significant newlines which must not be
-            // removed. Only remove spaces.
-            if let Some(DecorFragment::Whitespace(s)) = self.0.last_mut() {
-                *s = s.trim_matches(is_space);
-            }
-        } else if self.0.last().map_or(false, DecorFragment::is_whitespace) {
-            self.0.pop();
         }
 
         self
@@ -189,7 +152,7 @@ impl<'a> DecorFragments<'a> {
     }
 
     fn indent(&self, prefix: &str, mut skip_first_line: bool) -> RawString {
-        if self.0.is_empty() && !prefix.is_empty() && !skip_first_line {
+        if self.0.is_empty() && !skip_first_line {
             return prefix.into();
         }
 
@@ -220,21 +183,11 @@ pub(super) enum Padding {
     Both,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(super) enum Trim {
-    None,
-    Start,
-    End,
-    Both,
-}
-
 pub(super) struct DecorFormatter<'a> {
     raw: &'a mut dyn RawStringAccess,
     kind: DecorKind,
     leading_newline: bool,
-    indent_empty_trailing_line: bool,
     indent_first_line: Option<bool>,
-    trim: Trim,
     padding: Padding,
 }
 
@@ -244,9 +197,7 @@ impl<'a> DecorFormatter<'a> {
             raw,
             kind: DecorKind::Multiline,
             leading_newline: false,
-            indent_empty_trailing_line: false,
             indent_first_line: None,
-            trim: Trim::None,
             padding: Padding::None,
         }
     }
@@ -261,18 +212,8 @@ impl<'a> DecorFormatter<'a> {
         self
     }
 
-    pub(super) fn indent_empty_trailing_line(mut self) -> Self {
-        self.indent_empty_trailing_line = true;
-        self
-    }
-
     pub(super) fn indent_first_line(mut self, yes: bool) -> Self {
         self.indent_first_line = Some(yes);
-        self
-    }
-
-    pub(super) fn trim(mut self, trim: Trim) -> Self {
-        self.trim = trim;
         self
     }
 
@@ -284,15 +225,13 @@ impl<'a> DecorFormatter<'a> {
     pub(super) fn format(self, formatter: &mut Formatter) {
         let mut fragments = DecorFragments::parse(self.raw.get(), self.kind).unwrap_or_default();
 
-        fragments.trim(self.trim).pad(self.padding);
+        fragments.trim();
 
         if self.leading_newline {
             fragments.leading_newline();
         }
 
-        if self.indent_empty_trailing_line {
-            fragments.indent_empty_trailing_line();
-        }
+        fragments.pad(self.padding);
 
         let formatted = fragments.indent_with(&mut formatter.indent, self.indent_first_line);
 
@@ -387,12 +326,8 @@ where
 {
     let s = s.into();
 
-    if s.is_empty() {
+    if s.is_empty() && !skip_first_line {
         return Cow::Owned(prefix.to_owned());
-    }
-
-    if s == "\n" || s == "\r\n" {
-        return Cow::Owned(format!("\n{}", prefix));
     }
 
     let length = s.len();
@@ -413,6 +348,7 @@ where
 
     if s.ends_with('\n') {
         output.push('\n');
+        output.push_str(prefix);
     }
 
     Cow::Owned(output)
