@@ -15,6 +15,35 @@ use crate::visit_mut::{
 use hcl_primitives::InternalString;
 use std::ops;
 
+/// A trait for objects which can be formatted.
+pub trait Format {
+    /// Formats an object.
+    fn format_with(&mut self, formatter: Formatter);
+
+    /// Applies the default format to an object.
+    fn format(&mut self) {
+        self.format_with(Formatter::default());
+    }
+
+    /// Formats an object and returns the modified value.
+    fn formatted_with(mut self, formatter: Formatter) -> Self
+    where
+        Self: Sized,
+    {
+        self.format_with(formatter);
+        self
+    }
+
+    /// Applies the default format to an object and returns the modified value.
+    fn formatted(mut self) -> Self
+    where
+        Self: Sized,
+    {
+        self.format();
+        self
+    }
+}
+
 /// Builds a [`Formatter`].
 #[derive(Default)]
 pub struct FormatterBuilder {
@@ -169,6 +198,7 @@ impl Formatter {
     }
 }
 
+#[doc(hidden)]
 impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_body_mut(&mut self, node: &'ast mut Body) {
         self.visit(node, |fmt, node| visit_body_mut(fmt, node));
@@ -369,7 +399,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::repr::Format;
+    use super::*;
     use crate::structure::Body;
     use pretty_assertions::assert_eq;
 
@@ -484,7 +514,7 @@ block "label" { # comment
 /* some trailing comment */"#;
 
         let mut body = input.parse::<Body>().unwrap();
-        body.default_format();
+        body.format();
 
         assert_eq!(body.to_string(), expected);
     }

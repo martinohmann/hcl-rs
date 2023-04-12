@@ -4,8 +4,8 @@
 
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::expr::Expression;
-use crate::format::Formatter;
-use crate::repr::{Decor, Decorate, Decorated, Format, SetSpan, Span};
+use crate::format::{Format, Formatter};
+use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::visit_mut::VisitMut;
 use crate::{parser, Ident, RawString};
 use std::fmt;
@@ -83,7 +83,7 @@ impl From<Vec<Structure>> for Body {
 }
 
 impl Format for Body {
-    fn format(&mut self, mut formatter: Formatter) {
+    fn format_with(&mut self, mut formatter: Formatter) {
         formatter.visit_body_mut(self);
     }
 }
