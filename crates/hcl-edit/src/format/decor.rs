@@ -62,25 +62,20 @@ impl<'a> DecorFragment<'a> {
 
 impl<'a> Decor<'a> {
     fn parse(input: &str, kind: DecorKind) -> Option<Decor> {
-        let fragments = match kind {
-            DecorKind::Inline => parse_inline(input)?,
-            DecorKind::Multiline => parse_multiline(input)?,
-        };
-        Some(Decor { fragments })
+        match kind {
+            DecorKind::Inline => parse_inline(input),
+            DecorKind::Multiline => parse_multiline(input),
+        }
     }
 
     fn leading_newline(&mut self) {
-        match self.fragments.first() {
-            Some(DecorFragment::LineBreaks(_)) => {}
-            _ => {
-                self.fragments.insert(0, DecorFragment::LineBreaks("\n"));
-            }
+        if !matches!(self.fragments.first(), Some(DecorFragment::LineBreaks(_))) {
+            self.fragments.insert(0, DecorFragment::LineBreaks("\n"));
         }
     }
 
     fn pad(&mut self, padding: Padding) {
         match padding {
-            Padding::None => {}
             Padding::Start => self.pad_start(),
             Padding::End => self.pad_end(),
             Padding::Both => self.pad_both(),
@@ -154,9 +149,14 @@ impl<'a> Decor<'a> {
     }
 }
 
+impl<'a> From<Vec<DecorFragment<'a>>> for Decor<'a> {
+    fn from(fragments: Vec<DecorFragment<'a>>) -> Self {
+        Decor { fragments }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Padding {
-    None,
     Start,
     End,
     Both,
@@ -167,7 +167,7 @@ pub(super) struct DecorFormatter<'a> {
     kind: DecorKind,
     leading_newline: bool,
     indent_first_line: Option<bool>,
-    padding: Padding,
+    padding: Option<Padding>,
 }
 
 impl<'a> DecorFormatter<'a> {
@@ -177,7 +177,7 @@ impl<'a> DecorFormatter<'a> {
             kind: DecorKind::Multiline,
             leading_newline: false,
             indent_first_line: None,
-            padding: Padding::None,
+            padding: None,
         }
     }
 
@@ -197,7 +197,7 @@ impl<'a> DecorFormatter<'a> {
     }
 
     pub(super) fn padding(mut self, padding: Padding) -> Self {
-        self.padding = padding;
+        self.padding = Some(padding);
         self
     }
 
@@ -210,7 +210,9 @@ impl<'a> DecorFormatter<'a> {
             decor.leading_newline();
         }
 
-        decor.pad(self.padding);
+        if let Some(padding) = self.padding {
+            decor.pad(padding);
+        }
 
         let formatted = decor.indent_with(&mut formatter.indent, self.indent_first_line);
 
@@ -259,14 +261,11 @@ where
     }
 }
 
-fn parse_multiline(input: &str) -> Option<Vec<DecorFragment>> {
-    many0::<_, _, _, (), _>(alt((
-        take_while1(is_line_break).map(DecorFragment::LineBreaks),
+fn parse_multiline(input: &str) -> Option<Decor> {
+    many0::<_, _, Vec<_>, (), _>(alt((
         space1.value(DecorFragment::Space),
-        ('#', not_line_ending)
-            .recognize()
-            .map(DecorFragment::LineComment),
-        ("//", not_line_ending)
+        take_while1(is_line_break).map(DecorFragment::LineBreaks),
+        (alt(("#", "//")), not_line_ending)
             .recognize()
             .map(DecorFragment::LineComment),
         ("/*", take_until0("*/"), "*/")
@@ -274,17 +273,19 @@ fn parse_multiline(input: &str) -> Option<Vec<DecorFragment>> {
             .map(DecorFragment::InlineComment),
     )))
     .parse(input)
+    .map(Into::into)
     .ok()
 }
 
-fn parse_inline(input: &str) -> Option<Vec<DecorFragment>> {
-    many0::<_, _, _, (), _>(alt((
+fn parse_inline(input: &str) -> Option<Decor> {
+    many0::<_, _, Vec<_>, (), _>(alt((
         space1.value(DecorFragment::Space),
         ("/*", take_until0("*/"), "*/")
             .recognize()
             .map(DecorFragment::InlineComment),
     )))
     .parse(input)
+    .map(Into::into)
     .ok()
 }
 

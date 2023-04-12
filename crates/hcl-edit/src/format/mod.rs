@@ -1,8 +1,8 @@
 //! Format HCL language items.
 
-mod fragments;
+mod decor;
 
-use self::fragments::{DecorFormatter, ModifyDecor, Padding};
+use self::decor::{DecorFormatter, ModifyDecor, Padding};
 use crate::expr::{
     Array, Expression, FuncArgs, Object, ObjectKey, ObjectKeyMut, ObjectValue,
     ObjectValueAssignment, ObjectValueTerminator,
