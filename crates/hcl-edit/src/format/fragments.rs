@@ -24,7 +24,9 @@ enum DecorFragment<'a> {
 }
 
 #[derive(Debug, Default, Clone)]
-struct DecorFragments<'a>(Vec<DecorFragment<'a>>);
+struct Decor<'a> {
+    fragments: Vec<DecorFragment<'a>>,
+}
 
 impl<'a> DecorFragment<'a> {
     fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'a, str> {
@@ -58,20 +60,20 @@ impl<'a> DecorFragment<'a> {
     }
 }
 
-impl<'a> DecorFragments<'a> {
-    fn parse(input: &str, kind: DecorKind) -> Option<DecorFragments> {
+impl<'a> Decor<'a> {
+    fn parse(input: &str, kind: DecorKind) -> Option<Decor> {
         let fragments = match kind {
             DecorKind::Inline => parse_inline(input)?,
             DecorKind::Multiline => parse_multiline(input)?,
         };
-        Some(DecorFragments(fragments))
+        Some(Decor { fragments })
     }
 
     fn leading_newline(&mut self) {
-        match self.0.first() {
+        match self.fragments.first() {
             Some(DecorFragment::LineBreaks(_)) => {}
             _ => {
-                self.0.insert(0, DecorFragment::LineBreaks("\n"));
+                self.fragments.insert(0, DecorFragment::LineBreaks("\n"));
             }
         }
     }
@@ -86,8 +88,8 @@ impl<'a> DecorFragments<'a> {
     }
 
     fn pad_both(&mut self) {
-        if self.0.is_empty() {
-            self.0.push(DecorFragment::Space);
+        if self.fragments.is_empty() {
+            self.fragments.push(DecorFragment::Space);
         } else {
             self.pad_start();
             self.pad_end();
@@ -96,15 +98,15 @@ impl<'a> DecorFragments<'a> {
 
     fn pad_start(&mut self) {
         if let Some(DecorFragment::InlineComment(_) | DecorFragment::LineComment(_)) =
-            self.0.first()
+            self.fragments.first()
         {
-            self.0.insert(0, DecorFragment::Space);
+            self.fragments.insert(0, DecorFragment::Space);
         }
     }
 
     fn pad_end(&mut self) {
-        if let Some(DecorFragment::InlineComment(_)) = self.0.last() {
-            self.0.push(DecorFragment::Space);
+        if let Some(DecorFragment::InlineComment(_)) = self.fragments.last() {
+            self.fragments.push(DecorFragment::Space);
         }
     }
 
@@ -112,7 +114,7 @@ impl<'a> DecorFragments<'a> {
         let mut remove_space = true;
 
         // Remove leading space and spaces immediately preceded by line breaks.
-        self.0.retain(|fragment| {
+        self.fragments.retain(|fragment| {
             if let DecorFragment::Space = fragment {
                 let keep_space = std::mem::replace(&mut remove_space, false);
                 !keep_space
@@ -123,19 +125,19 @@ impl<'a> DecorFragments<'a> {
         });
 
         // Remove potential trailing space after an inline comment.
-        if let Some(DecorFragment::Space) = self.0.last() {
-            self.0.pop();
+        if let Some(DecorFragment::Space) = self.fragments.last() {
+            self.fragments.pop();
         }
     }
 
     fn indent(&self, prefix: &str, mut skip_first_line: bool) -> RawString {
-        if self.0.is_empty() && !skip_first_line {
+        if self.fragments.is_empty() && !skip_first_line {
             return prefix.into();
         }
 
         let mut result = Cow::Borrowed("");
 
-        for fragment in self.0.iter() {
+        for fragment in self.fragments.iter() {
             let indented = fragment.indent(prefix, skip_first_line);
             skip_first_line = !indented.ends_with('\n');
             result.to_mut().push_str(&indented);
@@ -200,17 +202,17 @@ impl<'a> DecorFormatter<'a> {
     }
 
     pub(super) fn format(self, formatter: &mut Formatter) {
-        let mut fragments = DecorFragments::parse(self.raw.get(), self.kind).unwrap_or_default();
+        let mut decor = Decor::parse(self.raw.get(), self.kind).unwrap_or_default();
 
-        fragments.remove_insignificant_spaces();
+        decor.remove_insignificant_spaces();
 
         if self.leading_newline {
-            fragments.leading_newline();
+            decor.leading_newline();
         }
 
-        fragments.pad(self.padding);
+        decor.pad(self.padding);
 
-        let formatted = fragments.indent_with(&mut formatter.indent, self.indent_first_line);
+        let formatted = decor.indent_with(&mut formatter.indent, self.indent_first_line);
 
         self.raw.set(formatted);
     }
@@ -353,8 +355,8 @@ mod tests {
         ];
 
         for (input, expected, kind) in tests {
-            let fragments = DecorFragments::parse(input, kind).unwrap();
-            let indented = fragments.indent("    ", false);
+            let decor = Decor::parse(input, kind).unwrap();
+            let indented = decor.indent("    ", false);
             assert_eq!(indented, expected.into());
         }
     }
