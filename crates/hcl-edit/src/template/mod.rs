@@ -15,8 +15,29 @@ use std::str::FromStr;
 #[doc(inline)]
 pub use hcl_primitives::template::Strip;
 
+/// An owning iterator over the elements of a `Template`.
+///
+/// Values of this type are created by the [`into_iter`] method on [`Template`] (provided by the
+/// [`IntoIterator`] trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
+pub type IntoIter = Box<dyn Iterator<Item = Element>>;
+
+/// An iterator over the elements of a `Template`.
+///
+/// Values of this type are created by the [`iter`] method on [`Template`]. See its documentation
+/// for more.
+///
+/// [`iter`]: Template::iter
 pub type Iter<'a> = Box<dyn Iterator<Item = &'a Element> + 'a>;
 
+/// A mutable iterator over the elements of a `Template`.
+///
+/// Values of this type are created by the [`iter_mut`] method on [`Template`]. See its
+/// documentation for more.
+///
+/// [`iter_mut`]: Template::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Element> + 'a>;
 
 #[derive(Debug, Clone, Eq, Default)]
@@ -31,10 +52,14 @@ impl StringTemplate {
         StringTemplate::default()
     }
 
+    /// An iterator visiting all template elements in insertion order. The iterator element type
+    /// is `&'a Element`.
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.elements.iter())
     }
 
+    /// An iterator visiting all template elements in insertion order, with mutable references to
+    /// the values. The iterator element type is `&'a mut Element`.
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.elements.iter_mut())
     }
@@ -60,6 +85,59 @@ impl From<Vec<Element>> for StringTemplate {
 impl PartialEq for StringTemplate {
     fn eq(&self, other: &Self) -> bool {
         self.elements == other.elements
+    }
+}
+
+impl<T> Extend<T> for StringTemplate
+where
+    T: Into<Element>,
+{
+    fn extend<I>(&mut self, iterable: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for v in iterable {
+            self.elements.push(v.into());
+        }
+    }
+}
+
+impl<T> FromIterator<T> for StringTemplate
+where
+    T: Into<Element>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+    }
+}
+
+impl IntoIterator for StringTemplate {
+    type Item = Element;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.elements.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a StringTemplate {
+    type Item = &'a Element;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut StringTemplate {
+    type Item = &'a mut Element;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -160,10 +238,14 @@ impl Template {
         Template::default()
     }
 
+    /// An iterator visiting all template elements in insertion order. The iterator element type
+    /// is `&'a Element`.
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.elements.iter())
     }
 
+    /// An iterator visiting all template elements in insertion order, with mutable references to
+    /// the values. The iterator element type is `&'a mut Element`.
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.elements.iter_mut())
     }
@@ -202,6 +284,59 @@ impl From<Vec<Element>> for Template {
             elements,
             span: None,
         }
+    }
+}
+
+impl<T> Extend<T> for Template
+where
+    T: Into<Element>,
+{
+    fn extend<I>(&mut self, iterable: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for v in iterable {
+            self.elements.push(v.into());
+        }
+    }
+}
+
+impl<T> FromIterator<T> for Template
+where
+    T: Into<Element>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+    }
+}
+
+impl IntoIterator for Template {
+    type Item = Element;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.elements.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a Template {
+    type Item = &'a Element;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Template {
+    type Item = &'a mut Element;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

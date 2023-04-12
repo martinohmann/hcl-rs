@@ -15,12 +15,54 @@ use vecmap::map::{MutableKeys, VecMap};
 #[doc(inline)]
 pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 
+/// An owning iterator over the values of an `Array`.
+///
+/// Values of this type are created by the [`into_iter`] method on [`Array`] (provided by the
+/// [`IntoIterator`] trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
+pub type IntoIter = Box<dyn Iterator<Item = Expression>>;
+
+/// An iterator over the values of an `Array`.
+///
+/// Values of this type are created by the [`iter`] method on [`Array`]. See its documentation for
+/// more.
+///
+/// [`iter`]: Array::iter
 pub type Iter<'a> = Box<dyn Iterator<Item = &'a Expression> + 'a>;
 
+/// A mutable iterator over the values of an `Array`.
+///
+/// Values of this type are created by the [`iter_mut`] method on [`Array`]. See its documentation
+/// for more.
+///
+/// [`iter_mut`]: Array::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
 
+/// An owning iterator over the entries of an `Object`.
+///
+/// Values of this type are created by the [`into_iter`] method on [`Object`] (provided by the
+/// [`IntoIterator`] trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
+pub type ObjectIntoIter = Box<dyn Iterator<Item = (ObjectKey, ObjectValue)>>;
+
+/// An iterator over the entries of an `Object`.
+///
+/// Values of this type are created by the [`iter`] method on [`Object`]. See its documentation for
+/// more.
+///
+/// [`iter`]: Object::iter
 pub type ObjectIter<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a ObjectValue)> + 'a>;
 
+/// A mutable iterator over the entries of an `Object`.
+///
+/// Values of this type are created by the [`iter_mut`] method on [`Object`]. See its documentation
+/// for more.
+///
+/// [`iter_mut`]: Object::iter_mut
 pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)> + 'a>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,10 +249,14 @@ impl Array {
         self.values.remove(index)
     }
 
+    /// An iterator visiting all values in insertion order. The iterator element type is `&'a
+    /// Expression`.
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.values.iter())
     }
 
+    /// An iterator visiting all values in insertion order, with mutable references to the values.
+    /// The iterator element type is `&'a mut Expression`.
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.values.iter_mut())
     }
@@ -258,6 +304,59 @@ impl From<Vec<Expression>> for Array {
             decor: Decor::default(),
             span: None,
         }
+    }
+}
+
+impl<T> Extend<T> for Array
+where
+    T: Into<Expression>,
+{
+    fn extend<I>(&mut self, iterable: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for v in iterable {
+            self.push(v);
+        }
+    }
+}
+
+impl<T> FromIterator<T> for Array
+where
+    T: Into<Expression>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+    }
+}
+
+impl IntoIterator for Array {
+    type Item = Expression;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.values.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a Array {
+    type Item = &'a Expression;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Array {
+    type Item = &'a mut Expression;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -311,10 +410,14 @@ impl Object {
         self.items.remove_entry(key)
     }
 
+    /// An iterator visiting all key-value pairs in insertion order. The iterator element type is
+    /// `(&'a ObjectKey, &'a ObjectValue)`.
     pub fn iter(&self) -> ObjectIter<'_> {
         Box::new(self.items.iter())
     }
 
+    /// An iterator visiting all key-value pairs in insertion order, with mutable references to the
+    /// values. The iterator element type is `(ObjectKeyMut<'a>, &'a mut ObjectValue)`.
     pub fn iter_mut(&mut self) -> ObjectIterMut<'_> {
         Box::new(
             self.items
@@ -356,6 +459,64 @@ impl From<VecMap<ObjectKey, ObjectValue>> for Object {
             decor: Decor::default(),
             span: None,
         }
+    }
+}
+
+impl<K, V> Extend<(K, V)> for Object
+where
+    K: Into<ObjectKey>,
+    V: Into<ObjectValue>,
+{
+    fn extend<I>(&mut self, iterable: I)
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
+        for (k, v) in iterable {
+            self.insert(k, v);
+        }
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for Object
+where
+    K: Into<ObjectKey>,
+    V: Into<ObjectValue>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+    {
+        iter.into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect::<VecMap<_, _>>()
+            .into()
+    }
+}
+
+impl IntoIterator for Object {
+    type Item = (ObjectKey, ObjectValue);
+    type IntoIter = ObjectIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.items.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a Object {
+    type Item = (&'a ObjectKey, &'a ObjectValue);
+    type IntoIter = ObjectIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Object {
+    type Item = (ObjectKeyMut<'a>, &'a mut ObjectValue);
+    type IntoIter = ObjectIterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -605,10 +766,14 @@ impl FuncArgs {
         self.args.is_empty()
     }
 
+    /// An iterator visiting all values in insertion order. The iterator element type is `&'a
+    /// Expression`.
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.args.iter())
     }
 
+    /// An iterator visiting all values in insertion order, with mutable references to the values.
+    /// The iterator element type is `&'a mut Expression`.
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.args.iter_mut())
     }
@@ -652,6 +817,59 @@ impl PartialEq for FuncArgs {
         self.args == other.args
             && self.trailing_comma == other.trailing_comma
             && self.trailing == other.trailing
+    }
+}
+
+impl<T> Extend<T> for FuncArgs
+where
+    T: Into<Expression>,
+{
+    fn extend<I>(&mut self, iterable: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for v in iterable {
+            self.args.push(v.into());
+        }
+    }
+}
+
+impl<T> FromIterator<T> for FuncArgs
+where
+    T: Into<Expression>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        FuncArgs::new(iter.into_iter().map(Into::into).collect())
+    }
+}
+
+impl IntoIterator for FuncArgs {
+    type Item = Expression;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.args.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a FuncArgs {
+    type Item = &'a Expression;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut FuncArgs {
+    type Item = &'a mut Expression;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
