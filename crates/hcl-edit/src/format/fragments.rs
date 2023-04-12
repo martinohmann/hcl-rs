@@ -3,8 +3,8 @@ use crate::{util::dedent, RawString};
 use std::borrow::Cow;
 use winnow::{
     branch::alt,
-    bytes::take_until0,
-    character::{multispace1, not_line_ending, space1},
+    bytes::{take_until0, take_while1},
+    character::{not_line_ending, space1},
     multi::many0,
     Parser,
 };
@@ -17,7 +17,8 @@ enum DecorKind {
 
 #[derive(Debug, Clone)]
 enum DecorFragment<'a> {
-    Whitespace(&'a str),
+    Space,
+    LineBreaks(&'a str),
     InlineComment(&'a str),
     LineComment(&'a str),
 }
@@ -26,44 +27,32 @@ enum DecorFragment<'a> {
 struct DecorFragments<'a>(Vec<DecorFragment<'a>>);
 
 impl<'a> DecorFragment<'a> {
-    fn is_inline_comment(&self) -> bool {
-        matches!(self, DecorFragment::InlineComment(_))
-    }
-
-    fn is_line_comment(&self) -> bool {
-        matches!(self, DecorFragment::LineComment(_))
-    }
-
-    fn is_comment(&self) -> bool {
-        self.is_inline_comment() || self.is_line_comment()
-    }
-
     fn indent(&self, prefix: &str, skip_first_line: bool) -> Cow<'a, str> {
         match self {
-            DecorFragment::Whitespace(s) | DecorFragment::LineComment(s) => {
-                reindent(*s, prefix, skip_first_line)
-            }
-            // Since inline comments can contain significant newline characters, we must only
-            // indent the first line.
+            DecorFragment::Space => reindent(" ", prefix, skip_first_line),
+            DecorFragment::LineBreaks(s) => Cow::Owned(format!("{s}{prefix}")),
+            DecorFragment::LineComment(s) => reindent(*s, prefix, skip_first_line),
+            DecorFragment::InlineComment(s) if skip_first_line => Cow::Borrowed(s),
             DecorFragment::InlineComment(s) => {
-                if skip_first_line {
-                    Cow::Borrowed(s)
-                } else {
-                    let mut lines = s.lines();
-                    let first = lines.next().expect("there's always one line");
-                    let mut indented = reindent(first, prefix, false);
+                let mut lines = s.lines();
 
-                    // Append the rest of the inline comment without altering the existing
-                    // indent.
-                    let res = indented.to_mut();
+                let first_line = lines
+                    .next()
+                    .expect("inline comments always have at least one line");
 
-                    for line in lines {
-                        res.push('\n');
-                        res.push_str(line);
-                    }
+                // Since inline comments can contain significant newline characters, we must only
+                // indent the first line.
+                let mut indented = reindent(first_line, prefix, false);
 
-                    indented
+                let indented_mut = indented.to_mut();
+
+                // Append the rest of the inline comment without altering the existing indent.
+                for line in lines {
+                    indented_mut.push('\n');
+                    indented_mut.push_str(line);
                 }
+
+                indented
             }
         }
     }
@@ -78,77 +67,65 @@ impl<'a> DecorFragments<'a> {
         Some(DecorFragments(fragments))
     }
 
-    fn leading_newline(&mut self) -> &mut Self {
-        let insert_newline = match self.0.first() {
-            Some(DecorFragment::Whitespace(s)) => !s.starts_with('\n') && !s.starts_with("\r\n"),
-            _ => true,
-        };
-
-        if insert_newline {
-            self.0.insert(0, DecorFragment::Whitespace("\n"));
-        }
-
-        self
-    }
-
-    fn trim(&mut self) -> &mut Self {
-        if let Some(DecorFragment::Whitespace(s)) = self.0.first() {
-            let trimmed = s.trim_matches(is_space);
-            if trimmed.is_empty() {
-                self.0.remove(0);
-            } else {
-                *self.0.first_mut().unwrap() = DecorFragment::Whitespace(trimmed);
+    fn leading_newline(&mut self) {
+        match self.0.first() {
+            Some(DecorFragment::LineBreaks(_)) => {}
+            _ => {
+                self.0.insert(0, DecorFragment::LineBreaks("\n"));
             }
         }
-
-        if let Some(DecorFragment::Whitespace(s)) = self.0.last() {
-            let trimmed = s.trim_matches(is_space);
-            if trimmed.is_empty() {
-                self.0.pop();
-            } else {
-                *self.0.last_mut().unwrap() = DecorFragment::Whitespace(trimmed);
-            }
-        }
-
-        self
     }
 
-    fn pad(&mut self, padding: Padding) -> &mut Self {
+    fn pad(&mut self, padding: Padding) {
         match padding {
-            Padding::None => self,
+            Padding::None => {}
             Padding::Start => self.pad_start(),
             Padding::End => self.pad_end(),
             Padding::Both => self.pad_both(),
         }
     }
 
-    fn pad_both(&mut self) -> &mut Self {
+    fn pad_both(&mut self) {
         if self.0.is_empty() {
-            self.0.push(DecorFragment::Whitespace(" "));
-            self
+            self.0.push(DecorFragment::Space);
         } else {
-            self.pad_start().pad_end()
+            self.pad_start();
+            self.pad_end();
         }
     }
 
-    fn pad_start(&mut self) -> &mut Self {
-        if self.0.first().map_or(false, DecorFragment::is_comment) {
-            self.0.insert(0, DecorFragment::Whitespace(" "));
-        }
-
-        self
-    }
-
-    fn pad_end(&mut self) -> &mut Self {
-        if self
-            .0
-            .last()
-            .map_or(false, DecorFragment::is_inline_comment)
+    fn pad_start(&mut self) {
+        if let Some(DecorFragment::InlineComment(_) | DecorFragment::LineComment(_)) =
+            self.0.first()
         {
-            self.0.push(DecorFragment::Whitespace(" "));
+            self.0.insert(0, DecorFragment::Space);
         }
+    }
 
-        self
+    fn pad_end(&mut self) {
+        if let Some(DecorFragment::InlineComment(_)) = self.0.last() {
+            self.0.push(DecorFragment::Space);
+        }
+    }
+
+    fn remove_insignificant_spaces(&mut self) {
+        let mut remove_space = true;
+
+        // Remove leading space and spaces immediately preceded by line breaks.
+        self.0.retain(|fragment| {
+            if let DecorFragment::Space = fragment {
+                let keep_space = std::mem::replace(&mut remove_space, false);
+                !keep_space
+            } else {
+                remove_space = matches!(fragment, DecorFragment::LineBreaks(_));
+                true
+            }
+        });
+
+        // Remove potential trailing space after an inline comment.
+        if let Some(DecorFragment::Space) = self.0.last() {
+            self.0.pop();
+        }
     }
 
     fn indent(&self, prefix: &str, mut skip_first_line: bool) -> RawString {
@@ -225,7 +202,7 @@ impl<'a> DecorFormatter<'a> {
     pub(super) fn format(self, formatter: &mut Formatter) {
         let mut fragments = DecorFragments::parse(self.raw.get(), self.kind).unwrap_or_default();
 
-        fragments.trim();
+        fragments.remove_insignificant_spaces();
 
         if self.leading_newline {
             fragments.leading_newline();
@@ -282,7 +259,8 @@ where
 
 fn parse_multiline(input: &str) -> Option<Vec<DecorFragment>> {
     many0::<_, _, _, (), _>(alt((
-        multispace1.map(DecorFragment::Whitespace),
+        take_while1(is_line_break).map(DecorFragment::LineBreaks),
+        space1.value(DecorFragment::Space),
         ('#', not_line_ending)
             .recognize()
             .map(DecorFragment::LineComment),
@@ -299,7 +277,7 @@ fn parse_multiline(input: &str) -> Option<Vec<DecorFragment>> {
 
 fn parse_inline(input: &str) -> Option<Vec<DecorFragment>> {
     many0::<_, _, _, (), _>(alt((
-        space1.map(DecorFragment::Whitespace),
+        space1.value(DecorFragment::Space),
         ("/*", take_until0("*/"), "*/")
             .recognize()
             .map(DecorFragment::InlineComment),
@@ -308,8 +286,8 @@ fn parse_inline(input: &str) -> Option<Vec<DecorFragment>> {
     .ok()
 }
 
-fn is_space(ch: char) -> bool {
-    ch.is_whitespace() && ch != '\r' && ch != '\n'
+fn is_line_break(ch: char) -> bool {
+    ch == '\n' || ch == '\r'
 }
 
 fn reindent<'a, S>(s: S, prefix: &str, skip_first_line: bool) -> Cow<'a, str>
@@ -364,12 +342,12 @@ mod tests {
         let tests = [
             (
                 "  // foo \n/* bar\nbaz */   # 123\n#456",
-                "    // foo \n    /* bar\nbaz */   # 123\n    #456",
+                "    // foo \n    /* bar\nbaz */ # 123\n    #456",
                 DecorKind::Multiline,
             ),
             (
                 "  /* bar\nbaz */ \t \t /* qux */",
-                "    /* bar\nbaz */ \t \t /* qux */",
+                "    /* bar\nbaz */ /* qux */",
                 DecorKind::Inline,
             ),
         ];
