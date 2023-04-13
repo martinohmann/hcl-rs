@@ -1,7 +1,5 @@
 //! Types to represent the HCL expression sub-language.
 
-#![allow(missing_docs)]
-
 mod array;
 mod conditional;
 mod for_expr;
@@ -28,23 +26,43 @@ use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
 
+/// A type representing any expression from the expression sub-language.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
+    /// Represents a null value.
     Null(Decorated<Null>),
+    /// Represents a boolean.
     Bool(Decorated<bool>),
+    /// Represents a number, either integer or float.
     Number(Formatted<Number>),
+    /// Represents a string that does not contain any template interpolations or template
+    /// directives.
     String(Decorated<String>),
+    /// Represents an HCL array.
     Array(Array),
+    /// Represents an HCL object.
     Object(Object),
+    /// Represents a string containing template interpolations and template directives.
     Template(StringTemplate),
+    /// Represents an HCL heredoc template.
     HeredocTemplate(Box<HeredocTemplate>),
+    /// Represents a sub-expression wrapped in parenthesis.
     Parenthesis(Box<Parenthesis>),
+    /// Represents a variable identifier.
     Variable(Decorated<Ident>),
+    /// Represents conditional operator which selects one of two rexpressions based on the outcome
+    /// of a boolean expression.
     Conditional(Box<Conditional>),
+    /// Represents a function call.
     FuncCall(Box<FuncCall>),
+    /// Represents an attribute or element traversal.
     Traversal(Box<Traversal>),
+    /// Represents an operation which applies a unary operator to an expression.
     UnaryOp(Box<UnaryOp>),
+    /// Represents an operation which applies a binary operator to two expressions.
     BinaryOp(Box<BinaryOp>),
+    /// Represents a construct for constructing a collection by projecting the items from another
+    /// collection.
     ForExpr(Box<ForExpr>),
 }
 
@@ -128,6 +146,7 @@ impl fmt::Display for Expression {
     }
 }
 
+/// Represents a sub-expression wrapped in parenthesis (`( <expr> )`).
 #[derive(Debug, Clone, Eq)]
 pub struct Parenthesis {
     inner: Expression,
@@ -136,6 +155,7 @@ pub struct Parenthesis {
 }
 
 impl Parenthesis {
+    /// Creates a new `Parenthesis` value from an `Expression`.
     pub fn new(inner: Expression) -> Parenthesis {
         Parenthesis {
             inner,
@@ -144,14 +164,17 @@ impl Parenthesis {
         }
     }
 
+    /// Returns a reference to the wrapped `Expression`.
     pub fn inner(&self) -> &Expression {
         &self.inner
     }
 
+    /// Returns a mutable reference to the wrapped `Expression`.
     pub fn inner_mut(&mut self) -> &mut Expression {
         &mut self.inner
     }
 
+    /// Consumes the `Parenthesis` and returns the wrapped `Expression`.
     pub fn into_inner(self) -> Expression {
         self.inner
     }
@@ -168,6 +191,7 @@ impl PartialEq for Parenthesis {
     }
 }
 
+/// Represents a value that is `null`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Null;
 

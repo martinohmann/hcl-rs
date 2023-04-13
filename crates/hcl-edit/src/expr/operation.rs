@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, SetSpan, Span, Spanned};
 use std::ops::Range;

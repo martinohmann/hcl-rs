@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use crate::expr::{Expression, IntoIter, Iter, IterMut};
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::{Ident, RawString};
