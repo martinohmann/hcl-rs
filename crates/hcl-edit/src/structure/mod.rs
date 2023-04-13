@@ -12,8 +12,29 @@ use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
 
+/// An owning iterator over the elements of a `Body`.
+///
+/// Values of this type are created by the [`into_iter`] method on [`Body`] (provided by the
+/// [`IntoIterator`] trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
+/// [`IntoIterator`]: core::iter::IntoIterator
+pub type IntoIter = Box<dyn Iterator<Item = Structure>>;
+
+/// An iterator over the elements of a `Body`.
+///
+/// Values of this type are created by the [`iter`] method on [`Body`]. See its documentation
+/// for more.
+///
+/// [`iter`]: Body::iter
 pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 
+/// A mutable iterator over the elements of a `Body`.
+///
+/// Values of this type are created by the [`iter_mut`] method on [`Body`]. See its
+/// documentation for more.
+///
+/// [`iter_mut`]: Body::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
 
 #[derive(Debug, Clone, Default, Eq)]
@@ -36,10 +57,14 @@ impl Body {
         self.structures.len()
     }
 
+    /// An iterator visiting all body structures in insertion order. The iterator element type is
+    /// `&'a Structure`.
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.structures.iter())
     }
 
+    /// An iterator visiting all body structures in insertion order, with mutable references to the
+    /// values. The iterator element type is `&'a mut Structure`.
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.structures.iter_mut())
     }
@@ -79,6 +104,59 @@ impl From<Vec<Structure>> for Body {
             structures,
             ..Default::default()
         }
+    }
+}
+
+impl<T> Extend<T> for Body
+where
+    T: Into<Structure>,
+{
+    fn extend<I>(&mut self, iterable: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        for v in iterable {
+            self.structures.push(v.into());
+        }
+    }
+}
+
+impl<T> FromIterator<T> for Body
+where
+    T: Into<Structure>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+    }
+}
+
+impl IntoIterator for Body {
+    type Item = Structure;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.structures.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a Body {
+    type Item = &'a Structure;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut Body {
+    type Item = &'a mut Structure;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
@@ -286,6 +364,8 @@ impl BlockBody {
         }
     }
 
+    /// An iterator visiting all body structures in insertion order. The iterator element type is
+    /// `&'a Structure`.
     pub fn iter(&self) -> Iter<'_> {
         match self {
             BlockBody::Multiline(body) => body.iter(),
@@ -296,6 +376,8 @@ impl BlockBody {
         }
     }
 
+    /// An iterator visiting all body structures in insertion order, with mutable references to the
+    /// values. The iterator element type is `&'a mut Structure`.
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         match self {
             BlockBody::Multiline(body) => body.iter_mut(),
@@ -311,6 +393,51 @@ impl BlockBody {
             BlockBody::Multiline(body) => body.despan(input),
             BlockBody::Oneline(oneline) => oneline.despan(input),
         }
+    }
+}
+
+impl<T> FromIterator<T> for BlockBody
+where
+    T: Into<Structure>,
+{
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        BlockBody::Multiline(Body::from_iter(iter))
+    }
+}
+
+impl IntoIterator for BlockBody {
+    type Item = Structure;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            BlockBody::Multiline(body) => body.into_iter(),
+            BlockBody::Oneline(oneline) => match oneline.attr {
+                Some(attr) => Box::new(std::iter::once(attr)),
+                None => Box::new(std::iter::empty()),
+            },
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a BlockBody {
+    type Item = &'a Structure;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut BlockBody {
+    type Item = &'a mut Structure;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
