@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, SetSpan, Span};
 use crate::RawString;
@@ -30,6 +28,7 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Expression> + 'a>;
 /// [`iter_mut`]: Array::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Expression> + 'a>;
 
+/// Type representing a HCL array.
 #[derive(Debug, Clone, Eq, Default)]
 pub struct Array {
     values: Vec<Expression>,
@@ -40,64 +39,128 @@ pub struct Array {
 }
 
 impl Array {
-    pub fn new() -> Array {
+    /// Constructs a new, empty `Array`.
+    #[inline]
+    pub fn new() -> Self {
+        Array::default()
+    }
+
+    /// Constructs a new, empty `Array` with at least the specified capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
         Array {
-            values: Vec::new(),
-            trailing: RawString::default(),
-            trailing_comma: false,
-            decor: Decor::default(),
-            span: None,
+            values: Vec::with_capacity(capacity),
+            ..Default::default()
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.values.len()
-    }
-
+    /// Returns `true` if the array contains no elements.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
 
+    /// Returns the number of elements in the array, also referred to as its 'length'.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    /// Clears the array, removing all values.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.values.clear();
+    }
+
+    /// Returns a reference to the value at the given index, or `None` if the index is out of
+    /// bounds.
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&Expression> {
         self.values.get(index)
     }
 
+    /// Returns a mutable reference to the value at the given index, or `None` if the index is out
+    /// of bounds.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Expression> {
+        self.values.get_mut(index)
+    }
+
+    /// Inserts an element at position `index` within the array, shifting all elements after it to
+    /// the right.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    #[inline]
     pub fn insert(&mut self, index: usize, value: impl Into<Expression>) {
         self.values.insert(index, value.into());
     }
 
+    /// Appends an element to the back of the array.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity exceeds `isize::MAX` bytes.
+    #[inline]
     pub fn push(&mut self, value: impl Into<Expression>) {
         self.values.push(value.into());
     }
 
+    /// Removes the last element from the array and returns it, or [`None`] if it is empty.
+    #[inline]
+    pub fn pop(&mut self) -> Option<Expression> {
+        self.values.pop()
+    }
+
+    /// Removes and returns the element at position `index` within the array, shifting all elements
+    /// after it to the left.
+    ///
+    /// Like `Vec::remove`, the element is removed by shifting all of the elements that follow it,
+    /// preserving their relative order. **This perturbs the index of all of those elements!**
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    #[inline]
     pub fn remove(&mut self, index: usize) -> Expression {
         self.values.remove(index)
     }
 
     /// An iterator visiting all values in insertion order. The iterator element type is `&'a
     /// Expression`.
+    #[inline]
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.values.iter())
     }
 
     /// An iterator visiting all values in insertion order, with mutable references to the values.
     /// The iterator element type is `&'a mut Expression`.
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.values.iter_mut())
     }
 
+    /// Return a reference to raw trailing decor before the array's closing `]`.
+    #[inline]
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the array's closing `]`.
+    #[inline]
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
 
+    /// Returns `true` if the array uses a trailing comma.
+    #[inline]
     pub fn trailing_comma(&self) -> bool {
         self.trailing_comma
     }
 
+    /// Set whether the array will use a trailing comma.
+    #[inline]
     pub fn set_trailing_comma(&mut self, yes: bool) {
         self.trailing_comma = yes;
     }
@@ -124,10 +187,7 @@ impl From<Vec<Expression>> for Array {
     fn from(values: Vec<Expression>) -> Self {
         Array {
             values,
-            trailing: RawString::default(),
-            trailing_comma: false,
-            decor: Decor::default(),
-            span: None,
+            ..Default::default()
         }
     }
 }
@@ -140,9 +200,14 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        for v in iterable {
-            self.push(v);
-        }
+        let iter = iterable.into_iter();
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+        self.values.reserve(reserve);
+        iter.for_each(|v| self.push(v));
     }
 }
 
@@ -150,11 +215,15 @@ impl<T> FromIterator<T> for Array
 where
     T: Into<Expression>,
 {
-    fn from_iter<I>(iter: I) -> Self
+    fn from_iter<I>(iterable: I) -> Self
     where
         I: IntoIterator<Item = T>,
     {
-        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+        let iter = iterable.into_iter();
+        let lower = iter.size_hint().0;
+        let mut array = Array::with_capacity(lower);
+        array.extend(iter);
+        array
     }
 }
 
