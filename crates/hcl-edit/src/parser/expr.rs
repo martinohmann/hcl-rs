@@ -637,7 +637,8 @@ fn func_args(input: Input) -> IResult<Input, FuncArgs> {
         (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
             let mut args = match args {
                 Some((args, Some(trailer))) => {
-                    let mut args = FuncArgs::new(args);
+                    let args: Vec<_> = args;
+                    let mut args = FuncArgs::from(args);
                     if let Trailer::Ellipsis = trailer {
                         args.set_expand_final(true);
                     } else {
@@ -645,7 +646,7 @@ fn func_args(input: Input) -> IResult<Input, FuncArgs> {
                     }
                     args
                 }
-                Some((args, None)) => FuncArgs::new(args),
+                Some((args, None)) => FuncArgs::from(args),
                 None => FuncArgs::default(),
             };
 

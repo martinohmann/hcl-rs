@@ -31,6 +31,7 @@ pub type ObjectIter<'a> = Box<dyn Iterator<Item = (&'a ObjectKey, &'a ObjectValu
 /// [`iter_mut`]: Object::iter_mut
 pub type ObjectIterMut<'a> = Box<dyn Iterator<Item = (ObjectKeyMut<'a>, &'a mut ObjectValue)> + 'a>;
 
+/// Type representing a HCL object.
 #[derive(Debug, Clone, Eq, Default)]
 pub struct Object {
     items: VecMap<ObjectKey, ObjectValue>,
@@ -40,31 +41,83 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new() -> Object {
+    /// Constructs a new, empty `Object`.
+    #[inline]
+    pub fn new() -> Self {
+        Object::default()
+    }
+
+    /// Constructs a new, empty `Object` with at least the specified capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
         Object {
-            items: VecMap::new(),
-            trailing: RawString::default(),
-            decor: Decor::default(),
-            span: None,
+            items: VecMap::with_capacity(capacity),
+            ..Default::default()
         }
     }
 
-    pub fn len(&self) -> usize {
-        self.items.len()
-    }
-
+    /// Returns `true` if the object contains no items.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 
+    /// Returns the number of items in the object, also referred to as its 'length'.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    /// Clears the object, removing all items.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.items.clear();
+    }
+
+    /// Return `true` if an equivalent to `key` exists in the object.
+    #[inline]
     pub fn contains_key(&self, key: &ObjectKey) -> bool {
         self.items.contains_key(key)
     }
 
+    /// Return a reference to the value stored for `key`, if it is present, else `None`.
+    #[inline]
     pub fn get(&self, key: &ObjectKey) -> Option<&ObjectValue> {
         self.items.get(key)
     }
 
+    /// Return a mutable reference to the value stored for `key`, if it is present, else `None`.
+    #[inline]
+    pub fn get_mut(&mut self, key: &ObjectKey) -> Option<&mut ObjectValue> {
+        self.items.get_mut(key)
+    }
+
+    /// Return references to the key-value pair stored for `key`, if it is present, else `None`.
+    #[inline]
+    pub fn get_key_value(&self, key: &ObjectKey) -> Option<(&ObjectKey, &ObjectValue)> {
+        self.items.get_key_value(key)
+    }
+
+    /// Return mutable references to the key-value pair stored for `key`, if it is present, else `None`.
+    #[inline]
+    pub fn get_key_value_mut<'a>(
+        &'a mut self,
+        key: &ObjectKey,
+    ) -> Option<(ObjectKeyMut<'a>, &'a mut ObjectValue)> {
+        self.items
+            .get_full_mut2(key)
+            .map(|(_, k, v)| (ObjectKeyMut::new(k), v))
+    }
+
+    /// Insert a key-value pair into the object.
+    ///
+    /// If an equivalent key already exists in the object: the key remains and retains in its place
+    /// in the order, its corresponding value is updated with `value` and the older value is
+    /// returned inside `Some(_)`.
+    ///
+    /// If no equivalent key existed in the object: the new key-value pair is inserted, last in
+    /// order, and `None` is returned.
+    #[inline]
     pub fn insert(
         &mut self,
         key: impl Into<ObjectKey>,
@@ -73,22 +126,34 @@ impl Object {
         self.items.insert(key.into(), value.into())
     }
 
+    /// Remove the key-value pair equivalent to `key` and return its value.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the elements that follow it,
+    /// preserving their relative order. **This perturbs the index of all of those elements!**
+    #[inline]
     pub fn remove(&mut self, key: &ObjectKey) -> Option<ObjectValue> {
         self.items.remove(key)
     }
 
+    /// Remove and return the key-value pair equivalent to `key`.
+    ///
+    /// Like `Vec::remove`, the pair is removed by shifting all of the elements that follow it,
+    /// preserving their relative order. **This perturbs the index of all of those elements!**
+    #[inline]
     pub fn remove_entry(&mut self, key: &ObjectKey) -> Option<(ObjectKey, ObjectValue)> {
         self.items.remove_entry(key)
     }
 
     /// An iterator visiting all key-value pairs in insertion order. The iterator element type is
     /// `(&'a ObjectKey, &'a ObjectValue)`.
+    #[inline]
     pub fn iter(&self) -> ObjectIter<'_> {
         Box::new(self.items.iter())
     }
 
     /// An iterator visiting all key-value pairs in insertion order, with mutable references to the
     /// values. The iterator element type is `(ObjectKeyMut<'a>, &'a mut ObjectValue)`.
+    #[inline]
     pub fn iter_mut(&mut self) -> ObjectIterMut<'_> {
         Box::new(
             self.items
@@ -97,10 +162,14 @@ impl Object {
         )
     }
 
+    /// Return a reference to raw trailing decor before the object's closing `}`.
+    #[inline]
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the object's closing `}`.
+    #[inline]
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
@@ -126,9 +195,7 @@ impl From<VecMap<ObjectKey, ObjectValue>> for Object {
     fn from(items: VecMap<ObjectKey, ObjectValue>) -> Self {
         Object {
             items,
-            trailing: RawString::default(),
-            decor: Decor::default(),
-            span: None,
+            ..Default::default()
         }
     }
 }
@@ -142,9 +209,16 @@ where
     where
         I: IntoIterator<Item = (K, V)>,
     {
-        for (k, v) in iterable {
+        let iter = iterable.into_iter();
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+        self.items.reserve(reserve);
+        iter.for_each(|(k, v)| {
             self.insert(k, v);
-        }
+        });
     }
 }
 
@@ -153,14 +227,15 @@ where
     K: Into<ObjectKey>,
     V: Into<ObjectValue>,
 {
-    fn from_iter<I>(iter: I) -> Self
+    fn from_iter<I>(iterable: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
     {
-        iter.into_iter()
-            .map(|(k, v)| (k.into(), v.into()))
-            .collect::<VecMap<_, _>>()
-            .into()
+        let iter = iterable.into_iter();
+        let lower = iter.size_hint().0;
+        let mut object = Object::with_capacity(lower);
+        object.extend(iter);
+        object
     }
 }
 
