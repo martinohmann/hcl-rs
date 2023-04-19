@@ -45,26 +45,104 @@ pub struct Body {
 }
 
 impl Body {
-    pub fn new() -> Body {
+    /// Constructs a new, empty `Body`.
+    #[inline]
+    pub fn new() -> Self {
         Body::default()
     }
 
+    /// Constructs a new, empty `Body` with at least the specified capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Body {
+            structures: Vec::with_capacity(capacity),
+            ..Default::default()
+        }
+    }
+
+    /// Returns `true` if the body contains no structures.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.structures.is_empty()
     }
 
+    /// Returns the number of structures in the body, also referred to as its 'length'.
+    #[inline]
     pub fn len(&self) -> usize {
         self.structures.len()
     }
 
+    /// Clears the body, removing all structures.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.structures.clear();
+    }
+
+    /// Returns a reference to the structure at the given index, or `None` if the index is out of
+    /// bounds.
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&Structure> {
+        self.structures.get(index)
+    }
+
+    /// Returns a mutable reference to the structure at the given index, or `None` if the index is
+    /// out of bounds.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Structure> {
+        self.structures.get_mut(index)
+    }
+
+    /// Inserts a structure at position `index` within the body, shifting all structures after it
+    /// to the right.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    #[inline]
+    pub fn insert(&mut self, index: usize, structure: impl Into<Structure>) {
+        self.structures.insert(index, structure.into());
+    }
+
+    /// Appends a structure to the back of the body.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity exceeds `isize::MAX` bytes.
+    #[inline]
+    pub fn push(&mut self, structure: impl Into<Structure>) {
+        self.structures.push(structure.into());
+    }
+
+    /// Removes the last structure from the body and returns it, or [`None`] if it is empty.
+    #[inline]
+    pub fn pop(&mut self) -> Option<Structure> {
+        self.structures.pop()
+    }
+
+    /// Removes and returns the structure at position `index` within the body, shifting all
+    /// elements after it to the left.
+    ///
+    /// Like `Vec::remove`, the structure is removed by shifting all of the structures that follow
+    /// it, preserving their relative order. **This perturbs the index of all of those elements!**
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    #[inline]
+    pub fn remove(&mut self, index: usize) -> Structure {
+        self.structures.remove(index)
+    }
+
     /// An iterator visiting all body structures in insertion order. The iterator element type is
     /// `&'a Structure`.
+    #[inline]
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.structures.iter())
     }
 
     /// An iterator visiting all body structures in insertion order, with mutable references to the
     /// values. The iterator element type is `&'a mut Structure`.
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.structures.iter_mut())
     }
@@ -115,9 +193,14 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        for v in iterable {
-            self.structures.push(v.into());
-        }
+        let iter = iterable.into_iter();
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+        self.structures.reserve(reserve);
+        iter.for_each(|v| self.push(v));
     }
 }
 
@@ -125,11 +208,15 @@ impl<T> FromIterator<T> for Body
 where
     T: Into<Structure>,
 {
-    fn from_iter<I>(iter: I) -> Self
+    fn from_iter<I>(iterable: I) -> Self
     where
         I: IntoIterator<Item = T>,
     {
-        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+        let iter = iterable.into_iter();
+        let lower = iter.size_hint().0;
+        let mut body = Body::with_capacity(lower);
+        body.extend(iter);
+        body
     }
 }
 
@@ -308,6 +395,7 @@ pub enum BlockBody {
 }
 
 impl BlockBody {
+    /// Returns `true` if the block body contains no structures.
     pub fn is_empty(&self) -> bool {
         match self {
             BlockBody::Multiline(body) => body.is_empty(),
@@ -315,6 +403,7 @@ impl BlockBody {
         }
     }
 
+    /// Returns the number of structures in the block body, also referred to as its 'length'.
     pub fn len(&self) -> usize {
         match self {
             BlockBody::Multiline(body) => body.len(),
@@ -446,7 +535,7 @@ pub struct OnelineBody {
     // Always of variant `Structure::Attribute` if not `None`. It's wrapped in a `Structure` to
     // support the creation of iterators over (mutable) `Structure` references in `BlockBody`.
     attr: Option<Structure>,
-    trailing: RawString,
+    pub(crate) trailing: RawString,
 }
 
 impl OnelineBody {

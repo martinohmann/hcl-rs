@@ -48,18 +48,104 @@ pub struct StringTemplate {
 }
 
 impl StringTemplate {
-    pub fn new() -> StringTemplate {
+    /// Constructs a new, empty `StringTemplate`.
+    #[inline]
+    pub fn new() -> Self {
         StringTemplate::default()
+    }
+
+    /// Constructs a new, empty `StringTemplate` with at least the specified capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        StringTemplate {
+            elements: Vec::with_capacity(capacity),
+            ..Default::default()
+        }
+    }
+
+    /// Returns `true` if the template contains no elements.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
+    }
+
+    /// Returns the number of elements in the template, also referred to as its 'length'.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
+
+    /// Clears the template, removing all elements.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.elements.clear();
+    }
+
+    /// Returns a reference to the element at the given index, or `None` if the index is out of
+    /// bounds.
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&Element> {
+        self.elements.get(index)
+    }
+
+    /// Returns a mutable reference to the element at the given index, or `None` if the index is
+    /// out of bounds.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Element> {
+        self.elements.get_mut(index)
+    }
+
+    /// Inserts an element at position `index` within the template, shifting all elements after it
+    /// to the right.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    #[inline]
+    pub fn insert(&mut self, index: usize, element: impl Into<Element>) {
+        self.elements.insert(index, element.into());
+    }
+
+    /// Appends an element to the back of the template.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity exceeds `isize::MAX` bytes.
+    #[inline]
+    pub fn push(&mut self, element: impl Into<Element>) {
+        self.elements.push(element.into());
+    }
+
+    /// Removes the last element from the template and returns it, or [`None`] if it is empty.
+    #[inline]
+    pub fn pop(&mut self) -> Option<Element> {
+        self.elements.pop()
+    }
+
+    /// Removes and returns the element at position `index` within the template, shifting all
+    /// elements after it to the left.
+    ///
+    /// Like `Vec::remove`, the element is removed by shifting all of the elements that follow it,
+    /// preserving their relative order. **This perturbs the index of all of those elements!**
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    #[inline]
+    pub fn remove(&mut self, index: usize) -> Element {
+        self.elements.remove(index)
     }
 
     /// An iterator visiting all template elements in insertion order. The iterator element type
     /// is `&'a Element`.
+    #[inline]
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.elements.iter())
     }
 
     /// An iterator visiting all template elements in insertion order, with mutable references to
     /// the values. The iterator element type is `&'a mut Element`.
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.elements.iter_mut())
     }
@@ -96,9 +182,14 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        for v in iterable {
-            self.elements.push(v.into());
-        }
+        let iter = iterable.into_iter();
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+        self.elements.reserve(reserve);
+        iter.for_each(|v| self.push(v));
     }
 }
 
@@ -106,11 +197,15 @@ impl<T> FromIterator<T> for StringTemplate
 where
     T: Into<Element>,
 {
-    fn from_iter<I>(iter: I) -> Self
+    fn from_iter<I>(iterable: I) -> Self
     where
         I: IntoIterator<Item = T>,
     {
-        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+        let iter = iterable.into_iter();
+        let lower = iter.size_hint().0;
+        let mut template = StringTemplate::with_capacity(lower);
+        template.extend(iter);
+        template
     }
 }
 
@@ -147,7 +242,7 @@ pub struct HeredocTemplate {
     pub template: Template,
 
     indent: Option<usize>,
-    trailing: RawString,
+    pub(crate) trailing: RawString,
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -234,18 +329,104 @@ pub struct Template {
 }
 
 impl Template {
-    pub fn new() -> Template {
+    /// Constructs a new, empty `Template`.
+    #[inline]
+    pub fn new() -> Self {
         Template::default()
+    }
+
+    /// Constructs a new, empty `Template` with at least the specified capacity.
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Template {
+            elements: Vec::with_capacity(capacity),
+            ..Default::default()
+        }
+    }
+
+    /// Returns `true` if the template contains no elements.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.elements.is_empty()
+    }
+
+    /// Returns the number of elements in the template, also referred to as its 'length'.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
+
+    /// Clears the template, removing all elements.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.elements.clear();
+    }
+
+    /// Returns a reference to the element at the given index, or `None` if the index is out of
+    /// bounds.
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&Element> {
+        self.elements.get(index)
+    }
+
+    /// Returns a mutable reference to the element at the given index, or `None` if the index is
+    /// out of bounds.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut Element> {
+        self.elements.get_mut(index)
+    }
+
+    /// Inserts an element at position `index` within the template, shifting all elements after it
+    /// to the right.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    #[inline]
+    pub fn insert(&mut self, index: usize, element: impl Into<Element>) {
+        self.elements.insert(index, element.into());
+    }
+
+    /// Appends an element to the back of the template.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity exceeds `isize::MAX` bytes.
+    #[inline]
+    pub fn push(&mut self, element: impl Into<Element>) {
+        self.elements.push(element.into());
+    }
+
+    /// Removes the last element from the template and returns it, or [`None`] if it is empty.
+    #[inline]
+    pub fn pop(&mut self) -> Option<Element> {
+        self.elements.pop()
+    }
+
+    /// Removes and returns the element at position `index` within the template, shifting all
+    /// elements after it to the left.
+    ///
+    /// Like `Vec::remove`, the element is removed by shifting all of the elements that follow it,
+    /// preserving their relative order. **This perturbs the index of all of those elements!**
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is out of bounds.
+    #[inline]
+    pub fn remove(&mut self, index: usize) -> Element {
+        self.elements.remove(index)
     }
 
     /// An iterator visiting all template elements in insertion order. The iterator element type
     /// is `&'a Element`.
+    #[inline]
     pub fn iter(&self) -> Iter<'_> {
         Box::new(self.elements.iter())
     }
 
     /// An iterator visiting all template elements in insertion order, with mutable references to
     /// the values. The iterator element type is `&'a mut Element`.
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.elements.iter_mut())
     }
@@ -282,7 +463,7 @@ impl From<Vec<Element>> for Template {
     fn from(elements: Vec<Element>) -> Self {
         Template {
             elements,
-            span: None,
+            ..Default::default()
         }
     }
 }
@@ -295,9 +476,14 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        for v in iterable {
-            self.elements.push(v.into());
-        }
+        let iter = iterable.into_iter();
+        let reserve = if self.is_empty() {
+            iter.size_hint().0
+        } else {
+            (iter.size_hint().0 + 1) / 2
+        };
+        self.elements.reserve(reserve);
+        iter.for_each(|v| self.push(v));
     }
 }
 
@@ -305,11 +491,15 @@ impl<T> FromIterator<T> for Template
 where
     T: Into<Element>,
 {
-    fn from_iter<I>(iter: I) -> Self
+    fn from_iter<I>(iterable: I) -> Self
     where
         I: IntoIterator<Item = T>,
     {
-        iter.into_iter().map(Into::into).collect::<Vec<_>>().into()
+        let iter = iterable.into_iter();
+        let lower = iter.size_hint().0;
+        let mut template = Template::with_capacity(lower);
+        template.extend(iter);
+        template
     }
 }
 
@@ -448,7 +638,7 @@ pub struct IfTemplateExpr {
     pub template: Template,
     pub strip: Strip,
 
-    preamble: RawString,
+    pub(crate) preamble: RawString,
 }
 
 impl IfTemplateExpr {
@@ -481,8 +671,8 @@ pub struct ElseTemplateExpr {
     pub template: Template,
     pub strip: Strip,
 
-    preamble: RawString,
-    trailing: RawString,
+    pub(crate) preamble: RawString,
+    pub(crate) trailing: RawString,
 }
 
 impl ElseTemplateExpr {
@@ -522,8 +712,8 @@ impl ElseTemplateExpr {
 pub struct EndifTemplateExpr {
     pub strip: Strip,
 
-    preamble: RawString,
-    trailing: RawString,
+    pub(crate) preamble: RawString,
+    pub(crate) trailing: RawString,
 }
 
 impl EndifTemplateExpr {
@@ -590,7 +780,7 @@ pub struct ForTemplateExpr {
     pub template: Template,
     pub strip: Strip,
 
-    preamble: RawString,
+    pub(crate) preamble: RawString,
 }
 
 impl ForTemplateExpr {
@@ -635,8 +825,8 @@ impl ForTemplateExpr {
 pub struct EndforTemplateExpr {
     pub strip: Strip,
 
-    preamble: RawString,
-    trailing: RawString,
+    pub(crate) preamble: RawString,
+    pub(crate) trailing: RawString,
 }
 
 impl EndforTemplateExpr {
