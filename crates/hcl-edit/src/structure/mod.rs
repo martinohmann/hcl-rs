@@ -2,7 +2,7 @@
 
 #![allow(missing_docs)]
 
-use crate::encode::{Encode, EncodeState};
+use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::{parser, Ident, RawString};
@@ -162,7 +162,7 @@ impl PartialEq for Body {
 impl fmt::Display for Body {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut state = EncodeState::new(f);
-        self.encode(&mut state)
+        self.encode_decorated(&mut state, NO_DECOR)
     }
 }
 
