@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.1...hcl-edit-v0.4.2) (2023-04-21)
+
+
+### Features
+
+* implement `From` for `Cow&lt;str&gt;` <-> `InternalString` ([e352a5a](https://github.com/martinohmann/hcl-rs/commit/e352a5ac0f0eb915b0d29cc44ec2c36f5d2d9c59))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.0.2 to 0.0.3
+
 ## [0.4.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.0...hcl-edit-v0.4.1) (2023-04-21)
 
 
