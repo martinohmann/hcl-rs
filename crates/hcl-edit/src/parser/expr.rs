@@ -10,7 +10,11 @@ use super::{
     IResult, Input,
 };
 use crate::{
-    expr::*,
+    expr::{
+        Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
+        Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
+        Splat, TraversalOperator, UnaryOperator,
+    },
     repr::{Decorate, Decorated, Formatted, SetSpan, Spanned},
     template::HeredocTemplate,
     Ident, RawString,
@@ -50,12 +54,13 @@ pub(super) fn expr_inner<'i, 's>(
             // This is essentially a `peek` for the next two bytes to identify the following operation.
             if let Ok((_, peek)) = take::<_, _, ParseError<_>>(2usize).parse_next(remaining_input) {
                 match peek {
-                    // This might be a `...` operator within a for object expr or after the last
-                    // argument of a function call, do not mistakenly parse it as a traversal
-                    // operator.
-                    b".." => return Ok((input, ())),
-                    // This is a comment start, do not mistakenly parse a binary division operator.
-                    b"//" | b"/*" => return Ok((input, ())),
+                    // The sequence `..` might introduce a `...` operator within a for object expr
+                    // or after the last argument of a function call, do not mistakenly parse it as
+                    // a `.` traversal operator.
+                    //
+                    // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
+                    // division operator.
+                    b"//" | b"/*" | b".." => return Ok((input, ())),
                     // Traversal operator.
                     //
                     // Note: after the traversal is consumed, the loop is entered again to consume
@@ -129,12 +134,12 @@ fn stringlike<'i, 's>(
             string.map(|string| {
                 state
                     .borrow_mut()
-                    .on_expr_term(Expression::String(Decorated::new(string)))
+                    .on_expr_term(Expression::String(Decorated::new(string)));
             }),
             string_template.map(|template| {
                 state
                     .borrow_mut()
-                    .on_expr_term(Expression::Template(template))
+                    .on_expr_term(Expression::Template(template));
             }),
         ))
         .parse_next(input)
@@ -149,7 +154,7 @@ fn number<'i, 's>(
             .map(|(num, repr)| {
                 let mut num = Formatted::new(num);
                 num.set_repr(unsafe { from_utf8_unchecked(repr, "`num` filters out non-ascii") });
-                state.borrow_mut().on_expr_term(Expression::Number(num))
+                state.borrow_mut().on_expr_term(Expression::Number(num));
             })
             .parse_next(input)
     }
@@ -165,7 +170,7 @@ fn neg_number<'i, 's>(
                 std::str::from_utf8(repr).map(|repr| {
                     let mut num = Formatted::new(-num);
                     num.set_repr(repr);
-                    state.borrow_mut().on_expr_term(Expression::Number(num))
+                    state.borrow_mut().on_expr_term(Expression::Number(num));
                 })
             })
             .parse_next(input)
@@ -624,23 +629,23 @@ fn identlike<'i, 's>(
                     },
                 };
 
-                state.borrow_mut().on_expr_term(expr)
+                state.borrow_mut().on_expr_term(expr);
             })
             .parse_next(input)
     }
 }
 
 fn func_args(input: Input) -> IResult<Input, FuncArgs> {
-    let args = separated1(
-        decorated(ws, preceded(peek(none_of(",.)")), expr), ws),
-        b',',
-    );
-
     #[derive(Copy, Clone)]
     enum Trailer {
         Comma,
         Ellipsis,
     }
+
+    let args = separated1(
+        decorated(ws, preceded(peek(none_of(",.)")), expr), ws),
+        b',',
+    );
 
     let trailer = dispatch! {any;
         b',' => success(Trailer::Comma),

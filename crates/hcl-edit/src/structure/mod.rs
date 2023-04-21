@@ -704,7 +704,7 @@ impl OnelineBody {
 
     /// Sets the optional [`Attribute`] within the online block body.
     pub fn set_attribute(&mut self, attr: impl Into<Attribute>) {
-        self.attr = Some(Structure::Attribute(attr.into()))
+        self.attr = Some(Structure::Attribute(attr.into()));
     }
 
     /// If the `OnelineBody` contains an `Attribute`, returns a reference to it, otherwise `None`.

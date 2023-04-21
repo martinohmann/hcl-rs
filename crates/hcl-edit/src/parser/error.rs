@@ -12,7 +12,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_parse_error<I>(input: I, err: ParseError<I>) -> Error
+    pub(super) fn from_parse_error<I>(input: &I, err: &ParseError<I>) -> Error
     where
         I: AsBytes + Offset,
     {
@@ -55,7 +55,7 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_parse_error<I>(input: I, err: ParseError<I>) -> ErrorInner
+    fn from_parse_error<I>(input: &I, err: &ParseError<I>) -> ErrorInner
     where
         I: AsBytes + Offset,
     {
@@ -222,7 +222,7 @@ impl<I> fmt::Display for ParseError<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let expression = self.context.iter().find_map(|c| match c {
             Context::Expression(c) => Some(c),
-            _ => None,
+            Context::Expected(_) => None,
         });
 
         let expected = self
@@ -230,7 +230,7 @@ impl<I> fmt::Display for ParseError<I> {
             .iter()
             .filter_map(|c| match c {
                 Context::Expected(c) => Some(c),
-                _ => None,
+                Context::Expression(_) => None,
             })
             .collect::<Vec<_>>();
 
