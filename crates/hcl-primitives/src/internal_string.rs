@@ -29,7 +29,7 @@ impl InternalString {
         InternalString(inner)
     }
 
-    /// Converts the `Ident` to a mutable string type.
+    /// Converts the `InternalString` into a mutable string type.
     #[inline]
     #[must_use]
     pub fn into_string(self) -> String {
@@ -39,6 +39,18 @@ impl InternalString {
         let string = self.0;
 
         string
+    }
+
+    /// Converts the `InternalString` into a copy-on-write string type.
+    #[inline]
+    #[must_use]
+    pub fn into_cow_str(self) -> Cow<'static, str> {
+        #[cfg(feature = "perf")]
+        let cow = self.0.into_cow_str();
+        #[cfg(not(feature = "perf"))]
+        let cow = self.0.into();
+
+        cow
     }
 
     /// Returns a reference to the underlying string.
@@ -136,6 +148,18 @@ impl From<InternalString> for String {
     #[inline]
     fn from(is: InternalString) -> Self {
         is.into_string()
+    }
+}
+
+impl<'a> From<InternalString> for Cow<'a, str> {
+    fn from(value: InternalString) -> Self {
+        value.into_cow_str()
+    }
+}
+
+impl<'a> From<&'a InternalString> for Cow<'a, str> {
+    fn from(value: &'a InternalString) -> Self {
+        Cow::Borrowed(value.as_str())
     }
 }
 
