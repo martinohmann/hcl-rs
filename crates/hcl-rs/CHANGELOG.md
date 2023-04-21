@@ -4,6 +4,10 @@
   * dependencies
     * hcl-primitives bumped from 0.0.2 to 0.0.3
 
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.0.3 to 0.1.0
+
 ## [0.14.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.3...hcl-rs-v0.14.0) (2023-03-16)
 
 
