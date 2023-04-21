@@ -1,7 +1,7 @@
 use crate::encode::EncodeState;
 use hcl_primitives::InternalString;
 use std::fmt::Write;
-use std::ops::Range;
+use std::ops::{self, Range};
 
 /// Opaque string storage for raw HCL.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,6 +65,15 @@ impl RawString {
 impl Default for RawString {
     fn default() -> Self {
         RawString(RawStringInner::Empty)
+    }
+}
+
+impl ops::Deref for RawString {
+    type Target = str;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
     }
 }
 
