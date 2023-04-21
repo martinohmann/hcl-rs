@@ -5,7 +5,7 @@ mod decor;
 mod tests;
 mod visit;
 
-use self::decor::{DecorFormatter, ModifyDecor, Padding};
+use self::decor::{DecorFormatter, ModifyDecor};
 use crate::repr::Decorate;
 use hcl_primitives::InternalString;
 use std::ops;
@@ -161,7 +161,7 @@ impl Formatter {
         V: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut V),
     {
-        self.visit_decorated(value, |prefix| prefix, f, |suffix| suffix);
+        self.visit_decorated(value, |prefix| prefix, f, |suffix| suffix)
     }
 
     fn visit_decor<V, P, S>(&mut self, value: &mut V, modify_prefix: P, modify_suffix: S)
@@ -170,7 +170,7 @@ impl Formatter {
         P: FnOnce(DecorFormatter) -> DecorFormatter,
         S: FnOnce(DecorFormatter) -> DecorFormatter,
     {
-        self.visit_decorated(value, modify_prefix, |_, _| (), modify_suffix)
+        self.visit_decorated(value, modify_prefix, |_fmt, _value| (), modify_suffix)
     }
 
     fn visit_decorated<V, P, F, S>(
@@ -185,10 +185,8 @@ impl Formatter {
         F: FnOnce(&mut Formatter, &mut V),
         S: FnOnce(DecorFormatter) -> DecorFormatter,
     {
-        let prefix = value.decor_mut().prefix.modify();
-        modify_prefix(prefix.padding(Padding::End)).format(self);
+        modify_prefix(value.decor_mut().prefix.modify()).format(self);
         f(self, value);
-        let suffix = value.decor_mut().suffix.modify();
-        modify_suffix(suffix.padding(Padding::Start)).format(self);
+        modify_suffix(value.decor_mut().suffix.modify()).format(self);
     }
 }

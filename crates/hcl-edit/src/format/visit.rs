@@ -21,16 +21,16 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_structure_mut(&mut self, node: &'ast mut Structure) {
         self.visit_decorated(
             node,
-            |prefix| prefix.indent_first_line(true),
+            |prefix| prefix.indent_first_line(true).padding(Padding::End),
             |fmt, node| visit_structure_mut(fmt, node),
-            |suffix| suffix,
+            |suffix| suffix.padding(Padding::Start),
         );
     }
 
     fn visit_attr_mut(&mut self, node: &'ast mut Attribute) {
         self.visit_decor(
             &mut node.key,
-            |prefix| prefix.inline(),
+            |prefix| prefix.inline().padding(Padding::End),
             |suffix| suffix.inline().padding(Padding::Both),
         );
         self.visit_decorated(
@@ -42,14 +42,14 @@ impl<'ast> VisitMut<'ast> for Formatter {
                     .padding(Padding::Both)
             },
             |fmt, node| visit_expr_mut(fmt, node),
-            |suffix| suffix.inline(),
+            |suffix| suffix.inline().padding(Padding::Start),
         );
     }
 
     fn visit_block_mut(&mut self, node: &'ast mut Block) {
         self.visit_decor(
             &mut node.ident,
-            |prefix| prefix.inline(),
+            |prefix| prefix.inline().padding(Padding::End),
             |suffix| suffix.inline().padding(Padding::Both),
         );
         for label in &mut node.labels {
@@ -61,7 +61,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
     fn visit_block_label_mut(&mut self, node: &'ast mut BlockLabel) {
         self.visit_decor(
             node,
-            |prefix| prefix.inline(),
+            |prefix| prefix.inline().padding(Padding::End),
             |suffix| suffix.inline().padding(Padding::Both),
         )
     }
@@ -80,7 +80,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
                     expr,
                     |prefix| prefix.padding(if i == 0 { Padding::End } else { Padding::Both }),
                     |fmt, value| visit_expr_mut(fmt, value),
-                    |suffix| suffix,
+                    |suffix| suffix.padding(Padding::Start),
                 );
             }
 
@@ -119,7 +119,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
             node.expr_mut(),
             |prefix| prefix.inline().padding(Padding::Both),
             |fmt, node| visit_expr_mut(fmt, node),
-            |suffix| suffix.inline(),
+            |suffix| suffix.inline().padding(Padding::Start),
         );
     }
 
@@ -133,7 +133,7 @@ impl<'ast> VisitMut<'ast> for Formatter {
                     expr,
                     |prefix| prefix.padding(if i == 0 { Padding::End } else { Padding::Both }),
                     |fmt, value| visit_expr_mut(fmt, value),
-                    |suffix| suffix,
+                    |suffix| suffix.padding(Padding::Start),
                 );
             }
 
@@ -171,9 +171,9 @@ fn multiline_exprs<'a>(fmt: &'a mut Formatter, iter: impl Iterator<Item = &'a mu
     for expr in iter {
         fmt.visit_decorated(
             expr,
-            |prefix| prefix.leading_newline(),
+            |prefix| prefix.leading_newline().padding(Padding::End),
             |fmt, value| visit_expr_mut(fmt, value),
-            |suffix| suffix,
+            |suffix| suffix.padding(Padding::Start),
         );
     }
 }
@@ -187,7 +187,7 @@ fn multiline_items<'a>(
     for (mut key, value) in iter {
         fmt.visit_decor(
             &mut key,
-            |prefix| prefix.leading_newline(),
+            |prefix| prefix.leading_newline().padding(Padding::End),
             |suffix| suffix.inline().padding(Padding::Both),
         );
 
