@@ -1,5 +1,15 @@
 # Changelog
 
+The format is based on [Keep a Changelog].
+
+[Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
+
+<!-- next-header -->
+## [Unreleased] - ReleaseDate
+
+## [0.14.1] - 2023-04-21
+
+
 * The following workspace dependencies were updated
   * dependencies
     * hcl-primitives bumped from 0.0.2 to 0.0.3
@@ -553,3 +563,7 @@
 ### Bug Fixes
 
 * flatten single block bodies ([#2](https://github.com/martinohmann/hcl-rs/issues/2)) ([252a44c](https://github.com/martinohmann/hcl-rs/commit/252a44c3d6d0d88f2589865835d189c766be6727))
+
+<!-- next-url -->
+[Unreleased]: https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.1...HEAD
+[0.14.1]: https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.0...hcl-rs-v0.14.1

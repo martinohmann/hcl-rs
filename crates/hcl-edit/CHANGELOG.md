@@ -1,6 +1,13 @@
 # Changelog
 
-## [0.4.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.1...hcl-edit-v0.4.2) (2023-04-21)
+The format is based on [Keep a Changelog].
+
+[Keep a Changelog]: http://keepachangelog.com/en/1.0.0/
+
+<!-- next-header -->
+## [Unreleased] - ReleaseDate
+
+## [0.4.2] - 2023-04-21
 
 
 ### Features
@@ -88,3 +95,7 @@
 
 * make fields without invariants public ([#185](https://github.com/martinohmann/hcl-rs/issues/185)) ([2f5c9ad](https://github.com/martinohmann/hcl-rs/commit/2f5c9ad0e3f62edd59ac434ffd7942f4f252edb8))
 * rename `Oneline` to `OnelineBody` ([ed2f784](https://github.com/martinohmann/hcl-rs/commit/ed2f784c99dce981624d1c99465457b1a19a2da9))
+
+<!-- next-url -->
+[Unreleased]: https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.2...HEAD
+[0.4.2]: https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.1...hcl-edit-v0.4.2
