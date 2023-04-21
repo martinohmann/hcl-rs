@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.0...hcl-edit-v0.4.1) (2023-04-21)
+
+
+### Features
+
+* implement `Deref` for `RawString` ([fdce941](https://github.com/martinohmann/hcl-rs/commit/fdce941df3f58f3b8ecfc667bbf6f5c013bec191))
+* implement `From` for `Cow&lt;str&gt;` <-> `RawString` ([de49aa4](https://github.com/martinohmann/hcl-rs/commit/de49aa4efbf3a5f985977a1cf905348683a8edee))
+
+
+### Bug Fixes
+
+* preserve body comments during encode ([316c16b](https://github.com/martinohmann/hcl-rs/commit/316c16b7e0b55cb007b4e26d84c509889650a564))
+
 ## [0.4.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.3.2...hcl-edit-v0.4.0) (2023-04-18)
 
 
