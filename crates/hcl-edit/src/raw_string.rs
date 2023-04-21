@@ -132,12 +132,12 @@ impl<'a> From<RawString> for Cow<'a, str> {
     }
 }
 
-impl<'a> From<&RawString> for Cow<'a, str> {
+impl<'a> From<&'a RawString> for Cow<'a, str> {
     #[inline]
-    fn from(s: &RawString) -> Self {
+    fn from(s: &'a RawString) -> Self {
         match &s.0 {
             RawStringInner::Empty | RawStringInner::Spanned(_) => Cow::Borrowed(""),
-            RawStringInner::Explicit(s) => Cow::Owned(s.to_string()),
+            RawStringInner::Explicit(s) => Cow::Borrowed(s.as_str()),
         }
     }
 }
