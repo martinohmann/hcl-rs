@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.3...hcl-edit-v0.4.4) (2023-04-22)
+
+
+### Features
+
+* **expr:** add conversion methods to `Expression` ([679ad12](https://github.com/martinohmann/hcl-rs/commit/679ad124b978cfeb7eff88a41cdb9c22bc1d6c0f))
+* **expr:** add conversion methods to `ObjectKey` ([e268c71](https://github.com/martinohmann/hcl-rs/commit/e268c71213e3d2ad3df4ebe8caa1e6b80d42d68d))
+
 ## [0.4.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.2...hcl-edit-v0.4.3) (2023-04-22)
 
 
