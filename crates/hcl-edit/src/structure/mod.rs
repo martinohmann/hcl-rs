@@ -308,6 +308,18 @@ impl Structure {
     }
 }
 
+impl From<Attribute> for Structure {
+    fn from(value: Attribute) -> Self {
+        Structure::Attribute(value)
+    }
+}
+
+impl From<Block> for Structure {
+    fn from(value: Block) -> Self {
+        Structure::Block(value)
+    }
+}
+
 /// Represents an HCL attribute which consists of an attribute key and a value expression.
 ///
 /// In HCL syntax this is represented as:
@@ -438,6 +450,36 @@ impl BlockLabel {
     }
 }
 
+impl From<Ident> for BlockLabel {
+    fn from(value: Ident) -> Self {
+        BlockLabel::from(Decorated::new(value))
+    }
+}
+
+impl From<Decorated<Ident>> for BlockLabel {
+    fn from(value: Decorated<Ident>) -> Self {
+        BlockLabel::Ident(value)
+    }
+}
+
+impl From<&str> for BlockLabel {
+    fn from(value: &str) -> Self {
+        BlockLabel::from(value.to_string())
+    }
+}
+
+impl From<String> for BlockLabel {
+    fn from(value: String) -> Self {
+        BlockLabel::from(Decorated::new(value))
+    }
+}
+
+impl From<Decorated<String>> for BlockLabel {
+    fn from(value: Decorated<String>) -> Self {
+        BlockLabel::String(value)
+    }
+}
+
 /// Represents an HCL block body.
 ///
 /// This can be either a multiline body with zero or more [`Structure`]s, or a oneline body
@@ -548,6 +590,18 @@ impl BlockBody {
             BlockBody::Multiline(body) => body.despan(input),
             BlockBody::Oneline(oneline) => oneline.despan(input),
         }
+    }
+}
+
+impl From<Body> for BlockBody {
+    fn from(value: Body) -> Self {
+        BlockBody::Multiline(value)
+    }
+}
+
+impl From<OnelineBody> for BlockBody {
+    fn from(value: OnelineBody) -> Self {
+        BlockBody::Oneline(Box::new(value))
     }
 }
 
