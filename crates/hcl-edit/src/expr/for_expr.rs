@@ -1,16 +1,26 @@
-#![allow(missing_docs)]
-
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::Ident;
 use std::ops::Range;
 
+/// A for expression is a construct for constructing a collection by projecting the items from
+/// another collection.
 #[derive(Debug, Clone, Eq)]
 pub struct ForExpr {
+    /// The `for` expression introduction, containing an optional key var, value var and the
+    /// collection expression that is iterated.
     pub intro: ForIntro,
+    /// An expression that is evaluated once for each key in the source collection. If set, the
+    /// result of the `for` expression will be an object. Otherwise, the result will be an array.
     pub key_expr: Option<Expression>,
+    /// An expression that is evaluated once for each value in the source collection.
     pub value_expr: Expression,
+    /// Indicates whether grouping mode is enabled. In grouping mode, each value in the resulting
+    /// object is a list of all of the values that were produced against each distinct key. This is
+    /// ignored if `key_expr` is `None`.
     pub grouping: bool,
+    /// An optional filter expression. Elements for which the condition evaluates to `true` will
+    /// be evaluated as normal, while if `false` the element will be skipped.
     pub cond: Option<ForCond>,
 
     decor: Decor,
@@ -18,6 +28,8 @@ pub struct ForExpr {
 }
 
 impl ForExpr {
+    /// Creates a new `ForExpr` from a `for` expression introduction and a result value
+    /// expression.
     pub fn new(intro: ForIntro, value_expr: Expression) -> ForExpr {
         ForExpr {
             intro,
@@ -56,10 +68,18 @@ impl PartialEq for ForExpr {
     }
 }
 
+/// The `for` expression introduction, containing an optional key var, value var and the
+/// collection expression that is iterated.
 #[derive(Debug, Clone, Eq)]
 pub struct ForIntro {
+    /// Optional name of the variable that will be temporarily assigned the key of each element
+    /// during iteration. If the source collection is an array, it gets assigned the zero-based
+    /// array index. For an object source collection, this gets assigned the object's key.
     pub key_var: Option<Decorated<Ident>>,
+    /// The name of the variable that will be temporarily assigned the value of each element
+    /// during iteration.
     pub value_var: Decorated<Ident>,
+    /// An expression that must evaluate to a value that can be iterated.
     pub collection_expr: Expression,
 
     decor: Decor,
@@ -67,6 +87,7 @@ pub struct ForIntro {
 }
 
 impl ForIntro {
+    /// Creates a new `ForIntro` from a value variable and a collection expression.
     pub fn new(value_var: Decorated<Ident>, collection_expr: Expression) -> ForIntro {
         ForIntro {
             key_var: None,
@@ -96,8 +117,11 @@ impl PartialEq for ForIntro {
     }
 }
 
+/// A filter expression. Elements for which the condition evaluates to `true` will be evaluated as
+/// normal, while if `false` the element will be skipped.
 #[derive(Debug, Clone, Eq)]
 pub struct ForCond {
+    /// The filter expression.
     pub expr: Expression,
 
     decor: Decor,
@@ -105,6 +129,7 @@ pub struct ForCond {
 }
 
 impl ForCond {
+    /// Creates a new `ForCond` from an expression.
     pub fn new(expr: Expression) -> ForCond {
         ForCond {
             expr,

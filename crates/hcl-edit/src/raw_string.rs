@@ -127,7 +127,7 @@ impl<'a> From<RawString> for Cow<'a, str> {
     fn from(s: RawString) -> Self {
         match s.0 {
             RawStringInner::Empty | RawStringInner::Spanned(_) => Cow::Borrowed(""),
-            RawStringInner::Explicit(s) => Cow::Owned(s.into_string()),
+            RawStringInner::Explicit(s) => s.into(),
         }
     }
 }
@@ -137,7 +137,7 @@ impl<'a> From<&'a RawString> for Cow<'a, str> {
     fn from(s: &'a RawString) -> Self {
         match &s.0 {
             RawStringInner::Empty | RawStringInner::Spanned(_) => Cow::Borrowed(""),
-            RawStringInner::Explicit(s) => Cow::Borrowed(s.as_str()),
+            RawStringInner::Explicit(s) => s.into(),
         }
     }
 }

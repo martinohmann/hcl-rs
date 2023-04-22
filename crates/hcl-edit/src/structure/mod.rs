@@ -1,7 +1,5 @@
 //! Types to represent the HCL structural sub-language.
 
-#![allow(missing_docs)]
-
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::expr::Expression;
 use crate::format::{Format, Formatter};
@@ -9,7 +7,7 @@ use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::visit_mut::VisitMut;
 use crate::{parser, Ident, RawString};
 use std::fmt;
-use std::ops::Range;
+use std::ops::{self, Range};
 use std::str::FromStr;
 
 /// An owning iterator over the elements of a `Body`.
@@ -37,6 +35,9 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 /// [`iter_mut`]: Body::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
 
+/// Represents an HCL config file body.
+///
+/// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
 #[derive(Debug, Clone, Default, Eq)]
 pub struct Body {
     structures: Vec<Structure>,
@@ -253,21 +254,29 @@ impl Format for Body {
     }
 }
 
+/// Represents an HCL structure.
+///
+/// There are two possible structures that can occur in an HCL [`Body`]: [`Attribute`]s and [`Block`]s.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Structure {
+    /// Represents an HCL attribute.
     Attribute(Attribute),
+    /// Represents an HCL block.
     Block(Block),
 }
 
 impl Structure {
+    /// Returns `true` if the structure represents an [`Attribute`].
     pub fn is_attribute(&self) -> bool {
         self.as_attribute().is_some()
     }
 
+    /// Returns `true` if the structure represents a [`Block`].
     pub fn is_block(&self) -> bool {
         self.as_block().is_some()
     }
 
+    /// If the `Structure` is an `Attribute`, returns a reference to it, otherwise `None`.
     pub fn as_attribute(&self) -> Option<&Attribute> {
         match self {
             Structure::Attribute(attr) => Some(attr),
@@ -275,6 +284,7 @@ impl Structure {
         }
     }
 
+    /// If the `Structure` is an `Attribute`, returns a mutable reference to it, otherwise `None`.
     pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
         match self {
             Structure::Attribute(attr) => Some(attr),
@@ -282,6 +292,7 @@ impl Structure {
         }
     }
 
+    /// If the `Structure` is a `Block`, returns a reference to it, otherwise `None`.
     pub fn as_block(&self) -> Option<&Block> {
         match self {
             Structure::Block(block) => Some(block),
@@ -289,6 +300,7 @@ impl Structure {
         }
     }
 
+    /// If the `Structure` is a `Block`, returns a mutable reference to it, otherwise `None`.
     pub fn as_block_mut(&mut self) -> Option<&mut Block> {
         match self {
             Structure::Block(block) => Some(block),
@@ -304,9 +316,33 @@ impl Structure {
     }
 }
 
+impl From<Attribute> for Structure {
+    fn from(value: Attribute) -> Self {
+        Structure::Attribute(value)
+    }
+}
+
+impl From<Block> for Structure {
+    fn from(value: Block) -> Self {
+        Structure::Block(value)
+    }
+}
+
+/// Represents an HCL attribute which consists of an attribute key and a value expression.
+///
+/// In HCL syntax this is represented as:
+///
+/// ```hcl
+/// key = value
+/// ```
+///
+/// Use [`Attribute::new`] to construct an [`Attribute`] from a value that is convertible to this
+/// crate's [`Expression`] type.
 #[derive(Debug, Clone, Eq)]
 pub struct Attribute {
+    /// The HCL attribute's key.
     pub key: Decorated<Ident>,
+    /// The value expression of the HCL attribute.
     pub value: Expression,
 
     decor: Decor,
@@ -314,6 +350,7 @@ pub struct Attribute {
 }
 
 impl Attribute {
+    /// Creates a new `Attribute` from a key and a value.
     pub fn new(key: Decorated<Ident>, value: Expression) -> Attribute {
         Attribute {
             key,
@@ -336,10 +373,23 @@ impl PartialEq for Attribute {
     }
 }
 
+/// Represents an HCL block which consists of a block identifier, zero or more block labels and a
+/// block body.
+///
+/// In HCL syntax this is represented as:
+///
+/// ```hcl
+/// block_identifier "block_label1" "block_label2" {
+///   body
+/// }
+/// ```
 #[derive(Debug, Clone, Eq)]
 pub struct Block {
+    /// The block identifier.
     pub ident: Decorated<Ident>,
+    /// Zero or more block labels.
     pub labels: Vec<BlockLabel>,
+    /// Represents the `Block`'s body.
     pub body: BlockBody,
 
     decor: Decor,
@@ -347,6 +397,7 @@ pub struct Block {
 }
 
 impl Block {
+    /// Creates a new `Block` from an identifier and a block body.
     pub fn new(ident: Decorated<Ident>, body: BlockBody) -> Block {
         Block {
             ident,
@@ -373,24 +424,111 @@ impl PartialEq for Block {
     }
 }
 
+/// Represents an HCL block label.
+///
+/// In HCL syntax this can be represented either as a quoted string literal...
+///
+/// ```hcl
+/// block_identifier "block_label1" {
+///   body
+/// }
+/// ```
+///
+/// ...or as a bare identifier:
+///
+/// ```hcl
+/// block_identifier block_label1 {
+///   body
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockLabel {
+    /// A bare HCL block label.
     Ident(Decorated<Ident>),
+    /// A quoted string literal.
     String(Decorated<String>),
 }
 
 impl BlockLabel {
+    /// Returns `true` if the block label is an identifier.
+    pub fn is_ident(&self) -> bool {
+        matches!(self, BlockLabel::Ident(_))
+    }
+
+    /// Returns `true` if the block label is a string.
+    pub fn is_string(&self) -> bool {
+        matches!(self, BlockLabel::String(_))
+    }
+
+    /// Returns a reference to the underlying string.
+    pub fn as_str(&self) -> &str {
+        match self {
+            BlockLabel::Ident(ident) => ident.as_str(),
+            BlockLabel::String(string) => string.as_str(),
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             BlockLabel::Ident(ident) => ident.decor_mut().despan(input),
-            BlockLabel::String(expr) => expr.decor_mut().despan(input),
+            BlockLabel::String(string) => string.decor_mut().despan(input),
         }
     }
 }
 
+impl From<Ident> for BlockLabel {
+    fn from(value: Ident) -> Self {
+        BlockLabel::from(Decorated::new(value))
+    }
+}
+
+impl From<Decorated<Ident>> for BlockLabel {
+    fn from(value: Decorated<Ident>) -> Self {
+        BlockLabel::Ident(value)
+    }
+}
+
+impl From<&str> for BlockLabel {
+    fn from(value: &str) -> Self {
+        BlockLabel::from(value.to_string())
+    }
+}
+
+impl From<String> for BlockLabel {
+    fn from(value: String) -> Self {
+        BlockLabel::from(Decorated::new(value))
+    }
+}
+
+impl From<Decorated<String>> for BlockLabel {
+    fn from(value: Decorated<String>) -> Self {
+        BlockLabel::String(value)
+    }
+}
+
+impl AsRef<str> for BlockLabel {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl ops::Deref for BlockLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+/// Represents an HCL block body.
+///
+/// This can be either a multiline body with zero or more [`Structure`]s, or a oneline body
+/// containing zero or one [`Attribute`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlockBody {
+    /// A multiline block body with zero or more [`Structure`]s.
     Multiline(Body),
+    /// A oneline block body with zero or one [`Attribute`]s.
     Oneline(Box<OnelineBody>),
 }
 
@@ -417,14 +555,18 @@ impl BlockBody {
         }
     }
 
+    /// Returns `true` if this is a multiline block body.
     pub fn is_multiline(&self) -> bool {
         self.as_multiline().is_some()
     }
 
+    /// Returns `true` if this is a oneline block body.
     pub fn is_oneline(&self) -> bool {
         self.as_oneline().is_some()
     }
 
+    /// If the `BlockBody` is of variant `Multiline`, returns a reference to the [`Body`],
+    /// otherwise `None`.
     pub fn as_multiline(&self) -> Option<&Body> {
         match self {
             BlockBody::Multiline(body) => Some(body),
@@ -432,6 +574,8 @@ impl BlockBody {
         }
     }
 
+    /// If the `BlockBody` is of variant `Multiline`, returns a mutable reference to the [`Body`],
+    /// otherwise `None`.
     pub fn as_multiline_mut(&mut self) -> Option<&mut Body> {
         match self {
             BlockBody::Multiline(body) => Some(body),
@@ -439,6 +583,8 @@ impl BlockBody {
         }
     }
 
+    /// If the `BlockBody` is of variant `Oneline`, returns a reference to the [`OnelineBody`],
+    /// otherwise `None`.
     pub fn as_oneline(&self) -> Option<&OnelineBody> {
         match self {
             BlockBody::Multiline(_) => None,
@@ -446,6 +592,8 @@ impl BlockBody {
         }
     }
 
+    /// If the `BlockBody` is of variant `Oneline`, returns a mutable reference to the
+    /// [`OnelineBody`], otherwise `None`.
     pub fn as_oneline_mut(&mut self) -> Option<&mut OnelineBody> {
         match self {
             BlockBody::Multiline(_) => None,
@@ -482,6 +630,18 @@ impl BlockBody {
             BlockBody::Multiline(body) => body.despan(input),
             BlockBody::Oneline(oneline) => oneline.despan(input),
         }
+    }
+}
+
+impl From<Body> for BlockBody {
+    fn from(value: Body) -> Self {
+        BlockBody::Multiline(value)
+    }
+}
+
+impl From<OnelineBody> for BlockBody {
+    fn from(value: OnelineBody) -> Self {
+        BlockBody::Oneline(Box::new(value))
     }
 }
 
@@ -530,6 +690,7 @@ impl<'a> IntoIterator for &'a mut BlockBody {
     }
 }
 
+/// Represents a oneline HCL block body containing zero or one [`Attribute`]s.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct OnelineBody {
     // Always of variant `Structure::Attribute` if not `None`. It's wrapped in a `Structure` to
@@ -539,30 +700,38 @@ pub struct OnelineBody {
 }
 
 impl OnelineBody {
+    /// Creates a new empty `OnelineBody`.
     pub fn new() -> OnelineBody {
         OnelineBody::default()
     }
 
+    /// Returns `true` if the block body is empty.
     pub fn is_empty(&self) -> bool {
         self.attr.is_none()
     }
 
+    /// Sets the optional [`Attribute`] within the online block body.
     pub fn set_attribute(&mut self, attr: impl Into<Attribute>) {
         self.attr = Some(Structure::Attribute(attr.into()))
     }
 
+    /// If the `OnelineBody` contains an `Attribute`, returns a reference to it, otherwise `None`.
     pub fn as_attribute(&self) -> Option<&Attribute> {
         self.attr.as_ref().and_then(Structure::as_attribute)
     }
 
+    /// If the `OnelineBody` contains an `Attribute`, returns a mutable reference to it, otherwise
+    /// `None`.
     pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
         self.attr.as_mut().and_then(Structure::as_attribute_mut)
     }
 
+    /// Return a reference to raw trailing decor before the block's closing `}`.
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the block's closing `}`.
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }

@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, SetSpan, Span, Spanned};
 use std::ops::Range;
@@ -8,9 +6,12 @@ use std::ops::Range;
 #[doc(inline)]
 pub use hcl_primitives::expr::{BinaryOperator, UnaryOperator};
 
+/// An operation that applies an operator to one expression.
 #[derive(Debug, Clone, Eq)]
 pub struct UnaryOp {
+    /// The unary operator to use on the expression.
     pub operator: Spanned<UnaryOperator>,
+    /// An expression that supports evaluation with the unary operator.
     pub expr: Expression,
 
     decor: Decor,
@@ -18,6 +19,7 @@ pub struct UnaryOp {
 }
 
 impl UnaryOp {
+    /// Creates a new `UnaryOp` from an operator and an expression.
     pub fn new(operator: Spanned<UnaryOperator>, expr: Expression) -> UnaryOp {
         UnaryOp {
             operator,
@@ -39,10 +41,14 @@ impl PartialEq for UnaryOp {
     }
 }
 
+/// An operation that applies an operator to two expressions.
 #[derive(Debug, Clone, Eq)]
 pub struct BinaryOp {
+    /// The expression on the left-hand-side of the operation.
     pub lhs_expr: Expression,
+    /// The binary operator to use on the expressions.
     pub operator: Spanned<BinaryOperator>,
+    /// The expression on the right-hand-side of the operation.
     pub rhs_expr: Expression,
 
     decor: Decor,
@@ -50,6 +56,7 @@ pub struct BinaryOp {
 }
 
 impl BinaryOp {
+    /// Creates a new `BinaryOp` from two expressions and an operator.
     pub fn new(
         lhs_expr: Expression,
         operator: Spanned<BinaryOperator>,

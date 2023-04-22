@@ -1,14 +1,15 @@
-#![allow(missing_docs)]
-
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::Ident;
 use std::fmt;
 use std::ops::Range;
 
+/// Traverse an expression to access attributes, object keys or element indices.
 #[derive(Debug, Clone, Eq)]
 pub struct Traversal {
+    /// The expression that the access operator is applied to.
     pub expr: Expression,
+    /// The traversal operators to apply to `expr` one of the other.
     pub operators: Vec<Decorated<TraversalOperator>>,
 
     decor: Decor,
@@ -16,6 +17,8 @@ pub struct Traversal {
 }
 
 impl Traversal {
+    /// Creates a new `Traversal` structure from an expression and traversal operators that should
+    /// be applied to it.
     pub fn new(expr: Expression, operators: Vec<Decorated<TraversalOperator>>) -> Traversal {
         Traversal {
             expr,
@@ -41,12 +44,23 @@ impl PartialEq for Traversal {
     }
 }
 
+/// The expression traversal operators that are supported by HCL.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TraversalOperator {
+    /// The attribute-only splat operator supports only attribute lookups into the elements from a
+    /// list, but supports an arbitrary number of them.
     AttrSplat(Decorated<Splat>),
+    /// The full splat operator additionally supports indexing into the elements from a list, and
+    /// allows any combination of attribute access and index operations.
     FullSplat(Decorated<Splat>),
+    /// The attribute access operator returns the value of a single attribute in an object value.
     GetAttr(Decorated<Ident>),
+    /// The index operator returns the value of a single element of a collection value based on
+    /// the result of the expression.
     Index(Expression),
+    /// The legacy index operator returns the value of a single element of a collection value.
+    /// Exists only for compatibility with the precursor language HIL. Use the `Index` variant
+    /// instead.
     LegacyIndex(Decorated<u64>),
 }
 
@@ -63,6 +77,8 @@ impl TraversalOperator {
     }
 }
 
+/// Represents the splat operator (`*`) that is used within a
+/// [`AttrSplat`](TraversalOperator::AttrSplat) or [`FullSplat`](TraversalOperator::FullSplat).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Splat;
 

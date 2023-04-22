@@ -1,6 +1,6 @@
 [package]
 name = "hcl-edit"
-version = "0.4.1"
+version = "0.4.3"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "Parse and modify HCL while preserving comments and whitespace"
@@ -30,7 +30,7 @@ default = []
 perf = ["hcl-primitives/perf"]
 
 [dependencies]
-hcl-primitives = { version = "0.0.2", path = "../hcl-primitives" }
+hcl-primitives = { version = "0.0.3", path = "../hcl-primitives" }
 vecmap-rs = "0.1.10"
 winnow = "0.4.1"
 

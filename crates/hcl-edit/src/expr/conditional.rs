@@ -1,13 +1,16 @@
-#![allow(missing_docs)]
-
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, SetSpan, Span};
 use std::ops::Range;
 
+/// The conditional operator allows selecting from one of two expressions based on the outcome of a
+/// boolean expression.
 #[derive(Debug, Clone, Eq)]
 pub struct Conditional {
+    /// A condition expression that evaluates to a boolean value.
     pub cond_expr: Expression,
+    /// The expression returned by the conditional if the condition evaluates to `true`.
     pub true_expr: Expression,
+    /// The expression returned by the conditional if the condition evaluates to `false`.
     pub false_expr: Expression,
 
     decor: Decor,
@@ -15,6 +18,8 @@ pub struct Conditional {
 }
 
 impl Conditional {
+    /// Creates a new `Conditional` from a condition and two expressions for the branches of the
+    /// conditional.
     pub fn new(
         cond_expr: Expression,
         true_expr: Expression,

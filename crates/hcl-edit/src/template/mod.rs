@@ -1,7 +1,5 @@
 //! Types to represent the HCL template sub-language.
 
-#![allow(missing_docs)]
-
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span, Spanned};
@@ -40,6 +38,10 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Element> + 'a>;
 /// [`iter_mut`]: Template::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Element> + 'a>;
 
+/// A type representing the HCL template sub-languange in the context of a quoted string literal.
+///
+/// A template behaves like an expression that always returns a string value. The different
+/// elements of the template are evaluated and combined into a single string to return.
 #[derive(Debug, Clone, Eq, Default)]
 pub struct StringTemplate {
     elements: Vec<Element>,
@@ -236,9 +238,13 @@ impl<'a> IntoIterator for &'a mut StringTemplate {
     }
 }
 
+/// A heredoc template is introduced by a `<<` sequence and defines a template via a multi-line
+/// sequence terminated by a user-chosen delimiter.
 #[derive(Debug, Clone, Eq)]
 pub struct HeredocTemplate {
+    /// The delimiter identifier that denotes the heredoc start and end.
     pub delimiter: Ident,
+    /// The raw template contained in the heredoc.
     pub template: Template,
 
     indent: Option<usize>,
@@ -248,6 +254,7 @@ pub struct HeredocTemplate {
 }
 
 impl HeredocTemplate {
+    /// Creates a new `HeredocTemplate` for a delimiter and a template.
     pub fn new(delimiter: Ident, template: Template) -> HeredocTemplate {
         HeredocTemplate {
             delimiter,
@@ -259,22 +266,27 @@ impl HeredocTemplate {
         }
     }
 
+    /// Return the heredoc's indent, if there is any.
     pub fn indent(&self) -> Option<usize> {
         self.indent
     }
 
+    /// Set the heredoc's indent.
     pub fn set_indent(&mut self, indent: usize) {
         self.indent = Some(indent);
     }
 
+    /// Return a reference to the raw trailing decor before the heredoc's closing delimiter.
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the heredoc's closing delimiter.
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
 
+    /// Dedent the heredoc.
     pub fn dedent(&mut self) {
         let mut indent: Option<usize> = None;
         let mut skip_first = false;
@@ -322,6 +334,10 @@ impl PartialEq for HeredocTemplate {
     }
 }
 
+/// The main type to represent the HCL template sub-languange.
+///
+/// A template behaves like an expression that always returns a string value. The different
+/// elements of the template are evaluated and combined into a single string to return.
 #[derive(Debug, Clone, Eq, Default)]
 pub struct Template {
     elements: Vec<Element>,
@@ -530,10 +546,15 @@ impl<'a> IntoIterator for &'a mut Template {
     }
 }
 
+/// An element of an HCL template.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
+    /// A literal sequence of characters to include in the resulting string.
     Literal(Spanned<String>),
+    /// An interpolation sequence that evaluates an expression (written in the expression
+    /// sub-language), and converts the result to a string value.
     Interpolation(Interpolation),
+    /// An `if` or `for` directive that allows for conditional template evaluation.
     Directive(Directive),
 }
 
@@ -547,15 +568,51 @@ impl Element {
     }
 }
 
+impl From<&str> for Element {
+    fn from(value: &str) -> Self {
+        Element::from(value.to_string())
+    }
+}
+
+impl From<String> for Element {
+    fn from(value: String) -> Self {
+        Element::from(Spanned::new(value))
+    }
+}
+
+impl From<Spanned<String>> for Element {
+    fn from(value: Spanned<String>) -> Self {
+        Element::Literal(value)
+    }
+}
+
+impl From<Interpolation> for Element {
+    fn from(value: Interpolation) -> Self {
+        Element::Interpolation(value)
+    }
+}
+
+impl From<Directive> for Element {
+    fn from(value: Directive) -> Self {
+        Element::Directive(value)
+    }
+}
+
+/// An interpolation sequence evaluates an expression (written in the expression sub-language),
+/// converts the result to a string value, and replaces itself with the resulting string.
 #[derive(Debug, Clone, Eq)]
 pub struct Interpolation {
+    /// The interpolated expression.
     pub expr: Expression,
+    /// The whitespace strip behaviour to use on the template elements preceeding and following
+    /// after this interpolation sequence.
     pub strip: Strip,
 
     span: Option<Range<usize>>,
 }
 
 impl Interpolation {
+    /// Creates a new `Interpolation` from an expression.
     pub fn new(expr: Expression) -> Interpolation {
         Interpolation {
             expr,
@@ -575,9 +632,12 @@ impl PartialEq for Interpolation {
     }
 }
 
+/// A template directive that allows for conditional template evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Directive {
+    /// Represents a template `if` directive.
     If(IfDirective),
+    /// Represents a template `for` directive.
     For(ForDirective),
 }
 
@@ -590,16 +650,36 @@ impl Directive {
     }
 }
 
+impl From<IfDirective> for Directive {
+    fn from(value: IfDirective) -> Self {
+        Directive::If(value)
+    }
+}
+
+impl From<ForDirective> for Directive {
+    fn from(value: ForDirective) -> Self {
+        Directive::For(value)
+    }
+}
+
+/// The template `if` directive is the template equivalent of the conditional expression, allowing
+/// selection of one of two sub-templates based on the condition result.
 #[derive(Debug, Clone, Eq)]
 pub struct IfDirective {
+    /// The `if` sub-expression within the directive.
     pub if_expr: IfTemplateExpr,
+    /// The `else` sub-expression within the directive. This is `None` if there is no `else`
+    /// branch in which case the result string will be empty.
     pub else_expr: Option<ElseTemplateExpr>,
+    /// The `endif` sub-expression within the directive.
     pub endif_expr: EndifTemplateExpr,
 
     span: Option<Range<usize>>,
 }
 
 impl IfDirective {
+    /// Creates a new `IfDirective` from the parts for the `if`, `else` and `endif`
+    /// sub-expressions.
     pub fn new(
         if_expr: IfTemplateExpr,
         else_expr: Option<ElseTemplateExpr>,
@@ -632,16 +712,24 @@ impl PartialEq for IfDirective {
     }
 }
 
+/// A type representing the `%{ if cond_expr }` sub-expression and the template that follows after
+/// it within an [`IfDirective`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IfTemplateExpr {
+    /// The condition expression.
     pub cond_expr: Expression,
+    /// The template that is included in the result string if the conditional expression evaluates
+    /// to `true`.
     pub template: Template,
+    /// The whitespace strip behaviour to use on the template elements preceeding and following
+    /// after the `if` expression.
     pub strip: Strip,
 
     pub(crate) preamble: RawString,
 }
 
 impl IfTemplateExpr {
+    /// Creates a new `IfTemplateExpr` for a condition expression and a template.
     pub fn new(cond_expr: Expression, template: Template) -> IfTemplateExpr {
         IfTemplateExpr {
             preamble: RawString::default(),
@@ -651,10 +739,12 @@ impl IfTemplateExpr {
         }
     }
 
+    /// Return a reference to the raw leading decor after the `if`'s opening `{`.
     pub fn preamble(&self) -> &RawString {
         &self.preamble
     }
 
+    /// Set the raw leading decor after the `if`'s opening `{`.
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
@@ -666,9 +756,15 @@ impl IfTemplateExpr {
     }
 }
 
+/// A type representing the `%{ else }` sub-expression and the template that follows after it
+/// within an [`IfDirective`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElseTemplateExpr {
+    /// The template that is included in the result string if the `if` branch's conditional
+    /// expression evaluates to `false`.
     pub template: Template,
+    /// The whitespace strip behaviour to use on the template elements preceeding and following
+    /// after the `else` expression.
     pub strip: Strip,
 
     pub(crate) preamble: RawString,
@@ -676,6 +772,7 @@ pub struct ElseTemplateExpr {
 }
 
 impl ElseTemplateExpr {
+    /// Creates a new `ElseTemplateExpr` for a template.
     pub fn new(template: Template) -> ElseTemplateExpr {
         ElseTemplateExpr {
             preamble: RawString::default(),
@@ -685,18 +782,22 @@ impl ElseTemplateExpr {
         }
     }
 
+    /// Return a reference to the raw leading decor after the `else`'s opening `{`.
     pub fn preamble(&self) -> &RawString {
         &self.preamble
     }
 
+    /// Set the raw leading decor after the `else`'s opening `{`.
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
 
+    /// Return a reference to the raw trailing decor before the `else`'s closing `}`.
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the `else`'s closing `}`.
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
@@ -708,8 +809,11 @@ impl ElseTemplateExpr {
     }
 }
 
+/// A type representing the `%{ endif }` sub-expression within an [`IfDirective`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EndifTemplateExpr {
+    /// The whitespace strip behaviour to use on the template elements preceeding and following
+    /// after the `endif` marker.
     pub strip: Strip,
 
     pub(crate) preamble: RawString,
@@ -717,22 +821,27 @@ pub struct EndifTemplateExpr {
 }
 
 impl EndifTemplateExpr {
+    /// Creates a new `EndifTemplateExpr`.
     pub fn new() -> EndifTemplateExpr {
         EndifTemplateExpr::default()
     }
 
+    /// Return a reference to the raw leading decor after the `endif`'s opening `{`.
     pub fn preamble(&self) -> &RawString {
         &self.preamble
     }
 
+    /// Set the raw leading decor after the `endif`'s opening `{`.
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
 
+    /// Return a reference to the raw trailing decor before the `endif`'s closing `}`.
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the `endif`'s closing `}`.
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
@@ -743,15 +852,20 @@ impl EndifTemplateExpr {
     }
 }
 
+/// The template `for` directive is the template equivalent of the for expression, producing zero
+/// or more copies of its sub-template based on the elements of a collection.
 #[derive(Debug, Clone, Eq)]
 pub struct ForDirective {
+    /// The `for` sub-expression within the directive.
     pub for_expr: ForTemplateExpr,
+    /// The `endfor` sub-expression within the directive.
     pub endfor_expr: EndforTemplateExpr,
 
     span: Option<Range<usize>>,
 }
 
 impl ForDirective {
+    /// Creates a new `ForDirective` from the parts for the `for` and `endfor` sub-expressions.
     pub fn new(for_expr: ForTemplateExpr, endfor_expr: EndforTemplateExpr) -> ForDirective {
         ForDirective {
             for_expr,
@@ -772,18 +886,28 @@ impl PartialEq for ForDirective {
     }
 }
 
+/// A type representing the `%{ for key_var, value_var in collection_expr }` sub-expression and
+/// the template that follows after it within a [`ForDirective`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ForTemplateExpr {
+    /// Optional iterator key variable identifier.
     pub key_var: Option<Decorated<Ident>>,
+    /// The iterator value variable identifier.
     pub value_var: Decorated<Ident>,
+    /// The expression that produces the list or object of elements to iterate over.
     pub collection_expr: Expression,
+    /// The template that is included in the result string for each loop iteration.
     pub template: Template,
+    /// The whitespace strip behaviour to use on the template elements preceeding and following
+    /// after the `for` expression.
     pub strip: Strip,
 
     pub(crate) preamble: RawString,
 }
 
 impl ForTemplateExpr {
+    /// Creates a new `ForTemplateExpr` from an optional key variable, value variable, collection
+    /// expression and template.
     pub fn new(
         key_var: Option<Decorated<Ident>>,
         value_var: Decorated<Ident>,
@@ -800,10 +924,12 @@ impl ForTemplateExpr {
         }
     }
 
+    /// Return a reference to the raw leading decor after the `for`'s opening `{`.
     pub fn preamble(&self) -> &RawString {
         &self.preamble
     }
 
+    /// Set the raw leading decor after the `for`'s opening `{`.
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
@@ -821,8 +947,11 @@ impl ForTemplateExpr {
     }
 }
 
+/// A type representing the `%{ endfor }` sub-expression within a [`ForDirective`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EndforTemplateExpr {
+    /// The whitespace strip behaviour to use on the template elements preceeding and following
+    /// after the `endfor` marker.
     pub strip: Strip,
 
     pub(crate) preamble: RawString,
@@ -830,22 +959,27 @@ pub struct EndforTemplateExpr {
 }
 
 impl EndforTemplateExpr {
+    /// Creates a new `EndforTemplateExpr`.
     pub fn new() -> EndforTemplateExpr {
         EndforTemplateExpr::default()
     }
 
+    /// Return a reference to the raw leading decor after the `endfor`'s opening `{`.
     pub fn preamble(&self) -> &RawString {
         &self.preamble
     }
 
+    /// Set the raw leading decor after the `endfor`'s opening `{`.
     pub fn set_preamble(&mut self, preamble: impl Into<RawString>) {
         self.preamble = preamble.into();
     }
 
+    /// Return a reference to the raw trailing decor before the `endfor`'s closing `}`.
     pub fn trailing(&self) -> &RawString {
         &self.trailing
     }
 
+    /// Set the raw trailing decor before the `endfor`'s closing `}`.
     pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
         self.trailing = trailing.into();
     }
