@@ -274,6 +274,32 @@ pub enum ObjectKey {
 }
 
 impl ObjectKey {
+    /// Returns `true` if the object key is an identifier.
+    pub fn is_ident(&self) -> bool {
+        self.as_ident().is_some()
+    }
+
+    /// If the object key is an identifier, returns a reference to it, otherwise `None`.
+    pub fn as_ident(&self) -> Option<&Ident> {
+        match self {
+            ObjectKey::Ident(value) => Some(value.value()),
+            ObjectKey::Expression(_) => None,
+        }
+    }
+
+    /// Returns `true` if the object key is an expression.
+    pub fn is_expr(&self) -> bool {
+        self.as_expr().is_some()
+    }
+
+    /// If the object key is an expression, returns a reference to it, otherwise `None`.
+    pub fn as_expr(&self) -> Option<&Expression> {
+        match self {
+            ObjectKey::Expression(value) => Some(value),
+            ObjectKey::Ident(_) => None,
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             ObjectKey::Ident(ident) => ident.decor_mut().despan(input),
