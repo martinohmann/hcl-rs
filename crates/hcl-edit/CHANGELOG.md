@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.2...hcl-edit-v0.4.3) (2023-04-22)
+
+
+### Features
+
+* **expr:** add missing `From` impl for `Expression` ([bf235bc](https://github.com/martinohmann/hcl-rs/commit/bf235bc65b00bc0163fdadde82883294666f3b87))
+* **structure:** add impl for `BlockLabel` ([22cc910](https://github.com/martinohmann/hcl-rs/commit/22cc9107459661b42a173076514ca2df4fda008f))
+* **structure:** add missing `From` impls ([035b71e](https://github.com/martinohmann/hcl-rs/commit/035b71eb461c5a325b85633568175b812508e1a6))
+* **template:** add missing `From` impls ([a558193](https://github.com/martinohmann/hcl-rs/commit/a558193ce2754c6d7a35239c2220bdb2ff73038c))
+
 ## [0.4.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.1...hcl-edit-v0.4.2) (2023-04-21)
 
 
