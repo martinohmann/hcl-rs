@@ -1,5 +1,3 @@
-#![allow(missing_docs)]
-
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::{Ident, RawString};
@@ -266,9 +264,12 @@ impl<'a> IntoIterator for &'a mut Object {
     }
 }
 
+/// Represents an object key.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectKey {
+    /// Represents an unquoted identifier used as object key.
     Ident(Decorated<Ident>),
+    /// Any valid HCL expression can be an object key.
     Expression(Expression),
 }
 
@@ -343,21 +344,29 @@ impl<'k> Span for ObjectKeyMut<'k> {
     }
 }
 
+/// Represents the assignment operator between an object key and its value.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectValueAssignment {
+    /// Colon (`:`) assignment operator.
     Colon,
+    /// Equals (`=`) assignment operator.
     #[default]
     Equals,
 }
 
+/// Represents the character that terminates an object value.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ObjectValueTerminator {
+    /// No terminator.
     None,
+    /// Newline terminated.
     Newline,
+    /// Comma terminated.
     #[default]
     Comma,
 }
 
+/// Represents an object value together with it's assignment operator and value terminator.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObjectValue {
     expr: Expression,
@@ -366,6 +375,7 @@ pub struct ObjectValue {
 }
 
 impl ObjectValue {
+    /// Creates a new `ObjectValue` for an expression.
     pub fn new(expr: Expression) -> ObjectValue {
         ObjectValue {
             expr,
@@ -374,30 +384,37 @@ impl ObjectValue {
         }
     }
 
+    /// Returns a reference to the object value's [`Expression`].
     pub fn expr(&self) -> &Expression {
         &self.expr
     }
 
+    /// Returns a mutable reference to the object value's [`Expression`].
     pub fn expr_mut(&mut self) -> &mut Expression {
         &mut self.expr
     }
 
+    /// Converts the object value into an [`Expression`].
     pub fn into_expr(self) -> Expression {
         self.expr
     }
 
+    /// Returns the object value assignment operator.
     pub fn assignment(&self) -> ObjectValueAssignment {
         self.assignment
     }
 
+    /// Sets the object value assignment operator.
     pub fn set_assignment(&mut self, sep: ObjectValueAssignment) {
         self.assignment = sep;
     }
 
+    /// Returns the object value terminator.
     pub fn terminator(&self) -> ObjectValueTerminator {
         self.terminator
     }
 
+    /// Sets the object value terminator.
     pub fn set_terminator(&mut self, terminator: ObjectValueTerminator) {
         self.terminator = terminator;
     }
