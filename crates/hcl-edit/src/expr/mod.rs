@@ -67,6 +67,223 @@ pub enum Expression {
 }
 
 impl Expression {
+    /// Returns `true` if the expression represents `null`.
+    pub fn is_null(&self) -> bool {
+        matches!(self, Expression::Null(_))
+    }
+
+    /// Returns `true` if the expression is a bool.
+    pub fn is_bool(&self) -> bool {
+        self.as_bool().is_some()
+    }
+
+    /// If the expression is a bool, returns a reference to it, otherwise `None`.
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Expression::Bool(value) => Some(*value.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a number.
+    pub fn is_number(&self) -> bool {
+        self.as_number().is_some()
+    }
+
+    /// If the expression is a number, returns a reference to it, otherwise `None`.
+    pub fn as_number(&self) -> Option<&Number> {
+        match self {
+            Expression::Number(value) => Some(value.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a string.
+    pub fn is_str(&self) -> bool {
+        self.as_str().is_some()
+    }
+
+    /// If the expression is a string, returns a reference to it, otherwise `None`.
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            Expression::String(value) => Some(value.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is an array.
+    pub fn is_array(&self) -> bool {
+        self.as_array().is_some()
+    }
+
+    /// If the expression is an array, returns a reference to it, otherwise `None`.
+    pub fn as_array(&self) -> Option<&Array> {
+        match self {
+            Expression::Array(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// If the expression is an array, returns a mutable reference to it, otherwise `None`.
+    pub fn as_array_mut(&mut self) -> Option<&mut Array> {
+        match self {
+            Expression::Array(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is an object.
+    pub fn is_object(&self) -> bool {
+        self.as_object().is_some()
+    }
+
+    /// If the expression is an object, returns a reference to it, otherwise `None`.
+    pub fn as_object(&self) -> Option<&Object> {
+        match self {
+            Expression::Object(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// If the expression is an object, returns a mutable reference to it, otherwise `None`.
+    pub fn as_object_mut(&mut self) -> Option<&mut Object> {
+        match self {
+            Expression::Object(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a template.
+    pub fn is_template(&self) -> bool {
+        self.as_template().is_some()
+    }
+
+    /// If the expression is a template, returns a reference to it, otherwise `None`.
+    pub fn as_template(&self) -> Option<&StringTemplate> {
+        match self {
+            Expression::Template(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a heredoc template.
+    pub fn is_heredoc_template(&self) -> bool {
+        self.as_heredoc_template().is_some()
+    }
+
+    /// If the expression is a heredoc template, returns a reference to it, otherwise `None`.
+    pub fn as_heredoc_template(&self) -> Option<&HeredocTemplate> {
+        match self {
+            Expression::HeredocTemplate(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is wrapped in parenthesis.
+    pub fn is_parenthesis(&self) -> bool {
+        self.as_parenthesis().is_some()
+    }
+
+    /// If the expression is an expression wrapped in parenthesis, returns a reference to it,
+    /// otherwise `None`.
+    pub fn as_parenthesis(&self) -> Option<&Parenthesis> {
+        match self {
+            Expression::Parenthesis(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a variable.
+    pub fn is_variable(&self) -> bool {
+        self.as_variable().is_some()
+    }
+
+    /// If the expression is a variable, returns a reference to it, otherwise `None`.
+    pub fn as_variable(&self) -> Option<&Ident> {
+        match self {
+            Expression::Variable(value) => Some(value.value()),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a conditional.
+    pub fn is_conditional(&self) -> bool {
+        self.as_conditional().is_some()
+    }
+
+    /// If the expression is a conditional, returns a reference to it, otherwise `None`.
+    pub fn as_conditional(&self) -> Option<&Conditional> {
+        match self {
+            Expression::Conditional(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a function call.
+    pub fn is_func_call(&self) -> bool {
+        self.as_func_call().is_some()
+    }
+
+    /// If the expression is a function call, returns a reference to it, otherwise `None`.
+    pub fn as_func_call(&self) -> Option<&FuncCall> {
+        match self {
+            Expression::FuncCall(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a traversal.
+    pub fn is_traversal(&self) -> bool {
+        self.as_traversal().is_some()
+    }
+
+    /// If the expression is a traversal, returns a reference to it, otherwise `None`.
+    pub fn as_traversal(&self) -> Option<&Traversal> {
+        match self {
+            Expression::Traversal(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a unary op.
+    pub fn is_unary_op(&self) -> bool {
+        self.as_unary_op().is_some()
+    }
+
+    /// If the expression is a unary op, returns a reference to it, otherwise `None`.
+    pub fn as_unary_op(&self) -> Option<&UnaryOp> {
+        match self {
+            Expression::UnaryOp(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a binary op.
+    pub fn is_binary_op(&self) -> bool {
+        self.as_binary_op().is_some()
+    }
+
+    /// If the expression is a binary op, returns a reference to it, otherwise `None`.
+    pub fn as_binary_op(&self) -> Option<&BinaryOp> {
+        match self {
+            Expression::BinaryOp(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a `for` expression.
+    pub fn is_for_expr(&self) -> bool {
+        self.as_for_expr().is_some()
+    }
+
+    /// If the expression is a `for` expression, returns a reference to it, otherwise `None`.
+    pub fn as_for_expr(&self) -> Option<&ForExpr> {
+        match self {
+            Expression::ForExpr(value) => Some(value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Expression::Null(n) => n.decor_mut().despan(input),

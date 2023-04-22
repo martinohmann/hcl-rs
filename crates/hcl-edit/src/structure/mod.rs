@@ -442,12 +442,12 @@ pub enum BlockLabel {
 }
 
 impl BlockLabel {
-    /// Returns `true` if the block label is an `Ident`.
+    /// Returns `true` if the block label is an identifier.
     pub fn is_ident(&self) -> bool {
         matches!(self, BlockLabel::Ident(_))
     }
 
-    /// Returns `true` if the block label is a `String`.
+    /// Returns `true` if the block label is a string.
     pub fn is_string(&self) -> bool {
         matches!(self, BlockLabel::String(_))
     }
