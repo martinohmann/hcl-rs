@@ -97,33 +97,69 @@ impl FromStr for Expression {
     }
 }
 
+impl From<bool> for Expression {
+    fn from(value: bool) -> Self {
+        Expression::from(Decorated::new(value))
+    }
+}
+
+impl From<Decorated<bool>> for Expression {
+    fn from(value: Decorated<bool>) -> Self {
+        Expression::Bool(value)
+    }
+}
+
+impl From<Number> for Expression {
+    fn from(value: Number) -> Self {
+        Expression::from(Formatted::new(value))
+    }
+}
+
+impl From<Formatted<Number>> for Expression {
+    fn from(value: Formatted<Number>) -> Self {
+        Expression::Number(value)
+    }
+}
+
 impl From<&str> for Expression {
-    fn from(s: &str) -> Self {
-        Expression::from(String::from(s))
+    fn from(value: &str) -> Self {
+        Expression::from(String::from(value))
     }
 }
 
 impl From<String> for Expression {
-    fn from(s: String) -> Self {
-        Expression::from(Decorated::new(s))
+    fn from(value: String) -> Self {
+        Expression::from(Decorated::new(value))
     }
 }
 
 impl From<Decorated<String>> for Expression {
-    fn from(s: Decorated<String>) -> Self {
-        Expression::String(s)
+    fn from(value: Decorated<String>) -> Self {
+        Expression::String(value)
     }
 }
 
 impl From<Array> for Expression {
-    fn from(array: Array) -> Self {
-        Expression::Array(array)
+    fn from(value: Array) -> Self {
+        Expression::Array(value)
     }
 }
 
 impl From<Object> for Expression {
-    fn from(object: Object) -> Self {
-        Expression::Object(object)
+    fn from(value: Object) -> Self {
+        Expression::Object(value)
+    }
+}
+
+impl From<StringTemplate> for Expression {
+    fn from(value: StringTemplate) -> Self {
+        Expression::Template(value)
+    }
+}
+
+impl From<HeredocTemplate> for Expression {
+    fn from(value: HeredocTemplate) -> Self {
+        Expression::HeredocTemplate(Box::new(value))
     }
 }
 
@@ -133,9 +169,51 @@ impl From<Parenthesis> for Expression {
     }
 }
 
+impl From<Ident> for Expression {
+    fn from(value: Ident) -> Self {
+        Expression::from(Decorated::new(value))
+    }
+}
+
+impl From<Decorated<Ident>> for Expression {
+    fn from(value: Decorated<Ident>) -> Self {
+        Expression::Variable(value)
+    }
+}
+
+impl From<Conditional> for Expression {
+    fn from(value: Conditional) -> Self {
+        Expression::Conditional(Box::new(value))
+    }
+}
+
+impl From<FuncCall> for Expression {
+    fn from(value: FuncCall) -> Self {
+        Expression::FuncCall(Box::new(value))
+    }
+}
+
 impl From<Traversal> for Expression {
-    fn from(traversal: Traversal) -> Self {
-        Expression::Traversal(Box::new(traversal))
+    fn from(value: Traversal) -> Self {
+        Expression::Traversal(Box::new(value))
+    }
+}
+
+impl From<UnaryOp> for Expression {
+    fn from(value: UnaryOp) -> Self {
+        Expression::UnaryOp(Box::new(value))
+    }
+}
+
+impl From<BinaryOp> for Expression {
+    fn from(value: BinaryOp) -> Self {
+        Expression::BinaryOp(Box::new(value))
+    }
+}
+
+impl From<ForExpr> for Expression {
+    fn from(value: ForExpr) -> Self {
+        Expression::ForExpr(Box::new(value))
     }
 }
 
