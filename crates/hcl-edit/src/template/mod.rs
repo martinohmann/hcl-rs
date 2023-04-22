@@ -568,6 +568,36 @@ impl Element {
     }
 }
 
+impl From<&str> for Element {
+    fn from(value: &str) -> Self {
+        Element::from(value.to_string())
+    }
+}
+
+impl From<String> for Element {
+    fn from(value: String) -> Self {
+        Element::from(Spanned::new(value))
+    }
+}
+
+impl From<Spanned<String>> for Element {
+    fn from(value: Spanned<String>) -> Self {
+        Element::Literal(value)
+    }
+}
+
+impl From<Interpolation> for Element {
+    fn from(value: Interpolation) -> Self {
+        Element::Interpolation(value)
+    }
+}
+
+impl From<Directive> for Element {
+    fn from(value: Directive) -> Self {
+        Element::Directive(value)
+    }
+}
+
 /// An interpolation sequence evaluates an expression (written in the expression sub-language),
 /// converts the result to a string value, and replaces itself with the resulting string.
 #[derive(Debug, Clone, Eq)]
@@ -617,6 +647,18 @@ impl Directive {
             Directive::If(dir) => dir.despan(input),
             Directive::For(dir) => dir.despan(input),
         }
+    }
+}
+
+impl From<IfDirective> for Directive {
+    fn from(value: IfDirective) -> Self {
+        Directive::If(value)
+    }
+}
+
+impl From<ForDirective> for Directive {
+    fn from(value: ForDirective) -> Self {
+        Directive::For(value)
     }
 }
 
