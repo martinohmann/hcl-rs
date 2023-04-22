@@ -5,7 +5,7 @@ use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::{parser, Ident, RawString};
 use std::fmt;
-use std::ops::Range;
+use std::ops::{self, Range};
 use std::str::FromStr;
 
 /// An owning iterator over the elements of a `Body`.
@@ -442,10 +442,28 @@ pub enum BlockLabel {
 }
 
 impl BlockLabel {
+    /// Returns `true` if the block label is an `Ident`.
+    pub fn is_ident(&self) -> bool {
+        matches!(self, BlockLabel::Ident(_))
+    }
+
+    /// Returns `true` if the block label is a `String`.
+    pub fn is_string(&self) -> bool {
+        matches!(self, BlockLabel::String(_))
+    }
+
+    /// Returns a reference to the underlying string.
+    pub fn as_str(&self) -> &str {
+        match self {
+            BlockLabel::Ident(ident) => ident.as_str(),
+            BlockLabel::String(string) => string.as_str(),
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             BlockLabel::Ident(ident) => ident.decor_mut().despan(input),
-            BlockLabel::String(expr) => expr.decor_mut().despan(input),
+            BlockLabel::String(string) => string.decor_mut().despan(input),
         }
     }
 }
@@ -477,6 +495,20 @@ impl From<String> for BlockLabel {
 impl From<Decorated<String>> for BlockLabel {
     fn from(value: Decorated<String>) -> Self {
         BlockLabel::String(value)
+    }
+}
+
+impl AsRef<str> for BlockLabel {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl ops::Deref for BlockLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
     }
 }
 
