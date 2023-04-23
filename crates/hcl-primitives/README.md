@@ -8,8 +8,9 @@
 
 Primitives used by the HCL sub-languages.
 
-It is recommended to use [`hcl-rs`](https://docs.rs/hcl-rs) instead of
-depending on `hcl-primitives` directly.
+It is recommended to use [`hcl-rs`](https://docs.rs/hcl-rs) or
+[`hcl-edit`](https://docs.rs/hcl-edit) instead of depending on `hcl-primitives`
+directly.
 
 ## Cargo features
 
