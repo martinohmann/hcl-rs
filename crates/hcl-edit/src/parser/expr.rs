@@ -292,7 +292,7 @@ fn array<'i, 's>(
     move |input: Input<'i>| {
         delimited(
             b'[',
-            alt((for_list_expr(state), array_items(state))),
+            for_expr_or_items(for_list_expr(state), array_items(state)),
             cut_char(']'),
         )
         .parse_next(input)
@@ -342,7 +342,7 @@ fn object<'i, 's>(
     move |input: Input<'i>| {
         delimited(
             b'{',
-            alt((for_object_expr(state), object_items(state))),
+            for_expr_or_items(for_object_expr(state), object_items(state)),
             cut_char('}'),
         )
         .parse_next(input)
@@ -494,15 +494,31 @@ fn object_value_assignment(input: Input) -> IResult<Input, ObjectValueAssignment
     .parse_next(input)
 }
 
+fn for_expr_or_items<'i, F, I>(
+    mut for_expr_parser: F,
+    mut items_parser: I,
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>>
+where
+    F: Parser<Input<'i>, (), ParseError<Input<'i>>>,
+    I: Parser<Input<'i>, (), ParseError<Input<'i>>>,
+{
+    move |input: Input<'i>| {
+        // The `for` tag needs to be followed by either a space character or a comment start to
+        // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
+        // and the following identifier which would fail parsing of arrays with identifier/func
+        // call elements and objects with those as keys.
+        match peek((ws, b"for", one_of(" \t#/"))).parse_next(input) {
+            Ok(_) => for_expr_parser.parse_next(input),
+            Err(_) => items_parser.parse_next(input),
+        }
+    }
+}
+
 fn for_intro(input: Input) -> IResult<Input, ForIntro> {
     prefix_decorated(
         ws,
         delimited(
-            // The `for` tag needs to be followed by either a space character or a comment start to
-            // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
-            // and the following identifier which would fail parsing of arrays with identifier/func
-            // call elements and objects with those as keys.
-            (b"for", peek(one_of(" \t#/"))),
+            b"for",
             (
                 decorated(ws, cut_ident, ws),
                 opt(preceded(b',', decorated(ws, cut_ident, ws))),
