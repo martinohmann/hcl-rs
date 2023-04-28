@@ -22,7 +22,7 @@ before creating a PR.
 
 ## License
 
-If not stated otherwiese, the source code inside this repository is licensed
+If not stated otherwise, the source code inside this repository is licensed
 under either of [Apache License, Version
 2.0](https://github.com/martinohmann/hcl-rs/blob/main/LICENSE-APACHE) or [MIT
 license](https://github.com/martinohmann/hcl-rs/blob/main/LICENSE-MIT) at your
