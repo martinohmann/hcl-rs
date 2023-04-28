@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.4...hcl-edit-v0.4.5) (2023-04-28)
+
+
+### Performance Improvements
+
+* **parser:** avoid `alt` in `array` and `object` parsers ([#205](https://github.com/martinohmann/hcl-rs/issues/205)) ([1c2ee01](https://github.com/martinohmann/hcl-rs/commit/1c2ee0185b9fb80bdd27d1735c1b53bbd168e6f6))
+
 ## [0.4.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.3...hcl-edit-v0.4.4) (2023-04-22)
 
 
