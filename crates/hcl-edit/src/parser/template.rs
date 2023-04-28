@@ -9,7 +9,11 @@ use super::{
 };
 use crate::{
     repr::{SetSpan, Span, Spanned},
-    template::*,
+    template::{
+        Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
+        ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip,
+        Template,
+    },
 };
 use winnow::{
     branch::alt,

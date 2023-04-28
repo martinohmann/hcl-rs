@@ -23,6 +23,10 @@ type Input<'a> = Located<&'a [u8]>;
 type IResult<I, O, E = ParseError<I>> = winnow::IResult<I, O, E>;
 
 /// Parse an input into a [`Body`](crate::structure::Body).
+///
+/// # Errors
+///
+/// Returns an error if the input does not resemble a valid HCL body.
 pub fn parse_body(input: &str) -> Result<Body, Error> {
     let mut body = parse_complete(input, body)?;
     body.despan(input);
@@ -30,6 +34,10 @@ pub fn parse_body(input: &str) -> Result<Body, Error> {
 }
 
 /// Parse an input into an [`Expression`](crate::expr::Expression).
+///
+/// # Errors
+///
+/// Returns an error if the input does not resemble a valid HCL expression.
 pub fn parse_expr(input: &str) -> Result<Expression, Error> {
     let mut expr = parse_complete(input, expr)?;
     expr.despan(input);
@@ -37,6 +45,10 @@ pub fn parse_expr(input: &str) -> Result<Expression, Error> {
 }
 
 /// Parse an input into a [`Template`](crate::template::Template).
+///
+/// # Errors
+///
+/// Returns an error if the input does not resemble a valid HCL template.
 pub fn parse_template(input: &str) -> Result<Template, Error> {
     let mut template = parse_complete(input, template)?;
     template.despan(input);
@@ -51,5 +63,5 @@ where
 
     parser
         .parse(input)
-        .map_err(|err| Error::from_parse_error(input, err))
+        .map_err(|err| Error::from_parse_error(&input, &err))
 }
