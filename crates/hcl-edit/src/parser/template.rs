@@ -3,20 +3,21 @@ use super::prelude::*;
 use super::expr::expr;
 use super::repr::{decorated, spanned};
 use super::string::{
-    build_string, cut_char, cut_ident, cut_tag, from_utf8_unchecked, quoted_string_fragment,
-    raw_string, template_string_fragment,
+    build_string, cut_char, cut_ident, cut_tag, quoted_string_fragment, raw_string,
+    template_string_fragment,
 };
-use super::trivia::ws;
+use super::trivia::{void, ws};
 
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip, Template,
 };
-use crate::{SetSpan, Span, Spanned};
+use crate::Spanned;
 
 use std::borrow::Cow;
 use winnow::ascii::{line_ending, space0};
-use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated};
+use winnow::combinator::{alt, delimited, not, opt, preceded, repeat, separated_pair, terminated};
+use winnow::token::any;
 
 pub(super) fn string_template(input: &mut Input) -> PResult<StringTemplate> {
     delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')
@@ -30,48 +31,13 @@ pub(super) fn template(input: &mut Input) -> PResult<Template> {
     elements(literal).output_into().parse_next(input)
 }
 
-pub(super) fn heredoc_template<'a>(
-    delim: &'a str,
-) -> impl Parser<Input<'a>, Template, ContextError> {
-    move |input: &mut Input<'a>| {
-        // We'll need to look for a line ending followed by optional space and the heredoc
-        // delimiter.
-        //
-        // Here's the catch though: the line ending has to be treated as part of the last template
-        // literal, but is still required to be matched when detecting the heredoc end. Matching
-        // only `(space0, delim)` is not sufficient, because heredocs can contain their delimiter
-        // as long as it's not preceeded by a line ending.
-        //
-        // Handling this case via parser combinators is quite tricky and thus we'll manually add
-        // the line ending to the last template element below.
-        let heredoc_end = (line_ending, space0, delim).recognize();
-        let literal_end = alt((b"${", b"%{", heredoc_end));
-        let literal = template_literal(literal_end);
+pub(super) fn heredoc_template(delim: &str) -> impl Parser<Input, Template, ContextError> {
+    let heredoc_end = (line_ending, space0, delim);
+    let not_heredoc_end = preceded(not(heredoc_end), any);
+    let heredoc_content = (void(repeat(1.., not_heredoc_end)), line_ending);
 
-        // Use `opt` to handle an empty template.
-        opt((elements(literal), line_ending.with_span()).map(
-            |(mut elements, (line_ending, line_ending_span))| {
-                let line_ending = unsafe {
-                    from_utf8_unchecked(line_ending, "`line_ending` filters out non-ascii")
-                };
-                // If there is a trailing literal, update its span and append the line ending to
-                // it. Otherwise just add a new literal containing only the line ending.
-                if let Some(Element::Literal(lit)) = elements.last_mut() {
-                    let existing_span = lit.span().unwrap();
-                    lit.push_str(line_ending);
-                    lit.set_span(existing_span.start..line_ending_span.end);
-                } else {
-                    let mut lit = Spanned::new(String::from(line_ending));
-                    lit.set_span(line_ending_span);
-                    elements.push(Element::Literal(lit));
-                }
-
-                Template::from(elements)
-            },
-        ))
-        .map(Option::unwrap_or_default)
-        .parse_next(input)
-    }
+    // Use `opt` to handle an empty template.
+    opt(heredoc_content.recognize_stream().and_then(template)).map(Option::unwrap_or_default)
 }
 
 #[inline]
