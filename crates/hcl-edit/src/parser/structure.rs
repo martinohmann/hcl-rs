@@ -14,11 +14,10 @@ use crate::{
 };
 use std::cell::RefCell;
 use winnow::{
+    ascii::line_ending,
     branch::alt,
     bytes::{any, one_of},
-    character::line_ending,
-    combinator::{cut_err, eof, fail, opt, peek},
-    multi::many0,
+    combinator::{cut_err, eof, fail, opt, peek, repeat0},
     prelude::*,
     sequence::{delimited, preceded, terminated},
     stream::Location,
@@ -28,7 +27,7 @@ pub(super) fn body(input: Input) -> IResult<Input, Body> {
     let state = RefCell::new(BodyParseState::default());
 
     let (input, (span, suffix)) = (
-        void(many0(terminated(
+        void(repeat0(terminated(
             (
                 ws.span().map(|span| state.borrow_mut().on_ws(span)),
                 structure(&state),
@@ -105,7 +104,7 @@ fn attribute_expr(input: Input) -> IResult<Input, Expression> {
 }
 
 fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
-    many0(suffix_decorated(block_label, sp)).parse_next(input)
+    repeat0(suffix_decorated(block_label, sp)).parse_next(input)
 }
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {

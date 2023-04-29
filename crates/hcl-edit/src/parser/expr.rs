@@ -21,12 +21,12 @@ use crate::{
 };
 use std::cell::RefCell;
 use winnow::{
+    ascii::{crlf, dec_uint, line_ending, newline, space0},
     branch::alt,
     bytes::{any, none_of, one_of, take},
-    character::{crlf, dec_uint, line_ending, newline, space0},
-    combinator::{cut_err, fail, not, opt, peek, success},
+    combinator::{cut_err, fail, not, opt, peek, repeat1, success},
     dispatch,
-    multi::{many1, separated0, separated1},
+    multi::{separated0, separated1},
     sequence::{delimited, preceded, separated_pair, terminated},
     Parser,
 };
@@ -166,7 +166,7 @@ fn neg_number<'i, 's>(
     move |input: Input<'i>| {
         preceded((b'-', sp), num)
             .with_recognized()
-            .map_res(|(num, repr)| {
+            .try_map(|(num, repr)| {
                 std::str::from_utf8(repr).map(|repr| {
                     let mut num = Formatted::new(-num);
                     num.set_repr(repr);
@@ -181,7 +181,7 @@ fn traversal<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
-        many1(prefix_decorated(sp, traversal_operator.map(Decorated::new)))
+        repeat1(prefix_decorated(sp, traversal_operator.map(Decorated::new)))
             .map(|operators| state.borrow_mut().on_traversal(operators))
             .parse_next(input)
     }

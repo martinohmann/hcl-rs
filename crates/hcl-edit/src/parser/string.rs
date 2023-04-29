@@ -8,12 +8,12 @@ use crate::{repr::Decorated, Ident, RawString};
 use std::borrow::Cow;
 use winnow::{
     branch::alt,
-    bytes::{any, one_of, tag, take_while0, take_while_m_n},
-    combinator::{cut_err, fail, not, opt, success},
+    bytes::{any, one_of, tag, take_while0},
+    combinator::{cut_err, fail, not, opt, repeat1, success},
     dispatch,
-    multi::many1,
     sequence::{delimited, preceded},
     stream::AsChar,
+    token::take_while,
     Parser,
 };
 
@@ -80,13 +80,13 @@ pub(super) fn literal_until<'a, F, T>(
 where
     F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
 {
-    void(many1(alt((
+    void(repeat1(alt((
         tag("$${"),
         tag("%%{"),
         preceded(not(literal_end), any).recognize(),
     ))))
     .recognize()
-    .map_res(std::str::from_utf8)
+    .try_map(std::str::from_utf8)
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
@@ -123,9 +123,9 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
 
 fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
     let parse_hex =
-        take_while_m_n(1, N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
+        take_while(1..=N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
 
-    let parse_u32 = parse_hex.map_res(|hex: &[u8]| {
+    let parse_u32 = parse_hex.try_map(|hex: &[u8]| {
         u32::from_str_radix(
             unsafe { from_utf8_unchecked(hex, "`is_ascii_hexdigit` filters out non-ascii") },
             16,

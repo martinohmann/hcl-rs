@@ -1,11 +1,10 @@
 use super::{IResult, Input};
 use winnow::{
+    ascii::{multispace0, not_line_ending, space0},
     branch::alt,
     bytes::{any, take_until0},
-    character::{multispace0, not_line_ending, space0},
-    combinator::{fail, peek},
+    combinator::{fail, peek, repeat0},
     dispatch,
-    multi::many0,
     sequence::{delimited, preceded},
     Parser,
 };
@@ -13,14 +12,17 @@ use winnow::{
 pub(super) fn ws(input: Input) -> IResult<Input, ()> {
     (
         multispace0.void(),
-        void(many0((comment, multispace0.void()))),
+        void(repeat0((comment, multispace0.void()))),
     )
         .void()
         .parse_next(input)
 }
 
 pub(super) fn sp(input: Input) -> IResult<Input, ()> {
-    (space0.void(), void(many0((inline_comment, space0.void()))))
+    (
+        space0.void(),
+        void(repeat0((inline_comment, space0.void()))),
+    )
         .void()
         .parse_next(input)
 }
