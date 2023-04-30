@@ -598,10 +598,7 @@ impl BlockBody {
     pub fn iter(&self) -> Iter<'_> {
         match self {
             BlockBody::Multiline(body) => body.iter(),
-            BlockBody::Oneline(oneline) => match &oneline.attr {
-                Some(attr) => Box::new(std::iter::once(attr)),
-                None => Box::new(std::iter::empty()),
-            },
+            BlockBody::Oneline(oneline) => oneline.iter(),
         }
     }
 
@@ -610,10 +607,7 @@ impl BlockBody {
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         match self {
             BlockBody::Multiline(body) => body.iter_mut(),
-            BlockBody::Oneline(oneline) => match &mut oneline.attr {
-                Some(attr) => Box::new(std::iter::once(attr)),
-                None => Box::new(std::iter::empty()),
-            },
+            BlockBody::Oneline(oneline) => oneline.iter_mut(),
         }
     }
 
@@ -656,10 +650,7 @@ impl IntoIterator for BlockBody {
     fn into_iter(self) -> Self::IntoIter {
         match self {
             BlockBody::Multiline(body) => body.into_iter(),
-            BlockBody::Oneline(oneline) => match oneline.attr {
-                Some(attr) => Box::new(std::iter::once(attr)),
-                None => Box::new(std::iter::empty()),
-            },
+            BlockBody::Oneline(oneline) => oneline.into_iter(),
         }
     }
 }
@@ -728,6 +719,20 @@ impl OnelineBody {
         self.trailing = trailing.into();
     }
 
+    /// An iterator visiting all body structures in insertion order. The iterator element type is
+    /// `&'a Structure` and is guaranteed to yield either zero or one elements of variant
+    /// `Structure::Attribute`.
+    pub fn iter(&self) -> Iter<'_> {
+        Box::new(self.attr.iter())
+    }
+
+    /// An iterator visiting all body structures in insertion order, with mutable references to the
+    /// values. The iterator element type is `&'a mut Structure` and is guaranteed to yield either
+    /// zero or one elements of variant `Structure::Attribute`.
+    pub fn iter_mut(&mut self) -> IterMut<'_> {
+        Box::new(self.attr.iter_mut())
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         if let Some(attr) = &mut self.attr {
             attr.despan(input);
@@ -742,6 +747,33 @@ impl From<Attribute> for OnelineBody {
             attr: Some(Structure::Attribute(attr)),
             trailing: RawString::default(),
         }
+    }
+}
+
+impl IntoIterator for OnelineBody {
+    type Item = Structure;
+    type IntoIter = IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.attr.into_iter())
+    }
+}
+
+impl<'a> IntoIterator for &'a OnelineBody {
+    type Item = &'a Structure;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut OnelineBody {
+    type Item = &'a mut Structure;
+    type IntoIter = IterMut<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 
