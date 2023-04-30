@@ -552,11 +552,6 @@ impl BlockBody {
         self.as_multiline().is_some()
     }
 
-    /// Returns `true` if this is a oneline block body.
-    pub fn is_oneline(&self) -> bool {
-        self.as_oneline().is_some()
-    }
-
     /// If the `BlockBody` is of variant `Multiline`, returns a reference to the [`Body`],
     /// otherwise `None`.
     pub fn as_multiline(&self) -> Option<&Body> {
@@ -575,6 +570,82 @@ impl BlockBody {
         }
     }
 
+    /// In-place converts into a multiline block body (if needed) and returns a mutable reference
+    /// to it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
+    /// use hcl_edit::Ident;
+    ///
+    /// let attr = Attribute::new(Ident::new("key")?.into(), "value".into());
+    /// let oneline = OnelineBody::from(attr.clone());
+    /// let mut block_body = BlockBody::from(oneline);
+    ///
+    /// assert!(block_body.is_oneline());
+    ///
+    /// let multiline = block_body.make_multiline();
+    ///
+    /// assert_eq!(multiline.len(), 1);
+    /// assert_eq!(multiline.get(0), Some(&Structure::Attribute(attr)));
+    ///
+    /// assert!(block_body.is_multiline());
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn make_multiline(&mut self) -> &mut Body {
+        if let BlockBody::Oneline(oneline) = self {
+            let mut body = Body::with_capacity(oneline.len());
+            body.extend(oneline.iter().cloned());
+            *self = BlockBody::Multiline(body);
+        }
+
+        match self {
+            BlockBody::Multiline(body) => body,
+            BlockBody::Oneline(_) => unreachable!(),
+        }
+    }
+
+    /// Converts into a multiline block body (if needed) and returns the result.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
+    /// use hcl_edit::Ident;
+    ///
+    /// let attr = Attribute::new(Ident::new("key")?.into(), "value".into());
+    /// let oneline = OnelineBody::from(attr.clone());
+    /// let block_body = BlockBody::from(oneline);
+    ///
+    /// assert!(block_body.is_oneline());
+    ///
+    /// let multiline = block_body.into_multiline();
+    ///
+    /// assert_eq!(multiline.len(), 1);
+    /// assert_eq!(multiline.get(0), Some(&Structure::Attribute(attr)));
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn into_multiline(self) -> Body {
+        match self {
+            BlockBody::Multiline(body) => body,
+            BlockBody::Oneline(oneline) => {
+                let mut body = Body::with_capacity(oneline.len());
+                body.extend(oneline.into_iter());
+                body
+            }
+        }
+    }
+
+    /// Returns `true` if this is a oneline block body.
+    pub fn is_oneline(&self) -> bool {
+        self.as_oneline().is_some()
+    }
+
     /// If the `BlockBody` is of variant `Oneline`, returns a reference to the [`OnelineBody`],
     /// otherwise `None`.
     pub fn as_oneline(&self) -> Option<&OnelineBody> {
@@ -590,6 +661,108 @@ impl BlockBody {
         match self {
             BlockBody::Multiline(_) => None,
             BlockBody::Oneline(oneline) => Some(oneline),
+        }
+    }
+
+    /// In-place converts into a oneline block body (if needed) and returns a mutable reference
+    /// to it.
+    ///
+    /// # Errors
+    ///
+    /// The conversion may fail under the following conditions:
+    ///
+    /// - The block body contains more than 1 `Structure`.
+    /// - The block body contains exactly one `Structure`, but it is a `Block`.
+    ///
+    /// In both cases a mutable reference to the original `BlockBody` is returned as error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
+    /// use hcl_edit::Ident;
+    ///
+    /// let attr = Attribute::new(Ident::new("key")?.into(), "value".into());
+    /// let mut multiline = Body::new();
+    /// multiline.push(attr.clone());
+    ///
+    /// let mut block_body = BlockBody::from(multiline);
+    ///
+    /// assert!(block_body.is_multiline());
+    ///
+    /// let oneline = block_body.make_oneline().unwrap();
+    ///
+    /// assert_eq!(oneline.len(), 1);
+    /// assert_eq!(oneline.as_attribute(), Some(&attr));
+    ///
+    /// assert!(block_body.is_oneline());
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn make_oneline(&mut self) -> Result<&mut OnelineBody, &mut Self> {
+        if let BlockBody::Multiline(body) = self {
+            if body.len() > 1 {
+                return Err(self);
+            }
+
+            let oneline = match body.get(0) {
+                None => OnelineBody::new(),
+                Some(Structure::Attribute(attr)) => OnelineBody::from(attr.clone()),
+                Some(Structure::Block(_)) => return Err(self),
+            };
+
+            *self = BlockBody::from(oneline);
+        }
+
+        match self {
+            BlockBody::Multiline(_) => Err(self),
+            BlockBody::Oneline(oneline) => Ok(oneline),
+        }
+    }
+
+    /// Converts into a oneline block body (if needed) and returns the result.
+    ///
+    /// # Errors
+    ///
+    /// The conversion may fail under the following conditions:
+    ///
+    /// - The block body contains more than 1 `Structure`.
+    /// - The block body contains exactly one `Structure`, but it is a `Block`.
+    ///
+    /// In both cases the original `BlockBody` is returned as error.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
+    /// use hcl_edit::Ident;
+    ///
+    /// let attr = Attribute::new(Ident::new("key")?.into(), "value".into());
+    /// let mut multiline = Body::new();
+    /// multiline.push(attr.clone());
+    ///
+    /// let block_body = BlockBody::from(multiline);
+    ///
+    /// assert!(block_body.is_multiline());
+    ///
+    /// let oneline = block_body.into_oneline().unwrap();
+    ///
+    /// assert_eq!(oneline.len(), 1);
+    /// assert_eq!(oneline.as_attribute(), Some(&attr));
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn into_oneline(self) -> Result<OnelineBody, Self> {
+        match self {
+            BlockBody::Oneline(oneline) => Ok(*oneline),
+            BlockBody::Multiline(body) if body.len() <= 1 => match body.get(0) {
+                Some(Structure::Attribute(attr)) => Ok(OnelineBody::from(attr.clone())),
+                Some(Structure::Block(_)) => Err(BlockBody::Multiline(body)),
+                None => Ok(OnelineBody::new()),
+            },
+            BlockBody::Multiline(body) => Err(BlockBody::Multiline(body)),
         }
     }
 
@@ -616,6 +789,12 @@ impl BlockBody {
             BlockBody::Multiline(body) => body.despan(input),
             BlockBody::Oneline(oneline) => oneline.despan(input),
         }
+    }
+}
+
+impl Default for BlockBody {
+    fn default() -> Self {
+        BlockBody::Multiline(Body::default())
     }
 }
 
@@ -691,6 +870,15 @@ impl OnelineBody {
     /// Returns `true` if the block body is empty.
     pub fn is_empty(&self) -> bool {
         self.attr.is_none()
+    }
+
+    /// Returns the number of structures in the block body, also referred to as its 'length'.
+    pub fn len(&self) -> usize {
+        if self.is_empty() {
+            0
+        } else {
+            1
+        }
     }
 
     /// Sets the optional [`Attribute`] within the online block body.
