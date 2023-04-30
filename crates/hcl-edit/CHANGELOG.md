@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.5...hcl-edit-v0.4.6) (2023-04-30)
+
+
+### Features
+
+* **structure:** add conversion methods to `BlockBody` ([e5001eb](https://github.com/martinohmann/hcl-rs/commit/e5001ebd9d98b804167df1650e6bc89a437bf6c0))
+* **structure:** implement `IntoIterator` for `OnelineBody` ([cc69ba1](https://github.com/martinohmann/hcl-rs/commit/cc69ba1acb069fc4354b87ef335ce572b1d6ce20))
+
 ## [0.4.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.4...hcl-edit-v0.4.5) (2023-04-28)
 
 
