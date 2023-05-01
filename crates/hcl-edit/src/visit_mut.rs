@@ -57,7 +57,7 @@
 //! let mut body = input.parse::<Body>()?;
 //!
 //! let mut visitor = VariableNamespacer {
-//!     namespace: Decorated::new(Ident::new("var")?),
+//!     namespace: Decorated::new(Ident::new("var")),
 //! };
 //!
 //! visitor.visit_body_mut(&mut body);
