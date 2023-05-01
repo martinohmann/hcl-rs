@@ -776,9 +776,9 @@ pub struct Interpolation {
 
 impl Interpolation {
     /// Creates a new `Interpolation` from an expression.
-    pub fn new(expr: Expression) -> Interpolation {
+    pub fn new(expr: impl Into<Expression>) -> Interpolation {
         Interpolation {
-            expr,
+            expr: expr.into(),
             strip: Strip::default(),
             span: None,
         }
@@ -893,10 +893,10 @@ pub struct IfTemplateExpr {
 
 impl IfTemplateExpr {
     /// Creates a new `IfTemplateExpr` for a condition expression and a template.
-    pub fn new(cond_expr: Expression, template: Template) -> IfTemplateExpr {
+    pub fn new(cond_expr: impl Into<Expression>, template: Template) -> IfTemplateExpr {
         IfTemplateExpr {
             preamble: RawString::default(),
-            cond_expr,
+            cond_expr: cond_expr.into(),
             template,
             strip: Strip::default(),
         }
@@ -1072,16 +1072,16 @@ impl ForTemplateExpr {
     /// Creates a new `ForTemplateExpr` from an optional key variable, value variable, collection
     /// expression and template.
     pub fn new(
-        key_var: Option<Decorated<Ident>>,
-        value_var: Decorated<Ident>,
-        collection_expr: Expression,
+        key_var: Option<impl Into<Decorated<Ident>>>,
+        value_var: impl Into<Decorated<Ident>>,
+        collection_expr: impl Into<Expression>,
         template: Template,
     ) -> ForTemplateExpr {
         ForTemplateExpr {
             preamble: RawString::default(),
-            key_var,
-            value_var,
-            collection_expr,
+            key_var: key_var.map(Into::into),
+            value_var: value_var.into(),
+            collection_expr: collection_expr.into(),
             template,
             strip: Strip::default(),
         }

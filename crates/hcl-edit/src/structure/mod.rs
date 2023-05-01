@@ -343,10 +343,10 @@ pub struct Attribute {
 
 impl Attribute {
     /// Creates a new `Attribute` from a key and a value.
-    pub fn new(key: Decorated<Ident>, value: Expression) -> Attribute {
+    pub fn new(key: impl Into<Decorated<Ident>>, value: impl Into<Expression>) -> Attribute {
         Attribute {
-            key,
-            value,
+            key: key.into(),
+            value: value.into(),
             decor: Decor::default(),
             span: None,
         }
@@ -390,11 +390,11 @@ pub struct Block {
 
 impl Block {
     /// Creates a new `Block` from an identifier and a block body.
-    pub fn new(ident: Decorated<Ident>, body: BlockBody) -> Block {
+    pub fn new(ident: impl Into<Decorated<Ident>>, body: impl Into<BlockBody>) -> Block {
         Block {
-            ident,
+            ident: ident.into(),
             labels: Vec::new(),
-            body,
+            body: body.into(),
             decor: Decor::default(),
             span: None,
         }
@@ -580,7 +580,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key"), "value");
     /// let oneline = OnelineBody::from(attr.clone());
     /// let mut block_body = BlockBody::from(oneline);
     ///
@@ -617,7 +617,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key"), "value");
     /// let oneline = OnelineBody::from(attr.clone());
     /// let block_body = BlockBody::from(oneline);
     ///
@@ -683,7 +683,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key"), "value");
     /// let mut multiline = Body::new();
     /// multiline.push(attr.clone());
     ///
@@ -739,7 +739,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key"), "value");
     /// let mut multiline = Body::new();
     /// multiline.push(attr.clone());
     ///

@@ -19,9 +19,12 @@ pub struct Traversal {
 impl Traversal {
     /// Creates a new `Traversal` structure from an expression and traversal operators that should
     /// be applied to it.
-    pub fn new(expr: Expression, operators: Vec<Decorated<TraversalOperator>>) -> Traversal {
+    pub fn new(
+        expr: impl Into<Expression>,
+        operators: Vec<Decorated<TraversalOperator>>,
+    ) -> Traversal {
         Traversal {
-            expr,
+            expr: expr.into(),
             operators,
             decor: Decor::default(),
             span: None,

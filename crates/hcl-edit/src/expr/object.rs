@@ -402,9 +402,9 @@ pub struct ObjectValue {
 
 impl ObjectValue {
     /// Creates a new `ObjectValue` for an expression.
-    pub fn new(expr: Expression) -> ObjectValue {
+    pub fn new(expr: impl Into<Expression>) -> ObjectValue {
         ObjectValue {
-            expr,
+            expr: expr.into(),
             assignment: ObjectValueAssignment::default(),
             terminator: ObjectValueTerminator::default(),
         }
@@ -471,7 +471,7 @@ mod tests {
     fn object_access() {
         // Ident key.
         let mut obj = Object::new();
-        let mut key = ObjectKey::from(Ident::new_unchecked("foo"));
+        let mut key = ObjectKey::from(Ident::new("foo"));
         key.decorate(("/* prefix */", "/* suffix */"));
 
         let value = ObjectValue::from(Expression::from("bar"));
