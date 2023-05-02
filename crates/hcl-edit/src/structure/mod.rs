@@ -580,7 +580,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::try_new("key")?.into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
     /// let oneline = OnelineBody::from(attr.clone());
     /// let mut block_body = BlockBody::from(oneline);
     ///
@@ -617,7 +617,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::try_new("key")?.into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
     /// let oneline = OnelineBody::from(attr.clone());
     /// let block_body = BlockBody::from(oneline);
     ///
@@ -683,7 +683,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::try_new("key")?.into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
     /// let mut multiline = Body::new();
     /// multiline.push(attr.clone());
     ///
@@ -739,7 +739,7 @@ impl BlockBody {
     /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
     /// use hcl_edit::Ident;
     ///
-    /// let attr = Attribute::new(Ident::try_new("key")?.into(), "value".into());
+    /// let attr = Attribute::new(Ident::new("key").into(), "value".into());
     /// let mut multiline = Body::new();
     /// multiline.push(attr.clone());
     ///
