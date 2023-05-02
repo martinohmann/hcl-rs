@@ -37,6 +37,33 @@ impl Ident {
     where
         T: Into<InternalString>,
     {
+        Ident::try_new(ident)
+    }
+
+    /// Create a new `Ident` after validating that it only contains characters that are allowed in
+    /// HCL identifiers.
+    ///
+    /// See [`Ident::new_sanitized`][Ident::new_sanitized] for an infallible alternative to this
+    /// function.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use hcl_primitives::Ident;
+    /// assert!(Ident::try_new("some_ident").is_ok());
+    /// assert!(Ident::try_new("").is_err());
+    /// assert!(Ident::try_new("1two3").is_err());
+    /// assert!(Ident::try_new("with whitespace").is_err());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// If `ident` contains characters that are not allowed in HCL identifiers or if it is empty an
+    /// error will be returned.
+    pub fn try_new<T>(ident: T) -> Result<Ident, Error>
+    where
+        T: Into<InternalString>,
+    {
         let ident = ident.into();
 
         if !is_ident(&ident) {
@@ -132,7 +159,7 @@ impl TryFrom<InternalString> for Ident {
 
     #[inline]
     fn try_from(s: InternalString) -> Result<Self, Self::Error> {
-        Ident::new(s)
+        Ident::try_new(s)
     }
 }
 
@@ -141,7 +168,7 @@ impl TryFrom<String> for Ident {
 
     #[inline]
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        Ident::new(s)
+        Ident::try_new(s)
     }
 }
 
@@ -150,7 +177,7 @@ impl TryFrom<&str> for Ident {
 
     #[inline]
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Ident::new(s)
+        Ident::try_new(s)
     }
 }
 
@@ -159,7 +186,7 @@ impl<'a> TryFrom<Cow<'a, str>> for Ident {
 
     #[inline]
     fn try_from(s: Cow<'a, str>) -> Result<Self, Self::Error> {
-        Ident::new(s)
+        Ident::try_new(s)
     }
 }
 
@@ -168,7 +195,7 @@ impl FromStr for Ident {
 
     #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ident::new(s)
+        Ident::try_new(s)
     }
 }
 
@@ -240,7 +267,7 @@ impl<'de> serde::Deserialize<'de> for Ident {
         D: serde::Deserializer<'de>,
     {
         let string = InternalString::deserialize(deserializer)?;
-        Ident::new(string).map_err(serde::de::Error::custom)
+        Ident::try_new(string).map_err(serde::de::Error::custom)
     }
 }
 

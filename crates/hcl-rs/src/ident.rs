@@ -40,7 +40,7 @@ impl Identifier {
     where
         T: Into<InternalString>,
     {
-        Ident::new(ident).map(Identifier).map_err(Error::new)
+        Ident::try_new(ident).map(Identifier).map_err(Error::new)
     }
 
     /// Create a new `Identifier` after sanitizing the input if necessary.
