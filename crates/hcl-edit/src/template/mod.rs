@@ -590,6 +590,24 @@ impl From<Vec<Element>> for Template {
     }
 }
 
+impl From<Template> for StringTemplate {
+    fn from(template: Template) -> Self {
+        StringTemplate {
+            elements: template.elements,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<StringTemplate> for Template {
+    fn from(template: StringTemplate) -> Self {
+        Template {
+            elements: template.elements,
+            ..Default::default()
+        }
+    }
+}
+
 impl<T> Extend<T> for Template
 where
     T: Into<Element>,
