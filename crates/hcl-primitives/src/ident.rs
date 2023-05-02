@@ -16,35 +16,37 @@ impl Ident {
     /// Create a new `Ident` after validating that it only contains characters that are allowed in
     /// HCL identifiers.
     ///
-    /// See [`Ident::new_sanitized`][Ident::new_sanitized] for an infallible alternative to this
-    /// function.
+    /// See [`Ident::try_new`] for a fallible alternative to this function.
     ///
     /// # Example
     ///
     /// ```
     /// # use hcl_primitives::Ident;
-    /// assert!(Ident::new("some_ident").is_ok());
-    /// assert!(Ident::new("").is_err());
-    /// assert!(Ident::new("1two3").is_err());
-    /// assert!(Ident::new("with whitespace").is_err());
+    /// assert_eq!(Ident::new("some_ident").as_str(), "some_ident");
     /// ```
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// If `ident` contains characters that are not allowed in HCL identifiers or if it is empty an
-    /// error will be returned.
-    pub fn new<T>(ident: T) -> Result<Ident, Error>
+    /// This function panics if `ident` contains characters that are not allowed in HCL identifiers
+    /// or if it is empty.
+    pub fn new<T>(ident: T) -> Ident
     where
         T: Into<InternalString>,
     {
-        Ident::try_new(ident)
+        let ident = ident.into();
+
+        assert!(is_ident(&ident), "invalid identifier `{ident}`");
+
+        Ident(ident)
     }
 
     /// Create a new `Ident` after validating that it only contains characters that are allowed in
     /// HCL identifiers.
     ///
-    /// See [`Ident::new_sanitized`][Ident::new_sanitized] for an infallible alternative to this
-    /// function.
+    /// In contrast to [`Ident::new`], this function returns an error instead of panicking when an
+    /// invalid identifier is encountered.
+    ///
+    /// See [`Ident::new_sanitized`] for an infallible alternative to this function.
     ///
     /// # Example
     ///
@@ -83,8 +85,8 @@ impl Ident {
     /// - If `ident` starts with a character that is invalid in the first position but would be
     ///   valid in the rest of an HCL identifier it is prefixed with an underscore.
     ///
-    /// See [`Ident::new`][Ident::new] for a fallible alternative to this function if you prefer
-    /// rejecting invalid identifiers instead of sanitizing them.
+    /// See [`Ident::try_new`] for a fallible alternative to this function if you prefer rejecting
+    /// invalid identifiers instead of sanitizing them.
     ///
     /// # Example
     ///
@@ -127,8 +129,8 @@ impl Ident {
     ///
     /// It is the caller's responsibility to ensure that the identifier is valid.
     ///
-    /// For most use cases [`Ident::new`][Ident::new] or
-    /// [`Ident::new_sanitized`][Ident::new_sanitized] should be preferred.
+    /// For most use cases [`Ident::new`], [`Ident::try_new`] or [`Ident::new_sanitized`] should be
+    /// preferred.
     ///
     /// This function is not marked as unsafe because it does not cause undefined behaviour.
     /// However, attempting to serialize an invalid identifier to HCL will produce invalid output.
