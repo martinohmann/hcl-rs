@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.6...hcl-edit-v0.4.7) (2023-05-02)
+
+
+### Features
+
+* **ident:** add `Ident::try_new` ([#210](https://github.com/martinohmann/hcl-rs/issues/210)) ([4c15e1e](https://github.com/martinohmann/hcl-rs/commit/4c15e1e5b6eb7aedadef75da6a7fb11d5c9e8ec3))
+* **template:** add methods to ease `Element` access ([#214](https://github.com/martinohmann/hcl-rs/issues/214)) ([d4687b2](https://github.com/martinohmann/hcl-rs/commit/d4687b2bb6008040ae4f530de9dfd0c0efc4711f))
+* **template:** implement `From` for `Template` and `StringTemplate` ([c569ccf](https://github.com/martinohmann/hcl-rs/commit/c569ccf39241b8e48c3554b36c8b91a46cc026c2))
+
+
+### Bug Fixes
+
+* **template:** dereference `StringTemplate` to `Template` ([#213](https://github.com/martinohmann/hcl-rs/issues/213)) ([906b3a0](https://github.com/martinohmann/hcl-rs/commit/906b3a0ef7ae9299ebda820e0570788688ea9814))
+
+
+### Reverts
+
+* **template:** dereference `StringTemplate` to `Template` ([#215](https://github.com/martinohmann/hcl-rs/issues/215)) ([bc20933](https://github.com/martinohmann/hcl-rs/commit/bc20933a6180cc1f832443d01af5fe758087c5bc))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.0.3 to 0.1.0
+
 ## [0.4.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.5...hcl-edit-v0.4.6) (2023-04-30)
 
 
