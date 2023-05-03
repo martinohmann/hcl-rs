@@ -4,6 +4,20 @@
   * dependencies
     * hcl-primitives bumped from 0.0.2 to 0.0.3
 
+## [0.14.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.1...hcl-rs-v0.14.2) (2023-05-02)
+
+
+### Features
+
+* **ident:** add `Ident::try_new` ([#210](https://github.com/martinohmann/hcl-rs/issues/210)) ([4c15e1e](https://github.com/martinohmann/hcl-rs/commit/4c15e1e5b6eb7aedadef75da6a7fb11d5c9e8ec3))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.0.3 to 0.1.0
+
 ## [0.14.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.13.3...hcl-rs-v0.14.0) (2023-03-16)
 
 
