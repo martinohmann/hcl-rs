@@ -9,6 +9,7 @@
     clippy::cast_precision_loss,
     clippy::cast_sign_loss,
     clippy::enum_glob_use,
+    clippy::let_underscore_untyped,
     clippy::match_wildcard_for_single_variants,
     clippy::missing_panics_doc,
     clippy::module_name_repetitions,
