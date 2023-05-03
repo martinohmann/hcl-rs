@@ -30,11 +30,11 @@ pub struct ForExpr {
 impl ForExpr {
     /// Creates a new `ForExpr` from a `for` expression introduction and a result value
     /// expression.
-    pub fn new(intro: ForIntro, value_expr: Expression) -> ForExpr {
+    pub fn new(intro: ForIntro, value_expr: impl Into<Expression>) -> ForExpr {
         ForExpr {
             intro,
             key_expr: None,
-            value_expr,
+            value_expr: value_expr.into(),
             grouping: false,
             cond: None,
             decor: Decor::default(),
@@ -88,11 +88,14 @@ pub struct ForIntro {
 
 impl ForIntro {
     /// Creates a new `ForIntro` from a value variable and a collection expression.
-    pub fn new(value_var: Decorated<Ident>, collection_expr: Expression) -> ForIntro {
+    pub fn new(
+        value_var: impl Into<Decorated<Ident>>,
+        collection_expr: impl Into<Expression>,
+    ) -> ForIntro {
         ForIntro {
             key_var: None,
-            value_var,
-            collection_expr,
+            value_var: value_var.into(),
+            collection_expr: collection_expr.into(),
             decor: Decor::default(),
             span: None,
         }
@@ -130,9 +133,9 @@ pub struct ForCond {
 
 impl ForCond {
     /// Creates a new `ForCond` from an expression.
-    pub fn new(expr: Expression) -> ForCond {
+    pub fn new(expr: impl Into<Expression>) -> ForCond {
         ForCond {
-            expr,
+            expr: expr.into(),
             decor: Decor::default(),
             span: None,
         }
