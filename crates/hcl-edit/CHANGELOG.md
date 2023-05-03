@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.8](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.7...hcl-edit-v0.4.8) (2023-05-03)
+
+
+### Features
+
+* make constructors generic ([#216](https://github.com/martinohmann/hcl-rs/issues/216)) ([711fd74](https://github.com/martinohmann/hcl-rs/commit/711fd74b41c6b114f80d28d69e0d1a62654408fa))
+
 ## [0.4.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.6...hcl-edit-v0.4.7) (2023-05-02)
 
 
