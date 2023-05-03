@@ -3,7 +3,7 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
-use crate::{parser, Ident, RawString};
+use crate::{parser, Ident};
 use std::fmt;
 use std::ops::{self, Range};
 use std::str::FromStr;
@@ -39,6 +39,7 @@ pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
 #[derive(Debug, Clone, Default, Eq)]
 pub struct Body {
     structures: Vec<Structure>,
+    prefer_oneline: bool,
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -144,6 +145,26 @@ impl Body {
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.structures.iter_mut())
+    }
+
+    /// Configures whether the block body should be displayed on a single line if it is empty or
+    /// contains only a single `Attribute`.
+    #[inline]
+    pub fn set_prefer_oneline(&mut self, yes: bool) {
+        self.prefer_oneline = yes;
+    }
+
+    /// Returns `true` if the block body should be displayed on a single line if it is empty or
+    /// contains only a single `Attribute`.
+    #[inline]
+    pub fn prefer_oneline(&self) -> bool {
+        self.prefer_oneline
+    }
+
+    /// Returns `true` if the body contains only a single `Attribute`.
+    #[inline]
+    pub(crate) fn has_single_attribute(&self) -> bool {
+        self.len() == 1 && self.get(0).map_or(false, Structure::is_attribute)
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -382,7 +403,7 @@ pub struct Block {
     /// Zero or more block labels.
     pub labels: Vec<BlockLabel>,
     /// Represents the `Block`'s body.
-    pub body: BlockBody,
+    pub body: Body,
 
     decor: Decor,
     span: Option<Range<usize>>,
@@ -390,7 +411,7 @@ pub struct Block {
 
 impl Block {
     /// Creates a new `Block` from an identifier and a block body.
-    pub fn new(ident: impl Into<Decorated<Ident>>, body: impl Into<BlockBody>) -> Block {
+    pub fn new(ident: impl Into<Decorated<Ident>>, body: impl Into<Body>) -> Block {
         Block {
             ident: ident.into(),
             labels: Vec::new(),
@@ -509,459 +530,6 @@ impl ops::Deref for BlockLabel {
 
     fn deref(&self) -> &Self::Target {
         self.as_str()
-    }
-}
-
-/// Represents an HCL block body.
-///
-/// This can be either a multiline body with zero or more [`Structure`]s, or a oneline body
-/// containing zero or one [`Attribute`].
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BlockBody {
-    /// A multiline block body with zero or more [`Structure`]s.
-    Multiline(Body),
-    /// A oneline block body with zero or one [`Attribute`]s.
-    Oneline(Box<OnelineBody>),
-}
-
-impl BlockBody {
-    /// Returns `true` if the block body contains no structures.
-    pub fn is_empty(&self) -> bool {
-        match self {
-            BlockBody::Multiline(body) => body.is_empty(),
-            BlockBody::Oneline(oneline) => oneline.is_empty(),
-        }
-    }
-
-    /// Returns the number of structures in the block body, also referred to as its 'length'.
-    pub fn len(&self) -> usize {
-        match self {
-            BlockBody::Multiline(body) => body.len(),
-            BlockBody::Oneline(oneline) => {
-                if oneline.is_empty() {
-                    0
-                } else {
-                    1
-                }
-            }
-        }
-    }
-
-    /// Returns `true` if this is a multiline block body.
-    pub fn is_multiline(&self) -> bool {
-        self.as_multiline().is_some()
-    }
-
-    /// If the `BlockBody` is of variant `Multiline`, returns a reference to the [`Body`],
-    /// otherwise `None`.
-    pub fn as_multiline(&self) -> Option<&Body> {
-        match self {
-            BlockBody::Multiline(body) => Some(body),
-            BlockBody::Oneline(_) => None,
-        }
-    }
-
-    /// If the `BlockBody` is of variant `Multiline`, returns a mutable reference to the [`Body`],
-    /// otherwise `None`.
-    pub fn as_multiline_mut(&mut self) -> Option<&mut Body> {
-        match self {
-            BlockBody::Multiline(body) => Some(body),
-            BlockBody::Oneline(_) => None,
-        }
-    }
-
-    /// In-place converts into a multiline block body (if needed) and returns a mutable reference
-    /// to it.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
-    /// use hcl_edit::Ident;
-    ///
-    /// let attr = Attribute::new(Ident::new("key"), "value");
-    /// let oneline = OnelineBody::from(attr.clone());
-    /// let mut block_body = BlockBody::from(oneline);
-    ///
-    /// assert!(block_body.is_oneline());
-    ///
-    /// let multiline = block_body.make_multiline();
-    ///
-    /// assert_eq!(multiline.len(), 1);
-    /// assert_eq!(multiline.get(0), Some(&Structure::Attribute(attr)));
-    ///
-    /// assert!(block_body.is_multiline());
-    /// #   Ok(())
-    /// # }
-    /// ```
-    pub fn make_multiline(&mut self) -> &mut Body {
-        if let BlockBody::Oneline(oneline) = self {
-            let mut body = Body::with_capacity(oneline.len());
-            body.extend(oneline.iter().cloned());
-            *self = BlockBody::Multiline(body);
-        }
-
-        match self {
-            BlockBody::Multiline(body) => body,
-            BlockBody::Oneline(_) => unreachable!(),
-        }
-    }
-
-    /// Converts into a multiline block body (if needed) and returns the result.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use hcl_edit::structure::{Attribute, BlockBody, OnelineBody, Structure};
-    /// use hcl_edit::Ident;
-    ///
-    /// let attr = Attribute::new(Ident::new("key"), "value");
-    /// let oneline = OnelineBody::from(attr.clone());
-    /// let block_body = BlockBody::from(oneline);
-    ///
-    /// assert!(block_body.is_oneline());
-    ///
-    /// let multiline = block_body.into_multiline();
-    ///
-    /// assert_eq!(multiline.len(), 1);
-    /// assert_eq!(multiline.get(0), Some(&Structure::Attribute(attr)));
-    /// #   Ok(())
-    /// # }
-    /// ```
-    pub fn into_multiline(self) -> Body {
-        match self {
-            BlockBody::Multiline(body) => body,
-            BlockBody::Oneline(oneline) => {
-                let mut body = Body::with_capacity(oneline.len());
-                body.extend(oneline.into_iter());
-                body
-            }
-        }
-    }
-
-    /// Returns `true` if this is a oneline block body.
-    pub fn is_oneline(&self) -> bool {
-        self.as_oneline().is_some()
-    }
-
-    /// If the `BlockBody` is of variant `Oneline`, returns a reference to the [`OnelineBody`],
-    /// otherwise `None`.
-    pub fn as_oneline(&self) -> Option<&OnelineBody> {
-        match self {
-            BlockBody::Multiline(_) => None,
-            BlockBody::Oneline(oneline) => Some(oneline),
-        }
-    }
-
-    /// If the `BlockBody` is of variant `Oneline`, returns a mutable reference to the
-    /// [`OnelineBody`], otherwise `None`.
-    pub fn as_oneline_mut(&mut self) -> Option<&mut OnelineBody> {
-        match self {
-            BlockBody::Multiline(_) => None,
-            BlockBody::Oneline(oneline) => Some(oneline),
-        }
-    }
-
-    /// In-place converts into a oneline block body (if needed) and returns a mutable reference
-    /// to it.
-    ///
-    /// # Errors
-    ///
-    /// The conversion may fail under the following conditions:
-    ///
-    /// - The block body contains more than 1 `Structure`.
-    /// - The block body contains exactly one `Structure`, but it is a `Block`.
-    ///
-    /// In both cases a mutable reference to the original `BlockBody` is returned as error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
-    /// use hcl_edit::Ident;
-    ///
-    /// let attr = Attribute::new(Ident::new("key"), "value");
-    /// let mut multiline = Body::new();
-    /// multiline.push(attr.clone());
-    ///
-    /// let mut block_body = BlockBody::from(multiline);
-    ///
-    /// assert!(block_body.is_multiline());
-    ///
-    /// let oneline = block_body.make_oneline().unwrap();
-    ///
-    /// assert_eq!(oneline.len(), 1);
-    /// assert_eq!(oneline.as_attribute(), Some(&attr));
-    ///
-    /// assert!(block_body.is_oneline());
-    /// #   Ok(())
-    /// # }
-    /// ```
-    pub fn make_oneline(&mut self) -> Result<&mut OnelineBody, &mut Self> {
-        if let BlockBody::Multiline(body) = self {
-            if body.len() > 1 {
-                return Err(self);
-            }
-
-            let oneline = match body.get(0) {
-                None => OnelineBody::new(),
-                Some(Structure::Attribute(attr)) => OnelineBody::from(attr.clone()),
-                Some(Structure::Block(_)) => return Err(self),
-            };
-
-            *self = BlockBody::from(oneline);
-        }
-
-        match self {
-            BlockBody::Multiline(_) => Err(self),
-            BlockBody::Oneline(oneline) => Ok(oneline),
-        }
-    }
-
-    /// Converts into a oneline block body (if needed) and returns the result.
-    ///
-    /// # Errors
-    ///
-    /// The conversion may fail under the following conditions:
-    ///
-    /// - The block body contains more than 1 `Structure`.
-    /// - The block body contains exactly one `Structure`, but it is a `Block`.
-    ///
-    /// In both cases the original `BlockBody` is returned as error.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// use hcl_edit::structure::{Attribute, BlockBody, Body, Structure};
-    /// use hcl_edit::Ident;
-    ///
-    /// let attr = Attribute::new(Ident::new("key"), "value");
-    /// let mut multiline = Body::new();
-    /// multiline.push(attr.clone());
-    ///
-    /// let block_body = BlockBody::from(multiline);
-    ///
-    /// assert!(block_body.is_multiline());
-    ///
-    /// let oneline = block_body.into_oneline().unwrap();
-    ///
-    /// assert_eq!(oneline.len(), 1);
-    /// assert_eq!(oneline.as_attribute(), Some(&attr));
-    /// #   Ok(())
-    /// # }
-    /// ```
-    pub fn into_oneline(self) -> Result<OnelineBody, Self> {
-        match self {
-            BlockBody::Oneline(oneline) => Ok(*oneline),
-            BlockBody::Multiline(body) if body.len() <= 1 => match body.get(0) {
-                Some(Structure::Attribute(attr)) => Ok(OnelineBody::from(attr.clone())),
-                Some(Structure::Block(_)) => Err(BlockBody::Multiline(body)),
-                None => Ok(OnelineBody::new()),
-            },
-            BlockBody::Multiline(body) => Err(BlockBody::Multiline(body)),
-        }
-    }
-
-    /// An iterator visiting all body structures in insertion order. The iterator element type is
-    /// `&'a Structure`.
-    pub fn iter(&self) -> Iter<'_> {
-        match self {
-            BlockBody::Multiline(body) => body.iter(),
-            BlockBody::Oneline(oneline) => oneline.iter(),
-        }
-    }
-
-    /// An iterator visiting all body structures in insertion order, with mutable references to the
-    /// values. The iterator element type is `&'a mut Structure`.
-    pub fn iter_mut(&mut self) -> IterMut<'_> {
-        match self {
-            BlockBody::Multiline(body) => body.iter_mut(),
-            BlockBody::Oneline(oneline) => oneline.iter_mut(),
-        }
-    }
-
-    pub(crate) fn despan(&mut self, input: &str) {
-        match self {
-            BlockBody::Multiline(body) => body.despan(input),
-            BlockBody::Oneline(oneline) => oneline.despan(input),
-        }
-    }
-}
-
-impl Default for BlockBody {
-    fn default() -> Self {
-        BlockBody::Multiline(Body::default())
-    }
-}
-
-impl From<Body> for BlockBody {
-    fn from(value: Body) -> Self {
-        BlockBody::Multiline(value)
-    }
-}
-
-impl From<OnelineBody> for BlockBody {
-    fn from(value: OnelineBody) -> Self {
-        BlockBody::Oneline(Box::new(value))
-    }
-}
-
-impl<T> FromIterator<T> for BlockBody
-where
-    T: Into<Structure>,
-{
-    fn from_iter<I>(iter: I) -> Self
-    where
-        I: IntoIterator<Item = T>,
-    {
-        BlockBody::Multiline(Body::from_iter(iter))
-    }
-}
-
-impl IntoIterator for BlockBody {
-    type Item = Structure;
-    type IntoIter = IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self {
-            BlockBody::Multiline(body) => body.into_iter(),
-            BlockBody::Oneline(oneline) => oneline.into_iter(),
-        }
-    }
-}
-
-impl<'a> IntoIterator for &'a BlockBody {
-    type Item = &'a Structure;
-    type IntoIter = Iter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a mut BlockBody {
-    type Item = &'a mut Structure;
-    type IntoIter = IterMut<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
-    }
-}
-
-/// Represents a oneline HCL block body containing zero or one [`Attribute`]s.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct OnelineBody {
-    // Always of variant `Structure::Attribute` if not `None`. It's wrapped in a `Structure` to
-    // support the creation of iterators over (mutable) `Structure` references in `BlockBody`.
-    attr: Option<Structure>,
-    trailing: RawString,
-}
-
-impl OnelineBody {
-    /// Creates a new empty `OnelineBody`.
-    pub fn new() -> OnelineBody {
-        OnelineBody::default()
-    }
-
-    /// Returns `true` if the block body is empty.
-    pub fn is_empty(&self) -> bool {
-        self.attr.is_none()
-    }
-
-    /// Returns the number of structures in the block body, also referred to as its 'length'.
-    pub fn len(&self) -> usize {
-        if self.is_empty() {
-            0
-        } else {
-            1
-        }
-    }
-
-    /// Sets the optional [`Attribute`] within the online block body.
-    pub fn set_attribute(&mut self, attr: impl Into<Attribute>) {
-        self.attr = Some(Structure::Attribute(attr.into()));
-    }
-
-    /// If the `OnelineBody` contains an `Attribute`, returns a reference to it, otherwise `None`.
-    pub fn as_attribute(&self) -> Option<&Attribute> {
-        self.attr.as_ref().and_then(Structure::as_attribute)
-    }
-
-    /// If the `OnelineBody` contains an `Attribute`, returns a mutable reference to it, otherwise
-    /// `None`.
-    pub fn as_attribute_mut(&mut self) -> Option<&mut Attribute> {
-        self.attr.as_mut().and_then(Structure::as_attribute_mut)
-    }
-
-    /// Return a reference to raw trailing decor before the block's closing `}`.
-    pub fn trailing(&self) -> &RawString {
-        &self.trailing
-    }
-
-    /// Set the raw trailing decor before the block's closing `}`.
-    pub fn set_trailing(&mut self, trailing: impl Into<RawString>) {
-        self.trailing = trailing.into();
-    }
-
-    /// An iterator visiting all body structures in insertion order. The iterator element type is
-    /// `&'a Structure` and is guaranteed to yield either zero or one elements of variant
-    /// `Structure::Attribute`.
-    pub fn iter(&self) -> Iter<'_> {
-        Box::new(self.attr.iter())
-    }
-
-    /// An iterator visiting all body structures in insertion order, with mutable references to the
-    /// values. The iterator element type is `&'a mut Structure` and is guaranteed to yield either
-    /// zero or one elements of variant `Structure::Attribute`.
-    pub fn iter_mut(&mut self) -> IterMut<'_> {
-        Box::new(self.attr.iter_mut())
-    }
-
-    pub(crate) fn despan(&mut self, input: &str) {
-        if let Some(attr) = &mut self.attr {
-            attr.despan(input);
-        }
-        self.trailing.despan(input);
-    }
-}
-
-impl From<Attribute> for OnelineBody {
-    fn from(attr: Attribute) -> Self {
-        OnelineBody {
-            attr: Some(Structure::Attribute(attr)),
-            trailing: RawString::default(),
-        }
-    }
-}
-
-impl IntoIterator for OnelineBody {
-    type Item = Structure;
-    type IntoIter = IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.attr.into_iter())
-    }
-}
-
-impl<'a> IntoIterator for &'a OnelineBody {
-    type Item = &'a Structure;
-    type IntoIter = Iter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
-impl<'a> IntoIterator for &'a mut OnelineBody {
-    type Item = &'a mut Structure;
-    type IntoIter = IterMut<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
     }
 }
 

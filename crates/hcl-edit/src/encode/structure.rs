@@ -2,7 +2,7 @@ use super::{
     encode_decorated, encode_quoted_string, Encode, EncodeDecorated, EncodeState, BOTH_SPACE_DECOR,
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
-use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, OnelineBody, Structure};
+use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use std::fmt::{self, Write};
 
 impl Encode for Body {
@@ -41,7 +41,24 @@ impl Encode for Block {
             label.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
         }
 
-        self.body.encode(buf)
+        buf.write_char('{')?;
+
+        let body = &self.body;
+
+        encode_decorated(body, buf, NO_DECOR, |buf| {
+            if body.prefer_oneline() && (body.is_empty() || body.has_single_attribute()) {
+                if let Some(attr) = body.get(0).and_then(Structure::as_attribute) {
+                    attr.encode_decorated(buf, BOTH_SPACE_DECOR)?;
+                }
+            } else {
+                buf.write_char('\n')?;
+                body.encode(buf)?;
+            }
+
+            Ok(())
+        })?;
+
+        buf.write_char('}')
     }
 }
 
@@ -53,31 +70,5 @@ impl EncodeDecorated for BlockLabel {
             }),
             BlockLabel::Ident(ident) => ident.encode_decorated(buf, default_decor),
         }
-    }
-}
-
-impl Encode for BlockBody {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        buf.write_char('{')?;
-
-        match self {
-            BlockBody::Multiline(body) => encode_decorated(body, buf, NO_DECOR, |buf| {
-                buf.write_char('\n')?;
-                body.encode(buf)
-            })?,
-            BlockBody::Oneline(oneline) => oneline.encode(buf)?,
-        }
-
-        buf.write_char('}')
-    }
-}
-
-impl Encode for OnelineBody {
-    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        if let Some(attr) = self.as_attribute() {
-            attr.encode_decorated(buf, BOTH_SPACE_DECOR)?;
-        }
-
-        self.trailing().encode_with_default(buf, "")
     }
 }

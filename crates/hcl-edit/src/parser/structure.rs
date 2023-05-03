@@ -10,7 +10,7 @@ use super::{
 use crate::{
     expr::Expression,
     repr::{Decorate, Decorated, SetSpan},
-    structure::{Attribute, Block, BlockBody, BlockLabel, Body, OnelineBody, Structure},
+    structure::{Attribute, Block, BlockLabel, Body, Structure},
 };
 use std::cell::RefCell;
 use winnow::{
@@ -115,7 +115,7 @@ fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     .parse_next(input)
 }
 
-fn block_body(input: Input) -> IResult<Input, BlockBody> {
+fn block_body(input: Input) -> IResult<Input, Body> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 
@@ -123,16 +123,16 @@ fn block_body(input: Input) -> IResult<Input, BlockBody> {
         cut_char('{'),
         alt((
             // Multiline block.
-            prefix_decorated((sp, opt(line_comment)), preceded(line_ending, body))
-                .map(BlockBody::Multiline),
+            prefix_decorated((sp, opt(line_comment)), preceded(line_ending, body)),
             // One-line block.
-            (opt(decorated(sp, attribute, sp)), raw_string(sp)).map(|(attr, trailing)| {
-                let mut oneline = OnelineBody::new();
+            (opt(decorated(sp, attribute, sp)), raw_string(sp)).map(|(attr, suffix)| {
+                let mut body = Body::new();
+                body.set_prefer_oneline(true);
+                body.decor_mut().set_suffix(suffix);
                 if let Some(attr) = attr {
-                    oneline.set_attribute(attr);
+                    body.push(attr);
                 }
-                oneline.set_trailing(trailing);
-                BlockBody::Oneline(Box::new(oneline))
+                body
             }),
         )),
         cut_char('}')
