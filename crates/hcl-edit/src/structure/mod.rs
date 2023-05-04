@@ -147,21 +147,31 @@ impl Body {
         Box::new(self.structures.iter_mut())
     }
 
-    /// Configures whether the block body should be displayed on a single line if it is empty or
-    /// contains only a single `Attribute`.
+    /// Configures whether the body should be displayed on a single line.
+    ///
+    /// This is only a hint which will be applied if the `Body` is part of a `Block` (that is: not
+    /// the document root) and only if either of these conditions meet:
+    ///
+    /// - The body is empty. In this case, the opening (`{`) and closing (`}`) braces will be
+    ///   places on the same line.
+    /// - The body only consist of a single `Attribute`, which will be placed on the same
+    ///   line as the opening and closing braces.
+    ///
+    /// In all other cases this hint is ignored.
     #[inline]
     pub fn set_prefer_oneline(&mut self, yes: bool) {
         self.prefer_oneline = yes;
     }
 
-    /// Returns `true` if the block body should be displayed on a single line if it is empty or
-    /// contains only a single `Attribute`.
+    /// Returns `true` if the body should be displayed on a single line.
+    ///
+    /// See the documentation of [`Body::set_prefer_oneline`] for more.
     #[inline]
     pub fn prefer_oneline(&self) -> bool {
         self.prefer_oneline
     }
 
-    /// Returns `true` if the body contains only a single `Attribute`.
+    /// Returns `true` if the body only consist of a single `Attribute`.
     #[inline]
     pub(crate) fn has_single_attribute(&self) -> bool {
         self.len() == 1 && self.get(0).map_or(false, Structure::is_attribute)
