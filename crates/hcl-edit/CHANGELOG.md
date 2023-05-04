@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.8...hcl-edit-v0.5.0) (2023-05-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **structure:** `Block::new` now only accepts a single `ident` argument. Set the block body, by updating `body` field of `Block`.
+* **structure:** The `BlockBody` and `OnelineBody` types were removed. `Block` now directly uses `Body`. One-line blocks can still be constructed by calling `body.set_prefer_oneline(true)`.
+
+### Code Refactoring
+
+* **structure:** remove `BlockBody` and `OnelineBody` ([#218](https://github.com/martinohmann/hcl-rs/issues/218)) ([1267054](https://github.com/martinohmann/hcl-rs/commit/126705402ce7c95c10160cf64349e13f41b09f3f))
+* **structure:** remove `body` argument from `Block::new` ([#220](https://github.com/martinohmann/hcl-rs/issues/220)) ([04c78f8](https://github.com/martinohmann/hcl-rs/commit/04c78f81d1e13561167872d3d6a2b4dd835f3d9f))
+
 ## [0.4.8](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.7...hcl-edit-v0.4.8) (2023-05-03)
 
 
