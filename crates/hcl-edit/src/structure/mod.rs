@@ -410,12 +410,12 @@ pub struct Block {
 }
 
 impl Block {
-    /// Creates a new `Block` from an identifier and a block body.
-    pub fn new(ident: impl Into<Decorated<Ident>>, body: impl Into<Body>) -> Block {
+    /// Creates a new `Block` from an identifier.
+    pub fn new(ident: impl Into<Decorated<Ident>>) -> Block {
         Block {
             ident: ident.into(),
             labels: Vec::new(),
-            body: body.into(),
+            body: Body::new(),
             decor: Decor::default(),
             span: None,
         }

@@ -67,13 +67,15 @@ fn structure<'i, 's>(
             }
             b'{' => {
                 let (input, body) = block_body(input)?;
-                let block = Block::new(ident, body);
+                let mut block = Block::new(ident);
+                block.body = body;
                 (input, Structure::Block(block))
             }
             ch if ch == b'"' || is_id_start(ch) => {
                 let (input, labels) = block_labels(input)?;
                 let (input, body) = block_body(input)?;
-                let mut block = Block::new(ident, body);
+                let mut block = Block::new(ident);
+                block.body = body;
                 block.labels = labels;
                 (input, Structure::Block(block))
             }
