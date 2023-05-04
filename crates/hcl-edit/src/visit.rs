@@ -66,7 +66,7 @@ use crate::expr::{
     TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::repr::{Decorated, Formatted, Spanned};
-use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, OnelineBody, Structure};
+use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
@@ -119,8 +119,6 @@ pub trait Visit<'ast> {
         visit_attr => Attribute,
         visit_block => Block,
         visit_block_label => BlockLabel,
-        visit_block_body => BlockBody,
-        visit_oneline_body => OnelineBody,
         visit_expr => Expression,
         visit_array => Array,
         visit_object => Object,
@@ -190,7 +188,7 @@ where
     for label in &node.labels {
         v.visit_block_label(label);
     }
-    v.visit_block_body(&node.body);
+    v.visit_body(&node.body);
 }
 
 pub fn visit_block_label<'ast, V>(v: &mut V, node: &'ast BlockLabel)
@@ -200,25 +198,6 @@ where
     match node {
         BlockLabel::String(string) => v.visit_string(string),
         BlockLabel::Ident(ident) => v.visit_ident(ident),
-    }
-}
-
-pub fn visit_block_body<'ast, V>(v: &mut V, node: &'ast BlockBody)
-where
-    V: Visit<'ast> + ?Sized,
-{
-    match node {
-        BlockBody::Oneline(oneline) => v.visit_oneline_body(oneline),
-        BlockBody::Multiline(body) => v.visit_body(body),
-    }
-}
-
-pub fn visit_oneline_body<'ast, V>(v: &mut V, node: &'ast OnelineBody)
-where
-    V: Visit<'ast> + ?Sized,
-{
-    if let Some(attr) = node.as_attribute() {
-        v.visit_attr(attr);
     }
 }
 
