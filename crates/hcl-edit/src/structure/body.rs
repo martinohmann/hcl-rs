@@ -1,7 +1,7 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::parser;
 use crate::repr::{Decor, Decorate, SetSpan, Span};
-use crate::structure::{Attribute, Block, Structure};
+use crate::structure::{Attribute, Block, BlockLabelSelector, Structure};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
@@ -289,6 +289,107 @@ impl Body {
         )
     }
 
+    /// Returns an iterator visiting all `Block`s with the given identifier matching the provided
+    /// label selector. The iterator element type is `&'a Block`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::Body;
+    ///
+    /// let input = r#"
+    /// resource "aws_s3_bucket" "bucket1" {}
+    /// resource "aws_db_instance" "db" {}
+    ///
+    /// variable "name" {}
+    ///
+    /// resource "aws_s3_bucket" "bucket2" {}
+    /// "#;
+    ///
+    /// let body: Body = input.parse()?;
+    ///
+    /// let resources: Body = body.get_labeled_blocks("resource", "aws_s3_bucket").cloned().collect();
+    ///
+    /// let expected = r#"
+    /// resource "aws_s3_bucket" "bucket1" {}
+    ///
+    /// resource "aws_s3_bucket" "bucket2" {}
+    /// "#;
+    ///
+    /// assert_eq!(resources.to_string(), expected);
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn get_labeled_blocks<'a, S>(&'a self, ident: &'a str, selector: S) -> Blocks<'a>
+    where
+        S: BlockLabelSelector + Copy + 'a,
+    {
+        Box::new(
+            self.structures
+                .iter()
+                .filter_map(Structure::as_block)
+                .filter(move |block| {
+                    block.ident.as_str() == ident && selector.matches_labels(&block.labels)
+                }),
+        )
+    }
+
+    /// Returns an iterator visiting all `Block`s with the given identifier matching the provided
+    /// label selector. The iterator element type is `&'a mut Block`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::expr::{Traversal, TraversalOperator};
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let input = r#"
+    /// resource "aws_s3_bucket" "bucket1" {}
+    /// resource "aws_db_instance" "db_instance" {}
+    ///
+    /// variable "name" {}
+    ///
+    /// resource "aws_s3_bucket" "bucket2" {}
+    /// "#;
+    ///
+    /// let mut body: Body = input.parse()?;
+    ///
+    /// for block in body.get_labeled_blocks_mut("resource", "aws_s3_bucket") {
+    ///     let operators = vec![TraversalOperator::GetAttr(Ident::new("name").into()).into()];
+    ///     let value = Traversal::new(Ident::new("var"), operators);
+    ///     block.body.push(Attribute::new(Ident::new("name"), value));
+    /// }
+    ///
+    /// let expected = r#"
+    /// resource "aws_s3_bucket" "bucket1" { name = var.name }
+    /// resource "aws_db_instance" "db_instance" {}
+    ///
+    /// variable "name" {}
+    ///
+    /// resource "aws_s3_bucket" "bucket2" { name = var.name }
+    /// "#;
+    ///
+    /// assert_eq!(body.to_string(), expected);
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn get_labeled_blocks_mut<'a, S>(&'a mut self, ident: &'a str, selector: S) -> BlocksMut<'a>
+    where
+        S: BlockLabelSelector + Copy + 'a,
+    {
+        Box::new(
+            self.structures
+                .iter_mut()
+                .filter_map(Structure::as_block_mut)
+                .filter(move |block| {
+                    block.ident.as_str() == ident && selector.matches_labels(&block.labels)
+                }),
+        )
+    }
+
     /// Inserts a structure at position `index` within the body, shifting all structures after it
     /// to the right.
     ///
@@ -352,14 +453,12 @@ impl Body {
     /// assert_eq!(body.len(), 1);
     /// ```
     pub fn remove_attribute(&mut self, key: &str) -> Option<Attribute> {
-        self.structures
-            .iter()
-            .position(|structure| {
-                structure
-                    .as_attribute()
-                    .map_or(false, |attr| attr.key.as_str() == key)
-            })
-            .and_then(|index| self.remove(index).into_attribute())
+        self.remove_first(|structure| {
+            structure
+                .as_attribute()
+                .map_or(false, |attr| attr.key.as_str() == key)
+        })
+        .and_then(Structure::into_attribute)
     }
 
     /// Removes and returns all blocks with given `ident`.
@@ -415,15 +514,99 @@ impl Body {
         removed
     }
 
-    fn remove_block(&mut self, ident: &str) -> Option<Block> {
+    /// Removes and returns all blocks with given `ident` matching the provided label selector.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Block, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::builder()
+    ///     .attribute(Attribute::new(Ident::new("foo"), "bar"))
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket1"])
+    ///     )
+    ///     .block(Block::builder(Ident::new("variable")).label("name"))
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_db_instance", "db_instance"])
+    ///     )
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket2"])
+    ///     )
+    ///     .build();
+    ///
+    /// let resources = body.remove_labeled_blocks("resource", "aws_s3_bucket");
+    ///
+    /// assert_eq!(
+    ///     resources,
+    ///     vec![
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket1"])
+    ///             .build(),
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket2"])
+    ///             .build(),
+    ///     ]
+    /// );
+    ///
+    /// assert_eq!(
+    ///     body,
+    ///     Body::builder()
+    ///         .attribute(Attribute::new(Ident::new("foo"), "bar"))
+    ///         .block(Block::builder(Ident::new("variable")).label("name"))
+    ///         .block(
+    ///             Block::builder(Ident::new("resource"))
+    ///                 .labels(["aws_db_instance", "db_instance"])
+    ///         )
+    ///         .build()
+    /// );
+    /// ```
+    pub fn remove_labeled_blocks<S>(&mut self, ident: &str, selector: S) -> Vec<Block>
+    where
+        S: BlockLabelSelector + Copy,
+    {
+        let mut removed = Vec::new();
+
+        while let Some(block) = self.remove_labeled_block(ident, selector) {
+            removed.push(block);
+        }
+
+        removed
+    }
+
+    fn remove_first<P>(&mut self, predicate: P) -> Option<Structure>
+    where
+        P: FnMut(&Structure) -> bool,
+    {
         self.structures
             .iter()
-            .position(|structure| {
-                structure
-                    .as_block()
-                    .map_or(false, |block| block.ident.as_str() == ident)
+            .position(predicate)
+            .map(|index| self.remove(index))
+    }
+
+    fn remove_block(&mut self, ident: &str) -> Option<Block> {
+        self.remove_first(|structure| {
+            structure
+                .as_block()
+                .map_or(false, |block| block.ident.as_str() == ident)
+        })
+        .and_then(Structure::into_block)
+    }
+
+    fn remove_labeled_block<S>(&mut self, ident: &str, selector: S) -> Option<Block>
+    where
+        S: BlockLabelSelector + Copy,
+    {
+        self.remove_first(|structure| {
+            structure.as_block().map_or(false, |block| {
+                block.ident.as_str() == ident && selector.matches_labels(&block.labels)
             })
-            .and_then(|index| self.remove(index).into_block())
+        })
+        .and_then(Structure::into_block)
     }
 
     /// An iterator visiting all body structures in insertion order. The iterator element type is
