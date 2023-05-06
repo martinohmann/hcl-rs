@@ -139,6 +139,150 @@ impl Body {
         self.structures.get_mut(index)
     }
 
+    /// Returns a reference to the `Attribute` with given key if it exists, otherwise `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::new();
+    ///
+    /// assert!(body.get_attribute("foo").is_none());
+    ///
+    /// let foo = Attribute::new(Ident::new("foo"), "bar");
+    ///
+    /// body.push(foo.clone());
+    ///
+    /// assert_eq!(body.get_attribute("foo"), Some(&foo));
+    /// ```
+    pub fn get_attribute(&self, key: &str) -> Option<&Attribute> {
+        self.structures
+            .iter()
+            .filter_map(Structure::as_attribute)
+            .find(|attr| attr.key.as_str() == key)
+    }
+
+    /// Returns a mutable reference to the `Attribute` with given key if it exists, otherwise
+    /// `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::expr::Expression;
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::new();
+    ///
+    /// assert!(body.get_attribute("foo").is_none());
+    ///
+    /// let foo = Attribute::new(Ident::new("foo"), "bar");
+    ///
+    /// body.push(foo.clone());
+    ///
+    /// if let Some(attr) = body.get_attribute_mut("foo") {
+    ///     attr.value = Expression::from("baz");
+    /// }
+    ///
+    /// assert_eq!(body.get_attribute("foo"), Some(&Attribute::new(Ident::new("foo"), "baz")));
+    /// ```
+    pub fn get_attribute_mut(&mut self, key: &str) -> Option<&mut Attribute> {
+        self.structures
+            .iter_mut()
+            .filter_map(Structure::as_attribute_mut)
+            .find(|attr| attr.key.as_str() == key)
+    }
+
+    /// Returns an iterator visiting all `Block`s with the given identifier. The iterator element
+    /// type is `&'a Block`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::Body;
+    ///
+    /// let input = r#"
+    /// resource "aws_s3_bucket" "bucket" {}
+    ///
+    /// variable "name" {}
+    ///
+    /// resource "aws_instance" "instance" {}
+    /// "#;
+    ///
+    /// let body: Body = input.parse()?;
+    ///
+    /// let resources: Body = body.get_blocks("resource").cloned().collect();
+    ///
+    /// let expected = r#"
+    /// resource "aws_s3_bucket" "bucket" {}
+    ///
+    /// resource "aws_instance" "instance" {}
+    /// "#;
+    ///
+    /// assert_eq!(resources.to_string(), expected);
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn get_blocks<'a>(&'a self, ident: &'a str) -> Blocks<'a> {
+        Box::new(
+            self.structures
+                .iter()
+                .filter_map(Structure::as_block)
+                .filter(move |block| block.ident.as_str() == ident),
+        )
+    }
+
+    /// Returns an iterator visiting all `Block`s with the given identifier. The iterator element
+    /// type is `&'a mut Block`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::expr::{Traversal, TraversalOperator};
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let input = r#"
+    /// resource "aws_s3_bucket" "bucket" {}
+    ///
+    /// variable "name" {}
+    ///
+    /// resource "aws_db_instance" "db_instance" {}
+    /// "#;
+    ///
+    /// let mut body: Body = input.parse()?;
+    ///
+    /// for block in body.get_blocks_mut("resource") {
+    ///     let operators = vec![TraversalOperator::GetAttr(Ident::new("name").into()).into()];
+    ///     let value = Traversal::new(Ident::new("var"), operators);
+    ///     block.body.push(Attribute::new(Ident::new("name"), value));
+    /// }
+    ///
+    /// let expected = r#"
+    /// resource "aws_s3_bucket" "bucket" { name = var.name }
+    ///
+    /// variable "name" {}
+    ///
+    /// resource "aws_db_instance" "db_instance" { name = var.name }
+    /// "#;
+    ///
+    /// assert_eq!(body.to_string(), expected);
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn get_blocks_mut<'a>(&'a mut self, ident: &'a str) -> BlocksMut<'a> {
+        Box::new(
+            self.structures
+                .iter_mut()
+                .filter_map(Structure::as_block_mut)
+                .filter(move |block| block.ident.as_str() == ident),
+        )
+    }
+
     /// Inserts a structure at position `index` within the body, shifting all structures after it
     /// to the right.
     ///
