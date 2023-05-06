@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.1...hcl-edit-v0.5.2) (2023-05-06)
+
+
+### Features
+
+* **structure:** add `BlockBuilder` and `BodyBuilder` ([#227](https://github.com/martinohmann/hcl-rs/issues/227)) ([33462d0](https://github.com/martinohmann/hcl-rs/commit/33462d09a7c632a281a3d0988fa68f246f012f94))
+* **structure:** add `remove_*` methods to `Body` ([#228](https://github.com/martinohmann/hcl-rs/issues/228)) ([7b37763](https://github.com/martinohmann/hcl-rs/commit/7b37763c084f65a90e38ac2b98a8f9fff007a47b))
+* **structure:** add getters for body structures ([#226](https://github.com/martinohmann/hcl-rs/issues/226)) ([2d08db1](https://github.com/martinohmann/hcl-rs/commit/2d08db11d82ef81e32b0890f0302a511c48f791c))
+* **structure:** add iterator methods for attributes and blocks to `Body` ([#224](https://github.com/martinohmann/hcl-rs/issues/224)) ([c968d78](https://github.com/martinohmann/hcl-rs/commit/c968d78e16853cc7ff9eea9c3d86b22f79e12f93))
+
+
+### Bug Fixes
+
+* **structure:** use correct position in removal operations ([44b096b](https://github.com/martinohmann/hcl-rs/commit/44b096bd0c8193bdd5f02f1c75d42f19a5beb4fa))
+
 ## [0.5.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.0...hcl-edit-v0.5.1) (2023-05-06)
 
 
