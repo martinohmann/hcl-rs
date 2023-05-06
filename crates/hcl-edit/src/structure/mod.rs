@@ -6,7 +6,10 @@ mod body;
 
 pub use self::attribute::Attribute;
 pub use self::block::{Block, BlockLabel};
-pub use self::body::{Body, IntoIter, Iter, IterMut};
+pub use self::body::{
+    Attributes, AttributesMut, Blocks, BlocksMut, Body, IntoAttributes, IntoBlocks, IntoIter, Iter,
+    IterMut,
+};
 use crate::repr::{Decor, Decorate, SetSpan, Span};
 use std::ops::Range;
 
@@ -32,6 +35,14 @@ impl Structure {
         self.as_block().is_some()
     }
 
+    /// If the `Structure` is an `Attribute`, returns it, otherwise `None`.
+    pub fn into_attribute(self) -> Option<Attribute> {
+        match self {
+            Structure::Attribute(attr) => Some(attr),
+            Structure::Block(_) => None,
+        }
+    }
+
     /// If the `Structure` is an `Attribute`, returns a reference to it, otherwise `None`.
     pub fn as_attribute(&self) -> Option<&Attribute> {
         match self {
@@ -45,6 +56,14 @@ impl Structure {
         match self {
             Structure::Attribute(attr) => Some(attr),
             Structure::Block(_) => None,
+        }
+    }
+
+    /// If the `Structure` is a `Block`, returns it, otherwise `None`.
+    pub fn into_block(self) -> Option<Block> {
+        match self {
+            Structure::Block(block) => Some(block),
+            Structure::Attribute(_) => None,
         }
     }
 

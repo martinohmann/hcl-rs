@@ -1,7 +1,7 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::parser;
 use crate::repr::{Decor, Decorate, SetSpan, Span};
-use crate::structure::Structure;
+use crate::structure::{Attribute, Block, Structure};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
@@ -30,6 +30,54 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 ///
 /// [`iter_mut`]: Body::iter_mut
 pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
+
+/// An owning iterator over the `Attribute`s within a `Body`.
+///
+/// Values of this type are created by the [`into_attributes`] method on [`Body`]. See its
+/// documentation for more.
+///
+/// [`into_attributes`]: Body::into_attributes
+pub type IntoAttributes = Box<dyn Iterator<Item = Attribute>>;
+
+/// An iterator over the `Attribute`s within a `Body`.
+///
+/// Values of this type are created by the [`attributes`] method on [`Body`]. See its documentation
+/// for more.
+///
+/// [`attributes`]: Body::attributes
+pub type Attributes<'a> = Box<dyn Iterator<Item = &'a Attribute> + 'a>;
+
+/// A mutable iterator over the `Attribute`s within a `Body`.
+///
+/// Values of this type are created by the [`attributes_mut`] method on [`Body`]. See its
+/// documentation for more.
+///
+/// [`attributes_mut`]: Body::attributes_mut
+pub type AttributesMut<'a> = Box<dyn Iterator<Item = &'a mut Attribute> + 'a>;
+
+/// An owning iterator over the `Block`s within a `Body`.
+///
+/// Values of this type are created by the [`into_blocks`] method on [`Body`]. See its
+/// documentation for more.
+///
+/// [`into_blocks`]: Body::into_blocks
+pub type IntoBlocks = Box<dyn Iterator<Item = Block>>;
+
+/// An iterator over the `Block`s within a `Body`.
+///
+/// Values of this type are created by the [`blocks`] method on [`Body`]. See its documentation
+/// for more.
+///
+/// [`blocks`]: Body::blocks
+pub type Blocks<'a> = Box<dyn Iterator<Item = &'a Block> + 'a>;
+
+/// A mutable iterator over the `Block`s within a `Body`.
+///
+/// Values of this type are created by the [`blocks_mut`] method on [`Body`]. See its
+/// documentation for more.
+///
+/// [`blocks_mut`]: Body::blocks_mut
+pub type BlocksMut<'a> = Box<dyn Iterator<Item = &'a mut Block> + 'a>;
 
 /// Represents an HCL config file body.
 ///
@@ -144,6 +192,64 @@ impl Body {
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
         Box::new(self.structures.iter_mut())
+    }
+
+    /// An owning iterator visiting all `Attribute`s within the body in insertion order. The
+    /// iterator element type is `Attribute`.
+    #[inline]
+    pub fn into_attributes(self) -> IntoAttributes {
+        Box::new(
+            self.structures
+                .into_iter()
+                .filter_map(Structure::into_attribute),
+        )
+    }
+
+    /// An iterator visiting all `Attribute`s within the body in insertion order. The iterator
+    /// element type is `&'a Attribute`.
+    #[inline]
+    pub fn attributes(&self) -> Attributes<'_> {
+        Box::new(self.structures.iter().filter_map(Structure::as_attribute))
+    }
+
+    /// An iterator visiting all `Attribute`s within the body in insertion order, with mutable
+    /// references to the values. The iterator element type is `&'a mut Attribute`.
+    #[inline]
+    pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
+        Box::new(
+            self.structures
+                .iter_mut()
+                .filter_map(Structure::as_attribute_mut),
+        )
+    }
+
+    /// An owning iterator visiting all `Block`s within the body in insertion order. The iterator
+    /// element type is `Block`.
+    #[inline]
+    pub fn into_blocks(self) -> IntoBlocks {
+        Box::new(
+            self.structures
+                .into_iter()
+                .filter_map(Structure::into_block),
+        )
+    }
+
+    /// An iterator visiting all `Block`s within the body in insertion order. The iterator element
+    /// type is `&'a Block`.
+    #[inline]
+    pub fn blocks(&self) -> Blocks<'_> {
+        Box::new(self.structures.iter().filter_map(Structure::as_block))
+    }
+
+    /// An iterator visiting all `Block`s within the body in insertion order, with mutable
+    /// references to the values. The iterator element type is `&'a mut Block`.
+    #[inline]
+    pub fn blocks_mut(&mut self) -> BlocksMut<'_> {
+        Box::new(
+            self.structures
+                .iter_mut()
+                .filter_map(Structure::as_block_mut),
+        )
     }
 
     /// Configures whether the body should be displayed on a single line.
