@@ -335,10 +335,11 @@ impl Body {
     /// # Example
     ///
     /// ```
-    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::structure::{Attribute, Block, Body};
     /// use hcl_edit::Ident;
     ///
     /// let mut body = Body::new();
+    /// body.push(Block::new(Ident::new("block")));
     ///
     /// assert!(body.remove_attribute("foo").is_none());
     ///
@@ -346,15 +347,18 @@ impl Body {
     ///
     /// body.push(foo.clone());
     ///
-    /// assert_eq!(body.len(), 1);
+    /// assert_eq!(body.len(), 2);
     /// assert_eq!(body.remove_attribute("foo"), Some(foo));
-    /// assert!(body.is_empty());
+    /// assert_eq!(body.len(), 1);
     /// ```
     pub fn remove_attribute(&mut self, key: &str) -> Option<Attribute> {
         self.structures
             .iter()
-            .filter_map(Structure::as_attribute)
-            .position(|attr| attr.key.as_str() == key)
+            .position(|structure| {
+                structure
+                    .as_attribute()
+                    .map_or(false, |attr| attr.key.as_str() == key)
+            })
             .and_then(|index| self.remove(index).into_attribute())
     }
 
@@ -367,6 +371,7 @@ impl Body {
     /// use hcl_edit::Ident;
     ///
     /// let mut body = Body::builder()
+    ///     .attribute(Attribute::new(Ident::new("foo"), "bar"))
     ///     .block(
     ///         Block::builder(Ident::new("resource"))
     ///             .labels(["aws_s3_bucket", "bucket"])
@@ -395,6 +400,7 @@ impl Body {
     /// assert_eq!(
     ///     body,
     ///     Body::builder()
+    ///         .attribute(Attribute::new(Ident::new("foo"), "bar"))
     ///         .block(Block::builder(Ident::new("variable")).label("name"))
     ///         .build()
     /// );
@@ -412,8 +418,11 @@ impl Body {
     fn remove_block(&mut self, ident: &str) -> Option<Block> {
         self.structures
             .iter()
-            .filter_map(Structure::as_block)
-            .position(|block| block.ident.as_str() == ident)
+            .position(|structure| {
+                structure
+                    .as_block()
+                    .map_or(false, |block| block.ident.as_str() == ident)
+            })
             .and_then(|index| self.remove(index).into_block())
     }
 
