@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.0...hcl-edit-v0.5.1) (2023-05-06)
+
+
+### Bug Fixes
+
+* **parser:** error on duplicate attributes ([#222](https://github.com/martinohmann/hcl-rs/issues/222)) ([b4e36af](https://github.com/martinohmann/hcl-rs/commit/b4e36afd00aa75d99c6d29b8e7f601d6d548fde4))
+
 ## [0.5.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.4.8...hcl-edit-v0.5.0) (2023-05-04)
 
 
