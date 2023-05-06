@@ -30,6 +30,7 @@ default = []
 perf = ["hcl-primitives/perf"]
 
 [dependencies]
+fnv = "1.0.7"
 hcl-primitives = { version = "0.1.0", path = "../hcl-primitives" }
 vecmap-rs = "0.1.10"
 winnow = "= 0.4.4"
