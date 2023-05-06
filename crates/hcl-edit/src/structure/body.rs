@@ -330,6 +330,93 @@ impl Body {
         self.structures.remove(index)
     }
 
+    /// Removes and returns the attribute with given `key`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::new();
+    ///
+    /// assert!(body.remove_attribute("foo").is_none());
+    ///
+    /// let foo = Attribute::new(Ident::new("foo"), "bar");
+    ///
+    /// body.push(foo.clone());
+    ///
+    /// assert_eq!(body.len(), 1);
+    /// assert_eq!(body.remove_attribute("foo"), Some(foo));
+    /// assert!(body.is_empty());
+    /// ```
+    pub fn remove_attribute(&mut self, key: &str) -> Option<Attribute> {
+        self.structures
+            .iter()
+            .filter_map(Structure::as_attribute)
+            .position(|attr| attr.key.as_str() == key)
+            .and_then(|index| self.remove(index).into_attribute())
+    }
+
+    /// Removes and returns all blocks with given `ident`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Block, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::builder()
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket"])
+    ///     )
+    ///     .block(Block::builder(Ident::new("variable")).label("name"))
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_db_instance", "db_instance"])
+    ///     )
+    ///     .build();
+    ///
+    /// let resources = body.remove_blocks("resource");
+    ///
+    /// assert_eq!(
+    ///     resources,
+    ///     vec![
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket"])
+    ///             .build(),
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_db_instance", "db_instance"])
+    ///             .build()
+    ///     ]
+    /// );
+    ///
+    /// assert_eq!(
+    ///     body,
+    ///     Body::builder()
+    ///         .block(Block::builder(Ident::new("variable")).label("name"))
+    ///         .build()
+    /// );
+    /// ```
+    pub fn remove_blocks(&mut self, ident: &str) -> Vec<Block> {
+        let mut removed = Vec::new();
+
+        while let Some(block) = self.remove_block(ident) {
+            removed.push(block);
+        }
+
+        removed
+    }
+
+    fn remove_block(&mut self, ident: &str) -> Option<Block> {
+        self.structures
+            .iter()
+            .filter_map(Structure::as_block)
+            .position(|block| block.ident.as_str() == ident)
+            .and_then(|index| self.remove(index).into_block())
+    }
+
     /// An iterator visiting all body structures in insertion order. The iterator element type is
     /// `&'a Structure`.
     #[inline]
