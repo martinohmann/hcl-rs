@@ -1,5 +1,5 @@
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
-use crate::structure::Body;
+use crate::structure::{Attribute, Body, Structure};
 use crate::Ident;
 use std::ops::{self, Range};
 
@@ -36,6 +36,13 @@ impl Block {
             decor: Decor::default(),
             span: None,
         }
+    }
+
+    /// Creates a new [`BlockBuilder`] to start building a new `Block` with the provided
+    /// identifier.
+    #[inline]
+    pub fn builder(ident: impl Into<Decorated<Ident>>) -> BlockBuilder {
+        BlockBuilder::new(ident.into())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -154,3 +161,144 @@ decorate_impl!(Block);
 span_impl!(Block);
 forward_decorate_impl!(BlockLabel => { Ident, String });
 forward_span_impl!(BlockLabel => { Ident, String });
+
+/// `BlockBuilder` builds an HCL [`Block`].
+///
+/// The builder allows to build the `Block` by adding labels, attributes and other nested blocks
+/// via chained method calls. A call to [`.build()`](BlockBuilder::build) produces the final
+/// `Block`.
+///
+/// ## Example
+///
+/// ```
+/// use hcl_edit::structure::{Attribute, Block, Body};
+/// use hcl_edit::Ident;
+///
+/// let block = Block::builder(Ident::new("resource"))
+///     .labels(["aws_s3_bucket", "mybucket"])
+///     .attribute(Attribute::new(Ident::new("name"), "mybucket"))
+///     .block(
+///         Block::builder(Ident::new("logging"))
+///             .attribute(Attribute::new(Ident::new("target_bucket"), "mylogsbucket"))
+///     )
+///     .build();
+/// ```
+#[derive(Debug)]
+pub struct BlockBuilder {
+    ident: Decorated<Ident>,
+    labels: Vec<BlockLabel>,
+    body: Body,
+}
+
+impl BlockBuilder {
+    fn new(ident: Decorated<Ident>) -> BlockBuilder {
+        BlockBuilder {
+            ident,
+            labels: Vec::new(),
+            body: Body::new(),
+        }
+    }
+
+    /// Adds a `BlockLabel`.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn label(mut self, label: impl Into<BlockLabel>) -> Self {
+        self.labels.push(label.into());
+        self
+    }
+
+    /// Adds `BlockLabel`s from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn labels<I>(mut self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<BlockLabel>,
+    {
+        self.labels.extend(iter.into_iter().map(Into::into));
+        self
+    }
+
+    /// Adds an `Attribute` to the block body.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn attribute(self, attr: impl Into<Attribute>) -> BlockBuilder {
+        self.structure(attr.into())
+    }
+
+    /// Adds `Attribute`s to the block body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn attributes<I>(self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Attribute>,
+    {
+        self.structures(iter.into_iter().map(Into::into))
+    }
+
+    /// Adds another `Block` to the block body.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn block(self, block: impl Into<Block>) -> BlockBuilder {
+        self.structure(block.into())
+    }
+
+    /// Adds `Block`s to the block body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn blocks<I>(self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Block>,
+    {
+        self.structures(iter.into_iter().map(Into::into))
+    }
+
+    /// Adds a `Structure` to the block body.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn structure(mut self, structures: impl Into<Structure>) -> BlockBuilder {
+        self.body.push(structures.into());
+        self
+    }
+
+    /// Adds `Structure`s to the block body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BlockBuilder`.
+    #[inline]
+    pub fn structures<I>(mut self, iter: I) -> BlockBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Structure>,
+    {
+        self.body.extend(iter);
+        self
+    }
+
+    /// Consumes `self` and builds the [`Block`] from the items added via the builder methods.
+    #[inline]
+    pub fn build(self) -> Block {
+        Block {
+            ident: self.ident,
+            labels: self.labels,
+            body: self.body,
+            decor: Decor::default(),
+            span: None,
+        }
+    }
+}
+
+impl From<BlockBuilder> for Block {
+    #[inline]
+    fn from(builder: BlockBuilder) -> Self {
+        builder.build()
+    }
+}

@@ -107,6 +107,12 @@ impl Body {
         }
     }
 
+    /// Creates a new [`BodyBuilder`] to start building a new `Body`.
+    #[inline]
+    pub fn builder() -> BodyBuilder {
+        BodyBuilder::default()
+    }
+
     /// Returns `true` if the body contains no structures.
     #[inline]
     pub fn is_empty(&self) -> bool {
@@ -528,3 +534,104 @@ impl<'a> IntoIterator for &'a mut Body {
 
 decorate_impl!(Body);
 span_impl!(Body);
+
+/// `BodyBuilder` builds a HCL [`Body`].
+///
+/// The builder allows to build the `Body` by adding attributes and other nested blocks via chained
+/// method calls. A call to [`.build()`](BodyBuilder::build) produces the final `Body`.
+///
+/// ## Example
+///
+/// ```
+/// use hcl_edit::structure::{Attribute, Block, Body};
+/// use hcl_edit::Ident;
+///
+/// let body = Body::builder()
+///     .block(
+///         Block::builder(Ident::new("resource"))
+///             .labels(["aws_s3_bucket", "mybucket"])
+///             .attribute(Attribute::new(Ident::new("name"), "mybucket"))
+///     )
+///     .build();
+/// ```
+#[derive(Debug, Default)]
+pub struct BodyBuilder {
+    body: Body,
+}
+
+impl BodyBuilder {
+    /// Adds an `Attribute` to the body.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    #[inline]
+    pub fn attribute(self, attr: impl Into<Attribute>) -> BodyBuilder {
+        self.structure(attr.into())
+    }
+
+    /// Adds `Attribute`s to the body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    #[inline]
+    pub fn attributes<I>(self, iter: I) -> BodyBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Attribute>,
+    {
+        self.structures(iter.into_iter().map(Into::into))
+    }
+
+    /// Adds a `Block` to the body.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    #[inline]
+    pub fn block(self, block: impl Into<Block>) -> BodyBuilder {
+        self.structure(block.into())
+    }
+
+    /// Adds `Block`s to the body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    #[inline]
+    pub fn blocks<I>(self, iter: I) -> BodyBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Block>,
+    {
+        self.structures(iter.into_iter().map(Into::into))
+    }
+
+    /// Adds a `Structure` to the body.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    #[inline]
+    pub fn structure(mut self, structures: impl Into<Structure>) -> BodyBuilder {
+        self.body.push(structures.into());
+        self
+    }
+
+    /// Adds `Structure`s to the body from an iterator.
+    ///
+    /// Consumes `self` and returns a new `BodyBuilder`.
+    #[inline]
+    pub fn structures<I>(mut self, iter: I) -> BodyBuilder
+    where
+        I: IntoIterator,
+        I::Item: Into<Structure>,
+    {
+        self.body.extend(iter);
+        self
+    }
+
+    /// Consumes `self` and builds the [`Body`] from the structures added via the builder methods.
+    #[inline]
+    pub fn build(self) -> Body {
+        self.body
+    }
+}
+
+impl From<BodyBuilder> for Body {
+    #[inline]
+    fn from(builder: BodyBuilder) -> Self {
+        builder.build()
+    }
+}

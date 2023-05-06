@@ -5,10 +5,10 @@ mod block;
 mod body;
 
 pub use self::attribute::Attribute;
-pub use self::block::{Block, BlockLabel};
+pub use self::block::{Block, BlockBuilder, BlockLabel};
 pub use self::body::{
-    Attributes, AttributesMut, Blocks, BlocksMut, Body, IntoAttributes, IntoBlocks, IntoIter, Iter,
-    IterMut,
+    Attributes, AttributesMut, Blocks, BlocksMut, Body, BodyBuilder, IntoAttributes, IntoBlocks,
+    IntoIter, Iter, IterMut,
 };
 use crate::repr::{Decor, Decorate, SetSpan, Span};
 use std::ops::Range;
