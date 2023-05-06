@@ -23,6 +23,17 @@ fn invalid_structures() {
               |
               = invalid structure; expected `{`, `=`, `"` or identifier"#}
     );
+
+    assert_error!(
+        "foo = 1\nfoo = 2",
+        indoc! {r#"
+             --> HCL parse error in line 2, column 1
+              |
+            2 | foo = 2
+              | ^---
+              |
+              = invalid attribute; expected unique attribute key; found redefined attribute"#}
+    );
 }
 
 #[test]

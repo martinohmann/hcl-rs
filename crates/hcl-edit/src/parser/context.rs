@@ -1,4 +1,8 @@
-use super::{error::ParseError, string::ident, IResult, Input};
+use super::{
+    error::ParseError,
+    string::{ident, str_ident},
+    IResult, Input,
+};
 use crate::{repr::Decorated, Ident};
 use std::fmt;
 use winnow::{combinator::cut_err, stream::AsChar, Parser};
@@ -44,6 +48,12 @@ pub(super) fn cut_tag<'a>(
 
 pub(super) fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
     cut_err(ident)
+        .context(Context::Expected(Expected::Description("identifier")))
+        .parse_next(input)
+}
+
+pub(super) fn cut_str_ident(input: Input) -> IResult<Input, &str> {
+    cut_err(str_ident)
         .context(Context::Expected(Expected::Description("identifier")))
         .parse_next(input)
 }

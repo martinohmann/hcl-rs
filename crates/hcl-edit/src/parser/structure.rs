@@ -1,5 +1,5 @@
 use super::{
-    context::{cut_char, cut_ident, Context, Expected},
+    context::{cut_char, cut_str_ident, Context, Expected},
     expr::expr,
     repr::{decorated, prefix_decorated, suffix_decorated},
     state::BodyParseState,
@@ -12,6 +12,7 @@ use crate::{
     repr::{Decorate, Decorated, SetSpan},
     structure::{Attribute, Block, BlockLabel, Body, Structure},
 };
+use hcl_primitives::Ident;
 use std::cell::RefCell;
 use winnow::{
     ascii::line_ending,
@@ -51,22 +52,37 @@ pub(super) fn body(input: Input) -> IResult<Input, Body> {
 }
 
 fn structure<'i, 's>(
-    state: &'s RefCell<BodyParseState>,
+    state: &'s RefCell<BodyParseState<'i>>,
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
         let start = input.location();
+        let initial_input = input.clone();
         let (input, _) = peek(one_of(is_id_start)).parse_next(input)?;
-        let (input, ident) = suffix_decorated(cut_ident, sp).parse_next(input)?;
+        let (input, ident) = cut_str_ident.parse_next(input)?;
+        let (input, suffix) = raw_string(sp).parse_next(input)?;
         let (input, ch) = peek(any).parse_next(input)?;
 
         let (input, mut structure) = match ch {
             b'=' => {
+                if state.borrow_mut().is_redefined(ident) {
+                    return cut_err(fail)
+                        .context(Context::Expression("attribute"))
+                        .context(Context::Expected(Expected::Description(
+                            "unique attribute key; found redefined attribute",
+                        )))
+                        .parse_next(initial_input);
+                }
+
                 let (input, expr) = attribute_expr(input)?;
+                let mut ident = Decorated::new(Ident::new_unchecked(ident));
+                ident.decor_mut().set_suffix(suffix);
                 let attr = Attribute::new(ident, expr);
                 (input, Structure::Attribute(attr))
             }
             b'{' => {
                 let (input, body) = block_body(input)?;
+                let mut ident = Decorated::new(Ident::new_unchecked(ident));
+                ident.decor_mut().set_suffix(suffix);
                 let mut block = Block::new(ident);
                 block.body = body;
                 (input, Structure::Block(block))
@@ -74,6 +90,8 @@ fn structure<'i, 's>(
             ch if ch == b'"' || is_id_start(ch) => {
                 let (input, labels) = block_labels(input)?;
                 let (input, body) = block_body(input)?;
+                let mut ident = Decorated::new(Ident::new_unchecked(ident));
+                ident.decor_mut().set_suffix(suffix);
                 let mut block = Block::new(ident);
                 block.body = body;
                 block.labels = labels;
