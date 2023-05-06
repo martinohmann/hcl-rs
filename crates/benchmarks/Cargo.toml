@@ -1,6 +1,6 @@
 [package]
 name = "benchmarks"
-version = "0.0.18"
+version = "0.0.19"
 publish = false
 edition = "2021"
 
