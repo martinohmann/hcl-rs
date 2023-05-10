@@ -143,6 +143,18 @@ impl From<Decorated<String>> for BlockLabel {
     }
 }
 
+impl PartialEq<str> for BlockLabel {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<BlockLabel> for str {
+    fn eq(&self, other: &BlockLabel) -> bool {
+        self == other.as_str()
+    }
+}
+
 impl AsRef<str> for BlockLabel {
     fn as_ref(&self) -> &str {
         self.as_str()
@@ -300,46 +312,5 @@ impl From<BlockBuilder> for Block {
     #[inline]
     fn from(builder: BlockBuilder) -> Self {
         builder.build()
-    }
-}
-
-/// A trait that can be implemented to control matching behaviour for blocks having a certain set
-/// of labels.
-pub trait BlockLabelSelector: Sized {
-    /// Returns `true` if the selector matches the provided slice of labels.
-    fn matches_labels(self, labels: &[BlockLabel]) -> bool;
-}
-
-impl<'a> BlockLabelSelector for &'a BlockLabel {
-    fn matches_labels(self, labels: &[BlockLabel]) -> bool {
-        self.as_str().matches_labels(labels)
-    }
-}
-
-impl<'a> BlockLabelSelector for &'a str {
-    fn matches_labels(self, labels: &[BlockLabel]) -> bool {
-        labels.first().map_or(false, |first| self == first.as_str())
-    }
-}
-
-impl<'a, T> BlockLabelSelector for &'a [T]
-where
-    T: AsRef<str>,
-{
-    fn matches_labels(self, labels: &[BlockLabel]) -> bool {
-        self.len() <= labels.len()
-            && self
-                .iter()
-                .zip(labels)
-                .all(|(selector, label)| selector.as_ref() == label.as_str())
-    }
-}
-
-impl<F> BlockLabelSelector for F
-where
-    F: FnMut(&[BlockLabel]) -> bool,
-{
-    fn matches_labels(mut self, labels: &[BlockLabel]) -> bool {
-        (self)(labels)
     }
 }

@@ -1,7 +1,8 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::parser;
 use crate::repr::{Decor, Decorate, SetSpan, Span};
-use crate::structure::{Attribute, Block, BlockLabelSelector, Structure};
+use crate::structure::labels::Matcher;
+use crate::structure::{Attribute, Block, Structure};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
@@ -290,12 +291,13 @@ impl Body {
     }
 
     /// Returns an iterator visiting all `Block`s with the given identifier matching the provided
-    /// label selector. The iterator element type is `&'a Block`.
+    /// label pattern. The iterator element type is `&'a Block`.
     ///
     /// # Example
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use hcl_edit::structure::labels::Matcher;
     /// use hcl_edit::structure::Body;
     ///
     /// let input = r#"
@@ -309,7 +311,10 @@ impl Body {
     ///
     /// let body: Body = input.parse()?;
     ///
-    /// let resources: Body = body.get_labeled_blocks("resource", "aws_s3_bucket").cloned().collect();
+    /// let resources: Body = body
+    ///     .get_labeled_blocks("resource", "aws_s3_bucket".into_prefix_matcher())
+    ///     .cloned()
+    ///     .collect();
     ///
     /// let expected = r#"
     /// resource "aws_s3_bucket" "bucket1" {}
@@ -321,28 +326,29 @@ impl Body {
     /// #   Ok(())
     /// # }
     /// ```
-    pub fn get_labeled_blocks<'a, S>(&'a self, ident: &'a str, selector: S) -> Blocks<'a>
+    pub fn get_labeled_blocks<'a, P>(&'a self, ident: &'a str, predicate: P) -> Blocks<'a>
     where
-        S: BlockLabelSelector + Copy + 'a,
+        P: Matcher + Copy + 'a,
     {
         Box::new(
             self.structures
                 .iter()
                 .filter_map(Structure::as_block)
                 .filter(move |block| {
-                    block.ident.as_str() == ident && selector.matches_labels(&block.labels)
+                    block.ident.as_str() == ident && predicate.matches_labels(&block.labels)
                 }),
         )
     }
 
     /// Returns an iterator visiting all `Block`s with the given identifier matching the provided
-    /// label selector. The iterator element type is `&'a mut Block`.
+    /// label pattern. The iterator element type is `&'a mut Block`.
     ///
     /// # Example
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use hcl_edit::expr::{Traversal, TraversalOperator};
+    /// use hcl_edit::structure::labels::Matcher;
     /// use hcl_edit::structure::{Attribute, Body};
     /// use hcl_edit::Ident;
     ///
@@ -357,7 +363,7 @@ impl Body {
     ///
     /// let mut body: Body = input.parse()?;
     ///
-    /// for block in body.get_labeled_blocks_mut("resource", "aws_s3_bucket") {
+    /// for block in body.get_labeled_blocks_mut("resource", "aws_s3_bucket".into_prefix_matcher()) {
     ///     let operators = vec![TraversalOperator::GetAttr(Ident::new("name").into()).into()];
     ///     let value = Traversal::new(Ident::new("var"), operators);
     ///     block.body.push(Attribute::new(Ident::new("name"), value));
@@ -376,16 +382,20 @@ impl Body {
     /// #   Ok(())
     /// # }
     /// ```
-    pub fn get_labeled_blocks_mut<'a, S>(&'a mut self, ident: &'a str, selector: S) -> BlocksMut<'a>
+    pub fn get_labeled_blocks_mut<'a, P>(
+        &'a mut self,
+        ident: &'a str,
+        predicate: P,
+    ) -> BlocksMut<'a>
     where
-        S: BlockLabelSelector + Copy + 'a,
+        P: Matcher + Copy + 'a,
     {
         Box::new(
             self.structures
                 .iter_mut()
                 .filter_map(Structure::as_block_mut)
                 .filter(move |block| {
-                    block.ident.as_str() == ident && selector.matches_labels(&block.labels)
+                    block.ident.as_str() == ident && predicate.matches_labels(&block.labels)
                 }),
         )
     }
@@ -514,11 +524,12 @@ impl Body {
         removed
     }
 
-    /// Removes and returns all blocks with given `ident` matching the provided label selector.
+    /// Removes and returns all blocks with given `ident` matching the provided label pattern.
     ///
     /// # Example
     ///
     /// ```
+    /// use hcl_edit::structure::labels::Matcher;
     /// use hcl_edit::structure::{Attribute, Block, Body};
     /// use hcl_edit::Ident;
     ///
@@ -539,7 +550,7 @@ impl Body {
     ///     )
     ///     .build();
     ///
-    /// let resources = body.remove_labeled_blocks("resource", "aws_s3_bucket");
+    /// let resources = body.remove_labeled_blocks("resource", "aws_s3_bucket".into_prefix_matcher());
     ///
     /// assert_eq!(
     ///     resources,
@@ -565,13 +576,13 @@ impl Body {
     ///         .build()
     /// );
     /// ```
-    pub fn remove_labeled_blocks<S>(&mut self, ident: &str, selector: S) -> Vec<Block>
+    pub fn remove_labeled_blocks<P>(&mut self, ident: &str, predicate: P) -> Vec<Block>
     where
-        S: BlockLabelSelector + Copy,
+        P: Matcher + Copy,
     {
         let mut removed = Vec::new();
 
-        while let Some(block) = self.remove_labeled_block(ident, selector) {
+        while let Some(block) = self.remove_labeled_block(ident, predicate) {
             removed.push(block);
         }
 
@@ -597,13 +608,13 @@ impl Body {
         .and_then(Structure::into_block)
     }
 
-    fn remove_labeled_block<S>(&mut self, ident: &str, selector: S) -> Option<Block>
+    fn remove_labeled_block<P>(&mut self, ident: &str, predicate: P) -> Option<Block>
     where
-        S: BlockLabelSelector + Copy,
+        P: Matcher + Copy,
     {
         self.remove_first(|structure| {
             structure.as_block().map_or(false, |block| {
-                block.ident.as_str() == ident && selector.matches_labels(&block.labels)
+                block.ident.as_str() == ident && predicate.matches_labels(&block.labels)
             })
         })
         .and_then(Structure::into_block)

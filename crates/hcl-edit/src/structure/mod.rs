@@ -3,9 +3,10 @@
 mod attribute;
 mod block;
 mod body;
+pub mod labels;
 
 pub use self::attribute::Attribute;
-pub use self::block::{Block, BlockBuilder, BlockLabel, BlockLabelSelector};
+pub use self::block::{Block, BlockBuilder, BlockLabel};
 pub use self::body::{
     Attributes, AttributesMut, Blocks, BlocksMut, Body, BodyBuilder, IntoAttributes, IntoBlocks,
     IntoIter, Iter, IterMut,
