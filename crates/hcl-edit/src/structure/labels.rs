@@ -189,3 +189,113 @@ where
         self[..].is_exact_match(labels)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! label {
+        ($expr:expr) => {
+            BlockLabel::from($expr)
+        };
+    }
+
+    macro_rules! labels {
+        ($($label:expr),* $(,)?) => {
+            &[$(label!($label),)*]
+        };
+    }
+
+    #[test]
+    fn unlabeled() {
+        assert!(UnlabeledMatcher.matches_labels(labels!()));
+        assert!(!UnlabeledMatcher.matches_labels(labels!("label")));
+    }
+
+    #[test]
+    fn str() {
+        let (foo, bar) = ("foo", "bar");
+        assert!(!foo.matches_labels(&[]));
+        assert!(foo.matches_labels(labels!("foo")));
+        assert!(!foo.matches_labels(labels!("foo", "bar")));
+
+        assert!(foo
+            .into_prefix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+        assert!(!foo
+            .into_suffix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+
+        assert!(!bar
+            .into_prefix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+        assert!(bar
+            .into_suffix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+    }
+
+    #[test]
+    fn block_label() {
+        let (foo, bar) = (label!("foo"), label!("bar"));
+        assert!(!foo.matches_labels(labels!()));
+        assert!(foo.matches_labels(labels!("foo")));
+        assert!(!foo.matches_labels(labels!("foo", "bar")));
+
+        assert!(foo
+            .into_prefix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+        assert!(!foo
+            .into_suffix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+
+        assert!(!bar
+            .into_prefix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+        assert!(bar
+            .into_suffix_matcher()
+            .matches_labels(labels!("foo", "bar")));
+    }
+
+    #[test]
+    fn slice() {
+        let foo_bar = ["foo", "bar"];
+        assert!(!foo_bar.matches_labels(labels!()));
+        assert!(!foo_bar.matches_labels(labels!("foo")));
+        assert!(foo_bar.matches_labels(labels!("foo", "bar")));
+        assert!(!foo_bar.matches_labels(labels!("foo", "bar", "baz")));
+
+        let foo_bar = labels!("foo", "bar");
+        assert!(!foo_bar.matches_labels(labels!()));
+        assert!(!foo_bar.matches_labels(labels!("foo")));
+        assert!(foo_bar.matches_labels(labels!("foo", "bar")));
+        assert!(!foo_bar.matches_labels(labels!("foo", "bar", "baz")));
+
+        assert!(foo_bar
+            .into_prefix_matcher()
+            .matches_labels(labels!("foo", "bar", "baz")));
+        assert!(!labels!("foo", "bar", "baz")
+            .into_prefix_matcher()
+            .matches_labels(&[label!("foo"), label!("bar")]));
+
+        assert!(labels!("bar", "baz")
+            .into_suffix_matcher()
+            .matches_labels(labels!("foo", "bar", "baz")));
+        assert!(!labels!("foo", "bar", "baz")
+            .into_suffix_matcher()
+            .matches_labels(labels!("bar", "baz")));
+    }
+
+    #[test]
+    fn func() {
+        fn f(labels: &[BlockLabel]) -> bool {
+            labels.iter().any(|label| label.starts_with("f"))
+        }
+
+        assert!(!f.matches_labels(labels!()));
+        assert!(f.matches_labels(labels!("foo")));
+        assert!(!f.matches_labels(labels!("bar")));
+        assert!(f.matches_labels(labels!("foo", "bar")));
+        assert!(f.matches_labels(labels!("bar", "foo")));
+        assert!(!f.matches_labels(labels!("bar", "baz")));
+    }
+}
