@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.2...hcl-edit-v0.5.3) (2023-05-11)
+
+
+### Bug Fixes
+
+* **deps:** unpin winnow version ([ba4051a](https://github.com/martinohmann/hcl-rs/commit/ba4051aff419c19a2b7506ec823ff0f26ed291ad))
+
 ## [0.5.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.1...hcl-edit-v0.5.2) (2023-05-06)
 
 
