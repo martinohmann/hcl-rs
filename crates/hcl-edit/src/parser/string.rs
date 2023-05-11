@@ -7,13 +7,10 @@ use super::{
 use crate::{repr::Decorated, Ident, RawString};
 use std::borrow::Cow;
 use winnow::{
-    branch::alt,
-    bytes::{any, one_of, tag, take_while0},
-    combinator::{cut_err, fail, not, opt, repeat1, success},
+    combinator::{alt, cut_err, delimited, fail, not, opt, preceded, repeat, success},
     dispatch,
-    sequence::{delimited, preceded},
     stream::AsChar,
-    token::take_while,
+    token::{any, one_of, tag, take_while},
     Parser,
 };
 
@@ -80,11 +77,14 @@ pub(super) fn literal_until<'a, F, T>(
 where
     F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
 {
-    void(repeat1(alt((
-        tag("$${"),
-        tag("%%{"),
-        preceded(not(literal_end), any).recognize(),
-    ))))
+    void(repeat(
+        1..,
+        alt((
+            tag("$${"),
+            tag("%%{"),
+            preceded(not(literal_end), any).recognize(),
+        )),
+    ))
     .recognize()
     .try_map(std::str::from_utf8)
 }
@@ -151,7 +151,7 @@ pub(super) fn ident(input: Input) -> IResult<Input, Decorated<Ident>> {
 }
 
 pub(super) fn str_ident(input: Input) -> IResult<Input, &str> {
-    (one_of(is_id_start), take_while0(is_id_continue))
+    (one_of(is_id_start), take_while(0.., is_id_continue))
         .recognize()
         .map(|s: &[u8]| unsafe {
             from_utf8_unchecked(s, "`is_id_start` and `is_id_continue` filter out non-utf8")

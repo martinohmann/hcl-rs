@@ -17,9 +17,7 @@ use crate::{
 };
 use winnow::{
     ascii::{line_ending, space0},
-    branch::alt,
-    combinator::{opt, repeat0},
-    sequence::{delimited, preceded, separated_pair, terminated},
+    combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated},
     Parser,
 };
 
@@ -83,11 +81,14 @@ fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseErro
 where
     P: Parser<Input<'a>, String, ParseError<Input<'a>>>,
 {
-    repeat0(spanned(alt((
-        literal.map(|s| Element::Literal(Spanned::new(s))),
-        interpolation.map(Element::Interpolation),
-        directive.map(Element::Directive),
-    ))))
+    repeat(
+        0..,
+        spanned(alt((
+            literal.map(|s| Element::Literal(Spanned::new(s))),
+            interpolation.map(Element::Interpolation),
+            directive.map(Element::Directive),
+        ))),
+    )
 }
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {

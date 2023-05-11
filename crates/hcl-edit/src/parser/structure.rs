@@ -16,30 +16,31 @@ use hcl_primitives::Ident;
 use std::cell::RefCell;
 use winnow::{
     ascii::line_ending,
-    branch::alt,
-    bytes::{any, one_of},
-    combinator::{cut_err, eof, fail, opt, peek, repeat0},
-    prelude::*,
-    sequence::{delimited, preceded, terminated},
+    combinator::{alt, cut_err, delimited, eof, fail, opt, peek, preceded, repeat, terminated},
     stream::Location,
+    token::{any, one_of},
+    Parser,
 };
 
 pub(super) fn body(input: Input) -> IResult<Input, Body> {
     let state = RefCell::new(BodyParseState::default());
 
     let (input, (span, suffix)) = (
-        void(repeat0(terminated(
-            (
-                ws.span().map(|span| state.borrow_mut().on_ws(span)),
-                structure(&state),
-                (sp, opt(line_comment))
-                    .span()
-                    .map(|span| state.borrow_mut().on_ws(span)),
+        void(repeat(
+            0..,
+            terminated(
+                (
+                    ws.span().map(|span| state.borrow_mut().on_ws(span)),
+                    structure(&state),
+                    (sp, opt(line_comment))
+                        .span()
+                        .map(|span| state.borrow_mut().on_ws(span)),
+                ),
+                cut_err(alt((line_ending, eof)).map(|_| state.borrow_mut().on_line_ending()))
+                    .context(Context::Expected(Expected::Description("newline")))
+                    .context(Context::Expected(Expected::Description("eof"))),
             ),
-            cut_err(alt((line_ending, eof)).map(|_| state.borrow_mut().on_line_ending()))
-                .context(Context::Expected(Expected::Description("newline")))
-                .context(Context::Expected(Expected::Description("eof"))),
-        )))
+        ))
         .span(),
         raw_string(ws),
     )
@@ -56,7 +57,7 @@ fn structure<'i, 's>(
 ) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
     move |input: Input<'i>| {
         let start = input.location();
-        let initial_input = input.clone();
+        let initial_input = input;
         let (input, _) = peek(one_of(is_id_start)).parse_next(input)?;
         let (input, ident) = cut_str_ident.parse_next(input)?;
         let (input, suffix) = raw_string(sp).parse_next(input)?;
@@ -124,7 +125,7 @@ fn attribute_expr(input: Input) -> IResult<Input, Expression> {
 }
 
 fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
-    repeat0(suffix_decorated(block_label, sp)).parse_next(input)
+    repeat(0.., suffix_decorated(block_label, sp)).parse_next(input)
 }
 
 fn block_label(input: Input) -> IResult<Input, BlockLabel> {
