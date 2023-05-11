@@ -22,12 +22,12 @@ use crate::{
 use std::cell::RefCell;
 use winnow::{
     ascii::{crlf, dec_uint, line_ending, newline, space0},
-    branch::alt,
-    bytes::{any, none_of, one_of, take},
-    combinator::{cut_err, fail, not, opt, peek, repeat1, success},
+    combinator::{
+        alt, cut_err, delimited, fail, not, opt, peek, preceded, repeat, separated0, separated1,
+        separated_pair, success, terminated,
+    },
     dispatch,
-    multi::{separated0, separated1},
-    sequence::{delimited, preceded, separated_pair, terminated},
+    token::{any, none_of, one_of, take},
     Parser,
 };
 
@@ -181,9 +181,12 @@ fn traversal<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
-        repeat1(prefix_decorated(sp, traversal_operator.map(Decorated::new)))
-            .map(|operators| state.borrow_mut().on_traversal(operators))
-            .parse_next(input)
+        repeat(
+            1..,
+            prefix_decorated(sp, traversal_operator.map(Decorated::new)),
+        )
+        .map(|operators| state.borrow_mut().on_traversal(operators))
+        .parse_next(input)
     }
 }
 

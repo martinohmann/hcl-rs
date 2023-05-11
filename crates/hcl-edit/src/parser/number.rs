@@ -7,10 +7,8 @@ use crate::Number;
 use std::str::FromStr;
 use winnow::{
     ascii::digit1,
-    branch::alt,
-    bytes::one_of,
-    combinator::{cut_err, opt},
-    sequence::{preceded, terminated},
+    combinator::{alt, cut_err, opt, preceded, terminated},
+    token::one_of,
     Parser,
 };
 
