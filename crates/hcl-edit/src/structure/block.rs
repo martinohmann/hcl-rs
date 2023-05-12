@@ -45,6 +45,12 @@ impl Block {
         BlockBuilder::new(ident.into())
     }
 
+    /// Returns `true` if the block has labels.
+    #[inline]
+    pub fn is_labeled(&self) -> bool {
+        !self.labels.is_empty()
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.ident.decor_mut().despan(input);
