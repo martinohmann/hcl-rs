@@ -167,7 +167,7 @@ impl Body {
         self.structures
             .iter()
             .filter_map(Structure::as_attribute)
-            .find(|attr| attr.key.as_str() == key)
+            .find(|attr| attr.has_key(key))
     }
 
     /// Returns a mutable reference to the `Attribute` with given key if it exists, otherwise
@@ -198,7 +198,7 @@ impl Body {
         self.structures
             .iter_mut()
             .filter_map(Structure::as_attribute_mut)
-            .find(|attr| attr.key.as_str() == key)
+            .find(|attr| attr.has_key(key))
     }
 
     /// Returns an iterator visiting all `Block`s with the given identifier. The iterator element
@@ -357,7 +357,7 @@ impl Body {
             .position(|structure| {
                 structure
                     .as_attribute()
-                    .map_or(false, |attr| attr.key.as_str() == key)
+                    .map_or(false, |attr| attr.has_key(key))
             })
             .and_then(|index| self.remove(index).into_attribute())
     }
