@@ -39,6 +39,7 @@ pub trait Matcher: Sized {
 
 /// A trait that can be implemented to control matching behaviour for blocks having a certain set
 /// of labels.
+#[allow(clippy::wrong_self_convention)]
 pub trait Pattern: Sized {
     /// Returns `true` if the pattern matches the prefix of the `labels` slice.
     fn is_prefix_of(self, labels: &[BlockLabel]) -> bool;
@@ -146,30 +147,20 @@ where
     T: AsRef<str>,
 {
     fn is_prefix_of(self, labels: &[BlockLabel]) -> bool {
-        if self.len() > labels.len() {
-            false
-        } else {
-            self.iter().zip(labels).all(|(a, b)| a.as_ref() == b)
-        }
+        self.len() <= labels.len() && self.iter().zip(labels).all(|(a, b)| a.as_ref() == b)
     }
 
     fn is_suffix_of(self, labels: &[BlockLabel]) -> bool {
-        if self.len() > labels.len() {
-            false
-        } else {
-            self.iter()
+        self.len() <= labels.len()
+            && self
+                .iter()
                 .rev()
                 .zip(labels.iter().rev())
                 .all(|(a, b)| a.as_ref() == b)
-        }
     }
 
     fn is_exact_match(self, labels: &[BlockLabel]) -> bool {
-        if self.len() != labels.len() {
-            false
-        } else {
-            self.iter().zip(labels).all(|(a, b)| a.as_ref() == b)
-        }
+        self.len() == labels.len() && self.iter().zip(labels).all(|(a, b)| a.as_ref() == b)
     }
 }
 
