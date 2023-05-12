@@ -145,6 +145,40 @@ impl Body {
         self.structures.get_mut(index)
     }
 
+    /// Returns `true` if the body contains an attribute with given key.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let body = Body::from_iter([Attribute::new(Ident::new("foo"), "bar")]);
+    /// assert!(body.has_attribute("foo"));
+    /// assert!(!body.has_attribute("bar"));
+    /// ```
+    #[inline]
+    pub fn has_attribute(&self, key: &str) -> bool {
+        self.get_attribute(key).is_some()
+    }
+
+    /// Returns `true` if the body contains blocks with given identifier.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Block, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let body = Body::from_iter([Block::new(Ident::new("foo"))]);
+    /// assert!(body.has_blocks("foo"));
+    /// assert!(!body.has_blocks("bar"));
+    /// ```
+    #[inline]
+    pub fn has_blocks(&self, ident: &str) -> bool {
+        self.get_blocks(ident).next().is_some()
+    }
+
     /// Returns a reference to the `Attribute` with given key if it exists, otherwise `None`.
     ///
     /// # Example
