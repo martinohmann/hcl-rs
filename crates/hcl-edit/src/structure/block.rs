@@ -51,6 +51,22 @@ impl Block {
         !self.labels.is_empty()
     }
 
+    /// Returns `true` if the block has the given identifier.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::{structure::Block, Ident};
+    ///
+    /// let block = Block::new(Ident::new("foo"));
+    /// assert!(block.has_ident("foo"));
+    /// assert!(!block.has_ident("bar"));
+    /// ```
+    #[inline]
+    pub fn has_ident(&self, ident: &str) -> bool {
+        self.ident.as_str() == ident
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.ident.decor_mut().despan(input);

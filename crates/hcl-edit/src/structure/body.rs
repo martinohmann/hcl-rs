@@ -237,7 +237,7 @@ impl Body {
             self.structures
                 .iter()
                 .filter_map(Structure::as_block)
-                .filter(move |block| block.ident.as_str() == ident),
+                .filter(|block| block.has_ident(ident)),
         )
     }
 
@@ -285,7 +285,7 @@ impl Body {
             self.structures
                 .iter_mut()
                 .filter_map(Structure::as_block_mut)
-                .filter(move |block| block.ident.as_str() == ident),
+                .filter(|block| block.has_ident(ident)),
         )
     }
 
@@ -421,7 +421,7 @@ impl Body {
             .position(|structure| {
                 structure
                     .as_block()
-                    .map_or(false, |block| block.ident.as_str() == ident)
+                    .map_or(false, |block| block.has_ident(ident))
             })
             .and_then(|index| self.remove(index).into_block())
     }
