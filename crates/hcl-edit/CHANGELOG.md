@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.3...hcl-edit-v0.5.4) (2023-05-15)
+
+
+### Features
+
+* **structure:** add `Attribute::has_key` ([930a511](https://github.com/martinohmann/hcl-rs/commit/930a5112eab39363abc84d6a6bf0c5b246917641))
+* **structure:** add `Block::has_ident` ([9799e4e](https://github.com/martinohmann/hcl-rs/commit/9799e4eba19fe114507926a64a1833f5de0997df))
+* **structure:** add `Block::is_labeled` ([58f4cf6](https://github.com/martinohmann/hcl-rs/commit/58f4cf6e45af7f1b1d61c34ecbda289ef5a68e96))
+* **structure:** add `Body::has_{attribute,blocks}` ([8af4b19](https://github.com/martinohmann/hcl-rs/commit/8af4b193ff11aa80f2b065ab5a1cea5f3946bf1a))
+
 ## [0.5.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.2...hcl-edit-v0.5.3) (2023-05-11)
 
 
