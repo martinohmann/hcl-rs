@@ -46,6 +46,20 @@ impl Block {
     }
 
     /// Returns `true` if the block has labels.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::{structure::Block, Ident};
+    ///
+    /// let block = Block::new(Ident::new("foo"));
+    /// assert!(!block.is_labeled());
+    ///
+    /// let labeled_block = Block::builder(Ident::new("foo"))
+    ///     .label("bar")
+    ///     .build();
+    /// assert!(labeled_block.is_labeled());
+    /// ```
     #[inline]
     pub fn is_labeled(&self) -> bool {
         !self.labels.is_empty()
