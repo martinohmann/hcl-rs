@@ -1,7 +1,7 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::parser;
 use crate::repr::{Decor, Decorate, SetSpan, Span};
-use crate::structure::{Attribute, Block, Structure};
+use crate::structure::{Attribute, AttributeMut, Block, Structure, StructureMut};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
@@ -29,7 +29,7 @@ pub type Iter<'a> = Box<dyn Iterator<Item = &'a Structure> + 'a>;
 /// documentation for more.
 ///
 /// [`iter_mut`]: Body::iter_mut
-pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Structure> + 'a>;
+pub type IterMut<'a> = Box<dyn Iterator<Item = StructureMut<'a>> + 'a>;
 
 /// An owning iterator over the `Attribute`s within a `Body`.
 ///
@@ -53,7 +53,7 @@ pub type Attributes<'a> = Box<dyn Iterator<Item = &'a Attribute> + 'a>;
 /// documentation for more.
 ///
 /// [`attributes_mut`]: Body::attributes_mut
-pub type AttributesMut<'a> = Box<dyn Iterator<Item = &'a mut Attribute> + 'a>;
+pub type AttributesMut<'a> = Box<dyn Iterator<Item = AttributeMut<'a>> + 'a>;
 
 /// An owning iterator over the `Block`s within a `Body`.
 ///
@@ -222,17 +222,18 @@ impl Body {
     ///
     /// body.push(foo.clone());
     ///
-    /// if let Some(attr) = body.get_attribute_mut("foo") {
-    ///     attr.value = Expression::from("baz");
+    /// if let Some(mut attr) = body.get_attribute_mut("foo") {
+    ///     *attr.value_mut() = Expression::from("baz");
     /// }
     ///
     /// assert_eq!(body.get_attribute("foo"), Some(&Attribute::new(Ident::new("foo"), "baz")));
     /// ```
-    pub fn get_attribute_mut(&mut self, key: &str) -> Option<&mut Attribute> {
+    pub fn get_attribute_mut(&mut self, key: &str) -> Option<AttributeMut<'_>> {
         self.structures
             .iter_mut()
             .filter_map(Structure::as_attribute_mut)
             .find(|attr| attr.has_key(key))
+            .map(AttributeMut::new)
     }
 
     /// Returns an iterator visiting all `Block`s with the given identifier. The iterator element
@@ -326,22 +327,109 @@ impl Body {
     /// Inserts a structure at position `index` within the body, shifting all structures after it
     /// to the right.
     ///
+    /// If it is attempted to insert an `Attribute` which already exists in the body, it is ignored
+    /// and not inserted. For a fallible variant of this function see [`Body::try_insert`].
+    ///
     /// # Panics
     ///
     /// Panics if `index > len`.
     #[inline]
     pub fn insert(&mut self, index: usize, structure: impl Into<Structure>) {
-        self.structures.insert(index, structure.into());
+        _ = self.try_insert(index, structure);
+    }
+
+    /// Inserts a structure at position `index` within the body, shifting all structures after it
+    /// to the right.
+    ///
+    /// # Errors
+    ///
+    /// If it is attempted to insert an `Attribute` which already exists in the body, it is not
+    /// inserted and returned as the `Result`'s `Err` variant instead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index > len`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::new();
+    ///
+    /// body.push(Attribute::new(Ident::new("foo"), "bar"));
+    /// assert!(body.try_insert(0, Attribute::new(Ident::new("bar"), "baz")).is_ok());
+    /// assert_eq!(body.len(), 2);
+    ///
+    /// let duplicate_attr = Attribute::new(Ident::new("foo"), "baz");
+    ///
+    /// assert_eq!(body.try_insert(0, duplicate_attr.clone()), Err(duplicate_attr));
+    /// ```
+    #[inline]
+    pub fn try_insert(
+        &mut self,
+        index: usize,
+        structure: impl Into<Structure>,
+    ) -> Result<(), Attribute> {
+        match structure.into() {
+            Structure::Attribute(attr) if self.has_attribute(&attr.key) => Err(attr),
+            structure => {
+                self.structures.insert(index, structure);
+                Ok(())
+            }
+        }
     }
 
     /// Appends a structure to the back of the body.
+    ///
+    /// If it is attempted to append an `Attribute` which already exists in the body, it is ignored
+    /// and not appended. For a fallible variant of this function see [`Body::try_push`].
     ///
     /// # Panics
     ///
     /// Panics if the new capacity exceeds `isize::MAX` bytes.
     #[inline]
     pub fn push(&mut self, structure: impl Into<Structure>) {
-        self.structures.push(structure.into());
+        _ = self.try_push(structure);
+    }
+
+    /// Appends a structure to the back of the body.
+    ///
+    /// # Errors
+    ///
+    /// If it is attempted to append an `Attribute` which already exists in the body, it is not
+    /// appended and returned as the `Result`'s `Err` variant instead.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the new capacity exceeds `isize::MAX` bytes.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let mut body = Body::new();
+    ///
+    /// assert!(body.try_push(Attribute::new(Ident::new("foo"), "bar")).is_ok());
+    /// assert!(body.try_push(Attribute::new(Ident::new("bar"), "baz")).is_ok());
+    /// assert_eq!(body.len(), 2);
+    ///
+    /// let duplicate_attr = Attribute::new(Ident::new("foo"), "baz");
+    ///
+    /// assert_eq!(body.try_push(duplicate_attr.clone()), Err(duplicate_attr));
+    /// ```
+    #[inline]
+    pub fn try_push(&mut self, structure: impl Into<Structure>) -> Result<(), Attribute> {
+        match structure.into() {
+            Structure::Attribute(attr) if self.has_attribute(&attr.key) => Err(attr),
+            structure => {
+                self.structures.push(structure);
+                Ok(())
+            }
+        }
     }
 
     /// Removes the last structure from the body and returns it, or [`None`] if it is empty.
@@ -468,10 +556,10 @@ impl Body {
     }
 
     /// An iterator visiting all body structures in insertion order, with mutable references to the
-    /// values. The iterator element type is `&'a mut Structure`.
+    /// values. The iterator element type is `StructureMut<'a>`.
     #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_> {
-        Box::new(self.structures.iter_mut())
+        Box::new(self.structures.iter_mut().map(StructureMut::new))
     }
 
     /// An owning iterator visiting all `Attribute`s within the body in insertion order. The
@@ -493,13 +581,14 @@ impl Body {
     }
 
     /// An iterator visiting all `Attribute`s within the body in insertion order, with mutable
-    /// references to the values. The iterator element type is `&'a mut Attribute`.
+    /// references to the values. The iterator element type is `AttributeMut<'a>`.
     #[inline]
     pub fn attributes_mut(&mut self) -> AttributesMut<'_> {
         Box::new(
             self.structures
                 .iter_mut()
-                .filter_map(Structure::as_attribute_mut),
+                .filter_map(Structure::as_attribute_mut)
+                .map(AttributeMut::new),
         )
     }
 
@@ -562,6 +651,13 @@ impl Body {
         self.len() == 1 && self.get(0).map_or(false, Structure::is_attribute)
     }
 
+    pub(crate) fn from_vec_unchecked(structures: Vec<Structure>) -> Self {
+        Body {
+            structures,
+            ..Default::default()
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         for structure in &mut self.structures {
@@ -593,10 +689,7 @@ impl FromStr for Body {
 
 impl From<Vec<Structure>> for Body {
     fn from(structures: Vec<Structure>) -> Self {
-        Body {
-            structures,
-            ..Default::default()
-        }
+        Body::from_iter(structures)
     }
 }
 
@@ -654,7 +747,7 @@ impl<'a> IntoIterator for &'a Body {
 }
 
 impl<'a> IntoIterator for &'a mut Body {
-    type Item = &'a mut Structure;
+    type Item = StructureMut<'a>;
     type IntoIter = IterMut<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -734,8 +827,8 @@ impl BodyBuilder {
     ///
     /// Consumes `self` and returns a new `BodyBuilder`.
     #[inline]
-    pub fn structure(mut self, structures: impl Into<Structure>) -> BodyBuilder {
-        self.body.push(structures.into());
+    pub fn structure(mut self, structure: impl Into<Structure>) -> BodyBuilder {
+        self.body.push(structure.into());
         self
     }
 
