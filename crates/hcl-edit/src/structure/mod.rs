@@ -37,8 +37,10 @@ impl Structure {
 
     /// If the `Structure` is an `Attribute`, returns it.
     ///
-    /// Otherwise, an [`Err`](core::result::Result::Err) is returns with the same `Structure` that
-    /// was passed in.
+    /// # Errors
+    ///
+    /// An [`Err`](core::result::Result::Err) is returns with the same `Structure` that was passed
+    /// in if it is not an `Attribute`.
     pub fn into_attribute(self) -> Result<Attribute, Structure> {
         match self {
             Structure::Attribute(attr) => Ok(attr),
@@ -64,8 +66,10 @@ impl Structure {
 
     /// If the `Structure` is a `Block`, returns it.
     ///
-    /// Otherwise, an [`Err`](core::result::Result::Err) is returns with the same `Structure` that
-    /// was passed in.
+    /// # Errors
+    ///
+    /// An [`Err`](core::result::Result::Err) is returns with the same `Structure` that was passed
+    /// in if it is not a `Block`.
     pub fn into_block(self) -> Result<Block, Structure> {
         match self {
             Structure::Block(block) => Ok(block),
