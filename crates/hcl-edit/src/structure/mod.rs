@@ -35,11 +35,14 @@ impl Structure {
         self.as_block().is_some()
     }
 
-    /// If the `Structure` is an `Attribute`, returns it, otherwise `None`.
-    pub fn into_attribute(self) -> Option<Attribute> {
+    /// If the `Structure` is an `Attribute`, returns it.
+    ///
+    /// Otherwise, an [`Err`](core::result::Result::Err) is returns with the same `Structure` that
+    /// was passed in.
+    pub fn into_attribute(self) -> Result<Attribute, Structure> {
         match self {
-            Structure::Attribute(attr) => Some(attr),
-            Structure::Block(_) => None,
+            Structure::Attribute(attr) => Ok(attr),
+            Structure::Block(_) => Err(self),
         }
     }
 
@@ -59,11 +62,14 @@ impl Structure {
         }
     }
 
-    /// If the `Structure` is a `Block`, returns it, otherwise `None`.
-    pub fn into_block(self) -> Option<Block> {
+    /// If the `Structure` is a `Block`, returns it.
+    ///
+    /// Otherwise, an [`Err`](core::result::Result::Err) is returns with the same `Structure` that
+    /// was passed in.
+    pub fn into_block(self) -> Result<Block, Structure> {
         match self {
-            Structure::Block(block) => Some(block),
-            Structure::Attribute(_) => None,
+            Structure::Block(block) => Ok(block),
+            Structure::Attribute(_) => Err(self),
         }
     }
 

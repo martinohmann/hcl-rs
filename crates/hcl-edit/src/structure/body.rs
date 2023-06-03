@@ -393,7 +393,7 @@ impl Body {
                     .as_attribute()
                     .map_or(false, |attr| attr.has_key(key))
             })
-            .and_then(|index| self.remove(index).into_attribute())
+            .and_then(|index| self.remove(index).into_attribute().ok())
     }
 
     /// Removes and returns all blocks with given `ident`.
@@ -457,7 +457,7 @@ impl Body {
                     .as_block()
                     .map_or(false, |block| block.has_ident(ident))
             })
-            .and_then(|index| self.remove(index).into_block())
+            .and_then(|index| self.remove(index).into_block().ok())
     }
 
     /// An iterator visiting all body structures in insertion order. The iterator element type is
@@ -481,7 +481,7 @@ impl Body {
         Box::new(
             self.structures
                 .into_iter()
-                .filter_map(Structure::into_attribute),
+                .filter_map(|s| s.into_attribute().ok()),
         )
     }
 
@@ -510,7 +510,7 @@ impl Body {
         Box::new(
             self.structures
                 .into_iter()
-                .filter_map(Structure::into_block),
+                .filter_map(|s| s.into_block().ok()),
         )
     }
 
