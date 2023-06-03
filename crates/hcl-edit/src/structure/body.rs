@@ -758,8 +758,8 @@ impl<'a> IntoIterator for &'a mut Body {
 }
 
 impl Format for Body {
-    fn format_with(&mut self, mut formatter: Formatter) {
-        formatter.visit_body_mut(self);
+    fn format(&mut self, mut fmt: Formatter) {
+        fmt.visit_body_mut(self);
     }
 }
 

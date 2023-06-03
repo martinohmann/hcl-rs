@@ -13,28 +13,28 @@ use std::ops;
 /// A trait for objects which can be formatted.
 pub trait Format {
     /// Formats an object.
-    fn format_with(&mut self, formatter: Formatter);
+    fn format(&mut self, fmt: Formatter);
 
     /// Applies the default format to an object.
-    fn format(&mut self) {
-        self.format_with(Formatter::default());
+    fn default_format(&mut self) {
+        self.format(Formatter::default());
     }
 
     /// Formats an object and returns the modified value.
-    fn formatted_with(mut self, formatter: Formatter) -> Self
+    fn formatted(mut self, fmt: Formatter) -> Self
     where
         Self: Sized,
     {
-        self.format_with(formatter);
+        self.format(fmt);
         self
     }
 
     /// Applies the default format to an object and returns the modified value.
-    fn formatted(mut self) -> Self
+    fn default_formatted(mut self) -> Self
     where
         Self: Sized,
     {
-        self.format();
+        self.default_format();
         self
     }
 }
