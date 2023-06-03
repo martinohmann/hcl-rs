@@ -2,10 +2,10 @@ use super::{Formatter, Indent};
 use crate::{util::dedent, RawString};
 use std::borrow::Cow;
 use winnow::{
+    ascii::{not_line_ending, space1},
     branch::alt,
-    bytes::{take_until0, take_while1},
-    character::{not_line_ending, space1},
-    multi::many0,
+    bytes::{take_until0, take_while},
+    combinator::repeat,
     Parser,
 };
 
@@ -132,7 +132,7 @@ impl<'a> Decor<'a> {
 
         let mut result = Cow::Borrowed("");
 
-        for fragment in self.fragments.iter() {
+        for fragment in &self.fragments {
             let indented = fragment.indent(prefix, skip_first_line);
             skip_first_line = !indented.ends_with('\n');
             result.to_mut().push_str(&indented);
@@ -201,7 +201,7 @@ impl<'a> DecorFormatter<'a> {
         self
     }
 
-    pub(super) fn format(self, formatter: &mut Formatter) {
+    pub(super) fn format(self, fmt: &mut Formatter) {
         let mut decor = Decor::parse(self.raw.get(), self.kind).unwrap_or_default();
 
         decor.remove_insignificant_spaces();
@@ -214,7 +214,7 @@ impl<'a> DecorFormatter<'a> {
             decor.pad(padding);
         }
 
-        let formatted = decor.indent_with(&mut formatter.indent, self.indent_first_line);
+        let formatted = decor.indent_with(&mut fmt.indent, self.indent_first_line);
 
         self.raw.set(formatted);
     }
@@ -262,28 +262,34 @@ where
 }
 
 fn parse_multiline(input: &str) -> Option<Decor> {
-    many0::<_, _, Vec<_>, (), _>(alt((
-        space1.value(DecorFragment::Space),
-        take_while1(is_line_break).map(DecorFragment::LineBreaks),
-        (alt(("#", "//")), not_line_ending)
-            .recognize()
-            .map(DecorFragment::LineComment),
-        ("/*", take_until0("*/"), "*/")
-            .recognize()
-            .map(DecorFragment::InlineComment),
-    )))
+    repeat::<_, _, Vec<_>, (), _>(
+        0..,
+        alt((
+            space1.value(DecorFragment::Space),
+            take_while(1.., is_line_break).map(DecorFragment::LineBreaks),
+            (alt(("#", "//")), not_line_ending)
+                .recognize()
+                .map(DecorFragment::LineComment),
+            ("/*", take_until0("*/"), "*/")
+                .recognize()
+                .map(DecorFragment::InlineComment),
+        )),
+    )
     .parse(input)
     .map(Into::into)
     .ok()
 }
 
 fn parse_inline(input: &str) -> Option<Decor> {
-    many0::<_, _, Vec<_>, (), _>(alt((
-        space1.value(DecorFragment::Space),
-        ("/*", take_until0("*/"), "*/")
-            .recognize()
-            .map(DecorFragment::InlineComment),
-    )))
+    repeat::<_, _, Vec<_>, (), _>(
+        0..,
+        alt((
+            space1.value(DecorFragment::Space),
+            ("/*", take_until0("*/"), "*/")
+                .recognize()
+                .map(DecorFragment::InlineComment),
+        )),
+    )
     .parse(input)
     .map(Into::into)
     .ok()

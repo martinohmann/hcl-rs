@@ -28,8 +28,8 @@
 //!     namespace: Decorated<Ident>,
 //! }
 //!
-//! impl<'ast> VisitMut<'ast> for VariableNamespacer {
-//!     fn visit_expr_mut(&mut self, expr: &'ast mut Expression) {
+//! impl VisitMut for VariableNamespacer {
+//!     fn visit_expr_mut(&mut self, expr: & mut Expression) {
 //!         if let Expression::Variable(var) = expr {
 //!             // Remove the decor and apply it to the new expression.
 //!             let decor = std::mem::take(var.decor_mut());
@@ -57,7 +57,7 @@
 //! let mut body = input.parse::<Body>()?;
 //!
 //! let mut visitor = VariableNamespacer {
-//!     namespace: Decorated::new(Ident::new("var")?),
+//!     namespace: Decorated::new(Ident::new("var")),
 //! };
 //!
 //! visitor.visit_body_mut(&mut body);
@@ -83,7 +83,7 @@ use crate::expr::{
     TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::repr::{Decorated, Formatted, Spanned};
-use crate::structure::{Attribute, Block, BlockBody, BlockLabel, Body, OnelineBody, Structure};
+use crate::structure::{AttributeMut, Block, BlockLabel, Body, StructureMut};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
@@ -94,7 +94,7 @@ use crate::{Ident, Number};
 macro_rules! empty_visit_mut_methods {
     ($($name: ident => $t: ty),+ $(,)?) => {
         $(
-            fn $name(&mut self, node: &'ast mut $t) {
+            fn $name(&mut self, node: &mut $t) {
                 let _ = node;
             }
         )*
@@ -104,7 +104,7 @@ macro_rules! empty_visit_mut_methods {
 macro_rules! visit_mut_methods {
     ($($name: ident => $t: ty),+ $(,)?) => {
         $(
-            fn $name(&mut self, node: &'ast mut $t) {
+            fn $name(&mut self, node: &mut $t) {
                 $name(self, node);
             }
         )*
@@ -114,7 +114,7 @@ macro_rules! visit_mut_methods {
 /// Traversal to walk a mutable borrow of an HCL language item.
 ///
 /// See the [module documentation](crate::visit_mut) for details.
-pub trait VisitMut<'ast> {
+pub trait VisitMut {
     empty_visit_mut_methods! {
         visit_ident_mut => Decorated<Ident>,
         visit_null_mut => Decorated<Null>,
@@ -132,12 +132,8 @@ pub trait VisitMut<'ast> {
 
     visit_mut_methods! {
         visit_body_mut => Body,
-        visit_structure_mut => Structure,
-        visit_attr_mut => Attribute,
         visit_block_mut => Block,
         visit_block_label_mut => BlockLabel,
-        visit_block_body_mut => BlockBody,
-        visit_oneline_body_mut => OnelineBody,
         visit_expr_mut => Expression,
         visit_array_mut => Array,
         visit_object_mut => Object,
@@ -166,56 +162,64 @@ pub trait VisitMut<'ast> {
         visit_for_template_expr_mut => ForTemplateExpr,
     }
 
-    fn visit_object_key_mut(&mut self, node: ObjectKeyMut<'ast>) {
+    fn visit_structure_mut(&mut self, node: StructureMut) {
+        visit_structure_mut(self, node);
+    }
+
+    fn visit_attr_mut(&mut self, node: AttributeMut) {
+        visit_attr_mut(self, node);
+    }
+
+    fn visit_object_key_mut(&mut self, node: ObjectKeyMut) {
         let _ = node;
     }
 
-    fn visit_object_item_mut(&mut self, key: ObjectKeyMut<'ast>, value: &'ast mut ObjectValue) {
+    fn visit_object_item_mut(&mut self, key: ObjectKeyMut, value: &mut ObjectValue) {
         visit_object_item_mut(self, key, value);
     }
 }
 
-pub fn visit_body_mut<'ast, V>(v: &mut V, node: &'ast mut Body)
+pub fn visit_body_mut<V>(v: &mut V, node: &mut Body)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     for structure in node.iter_mut() {
         v.visit_structure_mut(structure);
     }
 }
 
-pub fn visit_structure_mut<'ast, V>(v: &mut V, node: &'ast mut Structure)
+pub fn visit_structure_mut<V>(v: &mut V, mut node: StructureMut)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
-    match node {
-        Structure::Attribute(attr) => v.visit_attr_mut(attr),
-        Structure::Block(block) => v.visit_block_mut(block),
+    if let Some(attr) = node.as_attribute_mut() {
+        v.visit_attr_mut(attr);
+    } else if let Some(block) = node.as_block_mut() {
+        v.visit_block_mut(block);
     }
 }
 
-pub fn visit_attr_mut<'ast, V>(v: &mut V, node: &'ast mut Attribute)
+pub fn visit_attr_mut<V>(v: &mut V, mut node: AttributeMut)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
-    v.visit_ident_mut(&mut node.key);
-    v.visit_expr_mut(&mut node.value);
+    v.visit_expr_mut(node.value_mut());
 }
 
-pub fn visit_block_mut<'ast, V>(v: &mut V, node: &'ast mut Block)
+pub fn visit_block_mut<V>(v: &mut V, node: &mut Block)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_ident_mut(&mut node.ident);
     for label in &mut node.labels {
         v.visit_block_label_mut(label);
     }
-    v.visit_block_body_mut(&mut node.body);
+    v.visit_body_mut(&mut node.body);
 }
 
-pub fn visit_block_label_mut<'ast, V>(v: &mut V, node: &'ast mut BlockLabel)
+pub fn visit_block_label_mut<V>(v: &mut V, node: &mut BlockLabel)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     match node {
         BlockLabel::String(string) => v.visit_string_mut(string),
@@ -223,28 +227,9 @@ where
     }
 }
 
-pub fn visit_block_body_mut<'ast, V>(v: &mut V, node: &'ast mut BlockBody)
+pub fn visit_expr_mut<V>(v: &mut V, node: &mut Expression)
 where
-    V: VisitMut<'ast> + ?Sized,
-{
-    match node {
-        BlockBody::Oneline(oneline) => v.visit_oneline_body_mut(oneline),
-        BlockBody::Multiline(body) => v.visit_body_mut(body),
-    }
-}
-
-pub fn visit_oneline_body_mut<'ast, V>(v: &mut V, node: &'ast mut OnelineBody)
-where
-    V: VisitMut<'ast> + ?Sized,
-{
-    if let Some(attr) = node.as_attribute_mut() {
-        v.visit_attr_mut(attr);
-    }
-}
-
-pub fn visit_expr_mut<'ast, V>(v: &mut V, node: &'ast mut Expression)
-where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     match node {
         Expression::Null(null) => v.visit_null_mut(null),
@@ -266,78 +251,75 @@ where
     }
 }
 
-pub fn visit_array_mut<'ast, V>(v: &mut V, node: &'ast mut Array)
+pub fn visit_array_mut<V>(v: &mut V, node: &mut Array)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     for expr in node.iter_mut() {
         v.visit_expr_mut(expr);
     }
 }
 
-pub fn visit_object_mut<'ast, V>(v: &mut V, node: &'ast mut Object)
+pub fn visit_object_mut<V>(v: &mut V, node: &mut Object)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     for (key, value) in node.iter_mut() {
         v.visit_object_item_mut(key, value);
     }
 }
 
-pub fn visit_object_item_mut<'ast, V>(
-    v: &mut V,
-    key: ObjectKeyMut<'ast>,
-    value: &'ast mut ObjectValue,
-) where
-    V: VisitMut<'ast> + ?Sized,
+pub fn visit_object_item_mut<V>(v: &mut V, key: ObjectKeyMut, value: &mut ObjectValue)
+where
+    V: VisitMut + ?Sized,
 {
     v.visit_object_key_mut(key);
     v.visit_object_value_mut(value);
 }
 
-pub fn visit_object_value_mut<'ast, V>(v: &mut V, node: &'ast mut ObjectValue)
+pub fn visit_object_value_mut<V>(v: &mut V, node: &mut ObjectValue)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(node.expr_mut());
 }
 
-pub fn visit_parenthesis_mut<'ast, V>(v: &mut V, node: &'ast mut Parenthesis)
+pub fn visit_parenthesis_mut<V>(v: &mut V, node: &mut Parenthesis)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(node.inner_mut());
 }
 
-pub fn visit_conditional_mut<'ast, V>(v: &mut V, node: &'ast mut Conditional)
+pub fn visit_conditional_mut<V>(v: &mut V, node: &mut Conditional)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(&mut node.cond_expr);
     v.visit_expr_mut(&mut node.true_expr);
     v.visit_expr_mut(&mut node.false_expr);
 }
 
-pub fn visit_unary_op_mut<'ast, V>(v: &mut V, node: &'ast mut UnaryOp)
+pub fn visit_unary_op_mut<V>(v: &mut V, node: &mut UnaryOp)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_unary_operator_mut(&mut node.operator);
     v.visit_expr_mut(&mut node.expr);
 }
 
-pub fn visit_binary_op_mut<'ast, V>(v: &mut V, node: &'ast mut BinaryOp)
+pub fn visit_binary_op_mut<V>(v: &mut V, node: &mut BinaryOp)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(&mut node.lhs_expr);
     v.visit_binary_operator_mut(&mut node.operator);
     v.visit_expr_mut(&mut node.rhs_expr);
 }
 
-pub fn visit_traversal_mut<'ast, V>(v: &mut V, node: &'ast mut Traversal)
+pub fn visit_traversal_mut<V>(v: &mut V, node: &mut Traversal)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(&mut node.expr);
     for operator in &mut node.operators {
@@ -345,9 +327,9 @@ where
     }
 }
 
-pub fn visit_traversal_operator_mut<'ast, V>(v: &mut V, node: &'ast mut TraversalOperator)
+pub fn visit_traversal_operator_mut<V>(v: &mut V, node: &mut TraversalOperator)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     match node {
         TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
@@ -359,26 +341,26 @@ where
     }
 }
 
-pub fn visit_func_call_mut<'ast, V>(v: &mut V, node: &'ast mut FuncCall)
+pub fn visit_func_call_mut<V>(v: &mut V, node: &mut FuncCall)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_ident_mut(&mut node.ident);
     v.visit_func_args_mut(&mut node.args);
 }
 
-pub fn visit_func_args_mut<'ast, V>(v: &mut V, node: &'ast mut FuncArgs)
+pub fn visit_func_args_mut<V>(v: &mut V, node: &mut FuncArgs)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     for arg in node.iter_mut() {
         v.visit_expr_mut(arg);
     }
 }
 
-pub fn visit_for_expr_mut<'ast, V>(v: &mut V, node: &'ast mut ForExpr)
+pub fn visit_for_expr_mut<V>(v: &mut V, node: &mut ForExpr)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_for_intro_mut(&mut node.intro);
     if let Some(key_expr) = &mut node.key_expr {
@@ -390,9 +372,9 @@ where
     }
 }
 
-pub fn visit_for_intro_mut<'ast, V>(v: &mut V, node: &'ast mut ForIntro)
+pub fn visit_for_intro_mut<V>(v: &mut V, node: &mut ForIntro)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     if let Some(key_var) = &mut node.key_var {
         v.visit_ident_mut(key_var);
@@ -401,41 +383,41 @@ where
     v.visit_expr_mut(&mut node.collection_expr);
 }
 
-pub fn visit_for_cond_mut<'ast, V>(v: &mut V, node: &'ast mut ForCond)
+pub fn visit_for_cond_mut<V>(v: &mut V, node: &mut ForCond)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(&mut node.expr);
 }
 
-pub fn visit_string_template_mut<'ast, V>(v: &mut V, node: &'ast mut StringTemplate)
+pub fn visit_string_template_mut<V>(v: &mut V, node: &mut StringTemplate)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     for element in node.iter_mut() {
         v.visit_element_mut(element);
     }
 }
 
-pub fn visit_heredoc_template_mut<'ast, V>(v: &mut V, node: &'ast mut HeredocTemplate)
+pub fn visit_heredoc_template_mut<V>(v: &mut V, node: &mut HeredocTemplate)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_template_mut(&mut node.template);
 }
 
-pub fn visit_template_mut<'ast, V>(v: &mut V, node: &'ast mut Template)
+pub fn visit_template_mut<V>(v: &mut V, node: &mut Template)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     for element in node.iter_mut() {
         v.visit_element_mut(element);
     }
 }
 
-pub fn visit_element_mut<'ast, V>(v: &mut V, node: &'ast mut Element)
+pub fn visit_element_mut<V>(v: &mut V, node: &mut Element)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     match node {
         Element::Literal(literal) => v.visit_literal_mut(literal),
@@ -444,16 +426,16 @@ where
     }
 }
 
-pub fn visit_interpolation_mut<'ast, V>(v: &mut V, node: &'ast mut Interpolation)
+pub fn visit_interpolation_mut<V>(v: &mut V, node: &mut Interpolation)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(&mut node.expr);
 }
 
-pub fn visit_directive_mut<'ast, V>(v: &mut V, node: &'ast mut Directive)
+pub fn visit_directive_mut<V>(v: &mut V, node: &mut Directive)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     match node {
         Directive::If(if_directive) => v.visit_if_directive_mut(if_directive),
@@ -461,9 +443,9 @@ where
     }
 }
 
-pub fn visit_if_directive_mut<'ast, V>(v: &mut V, node: &'ast mut IfDirective)
+pub fn visit_if_directive_mut<V>(v: &mut V, node: &mut IfDirective)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_if_template_expr_mut(&mut node.if_expr);
     if let Some(else_template_expr) = &mut node.else_expr {
@@ -472,32 +454,32 @@ where
     v.visit_endif_template_expr_mut(&mut node.endif_expr);
 }
 
-pub fn visit_for_directive_mut<'ast, V>(v: &mut V, node: &'ast mut ForDirective)
+pub fn visit_for_directive_mut<V>(v: &mut V, node: &mut ForDirective)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_for_template_expr_mut(&mut node.for_expr);
     v.visit_endfor_template_expr_mut(&mut node.endfor_expr);
 }
 
-pub fn visit_if_template_expr_mut<'ast, V>(v: &mut V, node: &'ast mut IfTemplateExpr)
+pub fn visit_if_template_expr_mut<V>(v: &mut V, node: &mut IfTemplateExpr)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_expr_mut(&mut node.cond_expr);
     v.visit_template_mut(&mut node.template);
 }
 
-pub fn visit_else_template_expr_mut<'ast, V>(v: &mut V, node: &'ast mut ElseTemplateExpr)
+pub fn visit_else_template_expr_mut<V>(v: &mut V, node: &mut ElseTemplateExpr)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     v.visit_template_mut(&mut node.template);
 }
 
-pub fn visit_for_template_expr_mut<'ast, V>(v: &mut V, node: &'ast mut ForTemplateExpr)
+pub fn visit_for_template_expr_mut<V>(v: &mut V, node: &mut ForTemplateExpr)
 where
-    V: VisitMut<'ast> + ?Sized,
+    V: VisitMut + ?Sized,
 {
     if let Some(key_var) = &mut node.key_var {
         v.visit_ident_mut(key_var);

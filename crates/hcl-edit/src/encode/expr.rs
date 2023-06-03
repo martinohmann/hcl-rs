@@ -253,7 +253,7 @@ impl Encode for TraversalOperator {
 
         match self {
             TraversalOperator::AttrSplat(splat) | TraversalOperator::FullSplat(splat) => {
-                splat.encode_decorated(buf, NO_DECOR)?
+                splat.encode_decorated(buf, NO_DECOR)?;
             }
             TraversalOperator::GetAttr(ident) => ident.encode_decorated(buf, NO_DECOR)?,
             TraversalOperator::Index(expr) => expr.encode_decorated(buf, NO_DECOR)?,

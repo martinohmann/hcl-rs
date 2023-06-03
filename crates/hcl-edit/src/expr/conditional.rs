@@ -21,14 +21,14 @@ impl Conditional {
     /// Creates a new `Conditional` from a condition and two expressions for the branches of the
     /// conditional.
     pub fn new(
-        cond_expr: Expression,
-        true_expr: Expression,
-        false_expr: Expression,
+        cond_expr: impl Into<Expression>,
+        true_expr: impl Into<Expression>,
+        false_expr: impl Into<Expression>,
     ) -> Conditional {
         Conditional {
-            cond_expr,
-            true_expr,
-            false_expr,
+            cond_expr: cond_expr.into(),
+            true_expr: true_expr.into(),
+            false_expr: false_expr.into(),
             decor: Decor::default(),
             span: None,
         }

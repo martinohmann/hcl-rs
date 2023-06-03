@@ -20,10 +20,13 @@ pub struct UnaryOp {
 
 impl UnaryOp {
     /// Creates a new `UnaryOp` from an operator and an expression.
-    pub fn new(operator: Spanned<UnaryOperator>, expr: Expression) -> UnaryOp {
+    pub fn new(
+        operator: impl Into<Spanned<UnaryOperator>>,
+        expr: impl Into<Expression>,
+    ) -> UnaryOp {
         UnaryOp {
-            operator,
-            expr,
+            operator: operator.into(),
+            expr: expr.into(),
             decor: Decor::default(),
             span: None,
         }
@@ -58,14 +61,14 @@ pub struct BinaryOp {
 impl BinaryOp {
     /// Creates a new `BinaryOp` from two expressions and an operator.
     pub fn new(
-        lhs_expr: Expression,
-        operator: Spanned<BinaryOperator>,
-        rhs_expr: Expression,
+        lhs_expr: impl Into<Expression>,
+        operator: impl Into<Spanned<BinaryOperator>>,
+        rhs_expr: impl Into<Expression>,
     ) -> BinaryOp {
         BinaryOp {
-            lhs_expr,
-            operator,
-            rhs_expr,
+            lhs_expr: lhs_expr.into(),
+            operator: operator.into(),
+            rhs_expr: rhs_expr.into(),
             decor: Decor::default(),
             span: None,
         }

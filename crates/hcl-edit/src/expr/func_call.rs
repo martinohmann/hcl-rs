@@ -17,9 +17,9 @@ pub struct FuncCall {
 
 impl FuncCall {
     /// Create a new `FuncCall` from an identifier and arguments.
-    pub fn new(ident: Decorated<Ident>, args: FuncArgs) -> FuncCall {
+    pub fn new(ident: impl Into<Decorated<Ident>>, args: FuncArgs) -> FuncCall {
         FuncCall {
-            ident,
+            ident: ident.into(),
             args,
             decor: Decor::default(),
             span: None,

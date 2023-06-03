@@ -6,11 +6,9 @@ use super::{
 use crate::Number;
 use std::str::FromStr;
 use winnow::{
-    branch::alt,
-    bytes::one_of,
-    character::digit1,
-    combinator::{cut_err, opt},
-    sequence::{preceded, terminated},
+    ascii::digit1,
+    combinator::{alt, cut_err, opt, preceded, terminated},
+    token::one_of,
     Parser,
 };
 
@@ -24,7 +22,7 @@ pub(super) fn number(input: Input) -> IResult<Input, Number> {
 
 fn integer(input: Input) -> IResult<Input, u64> {
     digit1
-        .map_res(|s: &[u8]| {
+        .try_map(|s: &[u8]| {
             u64::from_str(unsafe { from_utf8_unchecked(s, "`digit1` filters out non-ascii") })
         })
         .parse_next(input)
@@ -35,7 +33,7 @@ fn float(input: Input) -> IResult<Input, f64> {
 
     terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
         .recognize()
-        .map_res(|s: &[u8]| {
+        .try_map(|s: &[u8]| {
             f64::from_str(unsafe {
                 from_utf8_unchecked(s, "`digit1` and `exponent` filter out non-ascii")
             })

@@ -10,20 +10,24 @@ use super::{
     IResult, Input,
 };
 use crate::{
-    expr::*,
+    expr::{
+        Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
+        Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
+        Splat, TraversalOperator, UnaryOperator,
+    },
     repr::{Decorate, Decorated, Formatted, SetSpan, Spanned},
     template::HeredocTemplate,
     Ident, RawString,
 };
 use std::cell::RefCell;
 use winnow::{
-    branch::alt,
-    bytes::{any, none_of, one_of, take},
-    character::{crlf, dec_uint, line_ending, newline, space0},
-    combinator::{cut_err, fail, not, opt, peek, success},
+    ascii::{crlf, dec_uint, line_ending, newline, space0},
+    combinator::{
+        alt, cut_err, delimited, fail, not, opt, peek, preceded, repeat, separated0, separated1,
+        separated_pair, success, terminated,
+    },
     dispatch,
-    multi::{many1, separated0, separated1},
-    sequence::{delimited, preceded, separated_pair, terminated},
+    token::{any, none_of, one_of, take},
     Parser,
 };
 
@@ -50,12 +54,13 @@ pub(super) fn expr_inner<'i, 's>(
             // This is essentially a `peek` for the next two bytes to identify the following operation.
             if let Ok((_, peek)) = take::<_, _, ParseError<_>>(2usize).parse_next(remaining_input) {
                 match peek {
-                    // This might be a `...` operator within a for object expr or after the last
-                    // argument of a function call, do not mistakenly parse it as a traversal
-                    // operator.
-                    b".." => return Ok((input, ())),
-                    // This is a comment start, do not mistakenly parse a binary division operator.
-                    b"//" | b"/*" => return Ok((input, ())),
+                    // The sequence `..` might introduce a `...` operator within a for object expr
+                    // or after the last argument of a function call, do not mistakenly parse it as
+                    // a `.` traversal operator.
+                    //
+                    // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
+                    // division operator.
+                    b"//" | b"/*" | b".." => return Ok((input, ())),
                     // Traversal operator.
                     //
                     // Note: after the traversal is consumed, the loop is entered again to consume
@@ -129,12 +134,12 @@ fn stringlike<'i, 's>(
             string.map(|string| {
                 state
                     .borrow_mut()
-                    .on_expr_term(Expression::String(Decorated::new(string)))
+                    .on_expr_term(Expression::String(Decorated::new(string)));
             }),
             string_template.map(|template| {
                 state
                     .borrow_mut()
-                    .on_expr_term(Expression::Template(template))
+                    .on_expr_term(Expression::Template(template));
             }),
         ))
         .parse_next(input)
@@ -149,7 +154,7 @@ fn number<'i, 's>(
             .map(|(num, repr)| {
                 let mut num = Formatted::new(num);
                 num.set_repr(unsafe { from_utf8_unchecked(repr, "`num` filters out non-ascii") });
-                state.borrow_mut().on_expr_term(Expression::Number(num))
+                state.borrow_mut().on_expr_term(Expression::Number(num));
             })
             .parse_next(input)
     }
@@ -161,11 +166,11 @@ fn neg_number<'i, 's>(
     move |input: Input<'i>| {
         preceded((b'-', sp), num)
             .with_recognized()
-            .map_res(|(num, repr)| {
+            .try_map(|(num, repr)| {
                 std::str::from_utf8(repr).map(|repr| {
                     let mut num = Formatted::new(-num);
                     num.set_repr(repr);
-                    state.borrow_mut().on_expr_term(Expression::Number(num))
+                    state.borrow_mut().on_expr_term(Expression::Number(num));
                 })
             })
             .parse_next(input)
@@ -176,9 +181,12 @@ fn traversal<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
-        many1(prefix_decorated(sp, traversal_operator.map(Decorated::new)))
-            .map(|operators| state.borrow_mut().on_traversal(operators))
-            .parse_next(input)
+        repeat(
+            1..,
+            prefix_decorated(sp, traversal_operator.map(Decorated::new)),
+        )
+        .map(|operators| state.borrow_mut().on_traversal(operators))
+        .parse_next(input)
     }
 }
 
@@ -292,7 +300,7 @@ fn array<'i, 's>(
     move |input: Input<'i>| {
         delimited(
             b'[',
-            alt((for_list_expr(state), array_items(state))),
+            for_expr_or_items(for_list_expr(state), array_items(state)),
             cut_char(']'),
         )
         .parse_next(input)
@@ -342,7 +350,7 @@ fn object<'i, 's>(
     move |input: Input<'i>| {
         delimited(
             b'{',
-            alt((for_object_expr(state), object_items(state))),
+            for_expr_or_items(for_object_expr(state), object_items(state)),
             cut_char('}'),
         )
         .parse_next(input)
@@ -494,15 +502,31 @@ fn object_value_assignment(input: Input) -> IResult<Input, ObjectValueAssignment
     .parse_next(input)
 }
 
+fn for_expr_or_items<'i, F, I>(
+    mut for_expr_parser: F,
+    mut items_parser: I,
+) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>>
+where
+    F: Parser<Input<'i>, (), ParseError<Input<'i>>>,
+    I: Parser<Input<'i>, (), ParseError<Input<'i>>>,
+{
+    move |input: Input<'i>| {
+        // The `for` tag needs to be followed by either a space character or a comment start to
+        // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
+        // and the following identifier which would fail parsing of arrays with identifier/func
+        // call elements and objects with those as keys.
+        match peek((ws, b"for", one_of(" \t#/"))).parse_next(input) {
+            Ok(_) => for_expr_parser.parse_next(input),
+            Err(_) => items_parser.parse_next(input),
+        }
+    }
+}
+
 fn for_intro(input: Input) -> IResult<Input, ForIntro> {
     prefix_decorated(
         ws,
         delimited(
-            // The `for` tag needs to be followed by either a space character or a comment start to
-            // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
-            // and the following identifier which would fail parsing of arrays with identifier/func
-            // call elements and objects with those as keys.
-            (b"for", peek(one_of(" \t#/"))),
+            b"for",
             (
                 decorated(ws, cut_ident, ws),
                 opt(preceded(b',', decorated(ws, cut_ident, ws))),
@@ -608,23 +632,23 @@ fn identlike<'i, 's>(
                     },
                 };
 
-                state.borrow_mut().on_expr_term(expr)
+                state.borrow_mut().on_expr_term(expr);
             })
             .parse_next(input)
     }
 }
 
 fn func_args(input: Input) -> IResult<Input, FuncArgs> {
-    let args = separated1(
-        decorated(ws, preceded(peek(none_of(",.)")), expr), ws),
-        b',',
-    );
-
     #[derive(Copy, Clone)]
     enum Trailer {
         Comma,
         Ellipsis,
     }
+
+    let args = separated1(
+        decorated(ws, preceded(peek(none_of(",.)")), expr), ws),
+        b',',
+    );
 
     let trailer = dispatch! {any;
         b',' => success(Trailer::Comma),

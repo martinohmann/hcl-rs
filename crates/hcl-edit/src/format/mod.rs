@@ -6,7 +6,7 @@ mod tests;
 mod visit;
 
 use self::decor::{DecorFormatter, ModifyDecor};
-use crate::repr::Decorate;
+use crate::repr::{Decor, Decorate};
 use hcl_primitives::InternalString;
 use std::ops;
 
@@ -161,16 +161,16 @@ impl Formatter {
         V: Decorate + ?Sized,
         F: FnOnce(&mut Formatter, &mut V),
     {
-        self.visit_decorated(value, |prefix| prefix, f, |suffix| suffix)
+        self.visit_decorated(value, |prefix| prefix, f, |suffix| suffix);
     }
 
-    fn visit_decor<V, P, S>(&mut self, value: &mut V, modify_prefix: P, modify_suffix: S)
+    fn visit_decor<P, S>(&mut self, decor: &mut Decor, modify_prefix: P, modify_suffix: S)
     where
-        V: Decorate + ?Sized,
         P: FnOnce(DecorFormatter) -> DecorFormatter,
         S: FnOnce(DecorFormatter) -> DecorFormatter,
     {
-        self.visit_decorated(value, modify_prefix, |_fmt, _value| (), modify_suffix)
+        modify_prefix(decor.prefix.modify()).format(self);
+        modify_suffix(decor.suffix.modify()).format(self);
     }
 
     fn visit_decorated<V, P, F, S>(

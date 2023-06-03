@@ -368,7 +368,7 @@ where
 
     /// Formats the value using its `ToString` representation.
     pub fn format(&mut self) {
-        self.set_repr(self.value.to_string())
+        self.set_repr(self.value.to_string());
     }
 }
 

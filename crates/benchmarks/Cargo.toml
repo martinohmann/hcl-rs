@@ -1,6 +1,6 @@
 [package]
 name = "benchmarks"
-version = "0.0.12"
+version = "0.0.22"
 publish = false
 edition = "2021"
 
@@ -16,7 +16,7 @@ name = "serde"
 harness = false
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 hcl-edit = { path = "../hcl-edit" }
 hcl-rs = { path = "../hcl-rs" }
 testdata = { path = "../testdata" }

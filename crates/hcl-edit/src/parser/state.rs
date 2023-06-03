@@ -7,16 +7,22 @@ use crate::{
     structure::{Body, Structure},
     RawString,
 };
+use fnv::FnvHashSet;
 use std::ops::Range;
 
 #[derive(Debug, Default)]
-pub(super) struct BodyParseState {
+pub(super) struct BodyParseState<'a> {
+    attribute_keys: FnvHashSet<&'a str>,
     current: Option<Structure>,
     structures: Vec<Structure>,
     ws: Option<Range<usize>>,
 }
 
-impl BodyParseState {
+impl<'a> BodyParseState<'a> {
+    pub(super) fn is_redefined(&mut self, key: &'a str) -> bool {
+        !self.attribute_keys.insert(key)
+    }
+
     pub(super) fn on_ws(&mut self, span: Range<usize>) {
         if let Some(existing) = &self.ws {
             self.ws = Some(existing.start..span.end);
@@ -46,7 +52,7 @@ impl BodyParseState {
     }
 
     pub(super) fn into_body(self) -> Body {
-        Body::from(self.structures)
+        Body::from_vec_unchecked(self.structures)
     }
 }
 

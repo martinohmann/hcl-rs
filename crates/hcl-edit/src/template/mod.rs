@@ -152,6 +152,59 @@ impl StringTemplate {
         Box::new(self.elements.iter_mut())
     }
 
+    /// If the template consists of a single `Element`, returns a reference to it, otherwise
+    /// `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::template::{Element, StringTemplate};
+    ///
+    /// let mut template = StringTemplate::new();
+    ///
+    /// template.push("one");
+    ///
+    /// assert_eq!(template.as_single_element(), Some(&Element::from("one")));
+    ///
+    /// template.push("two");
+    ///
+    /// assert_eq!(template.as_single_element(), None);
+    /// ```
+    pub fn as_single_element(&self) -> Option<&Element> {
+        match self.len() {
+            1 => self.get(0),
+            _ => None,
+        }
+    }
+
+    /// If the template consists of a single `Element`, returns a mutable reference to it,
+    /// otherwise `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::template::{Element, StringTemplate};
+    ///
+    /// let mut template = StringTemplate::new();
+    ///
+    /// template.push("one");
+    ///
+    /// if let Some(element) = template.as_single_element_mut() {
+    ///     *element = Element::from("two");
+    /// }
+    ///
+    /// template.push("three");
+    ///
+    /// assert_eq!(template.as_single_element(), None);
+    /// assert_eq!(template, StringTemplate::from_iter(["two", "three"]));
+    /// ```
+    pub fn as_single_element_mut(&mut self) -> Option<&mut Element> {
+        match self.len() {
+            1 => self.get_mut(0),
+            _ => None,
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         for element in &mut self.elements {
@@ -447,6 +500,59 @@ impl Template {
         Box::new(self.elements.iter_mut())
     }
 
+    /// If the template consists of a single `Element`, returns a reference to it, otherwise
+    /// `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::template::{Element, Template};
+    ///
+    /// let mut template = Template::new();
+    ///
+    /// template.push("one");
+    ///
+    /// assert_eq!(template.as_single_element(), Some(&Element::from("one")));
+    ///
+    /// template.push("two");
+    ///
+    /// assert_eq!(template.as_single_element(), None);
+    /// ```
+    pub fn as_single_element(&self) -> Option<&Element> {
+        match self.len() {
+            1 => self.get(0),
+            _ => None,
+        }
+    }
+
+    /// If the template consists of a single `Element`, returns a mutable reference to it,
+    /// otherwise `None`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use hcl_edit::template::{Element, Template};
+    ///
+    /// let mut template = Template::new();
+    ///
+    /// template.push("one");
+    ///
+    /// if let Some(element) = template.as_single_element_mut() {
+    ///     *element = Element::from("two");
+    /// }
+    ///
+    /// template.push("three");
+    ///
+    /// assert_eq!(template.as_single_element(), None);
+    /// assert_eq!(template, Template::from_iter(["two", "three"]));
+    /// ```
+    pub fn as_single_element_mut(&mut self) -> Option<&mut Element> {
+        match self.len() {
+            1 => self.get_mut(0),
+            _ => None,
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         for element in &mut self.elements {
             element.despan(input);
@@ -479,6 +585,24 @@ impl From<Vec<Element>> for Template {
     fn from(elements: Vec<Element>) -> Self {
         Template {
             elements,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Template> for StringTemplate {
+    fn from(template: Template) -> Self {
+        StringTemplate {
+            elements: template.elements,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<StringTemplate> for Template {
+    fn from(template: StringTemplate) -> Self {
+        Template {
+            elements: template.elements,
             ..Default::default()
         }
     }
@@ -559,6 +683,45 @@ pub enum Element {
 }
 
 impl Element {
+    /// Returns `true` if the element represents a literal string.
+    pub fn is_literal(&self) -> bool {
+        self.as_literal().is_some()
+    }
+
+    /// If the `Element` is a literal string, returns a reference to it, otherwise `None`.
+    pub fn as_literal(&self) -> Option<&Spanned<String>> {
+        match self {
+            Element::Literal(value) => Some(value),
+            Element::Interpolation(_) | Element::Directive(_) => None,
+        }
+    }
+
+    /// Returns `true` if the element represents an interpolation.
+    pub fn is_interpolation(&self) -> bool {
+        self.as_interpolation().is_some()
+    }
+
+    /// If the `Element` is an interpolation, returns a reference to it, otherwise `None`.
+    pub fn as_interpolation(&self) -> Option<&Interpolation> {
+        match self {
+            Element::Interpolation(value) => Some(value),
+            Element::Literal(_) | Element::Directive(_) => None,
+        }
+    }
+
+    /// Returns `true` if the element represents a directive.
+    pub fn is_directive(&self) -> bool {
+        self.as_directive().is_some()
+    }
+
+    /// If the `Element` is a directive, returns a reference to it, otherwise `None`.
+    pub fn as_directive(&self) -> Option<&Directive> {
+        match self {
+            Element::Directive(value) => Some(value),
+            Element::Literal(_) | Element::Interpolation(_) => None,
+        }
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
             Element::Literal(_) => {}
@@ -613,9 +776,9 @@ pub struct Interpolation {
 
 impl Interpolation {
     /// Creates a new `Interpolation` from an expression.
-    pub fn new(expr: Expression) -> Interpolation {
+    pub fn new(expr: impl Into<Expression>) -> Interpolation {
         Interpolation {
-            expr,
+            expr: expr.into(),
             strip: Strip::default(),
             span: None,
         }
@@ -730,10 +893,10 @@ pub struct IfTemplateExpr {
 
 impl IfTemplateExpr {
     /// Creates a new `IfTemplateExpr` for a condition expression and a template.
-    pub fn new(cond_expr: Expression, template: Template) -> IfTemplateExpr {
+    pub fn new(cond_expr: impl Into<Expression>, template: Template) -> IfTemplateExpr {
         IfTemplateExpr {
             preamble: RawString::default(),
-            cond_expr,
+            cond_expr: cond_expr.into(),
             template,
             strip: Strip::default(),
         }
@@ -909,16 +1072,16 @@ impl ForTemplateExpr {
     /// Creates a new `ForTemplateExpr` from an optional key variable, value variable, collection
     /// expression and template.
     pub fn new(
-        key_var: Option<Decorated<Ident>>,
-        value_var: Decorated<Ident>,
-        collection_expr: Expression,
+        key_var: Option<impl Into<Decorated<Ident>>>,
+        value_var: impl Into<Decorated<Ident>>,
+        collection_expr: impl Into<Expression>,
         template: Template,
     ) -> ForTemplateExpr {
         ForTemplateExpr {
             preamble: RawString::default(),
-            key_var,
-            value_var,
-            collection_expr,
+            key_var: key_var.map(Into::into),
+            value_var: value_var.into(),
+            collection_expr: collection_expr.into(),
             template,
             strip: Strip::default(),
         }

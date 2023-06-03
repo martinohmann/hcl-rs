@@ -9,14 +9,15 @@ use super::{
 };
 use crate::{
     repr::{SetSpan, Span, Spanned},
-    template::*,
+    template::{
+        Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
+        ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip,
+        Template,
+    },
 };
 use winnow::{
-    branch::alt,
-    character::{line_ending, space0},
-    combinator::opt,
-    multi::many0,
-    sequence::{delimited, preceded, separated_pair, terminated},
+    ascii::{line_ending, space0},
+    combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated},
     Parser,
 };
 
@@ -80,11 +81,14 @@ fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseErro
 where
     P: Parser<Input<'a>, String, ParseError<Input<'a>>>,
 {
-    many0(spanned(alt((
-        literal.map(|s| Element::Literal(Spanned::new(s))),
-        interpolation.map(Element::Interpolation),
-        directive.map(Element::Directive),
-    ))))
+    repeat(
+        0..,
+        spanned(alt((
+            literal.map(|s| Element::Literal(Spanned::new(s))),
+            interpolation.map(Element::Interpolation),
+            directive.map(Element::Directive),
+        ))),
+    )
 }
 
 fn interpolation(input: Input) -> IResult<Input, Interpolation> {

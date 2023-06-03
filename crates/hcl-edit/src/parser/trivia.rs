@@ -1,26 +1,26 @@
 use super::{IResult, Input};
 use winnow::{
-    branch::alt,
-    bytes::{any, take_until0},
-    character::{multispace0, not_line_ending, space0},
-    combinator::{fail, peek},
+    ascii::{multispace0, not_line_ending, space0},
+    combinator::{alt, delimited, fail, peek, preceded, repeat},
     dispatch,
-    multi::many0,
-    sequence::{delimited, preceded},
+    token::{any, take_until0},
     Parser,
 };
 
 pub(super) fn ws(input: Input) -> IResult<Input, ()> {
     (
         multispace0.void(),
-        void(many0((comment, multispace0.void()))),
+        void(repeat(0.., (comment, multispace0.void()))),
     )
         .void()
         .parse_next(input)
 }
 
 pub(super) fn sp(input: Input) -> IResult<Input, ()> {
-    (space0.void(), void(many0((inline_comment, space0.void()))))
+    (
+        space0.void(),
+        void(repeat(0.., (inline_comment, space0.void()))),
+    )
         .void()
         .parse_next(input)
 }

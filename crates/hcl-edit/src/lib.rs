@@ -1,6 +1,16 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![warn(missing_docs)]
+#![warn(clippy::pedantic)]
+#![allow(
+    clippy::bool_to_int_with_if,
+    clippy::let_underscore_untyped,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate,
+    clippy::naive_bytecount,
+    clippy::return_self_not_must_use,
+    clippy::similar_names
+)]
 
 extern crate alloc;
 
