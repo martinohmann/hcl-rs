@@ -39,8 +39,8 @@ use hcl_edit::visit_mut::{visit_expr_mut, VisitMut};
 
 struct InterpolationUnwrapper;
 
-impl<'ast> VisitMut<'ast> for InterpolationUnwrapper {
-    fn visit_expr_mut(&mut self, expr: &'ast mut Expression) {
+impl VisitMut for InterpolationUnwrapper {
+    fn visit_expr_mut(&mut self, expr: &mut Expression) {
         // Only templates containing a single interpolation can be unwrapped.
         if let Some(interpolation) = expr
             .as_template()
