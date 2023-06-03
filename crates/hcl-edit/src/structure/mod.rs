@@ -4,7 +4,7 @@ mod attribute;
 mod block;
 mod body;
 
-pub use self::attribute::Attribute;
+pub use self::attribute::{Attribute, AttributeMut};
 pub use self::block::{Block, BlockBuilder, BlockLabel};
 pub use self::body::{
     Attributes, AttributesMut, Blocks, BlocksMut, Body, BodyBuilder, IntoAttributes, IntoBlocks,
@@ -115,3 +115,63 @@ impl From<Block> for Structure {
 
 forward_decorate_impl!(Structure => { Attribute, Block });
 forward_span_impl!(Structure => { Attribute, Block });
+
+/// Allows mutable access to a structure, except for attribute keys which are immutable.
+///
+/// This type wraps the structure in the iterator returned by
+/// [`Body::iter_mut`](crate::structure::Body::iter_mut).
+pub struct StructureMut<'a> {
+    structure: &'a mut Structure,
+}
+
+impl<'a> StructureMut<'a> {
+    pub(crate) fn new(structure: &'a mut Structure) -> StructureMut<'a> {
+        StructureMut { structure }
+    }
+
+    /// Returns `true` if the structure represents an [`Attribute`].
+    pub fn is_attribute(&self) -> bool {
+        self.as_attribute().is_some()
+    }
+
+    /// Returns `true` if the structure represents a [`Block`].
+    pub fn is_block(&self) -> bool {
+        self.as_block().is_some()
+    }
+
+    /// If the `Structure` is an `Attribute`, returns a reference to it, otherwise `None`.
+    pub fn as_attribute(&self) -> Option<&Attribute> {
+        self.structure.as_attribute()
+    }
+
+    /// If the `Structure` is an `Attribute`, returns a mutable reference to it, otherwise `None`.
+    pub fn as_attribute_mut(&mut self) -> Option<AttributeMut<'_>> {
+        self.structure.as_attribute_mut().map(AttributeMut::new)
+    }
+
+    /// If the `Structure` is a `Block`, returns a reference to it, otherwise `None`.
+    pub fn as_block(&self) -> Option<&Block> {
+        self.structure.as_block()
+    }
+
+    /// If the `Structure` is a `Block`, returns a mutable reference to it, otherwise `None`.
+    pub fn as_block_mut(&mut self) -> Option<&mut Block> {
+        self.structure.as_block_mut()
+    }
+}
+
+impl<'a> Decorate for StructureMut<'a> {
+    fn decor(&self) -> &Decor {
+        self.structure.decor()
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        self.structure.decor_mut()
+    }
+}
+
+impl<'a> Span for StructureMut<'a> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.structure.span()
+    }
+}

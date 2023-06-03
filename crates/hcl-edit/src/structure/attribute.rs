@@ -1,7 +1,7 @@
 use crate::expr::Expression;
 use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
 use crate::Ident;
-use std::ops::Range;
+use std::ops::{self, Range};
 
 /// Represents an HCL attribute which consists of an attribute key and a value expression.
 ///
@@ -66,3 +66,59 @@ impl PartialEq for Attribute {
 
 decorate_impl!(Attribute);
 span_impl!(Attribute);
+
+/// Allows mutable access to the value and surrounding [`Decor`](crate::repr::Decor) of an
+/// [`Attribute`] but not to its key.
+///
+/// This type wraps the attribute returned by
+/// [`Body::get_attribute_mut`](crate::structure::Body::get_attribute_mut) and in the iterator
+/// returned by [`Body::attributes_mut`](crate::structure::Body::attributes_mut).
+pub struct AttributeMut<'a> {
+    attr: &'a mut Attribute,
+}
+
+impl<'a> AttributeMut<'a> {
+    pub(crate) fn new(attr: &'a mut Attribute) -> AttributeMut<'a> {
+        AttributeMut { attr }
+    }
+
+    /// Returns an immutable reference to the wrapped `Attribute`.
+    pub fn get(&self) -> &Attribute {
+        self.attr
+    }
+
+    /// Returns a mutable reference to the wrapped `Attribute`'s key's decor.
+    pub fn key_decor_mut(&mut self) -> &mut Decor {
+        self.attr.key.decor_mut()
+    }
+
+    /// Returns a mutable reference to the wrapped `Attribute`'s value.
+    pub fn value_mut(&mut self) -> &mut Expression {
+        &mut self.attr.value
+    }
+}
+
+impl<'a> ops::Deref for AttributeMut<'a> {
+    type Target = Attribute;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.get()
+    }
+}
+
+impl<'a> Decorate for AttributeMut<'a> {
+    fn decor(&self) -> &Decor {
+        self.attr.decor()
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        self.attr.decor_mut()
+    }
+}
+
+impl<'a> Span for AttributeMut<'a> {
+    fn span(&self) -> Option<Range<usize>> {
+        self.attr.span()
+    }
+}

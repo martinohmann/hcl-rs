@@ -52,7 +52,7 @@ impl<'a> BodyParseState<'a> {
     }
 
     pub(super) fn into_body(self) -> Body {
-        Body::from(self.structures)
+        Body::from_vec_unchecked(self.structures)
     }
 }
 

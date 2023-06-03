@@ -83,7 +83,7 @@ use crate::expr::{
     TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::repr::{Decorated, Formatted, Spanned};
-use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
+use crate::structure::{AttributeMut, Block, BlockLabel, Body, StructureMut};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
@@ -132,8 +132,6 @@ pub trait VisitMut {
 
     visit_mut_methods! {
         visit_body_mut => Body,
-        visit_structure_mut => Structure,
-        visit_attr_mut => Attribute,
         visit_block_mut => Block,
         visit_block_label_mut => BlockLabel,
         visit_expr_mut => Expression,
@@ -164,6 +162,14 @@ pub trait VisitMut {
         visit_for_template_expr_mut => ForTemplateExpr,
     }
 
+    fn visit_structure_mut(&mut self, node: StructureMut) {
+        visit_structure_mut(self, node);
+    }
+
+    fn visit_attr_mut(&mut self, node: AttributeMut) {
+        visit_attr_mut(self, node);
+    }
+
     fn visit_object_key_mut(&mut self, node: ObjectKeyMut) {
         let _ = node;
     }
@@ -182,22 +188,22 @@ where
     }
 }
 
-pub fn visit_structure_mut<V>(v: &mut V, node: &mut Structure)
+pub fn visit_structure_mut<V>(v: &mut V, mut node: StructureMut)
 where
     V: VisitMut + ?Sized,
 {
-    match node {
-        Structure::Attribute(attr) => v.visit_attr_mut(attr),
-        Structure::Block(block) => v.visit_block_mut(block),
+    if let Some(attr) = node.as_attribute_mut() {
+        v.visit_attr_mut(attr);
+    } else if let Some(block) = node.as_block_mut() {
+        v.visit_block_mut(block);
     }
 }
 
-pub fn visit_attr_mut<V>(v: &mut V, node: &mut Attribute)
+pub fn visit_attr_mut<V>(v: &mut V, mut node: AttributeMut)
 where
     V: VisitMut + ?Sized,
 {
-    v.visit_ident_mut(&mut node.key);
-    v.visit_expr_mut(&mut node.value);
+    v.visit_expr_mut(node.value_mut());
 }
 
 pub fn visit_block_mut<V>(v: &mut V, node: &mut Block)
