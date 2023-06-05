@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.0...hcl-edit-v0.6.1) (2023-06-05)
+
+
+### Features
+
+* **structure:** add `Block::has_labels` and `Block::has_exact_labels` ([#237](https://github.com/martinohmann/hcl-rs/issues/237)) ([a2ed25f](https://github.com/martinohmann/hcl-rs/commit/a2ed25f08e5673e18051c43bf4e920145dfa764f))
+
 ## [0.6.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.4...hcl-edit-v0.6.0) (2023-06-03)
 
 
