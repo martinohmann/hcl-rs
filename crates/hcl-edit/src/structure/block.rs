@@ -81,6 +81,137 @@ impl Block {
         self.ident.as_str() == ident
     }
 
+    /// Returns `true` if the `Block`'s labels and the provided ones share a common prefix.
+    ///
+    /// For example, `&["foo"]` will match blocks that fulfil either of these criteria:
+    ///
+    /// - Single `"foo"` label.
+    /// - Multiple labels, with `"foo"` being in first position.
+    ///
+    /// For an alternative which matches labels exactly see [`Block::has_exact_labels`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl_edit::{structure::Block, Ident};
+    ///
+    /// let block = Block::builder(Ident::new("resource"))
+    ///     .labels(["aws_s3_bucket", "mybucket"])
+    ///     .build();
+    ///
+    /// assert!(block.has_labels(&["aws_s3_bucket"]));
+    /// assert!(block.has_labels(&["aws_s3_bucket", "mybucket"]));
+    /// assert!(!block.has_labels(&["mybucket"]));
+    /// ```
+    ///
+    /// One use case for this method is to find blocks in a [`Body`] that have a common label
+    /// prefix:
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Block, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let body = Body::builder()
+    ///     .attribute(Attribute::new(Ident::new("foo"), "bar"))
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket1"])
+    ///     )
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_db_instance", "db_instance"])
+    ///     )
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket2"])
+    ///     )
+    ///     .build();
+    ///
+    /// let buckets: Vec<&Block> = body.get_blocks("resource")
+    ///     .filter(|block| block.has_labels(&["aws_s3_bucket"]))
+    ///     .collect();
+    ///
+    /// assert_eq!(
+    ///     buckets,
+    ///     [
+    ///         &Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket1"])
+    ///             .build(),
+    ///         &Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket2"])
+    ///             .build()
+    ///     ]
+    /// );
+    /// ```
+    pub fn has_labels<T>(&self, labels: &[T]) -> bool
+    where
+        T: AsRef<str>,
+    {
+        if self.labels.len() < labels.len() {
+            false
+        } else {
+            self.labels
+                .iter()
+                .zip(labels.iter())
+                .all(|(a, b)| a.as_str() == b.as_ref())
+        }
+    }
+
+    /// Returns `true` if the `Block`'s labels match the provided ones exactly.
+    ///
+    /// For an alternative which matches a common label prefix see [`Block::has_labels`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use hcl_edit::{structure::Block, Ident};
+    ///
+    /// let block = Block::builder(Ident::new("resource"))
+    ///     .labels(["aws_s3_bucket", "mybucket"])
+    ///     .build();
+    ///
+    /// assert!(!block.has_exact_labels(&["aws_s3_bucket"]));
+    /// assert!(block.has_exact_labels(&["aws_s3_bucket", "mybucket"]));
+    /// ```
+    ///
+    /// One use case for this method is to find blocks in a [`Body`] that have an exact set of
+    /// labels:
+    ///
+    /// ```
+    /// use hcl_edit::structure::{Attribute, Block, Body};
+    /// use hcl_edit::Ident;
+    ///
+    /// let body = Body::builder()
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket1"])
+    ///     )
+    ///     .block(
+    ///         Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket2"])
+    ///     )
+    ///     .build();
+    ///
+    /// let buckets: Vec<&Block> = body.get_blocks("resource")
+    ///     .filter(|block| block.has_exact_labels(&["aws_s3_bucket", "bucket1"]))
+    ///     .collect();
+    ///
+    /// assert_eq!(
+    ///     buckets,
+    ///     [
+    ///         &Block::builder(Ident::new("resource"))
+    ///             .labels(["aws_s3_bucket", "bucket1"])
+    ///             .build(),
+    ///     ]
+    /// );
+    /// ```
+    pub fn has_exact_labels<T>(&self, labels: &[T]) -> bool
+    where
+        T: AsRef<str>,
+    {
+        self.labels.len() == labels.len() && self.has_labels(labels)
+    }
+
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
         self.ident.decor_mut().despan(input);

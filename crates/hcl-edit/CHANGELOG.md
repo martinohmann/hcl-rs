@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.6.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.0...hcl-edit-v0.6.1) (2023-06-05)
+
+
+### Features
+
+* **structure:** add `Block::has_labels` and `Block::has_exact_labels` ([#237](https://github.com/martinohmann/hcl-rs/issues/237)) ([a2ed25f](https://github.com/martinohmann/hcl-rs/commit/a2ed25f08e5673e18051c43bf4e920145dfa764f))
+
+## [0.6.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.4...hcl-edit-v0.6.0) (2023-06-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **structure:** Various `Body` methods were changed to return `AttributeMut<'a>`/`StructureMut<'a>` instead of `&'a mut Attribute`/`&'a mut Structure` to prevent mutable access to attribute keys. The `VisitMut` trait was updated to reflect these changes as well.
+* **visit:** remove `'ast` lifetime parameter from `Visit` and `VisitMut`
+* **structure:** make `Structure::into_*` return a `Result`
+
+### Features
+
+* **structure:** prevent duplicate attribute keys in `Body` ([#236](https://github.com/martinohmann/hcl-rs/issues/236)) ([f11bc22](https://github.com/martinohmann/hcl-rs/commit/f11bc22175184145db4ae8ab088ec332b936e5c4))
+
+
+### Bug Fixes
+
+* **structure:** make `Structure::into_*` return a `Result` ([f0792ef](https://github.com/martinohmann/hcl-rs/commit/f0792efce26d9f0899ad52f7db68b283a9532e54))
+* **visit:** remove `'ast` lifetime parameter from `Visit` and `VisitMut` ([8f3a83e](https://github.com/martinohmann/hcl-rs/commit/8f3a83efef9b1bc7846a1f4ab0d8a2b5fe278dbf))
+
 ## [0.5.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.5.3...hcl-edit-v0.5.4) (2023-05-15)
 
 
