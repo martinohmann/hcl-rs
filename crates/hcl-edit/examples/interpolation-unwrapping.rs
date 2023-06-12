@@ -32,7 +32,7 @@
 //! foo = "${var.bar}/${var.baz}"
 //! ```
 use hcl_edit::expr::Expression;
-use hcl_edit::repr::Decorate;
+use hcl_edit::prelude::*;
 use hcl_edit::structure::Body;
 use hcl_edit::template::{Element, StringTemplate};
 use hcl_edit::visit_mut::{visit_expr_mut, VisitMut};

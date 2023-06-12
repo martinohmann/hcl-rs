@@ -33,3 +33,22 @@ pub use self::raw_string::RawString;
 // Re-exported for convenience.
 #[doc(inline)]
 pub use hcl_primitives::{Ident, Number};
+
+/// Core concepts available for glob import.
+///
+/// This includes useful traits like [`Decorate`](crate::repr::Decorate) and
+/// [`Span`](crate::repr::Span).
+///
+/// # Example
+///
+/// ```
+/// use hcl_edit::expr::Expression;
+/// use hcl_edit::prelude::*;
+///
+/// let mut expr = Expression::from("A string");
+/// expr.decor_mut().set_suffix(" // Comment.");
+/// assert_eq!(expr.to_string(), r#""A string" // Comment."#);
+/// ```
+pub mod prelude {
+    pub use crate::repr::{Decorate, Span};
+}

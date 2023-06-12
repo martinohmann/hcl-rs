@@ -19,7 +19,8 @@
 //! # fn main() -> Result<(), Box<dyn Error>> {
 //! use hcl_edit::Ident;
 //! use hcl_edit::expr::{Expression, Traversal, TraversalOperator};
-//! use hcl_edit::repr::{Decorated, Decorate};
+//! use hcl_edit::prelude::*;
+//! use hcl_edit::repr::Decorated;
 //! use hcl_edit::structure::Body;
 //! use hcl_edit::visit_mut::{visit_expr_mut, VisitMut};
 //! use std::str::FromStr;
