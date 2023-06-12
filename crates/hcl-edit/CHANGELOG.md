@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.1...hcl-edit-v0.6.2) (2023-06-12)
+
+
+### Features
+
+* add prelude module ([844f13a](https://github.com/martinohmann/hcl-rs/commit/844f13af808b7323aa98f8aba9e32cfbf77c5a37))
+
 ## [0.6.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.0...hcl-edit-v0.6.1) (2023-06-05)
 
 
