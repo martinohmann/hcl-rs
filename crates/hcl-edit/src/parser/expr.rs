@@ -38,7 +38,7 @@ pub(super) fn expr(input: Input) -> IResult<Input, Expression> {
     Ok((input, expr))
 }
 
-pub(super) fn expr_inner<'i, 's>(
+fn expr_inner<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {
