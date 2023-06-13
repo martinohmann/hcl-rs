@@ -1,6 +1,5 @@
 use crate::expr::Expression;
-use crate::repr::Decor;
-use crate::RawString;
+use crate::{Decor, RawString};
 use std::ops::Range;
 
 /// An owning iterator over the values of an `Array`.

@@ -9,8 +9,8 @@ use super::{
 };
 use crate::{
     expr::Expression,
-    repr::{Decorate, Decorated, SetSpan},
     structure::{Attribute, Block, BlockLabel, Body, Structure},
+    Decorate, Decorated, SetSpan,
 };
 use hcl_primitives::Ident;
 use std::cell::RefCell;

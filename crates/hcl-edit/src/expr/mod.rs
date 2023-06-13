@@ -19,9 +19,8 @@ pub use self::object::{
 pub use self::operation::{BinaryOp, BinaryOperator, UnaryOp, UnaryOperator};
 pub use self::traversal::{Splat, Traversal, TraversalOperator};
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::repr::{Decor, Decorate, Decorated, Formatted};
 use crate::template::{HeredocTemplate, StringTemplate};
-use crate::{parser, Ident, Number};
+use crate::{parser, Decor, Decorate, Decorated, Formatted, Ident, Number};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;

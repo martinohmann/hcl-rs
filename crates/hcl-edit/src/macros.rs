@@ -1,19 +1,19 @@
 macro_rules! forward_decorate_impl {
     ($($ty:ident => { $($variant:ident),+ }),+ $(,)?) => {
         $(
-            impl $crate::repr::Decorate for $ty {
-                fn decor(&self) -> &$crate::repr::Decor {
+            impl $crate::Decorate for $ty {
+                fn decor(&self) -> &$crate::Decor {
                     match self {
                         $(
-                            $ty::$variant(v) => $crate::repr::Decorate::decor(v),
+                            $ty::$variant(v) => $crate::Decorate::decor(v),
                         )*
                     }
                 }
 
-                fn decor_mut(&mut self) -> &mut $crate::repr::Decor {
+                fn decor_mut(&mut self) -> &mut $crate::Decor {
                     match self {
                         $(
-                            $ty::$variant(v) => $crate::repr::Decorate::decor_mut(v),
+                            $ty::$variant(v) => $crate::Decorate::decor_mut(v),
                         )*
                     }
                 }
@@ -25,21 +25,21 @@ macro_rules! forward_decorate_impl {
 macro_rules! forward_span_impl {
     ($($ty:ident => { $($variant:ident),+ }),+ $(,)?) => {
         $(
-            impl $crate::repr::Span for $ty {
+            impl $crate::Span for $ty {
                 fn span(&self) -> Option<std::ops::Range<usize>> {
                     match self {
                         $(
-                            $ty::$variant(v) => $crate::repr::Span::span(v),
+                            $ty::$variant(v) => $crate::Span::span(v),
                         )*
                     }
                 }
             }
 
-            impl $crate::repr::SetSpan for $ty {
+            impl $crate::SetSpan for $ty {
                 fn set_span(&mut self, span: std::ops::Range<usize>) {
                     match self {
                         $(
-                            $ty::$variant(v) => $crate::repr::SetSpan::set_span(v, span),
+                            $ty::$variant(v) => $crate::SetSpan::set_span(v, span),
                         )*
                     }
                 }
@@ -51,12 +51,12 @@ macro_rules! forward_span_impl {
 macro_rules! decorate_impl {
     ($($ty:ident),+ $(,)?) => {
         $(
-            impl $crate::repr::Decorate for $ty {
-                fn decor(&self) -> &$crate::repr::Decor {
+            impl $crate::Decorate for $ty {
+                fn decor(&self) -> &$crate::Decor {
                     &self.decor
                 }
 
-                fn decor_mut(&mut self) -> &mut $crate::repr::Decor {
+                fn decor_mut(&mut self) -> &mut $crate::Decor {
                     &mut self.decor
                 }
             }
@@ -67,13 +67,13 @@ macro_rules! decorate_impl {
 macro_rules! span_impl {
     ($($ty:ident),+ $(,)?) => {
         $(
-            impl $crate::repr::Span for $ty {
+            impl $crate::Span for $ty {
                 fn span(&self) -> Option<std::ops::Range<usize>> {
                     self.span.clone()
                 }
             }
 
-            impl $crate::repr::SetSpan for $ty {
+            impl $crate::SetSpan for $ty {
                 fn set_span(&mut self, span: std::ops::Range<usize>) {
                     self.span = Some(span);
                 }

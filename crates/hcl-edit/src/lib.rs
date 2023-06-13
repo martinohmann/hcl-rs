@@ -20,6 +20,7 @@ mod encode;
 pub mod expr;
 pub mod parser;
 mod raw_string;
+#[doc(hidden)]
 pub mod repr;
 pub mod structure;
 pub mod template;
@@ -27,8 +28,9 @@ mod util;
 pub mod visit;
 pub mod visit_mut;
 
-#[doc(inline)]
 pub use self::raw_string::RawString;
+use self::repr::SetSpan;
+pub use self::repr::{Decor, Decorate, Decorated, Formatted, Span, Spanned};
 
 // Re-exported for convenience.
 #[doc(inline)]
@@ -50,5 +52,5 @@ pub use hcl_primitives::{Ident, Number};
 /// assert_eq!(expr.to_string(), r#""A string" // Comment."#);
 /// ```
 pub mod prelude {
-    pub use crate::repr::{Decorate, Span};
+    pub use crate::{Decorate, Span};
 }

@@ -1,6 +1,5 @@
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated};
-use crate::Ident;
+use crate::{Decor, Decorate, Decorated, Ident};
 use std::ops::Range;
 
 /// A for expression is a construct for constructing a collection by projecting the items from
