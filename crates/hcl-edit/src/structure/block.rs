@@ -1,6 +1,5 @@
-use crate::repr::{Decor, Decorate, Decorated};
 use crate::structure::{Attribute, Body, Structure};
-use crate::Ident;
+use crate::{Decor, Decorate, Decorated, Ident};
 use std::ops::{self, Range};
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a

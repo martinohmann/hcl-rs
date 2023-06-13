@@ -1,8 +1,5 @@
 use super::{error::ParseError, Input};
-use crate::{
-    repr::{Decorate, SetSpan},
-    RawString,
-};
+use crate::{Decorate, RawString, SetSpan};
 use winnow::Parser;
 
 pub(super) fn spanned<'a, F, O>(inner: F) -> impl Parser<Input<'a>, O, ParseError<Input<'a>>>

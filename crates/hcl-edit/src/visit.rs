@@ -65,14 +65,13 @@ use crate::expr::{
     FuncCall, Null, Object, ObjectKey, ObjectValue, Parenthesis, Splat, Traversal,
     TraversalOperator, UnaryOp, UnaryOperator,
 };
-use crate::repr::{Decorated, Formatted, Spanned};
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
     Template,
 };
-use crate::{Ident, Number};
+use crate::{Decorated, Formatted, Ident, Number, Spanned};
 
 macro_rules! empty_visit_methods {
     ($($name: ident => $t: ty),+ $(,)?) => {

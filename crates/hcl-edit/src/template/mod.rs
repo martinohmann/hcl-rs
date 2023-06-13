@@ -2,9 +2,8 @@
 
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, Spanned};
 use crate::util::{dedent_by, min_leading_whitespace};
-use crate::{parser, Ident, RawString};
+use crate::{parser, Decor, Decorate, Decorated, Ident, RawString, Spanned};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;

@@ -1,6 +1,5 @@
 use crate::expr::{Expression, IntoIter, Iter, IterMut};
-use crate::repr::{Decor, Decorate, Decorated};
-use crate::{Ident, RawString};
+use crate::{Decor, Decorate, Decorated, Ident, RawString};
 use std::ops::Range;
 
 /// Type representing a function call.

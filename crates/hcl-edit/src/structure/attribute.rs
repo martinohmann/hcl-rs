@@ -1,6 +1,5 @@
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, Span};
-use crate::Ident;
+use crate::{Decor, Decorate, Decorated, Ident, Span};
 use std::ops::{self, Range};
 
 /// Represents an HCL attribute which consists of an attribute key and a value expression.

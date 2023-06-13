@@ -15,9 +15,8 @@ use crate::{
         Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
         Splat, TraversalOperator, UnaryOperator,
     },
-    repr::{Decorate, Decorated, Formatted, SetSpan, Spanned},
     template::HeredocTemplate,
-    Ident, RawString,
+    Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned,
 };
 use std::cell::RefCell;
 use winnow::{

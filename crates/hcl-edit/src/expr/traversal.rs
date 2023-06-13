@@ -1,6 +1,5 @@
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated};
-use crate::Ident;
+use crate::{Decor, Decorate, Decorated, Ident};
 use std::fmt;
 use std::ops::Range;
 
