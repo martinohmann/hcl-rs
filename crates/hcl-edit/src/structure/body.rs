@@ -1,6 +1,6 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::parser;
-use crate::repr::{Decor, Decorate, SetSpan, Span};
+use crate::repr::Decor;
 use crate::structure::{Attribute, AttributeMut, Block, Structure, StructureMut};
 use std::fmt;
 use std::ops::Range;

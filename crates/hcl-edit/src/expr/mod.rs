@@ -19,7 +19,7 @@ pub use self::object::{
 pub use self::operation::{BinaryOp, BinaryOperator, UnaryOp, UnaryOperator};
 pub use self::traversal::{Splat, Traversal, TraversalOperator};
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::repr::{Decor, Decorate, Decorated, Formatted, SetSpan, Span};
+use crate::repr::{Decor, Decorate, Decorated, Formatted};
 use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{parser, Ident, Number};
 use std::fmt;

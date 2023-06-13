@@ -1,5 +1,5 @@
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
+use crate::repr::{Decor, Decorate, Decorated, Span};
 use crate::{Ident, RawString};
 use std::ops::{self, Range};
 use vecmap::map::{MutableKeys, VecMap};

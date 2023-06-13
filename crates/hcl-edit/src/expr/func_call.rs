@@ -1,5 +1,5 @@
 use crate::expr::{Expression, IntoIter, Iter, IterMut};
-use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
+use crate::repr::{Decor, Decorate, Decorated};
 use crate::{Ident, RawString};
 use std::ops::Range;
 

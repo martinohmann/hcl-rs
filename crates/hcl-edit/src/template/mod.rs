@@ -2,7 +2,7 @@
 
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span, Spanned};
+use crate::repr::{Decor, Decorate, Decorated, Spanned};
 use crate::util::{dedent_by, min_leading_whitespace};
 use crate::{parser, Ident, RawString};
 use std::fmt;

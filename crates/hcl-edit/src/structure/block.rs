@@ -1,4 +1,4 @@
-use crate::repr::{Decor, Decorate, Decorated, SetSpan, Span};
+use crate::repr::{Decor, Decorate, Decorated};
 use crate::structure::{Attribute, Body, Structure};
 use crate::Ident;
 use std::ops::{self, Range};
