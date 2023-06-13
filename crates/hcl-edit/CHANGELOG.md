@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.2...hcl-edit-v0.6.3) (2023-06-13)
+
+
+### Features
+
+* impl `Decorate` and `Span` for `Box&lt;T&gt;` ([d1ae8c0](https://github.com/martinohmann/hcl-rs/commit/d1ae8c057111cb8f1521f460936dfcb2355220a3))
+* **repr:** re-export types from crate root ([#241](https://github.com/martinohmann/hcl-rs/issues/241)) ([2c5927b](https://github.com/martinohmann/hcl-rs/commit/2c5927b64d30eff25111ef812d2b7fd104f3eccc))
+
 ## [0.6.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.1...hcl-edit-v0.6.2) (2023-06-12)
 
 
