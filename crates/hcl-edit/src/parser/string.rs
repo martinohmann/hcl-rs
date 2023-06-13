@@ -4,7 +4,7 @@ use super::{
     trivia::void,
     IResult, Input,
 };
-use crate::{repr::Decorated, Ident, RawString};
+use crate::{Decorated, Ident, RawString};
 use std::borrow::Cow;
 use winnow::{
     combinator::{alt, cut_err, delimited, fail, not, opt, preceded, repeat, success},

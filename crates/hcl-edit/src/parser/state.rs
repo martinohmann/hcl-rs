@@ -3,9 +3,8 @@ use crate::{
         BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
         UnaryOperator,
     },
-    repr::{Decorate, Decorated, SetSpan, Spanned},
     structure::{Body, Structure},
-    RawString,
+    Decorate, Decorated, RawString, SetSpan, Spanned,
 };
 use fnv::FnvHashSet;
 use std::ops::Range;

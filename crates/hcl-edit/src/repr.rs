@@ -99,8 +99,26 @@ pub trait Span {
     fn span(&self) -> Option<Range<usize>>;
 }
 
+impl<T> Span for Box<T>
+where
+    T: Span,
+{
+    fn span(&self) -> Option<Range<usize>> {
+        (**self).span()
+    }
+}
+
 pub(crate) trait SetSpan {
     fn set_span(&mut self, span: Range<usize>);
+}
+
+impl<T> SetSpan for Box<T>
+where
+    T: SetSpan,
+{
+    fn set_span(&mut self, span: Range<usize>) {
+        (**self).set_span(span);
+    }
 }
 
 /// A trait for objects which can be decorated with whitespace and comments.
@@ -123,6 +141,19 @@ pub trait Decorate {
     {
         self.decorate(decor);
         self
+    }
+}
+
+impl<T> Decorate for Box<T>
+where
+    T: Decorate,
+{
+    fn decor(&self) -> &Decor {
+        (**self).decor()
+    }
+
+    fn decor_mut(&mut self) -> &mut Decor {
+        (**self).decor_mut()
     }
 }
 

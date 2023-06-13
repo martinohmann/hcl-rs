@@ -7,9 +7,9 @@ use crate::{
         decor::{ModifyDecor, Padding},
         Formatter,
     },
-    repr::Decorate,
     structure::{AttributeMut, Block, BlockLabel, Body, StructureMut},
     visit_mut::{visit_body_mut, visit_expr_mut, visit_object_mut, VisitMut},
+    Decorate,
 };
 
 #[doc(hidden)]

@@ -6,7 +6,7 @@ mod tests;
 mod visit;
 
 use self::decor::{DecorFormatter, ModifyDecor};
-use crate::repr::{Decor, Decorate};
+use crate::{Decor, Decorate};
 use hcl_primitives::InternalString;
 use std::ops;
 

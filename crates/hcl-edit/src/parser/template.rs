@@ -8,12 +8,12 @@ use super::{
     IResult, Input,
 };
 use crate::{
-    repr::{SetSpan, Span, Spanned},
     template::{
         Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
         ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip,
         Template,
     },
+    SetSpan, Span, Spanned,
 };
 use winnow::{
     ascii::{line_ending, space0},

@@ -10,7 +10,7 @@ pub use self::body::{
     Attributes, AttributesMut, Blocks, BlocksMut, Body, BodyBuilder, IntoAttributes, IntoBlocks,
     IntoIter, Iter, IterMut,
 };
-use crate::repr::{Decor, Decorate, SetSpan, Span};
+use crate::{Decor, Decorate, Span};
 use std::ops::Range;
 
 /// Represents an HCL structure.

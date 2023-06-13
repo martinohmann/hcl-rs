@@ -17,11 +17,11 @@
 //! # use std::error::Error;
 //! #
 //! # fn main() -> Result<(), Box<dyn Error>> {
-//! use hcl_edit::Ident;
 //! use hcl_edit::expr::{Expression, Traversal, TraversalOperator};
-//! use hcl_edit::repr::{Decorated, Decorate};
+//! use hcl_edit::prelude::*;
 //! use hcl_edit::structure::Body;
 //! use hcl_edit::visit_mut::{visit_expr_mut, VisitMut};
+//! use hcl_edit::{Decorated, Ident};
 //! use std::str::FromStr;
 //!
 //! struct VariableNamespacer {
@@ -82,14 +82,13 @@ use crate::expr::{
     FuncCall, Null, Object, ObjectKeyMut, ObjectValue, Parenthesis, Splat, Traversal,
     TraversalOperator, UnaryOp, UnaryOperator,
 };
-use crate::repr::{Decorated, Formatted, Spanned};
 use crate::structure::{AttributeMut, Block, BlockLabel, Body, StructureMut};
 use crate::template::{
     Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
     ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
     Template,
 };
-use crate::{Ident, Number};
+use crate::{Decorated, Formatted, Ident, Number, Spanned};
 
 macro_rules! empty_visit_mut_methods {
     ($($name: ident => $t: ty),+ $(,)?) => {

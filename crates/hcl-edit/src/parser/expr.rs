@@ -15,9 +15,8 @@ use crate::{
         Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
         Splat, TraversalOperator, UnaryOperator,
     },
-    repr::{Decorate, Decorated, Formatted, SetSpan, Spanned},
     template::HeredocTemplate,
-    Ident, RawString,
+    Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned,
 };
 use std::cell::RefCell;
 use winnow::{
@@ -38,7 +37,7 @@ pub(super) fn expr(input: Input) -> IResult<Input, Expression> {
     Ok((input, expr))
 }
 
-pub(super) fn expr_inner<'i, 's>(
+fn expr_inner<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
     move |input: Input<'i>| {

@@ -2,8 +2,7 @@ mod expr;
 mod structure;
 mod template;
 
-use crate::repr::{Decorate, Decorated, Formatted};
-use crate::{Ident, Number};
+use crate::{Decorate, Decorated, Formatted, Ident, Number};
 use std::fmt::{self, Write};
 
 pub(crate) const NO_DECOR: (&str, &str) = ("", "");

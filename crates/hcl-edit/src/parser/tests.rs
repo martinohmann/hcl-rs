@@ -2,7 +2,7 @@ use super::expr::expr;
 use super::parse_complete;
 use super::structure::body;
 use super::template::template;
-use crate::{expr::Expression, repr::Formatted, Number};
+use crate::{expr::Expression, Formatted, Number};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 

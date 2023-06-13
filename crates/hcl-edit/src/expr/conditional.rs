@@ -1,5 +1,5 @@
 use crate::expr::Expression;
-use crate::repr::{Decor, Decorate, SetSpan, Span};
+use crate::Decor;
 use std::ops::Range;
 
 /// The conditional operator allows selecting from one of two expressions based on the outcome of a

@@ -1,9 +1,8 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::format::{Format, Formatter};
-use crate::parser;
-use crate::repr::{Decor, Decorate, SetSpan, Span};
 use crate::structure::{Attribute, AttributeMut, Block, Structure, StructureMut};
 use crate::visit_mut::VisitMut;
+use crate::{parser, Decor};
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
