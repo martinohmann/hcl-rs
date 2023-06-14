@@ -5,12 +5,13 @@ use crate::expr::{
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
+    Directive, Element, EscapedLiteral, ForDirective, IfDirective, Interpolation, Strip, Template,
 };
 use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
 use hcl_primitives::ident::is_ident;
 use std::io;
+use std::io::Write;
 
 impl<T> private::Sealed for &T where T: Format {}
 
@@ -469,6 +470,7 @@ impl Format for Element {
             Element::Literal(lit) => fmt.write_string_fragment(lit),
             Element::Interpolation(interp) => interp.format(fmt),
             Element::Directive(dir) => dir.format(fmt),
+            Element::EscapedLiteral(escaped_literal) => escaped_literal.format(fmt),
         }
     }
 }
@@ -542,6 +544,17 @@ impl Format for ForDirective {
 
         self.template.format(fmt)?;
         format_directive(fmt, self.endfor_strip, |fmt| fmt.write_bytes(b"endfor"))
+    }
+}
+
+impl private::Sealed for EscapedLiteral {}
+
+impl Format for EscapedLiteral {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        fmt.write_string_fragment(&self.to_string())
     }
 }
 

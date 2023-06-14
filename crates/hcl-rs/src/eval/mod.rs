@@ -67,6 +67,25 @@
 //! # }
 //! ```
 //!
+//! If you need to include literal representation of variable reference,
+//! you can use an escape sequence:
+//!
+//! ```
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use hcl::Template;
+//! use hcl::eval::{Context, Evaluate};
+//! use std::str::FromStr;
+//!
+//! let template = Template::from_str("Value: ${value}, escaped: $${value}")?;
+//! let mut ctx = Context::new();
+//! ctx.declare_var("value", 1);
+//!
+//! let evaluated = "Value: 1, escaped: ${value}";
+//! assert_eq!(template.evaluate(&ctx)?, evaluated);
+//! #   Ok(())
+//! # }
+//! ```
+//!
 //! Here's another example which evaluates some attribute expressions using [`from_str`] as
 //! described in the [deserialization
 //! example][crate::eval#expression-evaluation-during-de-serialization] below:

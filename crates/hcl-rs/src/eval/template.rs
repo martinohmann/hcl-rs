@@ -41,6 +41,10 @@ fn evaluate_element(
         }
         Element::Interpolation(interp) => evaluate_interpolation(result, interp, ctx),
         Element::Directive(dir) => evaluate_directive(result, dir, ctx),
+        Element::EscapedLiteral(escaped_literal) => {
+            result.push_str(&escaped_literal.to_string());
+            Ok(())
+        }
     }
 }
 

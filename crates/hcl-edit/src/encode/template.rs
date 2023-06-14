@@ -3,15 +3,17 @@ use super::{
     TRAILING_SPACE_DECOR,
 };
 use crate::template::{
-    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-    ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
-    Strip, Template,
+    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, EscapedLiteral,
+    ForDirective, ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation,
+    StringTemplate, Strip, Template,
 };
 use crate::util::indent_by;
 use std::fmt::{self, Write};
 
 const INTERPOLATION_START: &str = "${";
 const DIRECTIVE_START: &str = "%{";
+const ESCAPED_INTERPOLATION: &str = "$${";
+const ESCAPED_DIRECTIVE: &str = "%%{";
 
 impl Encode for StringTemplate {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
@@ -74,6 +76,10 @@ impl Encode for Element {
                     buf.write_str(lit)
                 }
             }
+            Element::EscapedLiteral(lit) => buf.write_str(match lit.value() {
+                EscapedLiteral::Interpolation => ESCAPED_INTERPOLATION,
+                EscapedLiteral::Directive => ESCAPED_DIRECTIVE,
+            }),
             Element::Interpolation(interp) => interp.encode(buf),
             Element::Directive(dir) => dir.encode(buf),
         }

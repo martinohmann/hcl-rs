@@ -230,7 +230,9 @@ fn parse_template() {
                                 ]),
                                 TemplateExprEndNormal(10, 11)
                             ]),
-                            QuotedStringTemplateLiteral(11, 21),
+                            QuotedStringTemplateLiteral(11, 12),
+                            EscapedInterpolation(12, 15),
+                            QuotedStringTemplateLiteral(15, 21),
                             TemplateDirective(21, 48, [
                                 TemplateIf(21, 48, [
                                     TemplateIfExpr(21, 33, [

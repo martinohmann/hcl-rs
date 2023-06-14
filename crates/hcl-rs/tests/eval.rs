@@ -1,7 +1,7 @@
 mod common;
 
 use common::{assert_eval, assert_eval_ctx, assert_eval_error};
-use hcl::eval::{Context, ErrorKind, EvalResult, FuncArgs, FuncDef, ParamType};
+use hcl::eval::{Context, ErrorKind, EvalResult, Evaluate, FuncArgs, FuncDef, ParamType};
 use hcl::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, TemplateExpr, Traversal,
     TraversalOperator, Variable,
@@ -422,4 +422,29 @@ fn interpolation_unwrapping() {
         TemplateExpr::from("%{ for v in [true] }${v}%{ endfor }"),
         Value::from("true"),
     );
+}
+
+#[test]
+fn issue_242() -> Result<(), Box<dyn std::error::Error>> {
+    use hcl::eval::Evaluate;
+    use hcl::Value;
+
+    let body = hcl::from_str::<Body>(indoc! {r#"
+      b = <<-EOF
+        make TARGET=$${GIT_BRANCH}
+      EOF
+    "#
+    })?;
+
+    let context = Context::new();
+    let value = body
+        .into_attributes()
+        .find(|attr| attr.key == Identifier::from("b"))
+        .expect("key not found")
+        .expr
+        .evaluate(&context)?;
+
+    assert_eq!(value, Value::from("make TARGET=${GIT_BRANCH}\n"));
+
+    Ok(())
 }

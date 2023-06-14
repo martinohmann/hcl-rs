@@ -1,6 +1,6 @@
 use super::*;
 use crate::template::{
-    Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
+    Directive, Element, EscapedLiteral, ForDirective, IfDirective, Interpolation, Strip, Template,
 };
 
 pub fn template(pair: Pair<Rule>) -> Result<Template> {
@@ -10,6 +10,8 @@ pub fn template(pair: Pair<Rule>) -> Result<Template> {
 fn element(pair: Pair<Rule>) -> Result<Element> {
     match pair.as_rule() {
         Rule::TemplateLiteral => Ok(Element::Literal(string(pair))),
+        Rule::EscapedInterpolation => Ok(Element::EscapedLiteral(EscapedLiteral::Interpolation)),
+        Rule::EscapedDirective => Ok(Element::EscapedLiteral(EscapedLiteral::Directive)),
         Rule::TemplateInterpolation => interpolation(pair).map(Element::Interpolation),
         Rule::TemplateDirective => directive(inner(pair)).map(Element::Directive),
         rule => unexpected_rule(rule),

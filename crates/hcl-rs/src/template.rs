@@ -87,7 +87,7 @@ use crate::de::FromStrVisitor;
 use crate::expr::{Expression, TemplateExpr};
 use crate::{format, parser, Error, Identifier, Result};
 use serde::{Deserialize, Serialize};
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
 // Re-exported for convenience.
@@ -214,12 +214,14 @@ pub enum Element {
     Interpolation(Interpolation),
     /// A `if` and `for` directive that allows for conditional template evaluation.
     Directive(Directive),
+    /// An escaped literal: either `$${` or `%%{`
+    EscapedLiteral(EscapedLiteral),
 }
 
 impl Element {
     pub(crate) fn strip(&self) -> Strip {
         match self {
-            Element::Literal(_) => Strip::None,
+            Element::Literal(_) | Element::EscapedLiteral(_) => Strip::None,
             Element::Interpolation(interp) => interp.strip,
             Element::Directive(dir) => dir.strip(),
         }
@@ -247,6 +249,12 @@ impl From<Interpolation> for Element {
 impl From<Directive> for Element {
     fn from(directive: Directive) -> Self {
         Element::Directive(directive)
+    }
+}
+
+impl From<EscapedLiteral> for Element {
+    fn from(escaped_literal: EscapedLiteral) -> Self {
+        Element::EscapedLiteral(escaped_literal)
     }
 }
 
@@ -455,6 +463,22 @@ impl ForDirective {
     pub fn with_endfor_strip(mut self, strip: Strip) -> ForDirective {
         self.endfor_strip = strip;
         self
+    }
+}
+
+/// An escaped literal: either `$${` or `%%{`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EscapedLiteral {
+    Interpolation,
+    Directive,
+}
+
+impl Display for EscapedLiteral {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            EscapedLiteral::Interpolation => "${",
+            EscapedLiteral::Directive => "%{",
+        })
     }
 }
 

@@ -84,9 +84,9 @@ use crate::expr::{
 };
 use crate::structure::{AttributeMut, Block, BlockLabel, Body, StructureMut};
 use crate::template::{
-    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-    ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation, StringTemplate,
-    Template,
+    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, EscapedLiteral,
+    ForDirective, ForTemplateExpr, HeredocTemplate, IfDirective, IfTemplateExpr, Interpolation,
+    StringTemplate, Template,
 };
 use crate::{Decorated, Formatted, Ident, Number, Spanned};
 
@@ -123,6 +123,7 @@ pub trait VisitMut {
         visit_string_mut => Decorated<String>,
         visit_splat_mut => Decorated<Splat>,
         visit_literal_mut => Spanned<String>,
+        visit_escaped_literal_mut => Spanned<EscapedLiteral>,
         visit_unary_operator_mut => Spanned<UnaryOperator>,
         visit_binary_operator_mut => Spanned<BinaryOperator>,
         visit_endif_template_expr_mut => EndifTemplateExpr,
@@ -420,6 +421,7 @@ where
 {
     match node {
         Element::Literal(literal) => v.visit_literal_mut(literal),
+        Element::EscapedLiteral(literal) => v.visit_escaped_literal_mut(literal),
         Element::Interpolation(interpolation) => v.visit_interpolation_mut(interpolation),
         Element::Directive(directive) => v.visit_directive_mut(directive),
     }

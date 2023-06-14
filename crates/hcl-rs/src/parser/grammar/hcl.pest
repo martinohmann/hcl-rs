@@ -60,6 +60,10 @@ ObjectItemExpr  = _{ Expression ~ ("=" | ":") ~ Expression }
 // Template expressions
 TemplateExpr = { QuotedStringTemplate | Heredoc }
 
+EscapedInterpolation = { "$${" }
+EscapedDirective     = { "%%{" }
+EscapedLiteral       = _{ EscapedInterpolation | EscapedDirective }
+
 // Heredoc templates
 Heredoc = ${
     HeredocIntro ~ PUSH(Identifier) ~ NEWLINE ~
@@ -71,19 +75,17 @@ HeredocIntroIndent =  { "<<-" }
 HeredocIntroNormal =  { "<<" }
 
 HeredocTemplate = ${
-    (HeredocLiteral | TemplateInterpolation | TemplateDirective)*
+    (HeredocLiteral | EscapedLiteral | TemplateInterpolation | TemplateDirective)*
 }
 HeredocLiteral    = @{ HeredocStringPart+ }
 HeredocStringPart =  {
-    "$${"
-    | "%%{"
-    | !("${" | "%{" | (NEWLINE ~ SpaceOrTab* ~ PEEK)) ~ ANY
+    !("${" | "%{" | EscapedLiteral | (NEWLINE ~ SpaceOrTab* ~ PEEK)) ~ ANY
 }
 
 // Quoted string templates
 QuotedStringTemplate      = ${ "\"" ~ QuotedStringTemplateInner ~ "\"" }
 QuotedStringTemplateInner = ${
-    (QuotedStringTemplateLiteral | TemplateInterpolation | TemplateDirective)*
+    (QuotedStringTemplateLiteral | EscapedLiteral | TemplateInterpolation | TemplateDirective)*
 }
 QuotedStringTemplateLiteral = @{ StringPart+ }
 
@@ -91,9 +93,7 @@ QuotedStringTemplateLiteral = @{ StringPart+ }
 StringLit  = ${ "\"" ~ String ~ "\"" }
 String     = @{ StringPart* }
 StringPart =  {
-    "$${"
-    | "%%{"
-    | !("\"" | "\\" | "${" | "%{") ~ ANY
+    !("\"" | "\\" | "${" | "%{" | EscapedLiteral) ~ ANY
     | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
@@ -146,8 +146,8 @@ SpaceOrTab = _{ " " | "\t" }
 // Top-level rule for the template sub-language
 HclTemplate = ${ SOI ~ Template ~ EOI }
 
-Template              = ${ (TemplateLiteral | TemplateInterpolation | TemplateDirective)* }
-TemplateLiteral       = @{ ("$${" | "%%{" | (!("${" | "%{") ~ ANY))+ }
+Template              = ${ (TemplateLiteral | EscapedLiteral | TemplateInterpolation | TemplateDirective)* }
+TemplateLiteral       = @{ (!("${" | "%{" | EscapedLiteral) ~ ANY)+ }
 TemplateInterpolation = !{ TemplateIExprStart ~ Expression ~ TemplateExprEnd }
 TemplateDirective     =  { TemplateIf | TemplateFor }
 

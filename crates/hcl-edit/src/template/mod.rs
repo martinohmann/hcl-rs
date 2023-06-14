@@ -679,6 +679,8 @@ pub enum Element {
     Interpolation(Interpolation),
     /// An `if` or `for` directive that allows for conditional template evaluation.
     Directive(Directive),
+    /// An escaped literal: either `$${` or `%%{`
+    EscapedLiteral(Spanned<EscapedLiteral>),
 }
 
 impl Element {
@@ -691,7 +693,7 @@ impl Element {
     pub fn as_literal(&self) -> Option<&Spanned<String>> {
         match self {
             Element::Literal(value) => Some(value),
-            Element::Interpolation(_) | Element::Directive(_) => None,
+            Element::Interpolation(_) | Element::Directive(_) | Element::EscapedLiteral(_) => None,
         }
     }
 
@@ -704,7 +706,7 @@ impl Element {
     pub fn as_interpolation(&self) -> Option<&Interpolation> {
         match self {
             Element::Interpolation(value) => Some(value),
-            Element::Literal(_) | Element::Directive(_) => None,
+            Element::Literal(_) | Element::Directive(_) | Element::EscapedLiteral(_) => None,
         }
     }
 
@@ -717,13 +719,13 @@ impl Element {
     pub fn as_directive(&self) -> Option<&Directive> {
         match self {
             Element::Directive(value) => Some(value),
-            Element::Literal(_) | Element::Interpolation(_) => None,
+            Element::Literal(_) | Element::Interpolation(_) | Element::EscapedLiteral(_) => None,
         }
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
         match self {
-            Element::Literal(_) => {}
+            Element::Literal(_) | Element::EscapedLiteral(_) => {}
             Element::Interpolation(interp) => interp.despan(input),
             Element::Directive(dir) => dir.despan(input),
         }
@@ -1152,6 +1154,13 @@ impl EndforTemplateExpr {
     }
 }
 
+/// An escaped literal: either `$${` or `%%{`
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EscapedLiteral {
+    Interpolation,
+    Directive,
+}
+
 decorate_impl! { StringTemplate, HeredocTemplate }
 
 span_impl! {
@@ -1160,6 +1169,6 @@ span_impl! {
 }
 
 forward_span_impl! {
-    Element => { Literal, Interpolation, Directive },
+    Element => { Literal, Interpolation, Directive, EscapedLiteral },
     Directive => { If, For }
 }
