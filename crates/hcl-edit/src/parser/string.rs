@@ -17,10 +17,11 @@ use winnow::{
 pub(super) fn string(input: Input) -> IResult<Input, String> {
     delimited(b'"', opt(build_string), b'"')
         .map(Option::unwrap_or_default)
+        .output_into()
         .parse_next(input)
 }
 
-pub(super) fn build_string(input: Input) -> IResult<Input, String> {
+pub(super) fn build_string(input: Input) -> IResult<Input, Cow<str>> {
     let (mut input, mut string) = match string_fragment(input) {
         Ok((input, fragment)) => match fragment {
             StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
@@ -38,7 +39,7 @@ pub(super) fn build_string(input: Input) -> IResult<Input, String> {
                 };
                 input = rest;
             }
-            Err(_) => return Ok((input, string.into())),
+            Err(_) => return Ok((input, string)),
         }
     }
 }

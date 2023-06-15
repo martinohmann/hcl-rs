@@ -1,7 +1,8 @@
 mod common;
 
 use common::{assert_deserialize, assert_format};
-use hcl::{expr::*, Identifier};
+use hcl::eval::{Context, Evaluate};
+use hcl::{expr::*, Body, Identifier, Value};
 use indoc::indoc;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -200,4 +201,27 @@ fn issue_131() {
         "#}
         .trim_end(),
     );
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/242
+#[test]
+fn issue_242() {
+    let body: Body = hcl::from_str(indoc! {r#"
+      b = <<-EOF
+        make TARGET=$${GIT_BRANCH}
+      EOF
+    "#
+    })
+    .unwrap();
+
+    let context = Context::new();
+    let value = body
+        .into_attributes()
+        .find(|attr| attr.key == Identifier::from("b"))
+        .expect("key not found")
+        .expr
+        .evaluate(&context)
+        .unwrap();
+
+    assert_eq!(value, Value::from("make TARGET=${GIT_BRANCH}\n"));
 }

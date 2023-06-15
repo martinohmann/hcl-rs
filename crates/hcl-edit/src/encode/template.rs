@@ -8,6 +8,7 @@ use crate::template::{
     Strip, Template,
 };
 use crate::util::indent_by;
+use hcl_primitives::template::escape_markers;
 use std::fmt::{self, Write};
 
 const INTERPOLATION_START: &str = "${";
@@ -68,10 +69,11 @@ impl Encode for Element {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         match self {
             Element::Literal(lit) => {
+                let escaped = escape_markers(lit);
                 if buf.escape() {
-                    encode_escaped(buf, lit)
+                    encode_escaped(buf, &escaped)
                 } else {
-                    buf.write_str(lit)
+                    buf.write_str(&escaped)
                 }
             }
             Element::Interpolation(interp) => interp.encode(buf),
