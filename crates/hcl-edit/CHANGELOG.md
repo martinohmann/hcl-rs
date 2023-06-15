@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.3...hcl-edit-v0.6.4) (2023-06-15)
+
+
+### Bug Fixes
+
+* **template:** properly handle escaping of interpolation/directive markers ([#247](https://github.com/martinohmann/hcl-rs/issues/247)) ([69ad800](https://github.com/martinohmann/hcl-rs/commit/69ad8007e6d331b8f915b6e98de3fe4b8ef16239))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.1.0 to 0.1.1
+
 ## [0.6.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.2...hcl-edit-v0.6.3) (2023-06-13)
 
 

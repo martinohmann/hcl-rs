@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.0...hcl-primitives-v0.1.1) (2023-06-15)
+
+
+### Features
+
+* **template:** add `{escape,unescape}_markers` ([#245](https://github.com/martinohmann/hcl-rs/issues/245)) ([5e51771](https://github.com/martinohmann/hcl-rs/commit/5e517713e9ba001306e2574fbbe1271bcfe1adda))
+
 ## [0.1.0](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.0.3...hcl-primitives-v0.1.0) (2023-05-02)
 
 
