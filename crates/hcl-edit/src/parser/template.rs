@@ -15,6 +15,8 @@ use crate::{
     },
     SetSpan, Span, Spanned,
 };
+use hcl_primitives::template::unescape_markers;
+use std::borrow::Cow;
 use winnow::{
     ascii::{line_ending, space0},
     combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated},
@@ -79,12 +81,12 @@ pub(super) fn heredoc_template<'a>(
 
 fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseError<Input<'a>>>
 where
-    P: Parser<Input<'a>, String, ParseError<Input<'a>>>,
+    P: Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>,
 {
     repeat(
         0..,
         spanned(alt((
-            literal.map(|s| Element::Literal(Spanned::new(s))),
+            literal.map(|s| Element::Literal(Spanned::new(unescape_markers(&s).into()))),
             interpolation.map(Element::Interpolation),
             directive.map(Element::Directive),
         ))),

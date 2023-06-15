@@ -10,6 +10,7 @@ use crate::template::{
 use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
 use hcl_primitives::ident::is_ident;
+use hcl_primitives::template::escape_markers;
 use std::io;
 
 impl<T> private::Sealed for &T where T: Format {}
@@ -466,7 +467,10 @@ impl Format for Element {
         W: io::Write,
     {
         match self {
-            Element::Literal(lit) => fmt.write_string_fragment(lit),
+            Element::Literal(lit) => {
+                let escaped = escape_markers(lit);
+                fmt.write_string_fragment(&escaped)
+            }
             Element::Interpolation(interp) => interp.format(fmt),
             Element::Directive(dir) => dir.format(fmt),
         }

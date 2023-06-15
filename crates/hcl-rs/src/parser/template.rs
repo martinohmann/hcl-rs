@@ -2,6 +2,7 @@ use super::*;
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
 };
+use hcl_primitives::template::unescape_markers;
 
 pub fn template(pair: Pair<Rule>) -> Result<Template> {
     pair.into_inner().map(element).collect()
@@ -9,7 +10,7 @@ pub fn template(pair: Pair<Rule>) -> Result<Template> {
 
 fn element(pair: Pair<Rule>) -> Result<Element> {
     match pair.as_rule() {
-        Rule::TemplateLiteral => Ok(Element::Literal(string(pair))),
+        Rule::TemplateLiteral => Ok(Element::Literal(unescape_markers(pair.as_str()).into())),
         Rule::TemplateInterpolation => interpolation(pair).map(Element::Interpolation),
         Rule::TemplateDirective => directive(inner(pair)).map(Element::Directive),
         rule => unexpected_rule(rule),
