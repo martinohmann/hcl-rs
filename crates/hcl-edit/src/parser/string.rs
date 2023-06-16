@@ -5,64 +5,106 @@ use super::{
     IResult, Input,
 };
 use crate::{Decorated, Ident, RawString};
-use hcl_primitives::template::unescape_markers;
 use std::borrow::Cow;
 use winnow::{
     combinator::{alt, cut_err, delimited, fail, not, opt, preceded, repeat, success},
     dispatch,
     stream::AsChar,
-    token::{any, one_of, tag, take_while},
+    token::{any, one_of, take, take_while},
     Parser,
 };
 
 pub(super) fn string(input: Input) -> IResult<Input, String> {
-    delimited(b'"', opt(build_string), b'"')
+    delimited(b'"', opt(build_string(quoted_string_fragment)), b'"')
         .map(Option::unwrap_or_default)
-        .map(|s| unescape_markers(&s).into())
+        .output_into()
         .parse_next(input)
 }
 
-pub(super) fn build_string(input: Input) -> IResult<Input, Cow<str>> {
-    let (mut input, mut string) = match string_fragment(input) {
-        Ok((input, fragment)) => match fragment {
-            StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
-            StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
-        },
-        Err(err) => return Err(err),
-    };
+pub(super) fn build_string<'a, F>(
+    mut fragment_parser: F,
+) -> impl Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>
+where
+    F: Parser<Input<'a>, StringFragment<'a>, ParseError<Input<'a>>>,
+{
+    move |input: Input<'a>| {
+        let (mut input, mut string) = match fragment_parser.parse_next(input) {
+            Ok((input, fragment)) => match fragment {
+                StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
+                StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
+                StringFragment::EscapedMarker(m) => (input, Cow::Borrowed(m.unescape())),
+            },
+            Err(err) => return Err(err),
+        };
 
-    loop {
-        match string_fragment(input) {
-            Ok((rest, fragment)) => {
-                match fragment {
-                    StringFragment::Literal(s) => string.to_mut().push_str(s),
-                    StringFragment::EscapedChar(c) => string.to_mut().push(c),
-                };
-                input = rest;
+        loop {
+            match fragment_parser.parse_next(input) {
+                Ok((rest, fragment)) => {
+                    match fragment {
+                        StringFragment::Literal(s) => string.to_mut().push_str(s),
+                        StringFragment::EscapedChar(c) => string.to_mut().push(c),
+                        StringFragment::EscapedMarker(m) => string.to_mut().push_str(m.unescape()),
+                    };
+                    input = rest;
+                }
+                Err(_) => return Ok((input, string)),
             }
-            Err(_) => return Ok((input, string)),
         }
     }
 }
 
 /// A string fragment contains a fragment of a string being parsed: either
-/// a non-empty Literal (a series of non-escaped characters) or a single
-/// parsed escaped character.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum StringFragment<'a> {
+/// a non-empty Literal (a series of non-escaped characters), a single
+/// parsed escaped character or an escaped template start marker.
+#[derive(Clone)]
+pub(super) enum StringFragment<'a> {
     Literal(&'a str),
     EscapedChar(char),
+    EscapedMarker(EscapedMarker),
 }
 
-fn string_fragment(input: Input) -> IResult<Input, StringFragment> {
+/// An escaped marker which would start a template interpolation or directive if unescaped.
+#[derive(Clone)]
+pub(super) enum EscapedMarker {
+    Interpolation,
+    Directive,
+}
+
+impl EscapedMarker {
+    // Returns the unescaped form of the escaped marker.
+    fn unescape(&self) -> &'static str {
+        match self {
+            EscapedMarker::Interpolation => "${",
+            EscapedMarker::Directive => "%{",
+        }
+    }
+}
+
+pub(super) fn quoted_string_fragment(input: Input) -> IResult<Input, StringFragment> {
     alt((
+        escaped_marker.map(StringFragment::EscapedMarker),
         string_literal.map(StringFragment::Literal),
         escaped_char.map(StringFragment::EscapedChar),
     ))
     .parse_next(input)
 }
 
-/// Parse a non-empty block of text that doesn't include `\`,  `"` or non-escaped template
+pub(super) fn template_string_fragment<'a, F, T>(
+    mut literal_end: F,
+) -> impl Parser<Input<'a>, StringFragment<'a>, ParseError<Input<'a>>>
+where
+    F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
+{
+    move |input: Input<'a>| {
+        alt((
+            escaped_marker.map(StringFragment::EscapedMarker),
+            any_until(literal_end.by_ref()).map(StringFragment::Literal),
+        ))
+        .parse_next(input)
+    }
+}
+
+/// Parse a non-empty block of text that doesn't include `"` or non-escaped template
 /// interpolation/directive start markers.
 fn string_literal(input: Input) -> IResult<Input, &str> {
     let literal_end = dispatch! {any;
@@ -70,25 +112,26 @@ fn string_literal(input: Input) -> IResult<Input, &str> {
         b'$' | b'%' => b'{'.value(true),
         _ => fail,
     };
-    literal_until(literal_end).parse_next(input)
+    any_until(literal_end).parse_next(input)
 }
 
-pub(super) fn literal_until<'a, F, T>(
-    literal_end: F,
-) -> impl Parser<Input<'a>, &'a str, ParseError<Input<'a>>>
+fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ParseError<Input<'a>>>
 where
     F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
 {
-    void(repeat(
-        1..,
-        alt((
-            tag("$${"),
-            tag("%%{"),
-            preceded(not(literal_end), any).recognize(),
-        )),
-    ))
-    .recognize()
-    .try_map(std::str::from_utf8)
+    void(repeat(1.., preceded(not(literal_end), any)))
+        .recognize()
+        .try_map(std::str::from_utf8)
+}
+
+/// Parse an escaped start marker for a template interpolation or directive.
+fn escaped_marker(input: Input) -> IResult<Input, EscapedMarker> {
+    dispatch! {take::<_, Input, _>(3usize);
+        b"$${" => success(EscapedMarker::Interpolation),
+        b"%%{" => success(EscapedMarker::Directive),
+        _ => fail,
+    }
+    .parse_next(input)
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
