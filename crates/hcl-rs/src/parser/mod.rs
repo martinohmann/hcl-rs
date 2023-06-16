@@ -9,6 +9,7 @@ use crate::{
     expr::Expression, structure::Body, template::Template, util::unescape, Identifier, Number,
     Result,
 };
+use hcl_primitives::template::unescape_markers;
 use pest::{
     iterators::{Pair, Pairs},
     Parser as _,
@@ -76,7 +77,7 @@ fn string(pair: Pair<Rule>) -> String {
 }
 
 fn unescape_string(pair: Pair<Rule>) -> Result<String> {
-    unescape(pair.as_str()).map(|c| c.to_string())
+    unescape(pair.as_str()).map(|c| unescape_markers(&c).to_string())
 }
 
 fn ident(pair: Pair<Rule>) -> Identifier {
