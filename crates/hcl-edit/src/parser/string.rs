@@ -5,6 +5,7 @@ use super::{
     IResult, Input,
 };
 use crate::{Decorated, Ident, RawString};
+use hcl_primitives::template::unescape_markers;
 use std::borrow::Cow;
 use winnow::{
     combinator::{alt, cut_err, delimited, fail, not, opt, preceded, repeat, success},
@@ -17,7 +18,7 @@ use winnow::{
 pub(super) fn string(input: Input) -> IResult<Input, String> {
     delimited(b'"', opt(build_string), b'"')
         .map(Option::unwrap_or_default)
-        .output_into()
+        .map(|s| unescape_markers(&s).into())
         .parse_next(input)
 }
 

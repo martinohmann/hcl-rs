@@ -2,7 +2,7 @@ mod common;
 
 use common::{assert_deserialize, assert_format};
 use hcl::eval::{Context, Evaluate};
-use hcl::{expr::*, Body, Identifier, Value};
+use hcl::{expr::*, Attribute, Body, Identifier, Value};
 use indoc::indoc;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -224,4 +224,18 @@ fn issue_242() {
         .unwrap();
 
     assert_eq!(value, Value::from("make TARGET=${GIT_BRANCH}\n"));
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/248
+#[test]
+fn issue_248() {
+    let body = Body::builder()
+        .add_attribute(Attribute::new("attr", "${foo}"))
+        .build();
+
+    let formatted = hcl::format::to_string(&body).unwrap();
+    assert_eq!(formatted, "attr = \"$${foo}\"\n");
+
+    let parsed = hcl::parse(&formatted).unwrap();
+    assert_eq!(parsed, body);
 }
