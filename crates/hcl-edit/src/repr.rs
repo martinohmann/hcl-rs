@@ -1,6 +1,7 @@
 //! Representations of values within a HCL document.
 
 use crate::encode::{Encode, EncodeState};
+use crate::format::{Format, FormatConfig};
 use crate::raw_string::RawString;
 use std::fmt::{self, Write};
 use std::ops::{Deref, DerefMut, Range};
@@ -243,6 +244,15 @@ impl<T> SetSpan for Spanned<T> {
     }
 }
 
+impl<T> Format for Spanned<T>
+where
+    T: Format,
+{
+    fn format(&mut self, config: &FormatConfig) {
+        self.value.format(config);
+    }
+}
+
 impl<T> fmt::Display for Spanned<T>
 where
     T: Encode,
@@ -351,6 +361,15 @@ impl<T> Span for Decorated<T> {
 impl<T> SetSpan for Decorated<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
+    }
+}
+
+impl<T> Format for Decorated<T>
+where
+    T: Format,
+{
+    fn format(&mut self, config: &FormatConfig) {
+        self.value.format(config);
     }
 }
 
@@ -487,6 +506,15 @@ impl<T> Span for Formatted<T> {
 impl<T> SetSpan for Formatted<T> {
     fn set_span(&mut self, span: Range<usize>) {
         self.span = Some(span);
+    }
+}
+
+impl<T> Format for Formatted<T>
+where
+    T: Format,
+{
+    fn format(&mut self, config: &FormatConfig) {
+        self.value.format(config);
     }
 }
 

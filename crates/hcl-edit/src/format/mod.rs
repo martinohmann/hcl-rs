@@ -40,6 +40,15 @@ pub trait Format {
     }
 }
 
+impl<T> Format for Box<T>
+where
+    T: Format,
+{
+    fn format(&mut self, config: &FormatConfig) {
+        (**self).format(config);
+    }
+}
+
 /// Configures the behaviour of the [`Format`] trait.
 #[derive(Default, Clone, Debug)]
 pub struct FormatConfig {
