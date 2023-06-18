@@ -52,3 +52,4 @@ impl PartialEq for Conditional {
 
 decorate_impl!(Conditional);
 span_impl!(Conditional);
+format_impl!(Conditional => visit_conditional_mut);

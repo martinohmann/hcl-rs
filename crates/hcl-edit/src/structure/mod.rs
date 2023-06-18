@@ -10,6 +10,8 @@ pub use self::body::{
     Attributes, AttributesMut, Blocks, BlocksMut, Body, BodyBuilder, IntoAttributes, IntoBlocks,
     IntoIter, Iter, IterMut,
 };
+use crate::format::{Format, FormatConfig, Formatter};
+use crate::visit_mut::VisitMut;
 use crate::{Decor, Decorate, Span};
 use std::ops::Range;
 
@@ -116,6 +118,13 @@ impl From<Block> for Structure {
 forward_decorate_impl!(Structure => { Attribute, Block });
 forward_span_impl!(Structure => { Attribute, Block });
 
+impl Format for Structure {
+    fn format(&mut self, config: &FormatConfig) {
+        let mut fmt = Formatter::new(config);
+        fmt.visit_structure_mut(StructureMut::new(self));
+    }
+}
+
 /// Allows mutable access to a structure, except for attribute keys which are immutable.
 ///
 /// This type wraps the structure in the iterator returned by
@@ -173,5 +182,11 @@ impl<'a> Decorate for StructureMut<'a> {
 impl<'a> Span for StructureMut<'a> {
     fn span(&self) -> Option<Range<usize>> {
         self.structure.span()
+    }
+}
+
+impl<'a> Format for StructureMut<'a> {
+    fn format(&mut self, config: &FormatConfig) {
+        self.structure.format(config);
     }
 }

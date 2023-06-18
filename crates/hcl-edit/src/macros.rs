@@ -81,3 +81,16 @@ macro_rules! span_impl {
         )+
     };
 }
+
+macro_rules! format_impl {
+    ($($ty:ident => $visit_method:ident),+ $(,)?) => {
+        $(
+            impl $crate::Format for $ty {
+                fn format(&mut self, config: &$crate::FormatConfig) {
+                    let mut fmt = $crate::format::Formatter::new(config);
+                    $crate::visit_mut::VisitMut::$visit_method(&mut fmt, self);
+                }
+            }
+        )+
+    };
+}

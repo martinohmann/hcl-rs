@@ -91,3 +91,7 @@ impl PartialEq for BinaryOp {
 
 decorate_impl!(UnaryOp, BinaryOp);
 span_impl!(UnaryOp, BinaryOp);
+format_impl! {
+    UnaryOp => visit_unary_op_mut,
+    BinaryOp => visit_binary_op_mut,
+}

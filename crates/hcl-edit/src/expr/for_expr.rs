@@ -160,3 +160,8 @@ impl From<Expression> for ForCond {
 
 decorate_impl!(ForExpr, ForIntro, ForCond);
 span_impl!(ForExpr, ForIntro, ForCond);
+format_impl! {
+    ForExpr => visit_for_expr_mut,
+    ForIntro => visit_for_intro_mut,
+    ForCond => visit_for_cond_mut
+}

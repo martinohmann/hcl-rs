@@ -1,4 +1,6 @@
 use crate::expr::Expression;
+use crate::format::{Format, FormatConfig, Formatter};
+use crate::visit_mut::VisitMut;
 use crate::{Decor, Decorate, Decorated, Ident, Span};
 use std::ops::{self, Range};
 
@@ -66,6 +68,13 @@ impl PartialEq for Attribute {
 decorate_impl!(Attribute);
 span_impl!(Attribute);
 
+impl Format for Attribute {
+    fn format(&mut self, config: &FormatConfig) {
+        let mut fmt = Formatter::new(config);
+        fmt.visit_attr_mut(AttributeMut::new(self));
+    }
+}
+
 /// Allows mutable access to the value and surrounding [`Decor`](crate::Decor) of an [`Attribute`]
 /// but not to its key.
 ///
@@ -119,5 +128,11 @@ impl<'a> Decorate for AttributeMut<'a> {
 impl<'a> Span for AttributeMut<'a> {
     fn span(&self) -> Option<Range<usize>> {
         self.attr.span()
+    }
+}
+
+impl<'a> Format for AttributeMut<'a> {
+    fn format(&mut self, config: &FormatConfig) {
+        self.attr.format(config);
     }
 }

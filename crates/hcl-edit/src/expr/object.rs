@@ -1,4 +1,6 @@
 use crate::expr::Expression;
+use crate::format::{Format, FormatConfig, Formatter};
+use crate::visit_mut::VisitMut;
 use crate::{Decor, Decorate, Decorated, Ident, RawString, Span};
 use std::ops::{self, Range};
 use vecmap::map::{MutableKeys, VecMap};
@@ -325,6 +327,13 @@ impl From<Expression> for ObjectKey {
     }
 }
 
+impl Format for ObjectKey {
+    fn format(&mut self, config: &FormatConfig) {
+        let mut fmt = Formatter::new(config);
+        fmt.visit_object_key_mut(ObjectKeyMut::new(self));
+    }
+}
+
 /// Allows mutable access to the surrounding [`Decor`](crate::Decor) of an [`ObjectKey`] but not to
 /// its value.
 ///
@@ -366,6 +375,12 @@ impl<'k> Decorate for ObjectKeyMut<'k> {
 impl<'k> Span for ObjectKeyMut<'k> {
     fn span(&self) -> Option<Range<usize>> {
         self.key.span()
+    }
+}
+
+impl<'k> Format for ObjectKeyMut<'k> {
+    fn format(&mut self, config: &FormatConfig) {
+        self.key.format(config);
     }
 }
 
@@ -457,6 +472,10 @@ impl From<Expression> for ObjectValue {
 
 decorate_impl!(Object);
 span_impl!(Object);
+format_impl! {
+    Object => visit_object_mut,
+    ObjectValue => visit_object_value_mut,
+}
 forward_decorate_impl!(ObjectKey => { Ident, Expression });
 forward_span_impl!(ObjectKey => { Ident, Expression });
 

@@ -1159,6 +1159,17 @@ span_impl! {
     Interpolation, IfDirective, ForDirective
 }
 
+format_impl! {
+    StringTemplate => visit_string_template_mut,
+    HeredocTemplate => visit_heredoc_template_mut,
+    Template => visit_template_mut,
+    Element => visit_element_mut,
+    Interpolation => visit_interpolation_mut,
+    Directive => visit_directive_mut,
+    IfDirective => visit_if_directive_mut,
+    ForDirective => visit_for_directive_mut,
+}
+
 forward_span_impl! {
     Element => { Literal, Interpolation, Directive },
     Directive => { If, For }

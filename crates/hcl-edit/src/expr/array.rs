@@ -255,3 +255,4 @@ impl<'a> IntoIterator for &'a mut Array {
 
 decorate_impl!(Array);
 span_impl!(Array);
+format_impl!(Array => visit_array_mut);

@@ -280,3 +280,7 @@ impl<'a> IntoIterator for &'a mut FuncArgs {
 
 decorate_impl!(FuncCall, FuncArgs);
 span_impl!(FuncCall, FuncArgs);
+format_impl! {
+    FuncCall => visit_func_call_mut,
+    FuncArgs => visit_func_args_mut,
+}

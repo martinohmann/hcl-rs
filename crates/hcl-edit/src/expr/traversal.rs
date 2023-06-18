@@ -92,5 +92,9 @@ impl fmt::Display for Splat {
 
 decorate_impl!(Traversal);
 span_impl!(Traversal);
+format_impl! {
+    Traversal => visit_traversal_mut,
+    TraversalOperator => visit_traversal_operator_mut,
+}
 forward_decorate_impl!(TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex });
 forward_span_impl!(TraversalOperator => { AttrSplat, FullSplat, GetAttr, Index, LegacyIndex });

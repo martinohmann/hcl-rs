@@ -325,6 +325,7 @@ impl ops::Deref for BlockLabel {
 
 decorate_impl!(Block);
 span_impl!(Block);
+format_impl!(Block => visit_block_mut, BlockLabel => visit_block_label_mut);
 forward_decorate_impl!(BlockLabel => { Ident, String });
 forward_span_impl!(BlockLabel => { Ident, String });
 

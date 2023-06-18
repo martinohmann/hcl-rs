@@ -497,6 +497,7 @@ impl fmt::Display for Null {
 
 decorate_impl!(Parenthesis);
 span_impl!(Parenthesis);
+format_impl!(Expression => visit_expr_mut, Parenthesis => visit_parenthesis_mut);
 
 forward_decorate_impl!(Expression => {
     Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
