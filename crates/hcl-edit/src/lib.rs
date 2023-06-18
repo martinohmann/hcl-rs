@@ -19,7 +19,7 @@ mod macros;
 
 mod encode;
 pub mod expr;
-pub mod format;
+mod format;
 pub mod parser;
 mod raw_string;
 #[doc(hidden)]
@@ -30,6 +30,7 @@ mod util;
 pub mod visit;
 pub mod visit_mut;
 
+pub use self::format::{Format, FormatConfig, FormatConfigBuilder};
 pub use self::raw_string::RawString;
 use self::repr::SetSpan;
 pub use self::repr::{Decor, Decorate, Decorated, Formatted, Span, Spanned};
@@ -40,7 +41,8 @@ pub use hcl_primitives::{Ident, Number};
 
 /// Core concepts available for glob import.
 ///
-/// This includes useful traits like [`Decorate`](crate::Decorate) and [`Span`](crate::Span).
+/// This includes useful traits like [`Decorate`](crate::Decorate), [`Span`](crate::Span) and
+/// [`Format`](crate::Format).
 ///
 /// # Example
 ///
@@ -53,5 +55,5 @@ pub use hcl_primitives::{Ident, Number};
 /// assert_eq!(expr.to_string(), r#""A string" // Comment."#);
 /// ```
 pub mod prelude {
-    pub use crate::{Decorate, Span};
+    pub use crate::{Decorate, Format, Span};
 }

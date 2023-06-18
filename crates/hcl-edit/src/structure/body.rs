@@ -1,5 +1,5 @@
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::format::{Format, Formatter};
+use crate::format::{Format, FormatConfig, Formatter};
 use crate::structure::{Attribute, AttributeMut, Block, Structure, StructureMut};
 use crate::visit_mut::VisitMut;
 use crate::{parser, Decor};
@@ -757,7 +757,8 @@ impl<'a> IntoIterator for &'a mut Body {
 }
 
 impl Format for Body {
-    fn format(&mut self, mut fmt: Formatter) {
+    fn format(&mut self, config: &FormatConfig) {
+        let mut fmt = Formatter::new(config);
         fmt.visit_body_mut(self);
     }
 }

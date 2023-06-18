@@ -112,8 +112,6 @@ block "label" { # comment
 
 /* some trailing comment */"#;
 
-    let mut body = input.parse::<Body>().unwrap();
-    body.default_format();
-
-    assert_eq!(body.to_string(), expected);
+    let body = input.parse::<Body>().unwrap();
+    assert_eq!(body.default_formatted().to_string(), expected);
 }

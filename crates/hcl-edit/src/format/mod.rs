@@ -13,19 +13,20 @@ use std::ops;
 /// A trait for objects which can be formatted.
 pub trait Format {
     /// Formats an object.
-    fn format(&mut self, fmt: Formatter);
+    fn format(&mut self, config: &FormatConfig);
 
     /// Applies the default format to an object.
     fn default_format(&mut self) {
-        self.format(Formatter::default());
+        let config = FormatConfig::default();
+        self.format(&config);
     }
 
     /// Formats an object and returns the modified value.
-    fn formatted(mut self, fmt: Formatter) -> Self
+    fn formatted(mut self, config: &FormatConfig) -> Self
     where
         Self: Sized,
     {
-        self.format(fmt);
+        self.format(config);
         self
     }
 
@@ -39,49 +40,62 @@ pub trait Format {
     }
 }
 
-/// Builds a [`Formatter`].
-#[derive(Default)]
-pub struct FormatterBuilder {
+/// Configures the behaviour of the [`Format`] trait.
+#[derive(Default, Clone, Debug)]
+pub struct FormatConfig {
     indent: Indent,
 }
 
-impl FormatterBuilder {
+impl FormatConfig {
+    /// Creates a builder for [`FormatConfig`].
+    pub fn builder() -> FormatConfigBuilder {
+        FormatConfigBuilder::default()
+    }
+}
+
+/// A builder for [`FormatConfig`].
+#[derive(Default, Clone, Debug)]
+pub struct FormatConfigBuilder {
+    indent: Indent,
+}
+
+impl FormatConfigBuilder {
     /// Sets the indent.
-    pub fn indent(&mut self, indent: Indent) -> &mut Self {
-        self.indent = indent;
+    pub fn indent(&mut self, prefix: impl Into<InternalString>) -> &mut Self {
+        self.indent.prefix = prefix.into();
         self
     }
 
-    /// Builds a [`Formatter`] from the builder's configuration.
-    pub fn build(&self) -> Formatter {
-        Formatter {
+    /// Sets the initial indentation level.
+    pub fn initial_indent_level(&mut self, level: usize) -> &mut Self {
+        self.indent.level = level;
+        self
+    }
+
+    /// Builds a [`FormatConfig`] from the builder's configuration.
+    pub fn build(&self) -> FormatConfig {
+        FormatConfig {
             indent: self.indent.clone(),
         }
     }
 }
 
-/// A configurable formatter for HCL language items.
 #[derive(Debug, Clone, Default)]
-pub struct Formatter {
+pub(crate) struct Formatter {
     indent: Indent,
 }
 
-// Public API.
 impl Formatter {
-    /// Resets the formatter state.
-    pub fn reset(&mut self) {
-        self.indent.reset();
-    }
-
-    /// Creates a builder for configuring a [`Formatter`].
-    pub fn builder() -> FormatterBuilder {
-        FormatterBuilder::default()
+    pub fn new(config: &FormatConfig) -> Formatter {
+        Formatter {
+            indent: config.indent.clone(),
+        }
     }
 }
 
 /// Applies indentation.
 #[derive(Debug, Clone)]
-pub struct Indent {
+struct Indent {
     level: usize,
     prefix: InternalString,
     indent_first_line: bool,
@@ -103,22 +117,12 @@ impl Indent {
         }
     }
 
-    /// Creates a new `Indent` from a number of spaces.
-    pub fn spaces(n: usize) -> Indent {
-        Indent::new(" ".repeat(n))
-    }
-
     fn increase(&mut self) {
         self.level += 1;
     }
 
     fn decrease(&mut self) {
         self.level -= 1;
-    }
-
-    fn reset(&mut self) {
-        self.level = 0;
-        self.indent_first_line = true;
     }
 
     fn prefix(&self) -> String {
