@@ -4,6 +4,13 @@
   * dependencies
     * hcl-primitives bumped from 0.0.2 to 0.0.3
 
+## [0.14.4](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.3...hcl-rs-v0.14.4) (2023-06-18)
+
+
+### Bug Fixes
+
+* **string:** properly handle escaping of interpolation/directive marker ([#249](https://github.com/martinohmann/hcl-rs/issues/249)) ([e0c86f1](https://github.com/martinohmann/hcl-rs/commit/e0c86f16e88b1ca71672b938d15b21b99ee911f9))
+
 ## [0.14.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.2...hcl-rs-v0.14.3) (2023-06-15)
 
 

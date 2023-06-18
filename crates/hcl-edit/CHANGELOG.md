@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.4...hcl-edit-v0.6.5) (2023-06-18)
+
+
+### Bug Fixes
+
+* **string:** properly handle escaping of interpolation/directive marker ([#249](https://github.com/martinohmann/hcl-rs/issues/249)) ([e0c86f1](https://github.com/martinohmann/hcl-rs/commit/e0c86f16e88b1ca71672b938d15b21b99ee911f9))
+
+
+### Performance Improvements
+
+* **parser:** handle unescaping of escaped markers in parser code directly ([#251](https://github.com/martinohmann/hcl-rs/issues/251)) ([45036c5](https://github.com/martinohmann/hcl-rs/commit/45036c5199e3949ef7e5304f5104cb80e898b243))
+
 ## [0.6.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.3...hcl-edit-v0.6.4) (2023-06-15)
 
 
