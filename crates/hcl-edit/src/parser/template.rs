@@ -3,7 +3,10 @@ use super::{
     error::ParseError,
     expr::expr,
     repr::{decorated, spanned},
-    string::{build_string, from_utf8_unchecked, literal_until, raw_string},
+    string::{
+        build_string, from_utf8_unchecked, quoted_string_fragment, raw_string,
+        template_string_fragment,
+    },
     trivia::ws,
     IResult, Input,
 };
@@ -15,7 +18,6 @@ use crate::{
     },
     SetSpan, Span, Spanned,
 };
-use hcl_primitives::template::unescape_markers;
 use std::borrow::Cow;
 use winnow::{
     ascii::{line_ending, space0},
@@ -24,14 +26,14 @@ use winnow::{
 };
 
 pub(super) fn string_template(input: Input) -> IResult<Input, StringTemplate> {
-    delimited(b'"', elements(build_string), b'"')
+    delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')
         .output_into()
         .parse_next(input)
 }
 
 pub(super) fn template(input: Input) -> IResult<Input, Template> {
     let literal_end = alt((b"${", b"%{"));
-    let literal = literal_until(literal_end).output_into();
+    let literal = template_literal(literal_end);
     elements(literal).output_into().parse_next(input)
 }
 
@@ -51,7 +53,7 @@ pub(super) fn heredoc_template<'a>(
         // the line ending to the last template element below.
         let heredoc_end = (line_ending, space0, delim).recognize();
         let literal_end = alt((b"${", b"%{", heredoc_end));
-        let literal = literal_until(literal_end).output_into();
+        let literal = template_literal(literal_end);
 
         // Use `opt` to handle an empty template.
         opt((elements(literal), line_ending.with_span()).map(
@@ -79,6 +81,16 @@ pub(super) fn heredoc_template<'a>(
     }
 }
 
+#[inline]
+fn template_literal<'a, F, T>(
+    literal_end: F,
+) -> impl Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>
+where
+    F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
+{
+    build_string(template_string_fragment(literal_end))
+}
+
 fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseError<Input<'a>>>
 where
     P: Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>,
@@ -86,7 +98,7 @@ where
     repeat(
         0..,
         spanned(alt((
-            literal.map(|s| Element::Literal(Spanned::new(unescape_markers(&s).into()))),
+            literal.map(|s| Element::Literal(Spanned::new(s.into()))),
             interpolation.map(Element::Interpolation),
             directive.map(Element::Directive),
         ))),
