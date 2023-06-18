@@ -2,7 +2,11 @@ use super::expr::expr;
 use super::parse_complete;
 use super::structure::body;
 use super::template::template;
-use crate::{expr::Expression, Formatted, Number};
+use crate::{
+    expr::Expression,
+    template::{Element, Interpolation, StringTemplate},
+    Formatted, Ident, Number,
+};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 
@@ -18,6 +22,17 @@ macro_rules! assert_roundtrip {
 fn number_expr() {
     let parsed = parse_complete("42", expr).unwrap();
     let expected = Expression::Number(Formatted::new(Number::from(42)));
+    assert_eq!(parsed, expected);
+}
+
+#[test]
+fn escaped_string_template() {
+    let parsed = parse_complete(r#""$${escaped} ${unescaped}""#, expr).unwrap();
+    let template = StringTemplate::from_iter([
+        Element::Literal(String::from("${escaped} ").into()),
+        Element::Interpolation(Interpolation::new(Ident::new("unescaped"))),
+    ]);
+    let expected = Expression::Template(template);
     assert_eq!(parsed, expected);
 }
 
@@ -120,6 +135,7 @@ fn roundtrip_template() {
             - ${item}
             %{ endfor ~}
         "#},
+        "literal $${escaped} ${value}",
     ];
 
     for input in inputs {

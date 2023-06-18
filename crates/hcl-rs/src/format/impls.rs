@@ -10,6 +10,7 @@ use crate::template::{
 use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
 use hcl_primitives::ident::is_ident;
+use hcl_primitives::template::escape_markers;
 use std::io;
 
 impl<T> private::Sealed for &T where T: Format {}
@@ -147,7 +148,13 @@ impl Format for Value {
             Value::Null => Ok(fmt.write_null()?),
             Value::Bool(b) => Ok(fmt.write_bool(*b)?),
             Value::Number(num) => num.format(fmt),
-            Value::String(string) => string.format(fmt),
+            Value::String(string) => {
+                if is_templated(string) {
+                    fmt.write_quoted_string(string)
+                } else {
+                    fmt.write_quoted_string_escaped(string)
+                }
+            }
             Value::Array(array) => format_array(fmt, array.iter()),
             Value::Object(object) => format_object(fmt, object.iter().map(|(k, v)| (StrKey(k), v))),
         }
@@ -192,7 +199,7 @@ impl<'a> Format for StrKey<'a> {
         if fmt.config.prefer_ident_keys && is_ident(self.0) {
             fmt.write_string_fragment(self.0)
         } else {
-            fmt.write_quoted_string(self.0, !is_templated(self.0))
+            fmt.write_quoted_string_escaped(self.0)
         }
     }
 }
@@ -216,7 +223,7 @@ impl Format for TemplateExpr {
         W: io::Write,
     {
         match self {
-            TemplateExpr::QuotedString(string) => string.format(fmt),
+            TemplateExpr::QuotedString(string) => fmt.write_quoted_string(string),
             TemplateExpr::Heredoc(heredoc) => heredoc.format(fmt),
         }
     }
@@ -466,7 +473,10 @@ impl Format for Element {
         W: io::Write,
     {
         match self {
-            Element::Literal(lit) => fmt.write_string_fragment(lit),
+            Element::Literal(lit) => {
+                let escaped = escape_markers(lit);
+                fmt.write_string_fragment(&escaped)
+            }
             Element::Interpolation(interp) => interp.format(fmt),
             Element::Directive(dir) => dir.format(fmt),
         }
@@ -552,7 +562,7 @@ impl Format for String {
     where
         W: io::Write,
     {
-        fmt.write_quoted_string(self, !is_templated(self))
+        fmt.write_quoted_string_escaped(self)
     }
 }
 

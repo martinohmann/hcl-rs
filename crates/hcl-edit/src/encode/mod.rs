@@ -3,6 +3,7 @@ mod structure;
 mod template;
 
 use crate::{Decorate, Decorated, Formatted, Ident, Number};
+use hcl_primitives::template::escape_markers;
 use std::fmt::{self, Write};
 
 pub(crate) const NO_DECOR: (&str, &str) = ("", "");
@@ -122,7 +123,8 @@ where
 
 fn encode_quoted_string(buf: &mut dyn fmt::Write, value: &str) -> fmt::Result {
     buf.write_char('"')?;
-    encode_escaped(buf, value)?;
+    let value = escape_markers(value);
+    encode_escaped(buf, &value)?;
     buf.write_char('"')
 }
 

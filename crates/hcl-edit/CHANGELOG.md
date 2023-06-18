@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.6.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.4...hcl-edit-v0.6.5) (2023-06-18)
+
+
+### Bug Fixes
+
+* **string:** properly handle escaping of interpolation/directive marker ([#249](https://github.com/martinohmann/hcl-rs/issues/249)) ([e0c86f1](https://github.com/martinohmann/hcl-rs/commit/e0c86f16e88b1ca71672b938d15b21b99ee911f9))
+
+
+### Performance Improvements
+
+* **parser:** handle unescaping of escaped markers in parser code directly ([#251](https://github.com/martinohmann/hcl-rs/issues/251)) ([45036c5](https://github.com/martinohmann/hcl-rs/commit/45036c5199e3949ef7e5304f5104cb80e898b243))
+
+## [0.6.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.3...hcl-edit-v0.6.4) (2023-06-15)
+
+
+### Bug Fixes
+
+* **template:** properly handle escaping of interpolation/directive markers ([#247](https://github.com/martinohmann/hcl-rs/issues/247)) ([69ad800](https://github.com/martinohmann/hcl-rs/commit/69ad8007e6d331b8f915b6e98de3fe4b8ef16239))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-primitives bumped from 0.1.0 to 0.1.1
+
+## [0.6.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.2...hcl-edit-v0.6.3) (2023-06-13)
+
+
+### Features
+
+* impl `Decorate` and `Span` for `Box&lt;T&gt;` ([d1ae8c0](https://github.com/martinohmann/hcl-rs/commit/d1ae8c057111cb8f1521f460936dfcb2355220a3))
+* **repr:** re-export types from crate root ([#241](https://github.com/martinohmann/hcl-rs/issues/241)) ([2c5927b](https://github.com/martinohmann/hcl-rs/commit/2c5927b64d30eff25111ef812d2b7fd104f3eccc))
+
 ## [0.6.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.1...hcl-edit-v0.6.2) (2023-06-12)
 
 
