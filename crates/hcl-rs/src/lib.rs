@@ -41,6 +41,9 @@ mod tests;
 mod util;
 pub mod value;
 
+#[cfg(feature = "edit")]
+pub use hcl_edit as edit;
+
 // Re-exported for convenience.
 #[doc(inline)]
 pub use hcl_primitives::{InternalString, Number};

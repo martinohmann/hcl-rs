@@ -107,6 +107,12 @@ impl From<Ident> for Identifier {
     }
 }
 
+impl From<Identifier> for Ident {
+    fn from(ident: Identifier) -> Self {
+        ident.0
+    }
+}
+
 impl From<String> for Identifier {
     fn from(s: String) -> Self {
         Identifier::sanitized(s)

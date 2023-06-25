@@ -5,6 +5,8 @@
 
 mod conditional;
 pub(crate) mod de;
+#[cfg(feature = "edit")]
+mod edit;
 mod for_expr;
 mod func_call;
 mod operation;
