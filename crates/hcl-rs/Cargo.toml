@@ -34,7 +34,7 @@ default = []
 perf = ["hcl-primitives/perf"]
 
 [dependencies]
-indexmap = { version = "1.9.2", features = ["serde"] }
+indexmap = { version = "2.0.0", features = ["serde"] }
 itoa = "1.0.5"
 hcl-primitives = { version = "0.1.1", path = "../hcl-primitives", features = ["serde"] }
 pest = "2.5.2"
