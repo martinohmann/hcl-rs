@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.5...hcl-edit-v0.6.6) (2023-07-07)
+
+
+### Features
+
+* **expr:** add `Expression::null` ([fac00fd](https://github.com/martinohmann/hcl-rs/commit/fac00fd5abbde5dc9db8f97f6fb9fedc2cabbfc3))
+* **expr:** add more `From` impls to for `Expression` ([07b5417](https://github.com/martinohmann/hcl-rs/commit/07b5417cbf9422745e2475b77467b84e5cddda64))
+* **repr:** add `{Spanned,Decorated,Formatted}::value_into` ([683f548](https://github.com/martinohmann/hcl-rs/commit/683f5487b5e07de481935e07d3ab2cb305126518))
+
 ## [0.6.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.4...hcl-edit-v0.6.5) (2023-06-18)
 
 
