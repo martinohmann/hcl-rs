@@ -66,6 +66,11 @@ pub enum Expression {
 }
 
 impl Expression {
+    /// Creates a `null` expression.
+    pub fn null() -> Expression {
+        Expression::Null(Decorated::new(Null))
+    }
+
     /// Returns `true` if the expression represents `null`.
     pub fn is_null(&self) -> bool {
         matches!(self, Expression::Null(_))
