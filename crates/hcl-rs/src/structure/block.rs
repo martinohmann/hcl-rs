@@ -3,6 +3,7 @@
 use super::{Attribute, Body, BodyBuilder, Structure};
 use crate::Identifier;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 /// Represents an HCL block which consists of a block identifier, zero or more block labels and a
 /// block body.
@@ -140,12 +141,27 @@ impl BlockLabel {
     }
 }
 
-impl<T> From<T> for BlockLabel
-where
-    T: Into<String>,
-{
-    fn from(s: T) -> BlockLabel {
-        BlockLabel::String(s.into())
+impl From<String> for BlockLabel {
+    fn from(s: String) -> BlockLabel {
+        BlockLabel::String(s)
+    }
+}
+
+impl From<&String> for BlockLabel {
+    fn from(s: &String) -> BlockLabel {
+        BlockLabel::String(s.clone())
+    }
+}
+
+impl From<&str> for BlockLabel {
+    fn from(s: &str) -> BlockLabel {
+        BlockLabel::String(s.to_string())
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for BlockLabel {
+    fn from(s: Cow<'a, str>) -> BlockLabel {
+        BlockLabel::String(s.into_owned())
     }
 }
 

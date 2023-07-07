@@ -49,6 +49,8 @@ mod attribute;
 mod block;
 mod body;
 pub(crate) mod de;
+#[cfg(feature = "edit")]
+mod edit;
 pub mod iter;
 mod json_spec;
 mod ser;
