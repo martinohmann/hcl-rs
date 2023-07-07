@@ -21,6 +21,7 @@ pub use self::traversal::{Splat, Traversal, TraversalOperator};
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
 use crate::template::{HeredocTemplate, StringTemplate};
 use crate::{parser, Decor, Decorate, Decorated, Formatted, Ident, Number};
+use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
@@ -318,6 +319,33 @@ impl FromStr for Expression {
     }
 }
 
+macro_rules! impl_from_integer {
+    ($($ty:ty),*) => {
+        $(
+            impl From<$ty> for Expression {
+                fn from(n: $ty) -> Self {
+                    Expression::from(Number::from(n))
+                }
+            }
+        )*
+    };
+}
+
+impl_from_integer!(i8, i16, i32, i64, isize);
+impl_from_integer!(u8, u16, u32, u64, usize);
+
+impl From<f32> for Expression {
+    fn from(f: f32) -> Self {
+        From::from(f64::from(f))
+    }
+}
+
+impl From<f64> for Expression {
+    fn from(f: f64) -> Self {
+        Number::from_f64(f).map_or_else(Expression::null, Into::into)
+    }
+}
+
 impl From<bool> for Expression {
     fn from(value: bool) -> Self {
         Expression::from(Decorated::new(value))
@@ -351,6 +379,12 @@ impl From<&str> for Expression {
 impl From<String> for Expression {
     fn from(value: String) -> Self {
         Expression::from(Decorated::new(value))
+    }
+}
+
+impl<'a> From<Cow<'a, str>> for Expression {
+    fn from(s: Cow<'a, str>) -> Self {
+        Expression::from(s.into_owned())
     }
 }
 
@@ -435,6 +469,36 @@ impl From<BinaryOp> for Expression {
 impl From<ForExpr> for Expression {
     fn from(value: ForExpr) -> Self {
         Expression::ForExpr(Box::new(value))
+    }
+}
+
+impl<T> From<Vec<T>> for Expression
+where
+    T: Into<Expression>,
+{
+    fn from(value: Vec<T>) -> Self {
+        Expression::from_iter(value)
+    }
+}
+
+impl<'a, T> From<&'a [T]> for Expression
+where
+    T: Clone + Into<Expression>,
+{
+    fn from(value: &'a [T]) -> Self {
+        value.iter().cloned().collect()
+    }
+}
+
+impl<T: Into<Expression>> FromIterator<T> for Expression {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Expression::Array(Array::from_iter(iter))
+    }
+}
+
+impl<K: Into<ObjectKey>, V: Into<ObjectValue>> FromIterator<(K, V)> for Expression {
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        Expression::Object(Object::from_iter(iter))
     }
 }
 
