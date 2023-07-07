@@ -4,6 +4,20 @@
   * dependencies
     * hcl-primitives bumped from 0.0.2 to 0.0.3
 
+## [0.14.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.4...hcl-rs-v0.14.5) (2023-07-07)
+
+
+### Features
+
+* interop with `hcl-edit` types ([#255](https://github.com/martinohmann/hcl-rs/issues/255)) ([726e6e9](https://github.com/martinohmann/hcl-rs/commit/726e6e9426b2112ba0ab8fd4d7cd12a8150eaf4b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.6.5 to 0.6.6
+
 ## [0.14.4](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.3...hcl-rs-v0.14.4) (2023-06-18)
 
 
