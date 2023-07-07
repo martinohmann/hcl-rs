@@ -31,16 +31,13 @@ path = "src/lib.rs"
 
 [features]
 default = []
-edit = ["dep:hcl-edit"]
-perf = ["hcl-edit?/perf", "hcl-primitives/perf"]
+perf = ["hcl-edit/perf", "hcl-primitives/perf"]
 
 [dependencies]
 indexmap = { version = "2.0.0", features = ["serde"] }
 itoa = "1.0.8"
-hcl-edit = { version = "0.7.0", path = "../hcl-edit", optional = true }
+hcl-edit = { version = "0.7.0", path = "../hcl-edit" }
 hcl-primitives = { version = "0.1.1", path = "../hcl-primitives", features = ["serde"] }
-pest = "2.5.2"
-pest_derive = "2.5.2"
 serde = { version = "1.0.156", features = ["derive"] }
 vecmap-rs = { version = "0.1.11", features = ["serde"] }
 

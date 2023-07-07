@@ -137,7 +137,7 @@ fn duplicate_attribute() {
         foo = ["bar"]
         foo = ["baz"]
     "#;
-    assert_deserialize(input, hcl::value!({ foo = ["baz"] }));
+    assert!(hcl::from_str::<Value>(input).is_err());
 }
 
 #[test]
@@ -336,6 +336,8 @@ fn unescape_strings() {
         block "label\\with\\backslashes" {
           string_attr = "I \u2665 unicode"
 
+          template_attr = "I \u2665 ${unicode}\n"
+
           object_attr = {
             "key\nwith\nnewlines" = true
           }
@@ -352,6 +354,7 @@ fn unescape_strings() {
             Block::builder("block")
                 .add_label("label\\with\\backslashes")
                 .add_attribute(("string_attr", "I \u{2665} unicode"))
+                .add_attribute(("template_attr", TemplateExpr::from("I \u{2665} ${unicode}\n")))
                 .add_attribute((
                     "object_attr",
                     Expression::from_iter([("key\nwith\nnewlines", true)]),
