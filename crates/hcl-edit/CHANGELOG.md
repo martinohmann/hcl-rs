@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.6...hcl-edit-v0.6.7) (2023-07-08)
+
+
+### Bug Fixes
+
+* **parser:** correctly handle escaped markers in templates ([#257](https://github.com/martinohmann/hcl-rs/issues/257)) ([92ec924](https://github.com/martinohmann/hcl-rs/commit/92ec924159d6f48a1604c7d60faa6d4ca74b3586)), closes [#256](https://github.com/martinohmann/hcl-rs/issues/256)
+
 ## [0.6.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.5...hcl-edit-v0.6.6) (2023-07-07)
 
 
