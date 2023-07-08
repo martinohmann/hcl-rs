@@ -119,9 +119,12 @@ fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ParseE
 where
     F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
 {
-    void(repeat(1.., preceded(not(literal_end), any)))
-        .recognize()
-        .try_map(std::str::from_utf8)
+    void(repeat(
+        1..,
+        preceded(not(alt((escaped_marker.void(), literal_end.void()))), any),
+    ))
+    .recognize()
+    .try_map(std::str::from_utf8)
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
