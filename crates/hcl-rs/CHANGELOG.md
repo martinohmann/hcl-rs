@@ -8,6 +8,24 @@
   * dependencies
     * hcl-edit bumped from 0.6.6 to 0.6.7
 
+## [0.15.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.6...hcl-rs-v0.15.0) (2023-07-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **expr:** `Expression::Template` was renamed to `Expression::StringTemplate`. Furthermore, the `Expression` type's methods `is_template` and `as_template` were renamed to `is_string_template` and `as_string_template` respectively.
+
+### Bug Fixes
+
+* **expr:** rename string template enum variant ([119be53](https://github.com/martinohmann/hcl-rs/commit/119be534972d2e50d586f4d671c5316fa7cdcb5d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.6.7 to 0.7.0
+
 ## [0.14.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.4...hcl-rs-v0.14.5) (2023-07-07)
 
 
