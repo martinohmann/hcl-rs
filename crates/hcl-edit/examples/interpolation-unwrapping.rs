@@ -36,7 +36,6 @@ use hcl_edit::prelude::*;
 use hcl_edit::structure::Body;
 use hcl_edit::template::{Element, Template};
 use hcl_edit::visit_mut::{visit_expr_mut, VisitMut};
-use std::ops::Deref;
 
 struct InterpolationUnwrapper;
 
@@ -44,8 +43,7 @@ impl VisitMut for InterpolationUnwrapper {
     fn visit_expr_mut(&mut self, expr: &mut Expression) {
         // Only templates containing a single interpolation can be unwrapped.
         if let Some(interpolation) = expr
-            .as_string_template()
-            .map(Deref::deref)
+            .as_template()
             .and_then(Template::as_single_element)
             .and_then(Element::as_interpolation)
         {
