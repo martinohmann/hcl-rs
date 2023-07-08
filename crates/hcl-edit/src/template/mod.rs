@@ -1,5 +1,8 @@
 //! Types to represent the HCL template sub-language.
 
+#[cfg(test)]
+mod tests;
+
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::util::{dedent_by, min_leading_whitespace};
@@ -338,36 +341,13 @@ impl HeredocTemplate {
         self.trailing = trailing.into();
     }
 
-    /// Dedent the heredoc.
+    /// Dedent the heredoc template.
+    ///
+    /// This will set the heredoc's indent to the number of leading
+    /// spaces that were stripped off of template string literals, if any.
     pub fn dedent(&mut self) {
-        let mut indent: Option<usize> = None;
-        let mut skip_first = false;
-
-        for element in self.template.iter() {
-            if let Element::Literal(literal) = element {
-                let leading_ws = min_leading_whitespace(literal, skip_first);
-                indent = Some(indent.map_or(leading_ws, |indent| indent.min(leading_ws)));
-                skip_first = !literal.ends_with('\n');
-            } else {
-                skip_first = true;
-            }
-        }
-
-        if let Some(indent) = indent {
-            skip_first = false;
-
-            for element in self.template.iter_mut() {
-                if let Element::Literal(literal) = element {
-                    let dedented = dedent_by(literal, indent, skip_first);
-                    *literal.as_mut() = dedented.into();
-                    skip_first = !literal.ends_with('\n');
-                } else {
-                    skip_first = true;
-                }
-            }
-
-            self.set_indent(indent);
-        }
+        let stripped_indent = self.template.dedent();
+        self.indent = stripped_indent;
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -556,6 +536,42 @@ impl Template {
         for element in &mut self.elements {
             element.despan(input);
         }
+    }
+
+    /// Dedents string literals in the template, returning the maximum indent that was stripped,
+    /// if any.
+    pub(crate) fn dedent(&mut self) -> Option<usize> {
+        let mut indent: Option<usize> = None;
+        let mut skip_first_line = false;
+
+        for element in &self.elements {
+            if let Element::Literal(literal) = element {
+                if let Some(leading_ws) = min_leading_whitespace(literal, skip_first_line) {
+                    indent = Some(indent.map_or(leading_ws, |indent| indent.min(leading_ws)));
+                }
+                skip_first_line = !literal.ends_with('\n');
+            } else if !skip_first_line {
+                // Directive or interpolation at line start always mean that no indent can be
+                // stripped.
+                return None;
+            }
+        }
+
+        if let Some(indent) = indent {
+            skip_first_line = false;
+
+            for element in &mut self.elements {
+                if let Element::Literal(literal) = element {
+                    let dedented = dedent_by(literal, indent, skip_first_line);
+                    *literal.as_mut() = dedented.into();
+                    skip_first_line = !literal.ends_with('\n');
+                } else if !skip_first_line {
+                    skip_first_line = true;
+                }
+            }
+        }
+
+        indent
     }
 }
 
