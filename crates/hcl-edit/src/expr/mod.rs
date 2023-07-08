@@ -19,7 +19,7 @@ pub use self::object::{
 pub use self::operation::{BinaryOp, BinaryOperator, UnaryOp, UnaryOperator};
 pub use self::traversal::{Splat, Traversal, TraversalOperator};
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::template::{HeredocTemplate, StringTemplate};
+use crate::template::{HeredocTemplate, StringTemplate, Template};
 use crate::{parser, Decor, Decorate, Decorated, Formatted, Ident, Number};
 use std::borrow::Cow;
 use std::fmt;
@@ -154,6 +154,22 @@ impl Expression {
     pub fn as_object_mut(&mut self) -> Option<&mut Object> {
         match self {
             Expression::Object(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is either of variant `StringTemplate` or
+    /// `HeredocTemplate`.
+    pub fn is_template(&self) -> bool {
+        self.as_template().is_some()
+    }
+
+    /// If the expression is either of variant `StringTemplate` or `HeredocTemplate`, returns a
+    /// reference to the underlying `Template`, otherwise `None`.
+    pub fn as_template(&self) -> Option<&Template> {
+        match self {
+            Expression::StringTemplate(value) => Some(value),
+            Expression::HeredocTemplate(value) => Some(&value.template),
             _ => None,
         }
     }
