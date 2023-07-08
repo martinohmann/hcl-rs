@@ -7,3 +7,6 @@ members = [
     "crates/specsuite",
     "crates/testdata"
 ]
+
+[profile.release]
+debug = 1

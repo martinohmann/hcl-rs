@@ -19,4 +19,5 @@ harness = false
 criterion = "0.5"
 hcl-edit = { path = "../hcl-edit" }
 hcl-rs = { path = "../hcl-rs" }
+lexopt = "0.3.0"
 testdata = { path = "../testdata" }
