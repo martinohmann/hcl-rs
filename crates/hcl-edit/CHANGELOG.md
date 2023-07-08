@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.7...hcl-edit-v0.7.0) (2023-07-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **template:** make `StringTemplate` deref to `Template` ([#260](https://github.com/martinohmann/hcl-rs/issues/260))
+* **expr:** `Expression::Template` was renamed to `Expression::StringTemplate`. Furthermore, the `Expression` type's methods `is_template` and `as_template` were renamed to `is_string_template` and `as_string_template` respectively.
+
+### Features
+
+* **expr:** add back `Expression::{is_template,as_template}` ([#261](https://github.com/martinohmann/hcl-rs/issues/261)) ([2ac21c2](https://github.com/martinohmann/hcl-rs/commit/2ac21c2995df3bae04bd4aaed6fc13463fd762a0))
+
+
+### Bug Fixes
+
+* **expr:** rename string template enum variant ([119be53](https://github.com/martinohmann/hcl-rs/commit/119be534972d2e50d586f4d671c5316fa7cdcb5d))
+* **template:** ensure heredoc dedenting works correctly ([4c7baa3](https://github.com/martinohmann/hcl-rs/commit/4c7baa3c7ddad0624ea6640a6c01580fe9c6a1c2))
+
+
+### Code Refactoring
+
+* **template:** make `StringTemplate` deref to `Template` ([#260](https://github.com/martinohmann/hcl-rs/issues/260)) ([9b57e5b](https://github.com/martinohmann/hcl-rs/commit/9b57e5bd95283de10b7266a8f52a9520c80e3f1a))
+
 ## [0.6.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.6...hcl-edit-v0.6.7) (2023-07-08)
 
 
