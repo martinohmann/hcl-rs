@@ -43,7 +43,7 @@ impl VisitMut for InterpolationUnwrapper {
     fn visit_expr_mut(&mut self, expr: &mut Expression) {
         // Only templates containing a single interpolation can be unwrapped.
         if let Some(interpolation) = expr
-            .as_template()
+            .as_string_template()
             .and_then(StringTemplate::as_single_element)
             .and_then(Element::as_interpolation)
         {

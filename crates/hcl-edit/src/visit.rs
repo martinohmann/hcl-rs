@@ -211,7 +211,7 @@ where
         Expression::String(string) => v.visit_string(string),
         Expression::Array(array) => v.visit_array(array),
         Expression::Object(object) => v.visit_object(object),
-        Expression::Template(template) => v.visit_string_template(template),
+        Expression::StringTemplate(template) => v.visit_string_template(template),
         Expression::HeredocTemplate(template) => v.visit_heredoc_template(template),
         Expression::Parenthesis(parens) => v.visit_parenthesis(parens),
         Expression::Variable(var) => v.visit_ident(var),

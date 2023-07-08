@@ -138,7 +138,7 @@ fn stringlike<'i, 's>(
             string_template.map(|template| {
                 state
                     .borrow_mut()
-                    .on_expr_term(Expression::Template(template));
+                    .on_expr_term(Expression::StringTemplate(template));
             }),
         ))
         .parse_next(input)

@@ -13,7 +13,7 @@ impl From<expr::Expression> for Expression {
             expr::Expression::UnaryOp(unary) => UnaryOp::from(*unary).into(),
             expr::Expression::BinaryOp(binary) => BinaryOp::from(*binary).into(),
             expr::Expression::ForExpr(for_expr) => ForExpr::from(*for_expr).into(),
-            expr::Expression::Template(template) => TemplateExpr::from(template).into(),
+            expr::Expression::StringTemplate(template) => TemplateExpr::from(template).into(),
             expr::Expression::HeredocTemplate(template) => Heredoc::from(*template).into(),
             expr::Expression::Variable(variable) => Expression::Variable(variable.value_into()),
             expr::Expression::FuncCall(func_call) => FuncCall::from(*func_call).into(),

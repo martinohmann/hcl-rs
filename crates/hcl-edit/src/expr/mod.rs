@@ -43,7 +43,7 @@ pub enum Expression {
     /// Represents an HCL object.
     Object(Object),
     /// Represents a string containing template interpolations and template directives.
-    Template(StringTemplate),
+    StringTemplate(StringTemplate),
     /// Represents an HCL heredoc template.
     HeredocTemplate(Box<HeredocTemplate>),
     /// Represents a sub-expression wrapped in parenthesis.
@@ -158,15 +158,15 @@ impl Expression {
         }
     }
 
-    /// Returns `true` if the expression is a template.
-    pub fn is_template(&self) -> bool {
-        self.as_template().is_some()
+    /// Returns `true` if the expression is a string template.
+    pub fn is_string_template(&self) -> bool {
+        self.as_string_template().is_some()
     }
 
-    /// If the expression is a template, returns a reference to it, otherwise `None`.
-    pub fn as_template(&self) -> Option<&StringTemplate> {
+    /// If the expression is a string template, returns a reference to it, otherwise `None`.
+    pub fn as_string_template(&self) -> Option<&StringTemplate> {
         match self {
-            Expression::Template(value) => Some(value),
+            Expression::StringTemplate(value) => Some(value),
             _ => None,
         }
     }
@@ -297,7 +297,7 @@ impl Expression {
             Expression::String(s) => s.decor_mut().despan(input),
             Expression::Array(array) => array.despan(input),
             Expression::Object(object) => object.despan(input),
-            Expression::Template(template) => template.despan(input),
+            Expression::StringTemplate(template) => template.despan(input),
             Expression::HeredocTemplate(heredoc) => heredoc.despan(input),
             Expression::Parenthesis(expr) => expr.despan(input),
             Expression::Variable(var) => var.decor_mut().despan(input),
@@ -408,7 +408,7 @@ impl From<Object> for Expression {
 
 impl From<StringTemplate> for Expression {
     fn from(value: StringTemplate) -> Self {
-        Expression::Template(value)
+        Expression::StringTemplate(value)
     }
 }
 
@@ -568,10 +568,10 @@ decorate_impl!(Parenthesis);
 span_impl!(Parenthesis);
 
 forward_decorate_impl!(Expression => {
-    Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+    Null, Bool, Number, String, Array, Object, StringTemplate, HeredocTemplate, Parenthesis,
     Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
 });
 forward_span_impl!(Expression => {
-    Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+    Null, Bool, Number, String, Array, Object, StringTemplate, HeredocTemplate, Parenthesis,
     Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
 });

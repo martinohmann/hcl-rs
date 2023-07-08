@@ -237,7 +237,7 @@ where
         Expression::String(string) => v.visit_string_mut(string),
         Expression::Array(array) => v.visit_array_mut(array),
         Expression::Object(object) => v.visit_object_mut(object),
-        Expression::Template(template) => v.visit_string_template_mut(template),
+        Expression::StringTemplate(template) => v.visit_string_template_mut(template),
         Expression::HeredocTemplate(template) => v.visit_heredoc_template_mut(template),
         Expression::Parenthesis(parens) => v.visit_parenthesis_mut(parens),
         Expression::Variable(var) => v.visit_ident_mut(var),

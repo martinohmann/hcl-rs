@@ -32,7 +32,7 @@ impl EncodeDecorated for Expression {
             }
             Expression::Array(v) => v.encode_decorated(buf, default_decor),
             Expression::Object(v) => v.encode_decorated(buf, default_decor),
-            Expression::Template(v) => v.encode_decorated(buf, default_decor),
+            Expression::StringTemplate(v) => v.encode_decorated(buf, default_decor),
             Expression::HeredocTemplate(v) => v.encode_decorated(buf, default_decor),
             Expression::Parenthesis(v) => v.encode_decorated(buf, default_decor),
             Expression::Variable(v) => v.encode_decorated(buf, default_decor),
