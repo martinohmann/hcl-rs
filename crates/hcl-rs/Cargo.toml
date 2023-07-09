@@ -41,7 +41,7 @@ hcl-edit = { version = "0.7.0", path = "../hcl-edit", optional = true }
 hcl-primitives = { version = "0.1.1", path = "../hcl-primitives", features = ["serde"] }
 pest = "2.5.2"
 pest_derive = "2.5.2"
-serde = { version = "1.0.151", features = ["derive"] }
+serde = { version = "1.0.156", features = ["derive"] }
 vecmap-rs = { version = "0.1.9", features = ["serde"] }
 
 [dev-dependencies]
