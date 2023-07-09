@@ -42,7 +42,7 @@ hcl-primitives = { version = "0.1.1", path = "../hcl-primitives", features = ["s
 pest = "2.5.2"
 pest_derive = "2.5.2"
 serde = { version = "1.0.156", features = ["derive"] }
-vecmap-rs = { version = "0.1.9", features = ["serde"] }
+vecmap-rs = { version = "0.1.11", features = ["serde"] }
 
 [dev-dependencies]
 indoc = "2.0"
