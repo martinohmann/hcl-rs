@@ -1,7 +1,6 @@
 //! The `Error` and `Result` types used by this crate.
+use crate::edit::parser;
 use crate::eval;
-use crate::parser::Rule;
-use pest::{error::LineColLocation, Span};
 use serde::{de, ser};
 use std::fmt::{self, Display};
 use std::io;
@@ -14,13 +13,8 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
-    /// Represents a generic error message with optional location.
-    Message {
-        /// The error message.
-        msg: String,
-        /// An optional location context where the error happened in the input.
-        location: Option<Location>,
-    },
+    /// Represents a generic error message.
+    Message(String),
     /// Represents the error emitted when the `Deserializer` hits an unexpected end of input.
     Eof,
     /// Represents an error that resulted from invalid UTF8 input.
@@ -37,6 +31,8 @@ pub enum Error {
     InvalidIdentifier(String),
     /// Represents errors during expression evaluation.
     Eval(eval::Error),
+    /// Represents errors while parsing HCL.
+    Parse(parser::Error),
 }
 
 impl Error {
@@ -44,18 +40,7 @@ impl Error {
     where
         T: Display,
     {
-        Error::Message {
-            msg: msg.to_string(),
-            location: None,
-        }
-    }
-
-    /// Returns the `Location` in the input where the error happened, if available.
-    pub fn location(&self) -> Option<&Location> {
-        match self {
-            Error::Message { location, .. } => location.as_ref(),
-            _ => None,
-        }
+        Error::Message(msg.to_string())
     }
 }
 
@@ -63,20 +48,16 @@ impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Eof => write!(f, "unexpected end of input"),
-            Error::Io(err) => Display::fmt(err, f),
-            Error::Utf8(err) => Display::fmt(err, f),
-            Error::Message { msg, location } => match location {
-                Some(loc) => {
-                    write!(f, "{msg} in line {}, col {}", loc.line, loc.col)
-                }
-                None => write!(f, "{msg}"),
-            },
+            Error::Io(err) => write!(f, "{err}"),
+            Error::Utf8(err) => write!(f, "{err}"),
+            Error::Message(msg) => write!(f, "{msg}"),
             Error::InvalidEscape(c) => write!(f, "invalid escape sequence '\\{c}'"),
             Error::InvalidUnicodeCodePoint(u) => {
                 write!(f, "invalid unicode code point '\\u{u}'")
             }
             Error::InvalidIdentifier(ident) => write!(f, "invalid identifier `{ident}`"),
             Error::Eval(err) => write!(f, "eval error: {err}"),
+            Error::Parse(err) => write!(f, "{err}"),
         }
     }
 }
@@ -93,16 +74,9 @@ impl From<Utf8Error> for Error {
     }
 }
 
-impl From<pest::error::Error<Rule>> for Error {
-    fn from(err: pest::error::Error<Rule>) -> Self {
-        let (line, col) = match err.line_col {
-            LineColLocation::Pos((l, c)) | LineColLocation::Span((l, c), (_, _)) => (l, c),
-        };
-
-        Error::Message {
-            msg: err.to_string(),
-            location: Some(Location { line, col }),
-        }
+impl From<parser::Error> for Error {
+    fn from(err: parser::Error) -> Self {
+        Error::Parse(err)
     }
 }
 
@@ -123,21 +97,5 @@ impl ser::Error for Error {
 impl de::Error for Error {
     fn custom<T: Display>(msg: T) -> Self {
         Error::new(msg)
-    }
-}
-
-/// One-based line and column at which the error was detected.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Location {
-    /// The one-based line number of the error.
-    pub line: usize,
-    /// The one-based column number of the error.
-    pub col: usize,
-}
-
-impl From<Span<'_>> for Location {
-    fn from(span: Span<'_>) -> Self {
-        let (line, col) = span.start_pos().line_col();
-        Location { line, col }
     }
 }

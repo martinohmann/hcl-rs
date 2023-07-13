@@ -193,10 +193,9 @@ impl From<template::StringTemplate> for TemplateExpr {
 
 impl From<template::HeredocTemplate> for Heredoc {
     fn from(value: template::HeredocTemplate) -> Self {
-        let strip = match value.indent() {
-            Some(0) | None => HeredocStripMode::None,
-            Some(_) => HeredocStripMode::Indent,
-        };
+        let strip = value
+            .indent()
+            .map_or(HeredocStripMode::None, |_| HeredocStripMode::Indent);
 
         Heredoc {
             delimiter: value.delimiter.into(),
