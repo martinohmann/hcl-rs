@@ -15,20 +15,10 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     /// Represents a generic error message.
     Message(String),
-    /// Represents the error emitted when the `Deserializer` hits an unexpected end of input.
-    Eof,
     /// Represents an error that resulted from invalid UTF8 input.
     Utf8(Utf8Error),
     /// Represents generic IO errors.
     Io(io::Error),
-    /// Represents errors due to invalid escape characters that may occur when unescaping
-    /// user-provided strings.
-    InvalidEscape(char),
-    /// Represents errors due to invalid unicode code points that may occur when unescaping
-    /// user-provided strings.
-    InvalidUnicodeCodePoint(String),
-    /// Represents errors that resulted from identifiers that are not valid in HCL.
-    InvalidIdentifier(String),
     /// Represents errors during expression evaluation.
     Eval(eval::Error),
     /// Represents errors while parsing HCL.
@@ -47,15 +37,9 @@ impl Error {
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Eof => write!(f, "unexpected end of input"),
             Error::Io(err) => write!(f, "{err}"),
             Error::Utf8(err) => write!(f, "{err}"),
             Error::Message(msg) => write!(f, "{msg}"),
-            Error::InvalidEscape(c) => write!(f, "invalid escape sequence '\\{c}'"),
-            Error::InvalidUnicodeCodePoint(u) => {
-                write!(f, "invalid unicode code point '\\u{u}'")
-            }
-            Error::InvalidIdentifier(ident) => write!(f, "invalid identifier `{ident}`"),
             Error::Eval(err) => write!(f, "eval error: {err}"),
             Error::Parse(err) => write!(f, "{err}"),
         }
