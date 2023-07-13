@@ -8,6 +8,24 @@
   * dependencies
     * hcl-edit bumped from 0.6.6 to 0.6.7
 
+## [0.16.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.15.0...hcl-rs-v0.16.0) (2023-07-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **error:** The variants `Eof`, `InvalidEscape`, `InvalidUnicodeCodePoint` and `InvalidIdentifier` were removed from the `Error` enum because they are not emitted anymore.
+* **parser:** switch to `hcl-edit` for parsing HCL ([#267](https://github.com/martinohmann/hcl-rs/issues/267))
+
+### Bug Fixes
+
+* **error:** remove obsolete `Error` variants ([af9996a](https://github.com/martinohmann/hcl-rs/commit/af9996a709c4c7faeb0ad88318d0bba3b0ca0e2f))
+* **expr:** remove unnecessary unescaping ([8001e5e](https://github.com/martinohmann/hcl-rs/commit/8001e5ebba12974c93738726c91ba6e57a2180c3))
+
+
+### Code Refactoring
+
+* **parser:** switch to `hcl-edit` for parsing HCL ([#267](https://github.com/martinohmann/hcl-rs/issues/267)) ([c6d0588](https://github.com/martinohmann/hcl-rs/commit/c6d0588cd24c1a7dcd722b3d45b97d82fb77d0c2))
+
 ## [0.15.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.6...hcl-rs-v0.15.0) (2023-07-08)
 
 
