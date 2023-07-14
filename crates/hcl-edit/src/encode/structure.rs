@@ -9,7 +9,6 @@ impl Encode for Body {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         for structure in self.iter() {
             structure.encode_decorated(buf, NO_DECOR)?;
-            buf.write_char('\n')?;
         }
 
         Ok(())
