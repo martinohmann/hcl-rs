@@ -1,4 +1,4 @@
-use super::{error::ContextError, Input};
+use super::Input;
 use winnow::{
     ascii::{multispace0, not_line_ending, space0},
     combinator::{alt, delimited, fail, peek, preceded, repeat},
@@ -7,7 +7,7 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn ws<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+pub(super) fn ws<'a>(input: &mut Input<'a>) -> PResult<()> {
     (
         multispace0.void(),
         void(repeat(0.., (comment, multispace0.void()))),
@@ -16,7 +16,7 @@ pub(super) fn ws<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a
         .parse_next(input)
 }
 
-pub(super) fn sp<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+pub(super) fn sp<'a>(input: &mut Input<'a>) -> PResult<()> {
     (
         space0.void(),
         void(repeat(0.., (inline_comment, space0.void()))),
@@ -25,7 +25,7 @@ pub(super) fn sp<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a
         .parse_next(input)
 }
 
-fn comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+fn comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     dispatch! {peek(any);
         b'#' => hash_line_comment,
         b'/' => alt((double_slash_line_comment, inline_comment)),
@@ -34,7 +34,7 @@ fn comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
     .parse_next(input)
 }
 
-pub(super) fn line_comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+pub(super) fn line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     dispatch! {peek(any);
         b'#' => hash_line_comment,
         b'/' => double_slash_line_comment,
@@ -43,15 +43,15 @@ pub(super) fn line_comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextErro
     .parse_next(input)
 }
 
-fn hash_line_comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+fn hash_line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     preceded(b'#', not_line_ending).void().parse_next(input)
 }
 
-fn double_slash_line_comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+fn double_slash_line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     preceded(b"//", not_line_ending).void().parse_next(input)
 }
 
-fn inline_comment<'a>(input: &mut Input<'a>) -> PResult<(), ContextError<Input<'a>>> {
+fn inline_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     delimited(b"/*", take_until0("*/"), b"*/")
         .void()
         .parse_next(input)

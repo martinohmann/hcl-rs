@@ -14,9 +14,9 @@ mod tests;
 mod trivia;
 
 pub use self::error::{Error, Location};
-use self::{error::ContextError, expr::expr, structure::body, template::template};
+use self::{expr::expr, structure::body, template::template};
 use crate::{expr::Expression, structure::Body, template::Template};
-use winnow::{stream::Located, Parser};
+use winnow::{error::ContextError, stream::Located, Parser};
 
 type Input<'a> = Located<&'a [u8]>;
 
@@ -55,11 +55,11 @@ pub fn parse_template(input: &str) -> Result<Template, Error> {
 
 fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> Result<O, Error>
 where
-    P: Parser<Input<'a>, O, ContextError<Input<'a>>>,
+    P: Parser<Input<'a>, O, ContextError>,
 {
     let input = Input::new(input.as_bytes());
 
     parser
         .parse(input)
-        .map_err(|err| Error::from_parse_error(&input, err.inner()))
+        .map_err(|err| Error::from_parse_error(err))
 }

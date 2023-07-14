@@ -1,8 +1,8 @@
-use super::context::StrContext;
-use std::fmt;
+use super::Input;
+use std::fmt::{self, Write};
 use winnow::{
-    error::{AddContext, FromExternalError},
-    stream::{AsBytes, Offset},
+    error::{ContextError, ParseError, StrContext},
+    stream::Offset,
 };
 
 /// Error type returned when the parser encountered an error.
@@ -12,11 +12,8 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_parse_error<I>(input: &I, err: &ContextError<I>) -> Error
-    where
-        I: AsBytes + Offset,
-    {
-        Error::new(ErrorInner::from_parse_error(input, err))
+    pub(super) fn from_parse_error(err: ParseError<Input, ContextError>) -> Error {
+        Error::new(ErrorInner::from_parse_error(err))
     }
 
     fn new(inner: ErrorInner) -> Error {
@@ -55,14 +52,11 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_parse_error<I>(input: &I, err: &ContextError<I>) -> ErrorInner
-    where
-        I: AsBytes + Offset,
-    {
-        let (line, location) = locate_error(input.as_bytes(), err.input.as_bytes());
+    fn from_parse_error(err: ParseError<Input, ContextError>) -> ErrorInner {
+        let (line, location) = locate_error(&err);
 
         ErrorInner {
-            message: err.to_string(),
+            message: format_context_error(err.inner()),
             line: String::from_utf8_lossy(line).to_string(),
             location,
         }
@@ -118,8 +112,10 @@ impl Location {
     }
 }
 
-fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Location) {
-    let offset = remaining_input.offset_from(&input);
+fn locate_error<'a>(err: &ParseError<Input<'a>, ContextError>) -> (&'a [u8], Location) {
+    let offset = err.offset();
+    let input = err.input();
+    let remaining_input = &input[offset..];
     let consumed_input = &input[..offset];
 
     // Find the line that includes the subslice:
@@ -154,119 +150,53 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
     )
 }
 
-#[derive(Debug)]
-pub(super) struct ContextError<I> {
-    input: I,
-    context: Vec<StrContext>,
-    cause: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
-}
+fn format_context_error(err: &ContextError) -> String {
+    let mut buf = String::new();
 
-impl<I> ContextError<I> {
-    #[inline]
-    pub(super) fn new(input: I) -> ContextError<I> {
-        ContextError {
-            input,
-            context: Vec::new(),
-            cause: None,
-        }
-    }
-}
+    let label = err.context().find_map(|c| match c {
+        StrContext::Label(c) => Some(c),
+        _ => None,
+    });
 
-impl<I> PartialEq for ContextError<I>
-where
-    I: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.input == other.input
-            && self.context == other.context
-            && self.cause.as_ref().map(ToString::to_string)
-                == other.cause.as_ref().map(ToString::to_string)
-    }
-}
+    let expected = err
+        .context()
+        .filter_map(|c| match c {
+            StrContext::Expected(c) => Some(c),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
 
-impl<I: Clone> winnow::error::ParserError<I> for ContextError<I> {
-    #[inline]
-    fn from_error_kind(input: &I, _kind: winnow::error::ErrorKind) -> Self {
-        ContextError::new(input.clone())
+    if let Some(label) = label {
+        _ = write!(buf, "invalid {label}; ");
     }
 
-    #[inline]
-    fn append(self, _input: &I, _kind: winnow::error::ErrorKind) -> Self {
-        self
-    }
-}
+    if expected.is_empty() {
+        _ = buf.write_str("unexpected token");
+    } else {
+        _ = write!(buf, "expected ");
 
-impl<I> AddContext<I, StrContext> for ContextError<I> {
-    #[inline]
-    fn add_context(mut self, _input: &I, ctx: StrContext) -> Self {
-        self.context.push(ctx);
-        self
-    }
-}
-
-impl<I, E> FromExternalError<I, E> for ContextError<I>
-where
-    I: Clone,
-    E: std::error::Error + Send + Sync + 'static,
-{
-    #[inline]
-    fn from_external_error(input: &I, _kind: winnow::error::ErrorKind, err: E) -> Self {
-        ContextError {
-            input: input.clone(),
-            context: Vec::new(),
-            cause: Some(Box::new(err)),
-        }
-    }
-}
-
-impl<I> fmt::Display for ContextError<I> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let label = self.context.iter().find_map(|c| match c {
-            StrContext::Label(c) => Some(c),
-            StrContext::Expected(_) => None,
-        });
-
-        let expected = self
-            .context
-            .iter()
-            .filter_map(|c| match c {
-                StrContext::Expected(c) => Some(c),
-                StrContext::Label(_) => None,
-            })
-            .collect::<Vec<_>>();
-
-        if let Some(label) = label {
-            write!(f, "invalid {label}; ")?;
-        }
-
-        if expected.is_empty() {
-            f.write_str("unexpected token")?;
-        } else {
-            write!(f, "expected ")?;
-
-            match expected.len() {
-                0 => {}
-                1 => write!(f, "{}", &expected[0])?,
-                n => {
-                    for (i, expected) in expected.iter().enumerate() {
-                        if i == n - 1 {
-                            f.write_str(" or ")?;
-                        } else if i > 0 {
-                            f.write_str(", ")?;
-                        }
-
-                        write!(f, "{expected}")?;
+        let _ = match expected.len() {
+            0 => {}
+            1 => {
+                _ = write!(buf, "{}", &expected[0]);
+            }
+            n => {
+                for (i, expected) in expected.iter().enumerate() {
+                    if i == n - 1 {
+                        _ = buf.write_str(" or ");
+                    } else if i > 0 {
+                        _ = buf.write_str(", ");
                     }
+
+                    _ = write!(buf, "{expected}");
                 }
             }
-        }
-
-        if let Some(cause) = &self.cause {
-            write!(f, "; {cause}")?;
-        }
-
-        Ok(())
+        };
     }
-}
 
-impl<I> std::error::Error for ContextError<I> where I: fmt::Debug + fmt::Display {}
+    if let Some(cause) = err.cause() {
+        _ = write!(buf, "; {cause}");
+    }
+
+    buf
+}

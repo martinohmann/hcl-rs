@@ -1,20 +1,16 @@
-use super::{
-    context::{StrContext, StrContextValue},
-    error::ContextError,
-    trivia::void,
-    Input,
-};
+use super::{trivia::void, Input};
 use crate::{Decorated, Ident, RawString};
 use std::borrow::Cow;
 use winnow::{
     combinator::{alt, cut_err, delimited, fail, not, opt, preceded, repeat, success},
     dispatch,
+    error::{ContextError, StrContext, StrContextValue},
     stream::AsChar,
     token::{any, one_of, take, take_while},
     PResult, Parser,
 };
 
-pub(super) fn string<'a>(input: &mut Input<'a>) -> PResult<String, ContextError<Input<'a>>> {
+pub(super) fn string<'a>(input: &mut Input<'a>) -> PResult<String> {
     delimited(b'"', opt(build_string(quoted_string_fragment)), b'"')
         .map(Option::unwrap_or_default)
         .output_into()
@@ -23,9 +19,9 @@ pub(super) fn string<'a>(input: &mut Input<'a>) -> PResult<String, ContextError<
 
 pub(super) fn build_string<'a, F>(
     mut fragment_parser: F,
-) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError<Input<'a>>>
+) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError>
 where
-    F: Parser<Input<'a>, StringFragment<'a>, ContextError<Input<'a>>>,
+    F: Parser<Input<'a>, StringFragment<'a>, ContextError>,
 {
     move |input: &mut Input<'a>| {
         let mut string = match fragment_parser.parse_next(input) {
@@ -79,9 +75,7 @@ impl EscapedMarker {
     }
 }
 
-pub(super) fn quoted_string_fragment<'a>(
-    input: &mut Input<'a>,
-) -> PResult<StringFragment<'a>, ContextError<Input<'a>>> {
+pub(super) fn quoted_string_fragment<'a>(input: &mut Input<'a>) -> PResult<StringFragment<'a>> {
     alt((
         escaped_marker.map(StringFragment::EscapedMarker),
         string_literal.map(StringFragment::Literal),
@@ -92,9 +86,9 @@ pub(super) fn quoted_string_fragment<'a>(
 
 pub(super) fn template_string_fragment<'a, F, T>(
     mut literal_end: F,
-) -> impl Parser<Input<'a>, StringFragment<'a>, ContextError<Input<'a>>>
+) -> impl Parser<Input<'a>, StringFragment<'a>, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError<Input<'a>>>,
+    F: Parser<Input<'a>, T, ContextError>,
 {
     move |input: &mut Input<'a>| {
         alt((
@@ -107,7 +101,7 @@ where
 
 /// Parse a non-empty block of text that doesn't include `"` or non-escaped template
 /// interpolation/directive start markers.
-fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str, ContextError<Input<'a>>> {
+fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     let literal_end = dispatch! {any;
         b'\"' | b'\\' => success(true),
         b'$' | b'%' => b'{'.value(true),
@@ -116,9 +110,9 @@ fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str, ContextError<In
     any_until(literal_end).parse_next(input)
 }
 
-fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ContextError<Input<'a>>>
+fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError<Input<'a>>>,
+    F: Parser<Input<'a>, T, ContextError>,
 {
     void(repeat(
         1..,
@@ -129,7 +123,7 @@ where
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
-fn escaped_marker<'a>(input: &mut Input<'a>) -> PResult<EscapedMarker, ContextError<Input<'a>>> {
+fn escaped_marker<'a>(input: &mut Input<'a>) -> PResult<EscapedMarker> {
     dispatch! {take::<_, Input, _>(3usize);
         b"$${" => success(EscapedMarker::Interpolation),
         b"%%{" => success(EscapedMarker::Directive),
@@ -139,7 +133,7 @@ fn escaped_marker<'a>(input: &mut Input<'a>) -> PResult<EscapedMarker, ContextEr
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
-fn escaped_char<'a>(input: &mut Input<'a>) -> PResult<char, ContextError<Input<'a>>> {
+fn escaped_char<'a>(input: &mut Input<'a>) -> PResult<char> {
     b'\\'.parse_next(input)?;
 
     dispatch! {any;
@@ -170,7 +164,7 @@ fn escaped_char<'a>(input: &mut Input<'a>) -> PResult<char, ContextError<Input<'
     .parse_next(input)
 }
 
-fn hexescape<'a, const N: usize>(input: &mut Input<'a>) -> PResult<char, ContextError<Input<'a>>> {
+fn hexescape<'a, const N: usize>(input: &mut Input<'a>) -> PResult<char> {
     let parse_hex =
         take_while(1..=N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
 
@@ -184,24 +178,20 @@ fn hexescape<'a, const N: usize>(input: &mut Input<'a>) -> PResult<char, Context
     parse_u32.verify_map(std::char::from_u32).parse_next(input)
 }
 
-pub(super) fn raw_string<'a, P, O>(
-    inner: P,
-) -> impl Parser<Input<'a>, RawString, ContextError<Input<'a>>>
+pub(super) fn raw_string<'a, P, O>(inner: P) -> impl Parser<Input<'a>, RawString, ContextError>
 where
-    P: Parser<Input<'a>, O, ContextError<Input<'a>>>,
+    P: Parser<Input<'a>, O, ContextError>,
 {
     inner.span().map(RawString::from_span)
 }
 
-pub(super) fn ident<'a>(
-    input: &mut Input<'a>,
-) -> PResult<Decorated<Ident>, ContextError<Input<'a>>> {
+pub(super) fn ident<'a>(input: &mut Input<'a>) -> PResult<Decorated<Ident>> {
     str_ident
         .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)
 }
 
-pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str, ContextError<Input<'a>>> {
+pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     (one_of(is_id_start), take_while(0.., is_id_continue))
         .recognize()
         .map(|s: &[u8]| unsafe {
