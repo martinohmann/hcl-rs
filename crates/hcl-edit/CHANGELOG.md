@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.0...hcl-edit-v0.7.1) (2023-07-14)
+
+
+### Performance Improvements
+
+* **parser:** use `winnow::error::ContextError` internally ([b829c21](https://github.com/martinohmann/hcl-rs/commit/b829c212904c0ae0005370788bf1ea20aaee36e7))
+
 ## [0.7.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.7...hcl-edit-v0.7.0) (2023-07-08)
 
 
