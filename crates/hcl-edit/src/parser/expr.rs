@@ -1,6 +1,5 @@
 use super::{
-    context::{cut_char, cut_ident, cut_tag, StrContext, StrContextValue},
-    error::ContextError,
+    context::{cut_char, cut_ident, cut_tag},
     number::number as num,
     repr::{decorated, prefix_decorated, spanned, suffix_decorated},
     state::ExprParseState,
@@ -26,12 +25,13 @@ use winnow::{
         separated_pair, success, terminated,
     },
     dispatch,
+    error::{ContextError, StrContext, StrContextValue},
     stream::Stream,
     token::{any, none_of, one_of, take},
     PResult, Parser,
 };
 
-pub(super) fn expr<'a>(input: &mut Input<'a>) -> PResult<Expression, ContextError<Input<'a>>> {
+pub(super) fn expr<'a>(input: &mut Input<'a>) -> PResult<Expression> {
     let state = RefCell::new(ExprParseState::default());
     expr_inner(&state).parse_next(input)?;
     let expr = state.into_inner().into_expr();
@@ -40,7 +40,7 @@ pub(super) fn expr<'a>(input: &mut Input<'a>) -> PResult<Expression, ContextErro
 
 fn expr_inner<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         let span = expr_term(state).span().parse_next(input)?;
         state.borrow_mut().on_span(span);
@@ -53,7 +53,7 @@ fn expr_inner<'i, 's>(
             let suffix = sp.span().parse_next(input)?;
 
             // This is essentially a `peek` for the next two bytes to identify the following operation.
-            if let Ok(peek) = peek(take::<_, _, ContextError<_>>(2usize)).parse_next(input) {
+            if let Ok(peek) = peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
                 match peek {
                     // The sequence `..` might introduce a `...` operator within a for object expr
                     // or after the last argument of a function call, do not mistakenly parse it as
@@ -105,7 +105,7 @@ fn expr_inner<'i, 's>(
 
 fn expr_term<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         dispatch! {peek(any);
             b'"' => stringlike(state),
@@ -136,7 +136,7 @@ fn expr_term<'i, 's>(
 
 fn stringlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         alt((
             string.map(|string| {
@@ -156,7 +156,7 @@ fn stringlike<'i, 's>(
 
 fn number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         num.with_recognized()
             .map(|(num, repr)| {
@@ -170,7 +170,7 @@ fn number<'i, 's>(
 
 fn neg_number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         preceded((b'-', sp), num)
             .with_recognized()
@@ -187,7 +187,7 @@ fn neg_number<'i, 's>(
 
 fn traversal<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         repeat(
             1..,
@@ -198,9 +198,7 @@ fn traversal<'i, 's>(
     }
 }
 
-fn traversal_operator<'a>(
-    input: &mut Input<'a>,
-) -> PResult<TraversalOperator, ContextError<Input<'a>>> {
+fn traversal_operator<'a>(input: &mut Input<'a>) -> PResult<TraversalOperator> {
     dispatch! {any;
         b'.' => prefix_decorated(
             ws,
@@ -233,7 +231,7 @@ fn traversal_operator<'a>(
 
 fn unary_op<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         preceded(
             (spanned(unary_operator.map(Spanned::new)), sp.span())
@@ -245,7 +243,7 @@ fn unary_op<'i, 's>(
     }
 }
 
-fn unary_operator<'a>(input: &mut Input<'a>) -> PResult<UnaryOperator, ContextError<Input<'a>>> {
+fn unary_operator<'a>(input: &mut Input<'a>) -> PResult<UnaryOperator> {
     dispatch! {any;
         b'-' => success(UnaryOperator::Neg),
         b'!' => success(UnaryOperator::Not),
@@ -256,7 +254,7 @@ fn unary_operator<'a>(input: &mut Input<'a>) -> PResult<UnaryOperator, ContextEr
 
 fn binary_op<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         (
             spanned(binary_operator.map(Spanned::new)),
@@ -267,7 +265,7 @@ fn binary_op<'i, 's>(
     }
 }
 
-fn binary_operator<'a>(input: &mut Input<'a>) -> PResult<BinaryOperator, ContextError<Input<'a>>> {
+fn binary_operator<'a>(input: &mut Input<'a>) -> PResult<BinaryOperator> {
     dispatch! {any;
         b'=' => b'='.value(BinaryOperator::Eq),
         b'!' => b'='.value(BinaryOperator::NotEq),
@@ -293,7 +291,7 @@ fn binary_operator<'a>(input: &mut Input<'a>) -> PResult<BinaryOperator, Context
 
 fn conditional<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         (
             preceded(b'?', decorated(sp, expr, sp)),
@@ -306,7 +304,7 @@ fn conditional<'i, 's>(
 
 fn array<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         delimited(
             b'[',
@@ -319,7 +317,7 @@ fn array<'i, 's>(
 
 fn for_list_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         (for_intro, decorated(ws, expr, ws), opt(for_cond))
             .map(|(intro, value_expr, cond)| {
@@ -336,7 +334,7 @@ fn for_list_expr<'i, 's>(
 
 fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         let values = separated0(decorated(ws, preceded(not(b']'), expr), ws), b',');
 
@@ -356,7 +354,7 @@ fn array_items<'i, 's>(
 
 fn object<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         delimited(
             b'{',
@@ -369,7 +367,7 @@ fn object<'i, 's>(
 
 fn for_object_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         (
             for_intro,
@@ -397,7 +395,7 @@ fn for_object_expr<'i, 's>(
 
 fn object_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         let mut object = Object::new();
 
@@ -469,7 +467,7 @@ fn object_items<'i, 's>(
     }
 }
 
-fn object_key<'a>(input: &mut Input<'a>) -> PResult<ObjectKey, ContextError<Input<'a>>> {
+fn object_key<'a>(input: &mut Input<'a>) -> PResult<ObjectKey> {
     suffix_decorated(
         expr.map(|expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
@@ -488,7 +486,7 @@ fn object_key<'a>(input: &mut Input<'a>) -> PResult<ObjectKey, ContextError<Inpu
     .parse_next(input)
 }
 
-fn object_value<'a>(input: &mut Input<'a>) -> PResult<ObjectValue, ContextError<Input<'a>>> {
+fn object_value<'a>(input: &mut Input<'a>) -> PResult<ObjectValue> {
     (object_value_assignment, decorated(sp, expr, sp))
         .map(|(assignment, expr)| {
             let mut value = ObjectValue::new(expr);
@@ -498,9 +496,7 @@ fn object_value<'a>(input: &mut Input<'a>) -> PResult<ObjectValue, ContextError<
         .parse_next(input)
 }
 
-fn object_value_assignment<'a>(
-    input: &mut Input<'a>,
-) -> PResult<ObjectValueAssignment, ContextError<Input<'a>>> {
+fn object_value_assignment<'a>(input: &mut Input<'a>) -> PResult<ObjectValueAssignment> {
     dispatch! {any;
         b'=' => success(ObjectValueAssignment::Equals),
         b':' => success(ObjectValueAssignment::Colon),
@@ -515,10 +511,10 @@ fn object_value_assignment<'a>(
 fn for_expr_or_items<'i, F, I>(
     mut for_expr_parser: F,
     mut items_parser: I,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>>
+) -> impl Parser<Input<'i>, (), ContextError>
 where
-    F: Parser<Input<'i>, (), ContextError<Input<'i>>>,
-    I: Parser<Input<'i>, (), ContextError<Input<'i>>>,
+    F: Parser<Input<'i>, (), ContextError>,
+    I: Parser<Input<'i>, (), ContextError>,
 {
     move |input: &mut Input<'i>| {
         // The `for` tag needs to be followed by either a space character or a comment start to
@@ -532,7 +528,7 @@ where
     }
 }
 
-fn for_intro<'a>(input: &mut Input<'a>) -> PResult<ForIntro, ContextError<Input<'a>>> {
+fn for_intro<'a>(input: &mut Input<'a>) -> PResult<ForIntro> {
     prefix_decorated(
         ws,
         delimited(
@@ -556,7 +552,7 @@ fn for_intro<'a>(input: &mut Input<'a>) -> PResult<ForIntro, ContextError<Input<
     .parse_next(input)
 }
 
-fn for_cond<'a>(input: &mut Input<'a>) -> PResult<ForCond, ContextError<Input<'a>>> {
+fn for_cond<'a>(input: &mut Input<'a>) -> PResult<ForCond> {
     prefix_decorated(
         ws,
         preceded(b"if", decorated(ws, expr, ws)).map(ForCond::new),
@@ -566,7 +562,7 @@ fn for_cond<'a>(input: &mut Input<'a>) -> PResult<ForCond, ContextError<Input<'a
 
 fn parenthesis<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         delimited(
             cut_char('('),
@@ -580,7 +576,7 @@ fn parenthesis<'i, 's>(
 
 fn heredoc<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         let (indented, delim) = heredoc_start(input)?;
 
@@ -610,7 +606,7 @@ fn heredoc<'i, 's>(
     }
 }
 
-fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str), ContextError<Input<'a>>> {
+fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
     terminated(
         (
             preceded(b"<<", opt(b'-')).map(|indent| indent.is_some()),
@@ -625,7 +621,7 @@ fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str), ContextE
 
 fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         (str_ident.with_span(), opt(prefix_decorated(ws, func_args)))
             .map(|((ident, span), func_args)| {
@@ -650,7 +646,7 @@ fn identlike<'i, 's>(
     }
 }
 
-fn func_args<'a>(input: &mut Input<'a>) -> PResult<FuncArgs, ContextError<Input<'a>>> {
+fn func_args<'a>(input: &mut Input<'a>) -> PResult<FuncArgs> {
     #[derive(Copy, Clone)]
     enum Trailer {
         Comma,

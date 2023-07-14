@@ -1,6 +1,5 @@
 use super::{
-    context::{cut_char, cut_str_ident, StrContext, StrContextValue},
-    error::ContextError,
+    context::{cut_char, cut_str_ident},
     expr::expr,
     repr::{decorated, prefix_decorated, suffix_decorated},
     state::BodyParseState,
@@ -18,12 +17,13 @@ use std::cell::RefCell;
 use winnow::{
     ascii::line_ending,
     combinator::{alt, cut_err, delimited, eof, fail, opt, peek, preceded, repeat, terminated},
+    error::{ContextError, StrContext, StrContextValue},
     stream::{Location, Stream},
     token::{any, one_of},
     PResult, Parser,
 };
 
-pub(super) fn body<'a>(input: &mut Input<'a>) -> PResult<Body, ContextError<Input<'a>>> {
+pub(super) fn body<'a>(input: &mut Input<'a>) -> PResult<Body> {
     let state = RefCell::new(BodyParseState::default());
 
     let (span, suffix) = (
@@ -57,7 +57,7 @@ pub(super) fn body<'a>(input: &mut Input<'a>) -> PResult<Body, ContextError<Inpu
 
 fn structure<'i, 's>(
     state: &'s RefCell<BodyParseState<'i>>,
-) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         let start = input.location();
         let checkpoint = input.checkpoint();
@@ -121,7 +121,7 @@ fn structure<'i, 's>(
     }
 }
 
-fn attribute_expr<'a>(input: &mut Input<'a>) -> PResult<Expression, ContextError<Input<'a>>> {
+fn attribute_expr<'a>(input: &mut Input<'a>) -> PResult<Expression> {
     preceded(
         cut_char('=').context(StrContext::Label("attribute")),
         prefix_decorated(sp, expr),
@@ -129,11 +129,11 @@ fn attribute_expr<'a>(input: &mut Input<'a>) -> PResult<Expression, ContextError
     .parse_next(input)
 }
 
-fn block_labels<'a>(input: &mut Input<'a>) -> PResult<Vec<BlockLabel>, ContextError<Input<'a>>> {
+fn block_labels<'a>(input: &mut Input<'a>) -> PResult<Vec<BlockLabel>> {
     repeat(0.., suffix_decorated(block_label, sp)).parse_next(input)
 }
 
-fn block_label<'a>(input: &mut Input<'a>) -> PResult<BlockLabel, ContextError<Input<'a>>> {
+fn block_label<'a>(input: &mut Input<'a>) -> PResult<BlockLabel> {
     alt((
         string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
@@ -141,7 +141,7 @@ fn block_label<'a>(input: &mut Input<'a>) -> PResult<BlockLabel, ContextError<In
     .parse_next(input)
 }
 
-fn block_body<'a>(input: &mut Input<'a>) -> PResult<Body, ContextError<Input<'a>>> {
+fn block_body<'a>(input: &mut Input<'a>) -> PResult<Body> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 
