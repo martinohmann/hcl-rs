@@ -1,26 +1,22 @@
-use super::{
-    expr::expr,
-    repr::{decorated, prefix_decorated, suffix_decorated},
-    state::BodyParseState,
-    string::{cut_char, cut_str_ident, ident, is_id_start, raw_string, string},
-    trivia::{line_comment, sp, void, ws},
-    Input,
-};
-use crate::{
-    expr::Expression,
-    structure::{Attribute, Block, BlockLabel, Body, Structure},
-    Decorate, Decorated, SetSpan,
-};
-use hcl_primitives::Ident;
+use super::prelude::*;
+
+use super::expr::expr;
+use super::repr::{decorated, prefix_decorated, suffix_decorated};
+use super::state::BodyParseState;
+use super::string::{cut_char, cut_str_ident, ident, is_id_start, raw_string, string};
+use super::trivia::{line_comment, sp, void, ws};
+
+use crate::expr::Expression;
+use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
+use crate::{Decorate, Decorated, Ident, SetSpan};
+
 use std::cell::RefCell;
-use winnow::{
-    ascii::line_ending,
-    combinator::{alt, cut_err, delimited, eof, fail, opt, peek, preceded, repeat, terminated},
-    error::{ContextError, StrContext, StrContextValue},
-    stream::{Location, Stream},
-    token::{any, one_of},
-    PResult, Parser,
+use winnow::ascii::line_ending;
+use winnow::combinator::{
+    alt, cut_err, delimited, eof, fail, opt, peek, preceded, repeat, terminated,
 };
+use winnow::stream::Location;
+use winnow::token::{any, one_of};
 
 pub(super) fn body(input: &mut Input) -> PResult<Body> {
     let state = RefCell::new(BodyParseState::default());

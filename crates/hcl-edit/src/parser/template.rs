@@ -1,28 +1,22 @@
-use super::{
-    expr::expr,
-    repr::{decorated, spanned},
-    string::{
-        build_string, cut_char, cut_ident, cut_tag, from_utf8_unchecked, quoted_string_fragment,
-        raw_string, template_string_fragment,
-    },
-    trivia::ws,
-    Input,
+use super::prelude::*;
+
+use super::expr::expr;
+use super::repr::{decorated, spanned};
+use super::string::{
+    build_string, cut_char, cut_ident, cut_tag, from_utf8_unchecked, quoted_string_fragment,
+    raw_string, template_string_fragment,
 };
-use crate::{
-    template::{
-        Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-        ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip,
-        Template,
-    },
-    SetSpan, Span, Spanned,
+use super::trivia::ws;
+
+use crate::template::{
+    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
+    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip, Template,
 };
+use crate::{SetSpan, Span, Spanned};
+
 use std::borrow::Cow;
-use winnow::{
-    ascii::{line_ending, space0},
-    combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated},
-    error::ContextError,
-    PResult, Parser,
-};
+use winnow::ascii::{line_ending, space0};
+use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated};
 
 pub(super) fn string_template(input: &mut Input) -> PResult<StringTemplate> {
     delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')

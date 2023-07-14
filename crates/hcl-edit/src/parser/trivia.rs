@@ -1,11 +1,8 @@
-use super::Input;
-use winnow::{
-    ascii::{multispace0, not_line_ending, space0},
-    combinator::{alt, delimited, fail, peek, preceded, repeat},
-    dispatch,
-    token::{any, take_until0},
-    PResult, Parser,
-};
+use super::prelude::*;
+
+use winnow::ascii::{multispace0, not_line_ending, space0};
+use winnow::combinator::{alt, delimited, fail, peek, preceded, repeat};
+use winnow::token::{any, take_until0};
 
 pub(super) fn ws(input: &mut Input) -> PResult<()> {
     (

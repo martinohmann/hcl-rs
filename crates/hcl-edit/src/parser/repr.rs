@@ -1,6 +1,6 @@
-use super::Input;
+use super::prelude::*;
+
 use crate::{Decorate, RawString, SetSpan};
-use winnow::{error::ContextError, Parser};
 
 pub(super) fn spanned<'a, F, O>(inner: F) -> impl Parser<Input<'a>, O, ContextError>
 where
