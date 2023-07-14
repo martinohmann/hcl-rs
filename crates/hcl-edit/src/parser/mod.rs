@@ -61,5 +61,5 @@ where
 
     parser
         .parse(input)
-        .map_err(|err| Error::from_parse_error(err))
+        .map_err(|err| Error::from_parse_error(&err))
 }

@@ -7,7 +7,7 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn ws<'a>(input: &mut Input<'a>) -> PResult<()> {
+pub(super) fn ws(input: &mut Input) -> PResult<()> {
     (
         multispace0.void(),
         void(repeat(0.., (comment, multispace0.void()))),
@@ -16,7 +16,7 @@ pub(super) fn ws<'a>(input: &mut Input<'a>) -> PResult<()> {
         .parse_next(input)
 }
 
-pub(super) fn sp<'a>(input: &mut Input<'a>) -> PResult<()> {
+pub(super) fn sp(input: &mut Input) -> PResult<()> {
     (
         space0.void(),
         void(repeat(0.., (inline_comment, space0.void()))),
@@ -25,7 +25,7 @@ pub(super) fn sp<'a>(input: &mut Input<'a>) -> PResult<()> {
         .parse_next(input)
 }
 
-fn comment<'a>(input: &mut Input<'a>) -> PResult<()> {
+fn comment(input: &mut Input) -> PResult<()> {
     dispatch! {peek(any);
         b'#' => hash_line_comment,
         b'/' => alt((double_slash_line_comment, inline_comment)),
@@ -34,7 +34,7 @@ fn comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     .parse_next(input)
 }
 
-pub(super) fn line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
+pub(super) fn line_comment(input: &mut Input) -> PResult<()> {
     dispatch! {peek(any);
         b'#' => hash_line_comment,
         b'/' => double_slash_line_comment,
@@ -43,15 +43,15 @@ pub(super) fn line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
     .parse_next(input)
 }
 
-fn hash_line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
+fn hash_line_comment(input: &mut Input) -> PResult<()> {
     preceded(b'#', not_line_ending).void().parse_next(input)
 }
 
-fn double_slash_line_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
+fn double_slash_line_comment(input: &mut Input) -> PResult<()> {
     preceded(b"//", not_line_ending).void().parse_next(input)
 }
 
-fn inline_comment<'a>(input: &mut Input<'a>) -> PResult<()> {
+fn inline_comment(input: &mut Input) -> PResult<()> {
     delimited(b"/*", take_until0("*/"), b"*/")
         .void()
         .parse_next(input)

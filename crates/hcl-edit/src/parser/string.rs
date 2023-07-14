@@ -10,7 +10,7 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn string<'a>(input: &mut Input<'a>) -> PResult<String> {
+pub(super) fn string(input: &mut Input) -> PResult<String> {
     delimited(b'"', opt(build_string(quoted_string_fragment)), b'"')
         .map(Option::unwrap_or_default)
         .output_into()
@@ -123,7 +123,7 @@ where
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
-fn escaped_marker<'a>(input: &mut Input<'a>) -> PResult<EscapedMarker> {
+fn escaped_marker(input: &mut Input) -> PResult<EscapedMarker> {
     dispatch! {take::<_, Input, _>(3usize);
         b"$${" => success(EscapedMarker::Interpolation),
         b"%%{" => success(EscapedMarker::Directive),
@@ -133,7 +133,7 @@ fn escaped_marker<'a>(input: &mut Input<'a>) -> PResult<EscapedMarker> {
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
-fn escaped_char<'a>(input: &mut Input<'a>) -> PResult<char> {
+fn escaped_char(input: &mut Input) -> PResult<char> {
     b'\\'.parse_next(input)?;
 
     dispatch! {any;
@@ -164,7 +164,7 @@ fn escaped_char<'a>(input: &mut Input<'a>) -> PResult<char> {
     .parse_next(input)
 }
 
-fn hexescape<'a, const N: usize>(input: &mut Input<'a>) -> PResult<char> {
+fn hexescape<const N: usize>(input: &mut Input) -> PResult<char> {
     let parse_hex =
         take_while(1..=N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
 
@@ -185,7 +185,7 @@ where
     inner.span().map(RawString::from_span)
 }
 
-pub(super) fn ident<'a>(input: &mut Input<'a>) -> PResult<Decorated<Ident>> {
+pub(super) fn ident(input: &mut Input) -> PResult<Decorated<Ident>> {
     str_ident
         .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)

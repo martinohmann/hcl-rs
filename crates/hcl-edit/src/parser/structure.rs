@@ -23,7 +23,7 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn body<'a>(input: &mut Input<'a>) -> PResult<Body> {
+pub(super) fn body(input: &mut Input) -> PResult<Body> {
     let state = RefCell::new(BodyParseState::default());
 
     let (span, suffix) = (
@@ -121,7 +121,7 @@ fn structure<'i, 's>(
     }
 }
 
-fn attribute_expr<'a>(input: &mut Input<'a>) -> PResult<Expression> {
+fn attribute_expr(input: &mut Input) -> PResult<Expression> {
     preceded(
         cut_char('=').context(StrContext::Label("attribute")),
         prefix_decorated(sp, expr),
@@ -129,11 +129,11 @@ fn attribute_expr<'a>(input: &mut Input<'a>) -> PResult<Expression> {
     .parse_next(input)
 }
 
-fn block_labels<'a>(input: &mut Input<'a>) -> PResult<Vec<BlockLabel>> {
+fn block_labels(input: &mut Input) -> PResult<Vec<BlockLabel>> {
     repeat(0.., suffix_decorated(block_label, sp)).parse_next(input)
 }
 
-fn block_label<'a>(input: &mut Input<'a>) -> PResult<BlockLabel> {
+fn block_label(input: &mut Input) -> PResult<BlockLabel> {
     alt((
         string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
@@ -141,7 +141,7 @@ fn block_label<'a>(input: &mut Input<'a>) -> PResult<BlockLabel> {
     .parse_next(input)
 }
 
-fn block_body<'a>(input: &mut Input<'a>) -> PResult<Body> {
+fn block_body(input: &mut Input) -> PResult<Body> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 
