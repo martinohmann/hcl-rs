@@ -1,6 +1,6 @@
 use super::{
-    context::{cut_char, cut_ident, cut_tag, Context, Expected},
-    error::ParseError,
+    context::{cut_char, cut_ident, cut_tag, StrContext, StrContextValue},
+    error::ContextError,
     number::number as num,
     repr::{decorated, prefix_decorated, spanned, suffix_decorated},
     state::ExprParseState,
@@ -39,7 +39,7 @@ pub(super) fn expr(input: Input) -> IResult<Input, Expression> {
 
 fn expr_inner<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let (mut input, span) = expr_term(state).span().parse_next(input)?;
         state.borrow_mut().on_span(span);
@@ -51,7 +51,8 @@ fn expr_inner<'i, 's>(
             let (remaining_input, suffix) = sp.span().parse_next(input)?;
 
             // This is essentially a `peek` for the next two bytes to identify the following operation.
-            if let Ok((_, peek)) = take::<_, _, ParseError<_>>(2usize).parse_next(remaining_input) {
+            if let Ok((_, peek)) = take::<_, _, ContextError<_>>(2usize).parse_next(remaining_input)
+            {
                 match peek {
                     // The sequence `..` might introduce a `...` operator within a for object expr
                     // or after the last argument of a function call, do not mistakenly parse it as
@@ -96,7 +97,7 @@ fn expr_inner<'i, 's>(
 
 fn expr_term<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         dispatch! {peek(any);
             b'"' => stringlike(state),
@@ -109,17 +110,17 @@ fn expr_term<'i, 's>(
             b'(' => parenthesis(state),
             b if is_id_start(b) => identlike(state),
             _ => cut_err(fail)
-                .context(Context::Expression("expression"))
-                .context(Context::Expected(Expected::Char('"')))
-                .context(Context::Expected(Expected::Char('[')))
-                .context(Context::Expected(Expected::Char('{')))
-                .context(Context::Expected(Expected::Char('-')))
-                .context(Context::Expected(Expected::Char('!')))
-                .context(Context::Expected(Expected::Char('(')))
-                .context(Context::Expected(Expected::Char('_')))
-                .context(Context::Expected(Expected::Char('<')))
-                .context(Context::Expected(Expected::Description("letter")))
-                .context(Context::Expected(Expected::Description("digit"))),
+                .context(StrContext::Label("expression"))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('[')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('{')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('-')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('!')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('(')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('_')))
+                .context(StrContext::Expected(StrContextValue::CharLiteral('<')))
+                .context(StrContext::Expected(StrContextValue::Description("letter")))
+                .context(StrContext::Expected(StrContextValue::Description("digit"))),
         }
         .parse_next(input)
     }
@@ -127,7 +128,7 @@ fn expr_term<'i, 's>(
 
 fn stringlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         alt((
             string.map(|string| {
@@ -147,7 +148,7 @@ fn stringlike<'i, 's>(
 
 fn number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         num.with_recognized()
             .map(|(num, repr)| {
@@ -161,7 +162,7 @@ fn number<'i, 's>(
 
 fn neg_number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         preceded((b'-', sp), num)
             .with_recognized()
@@ -178,7 +179,7 @@ fn neg_number<'i, 's>(
 
 fn traversal<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         repeat(
             1..,
@@ -198,10 +199,10 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
                 b'0'..=b'9' => dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
                 b if is_id_start(b) => ident.map(TraversalOperator::GetAttr),
                 _ => cut_err(fail)
-                    .context(Context::Expression("traversal operator"))
-                    .context(Context::Expected(Expected::Char('*')))
-                    .context(Context::Expected(Expected::Description("identifier")))
-                    .context(Context::Expected(Expected::Description("unsigned integer"))),
+                    .context(StrContext::Label("traversal operator"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('*')))
+                    .context(StrContext::Expected(StrContextValue::Description("identifier")))
+                    .context(StrContext::Expected(StrContextValue::Description("unsigned integer"))),
             },
         ),
         b'[' => terminated(
@@ -222,7 +223,7 @@ fn traversal_operator(input: Input) -> IResult<Input, TraversalOperator> {
 
 fn unary_op<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         preceded(
             (spanned(unary_operator.map(Spanned::new)), sp.span())
@@ -245,7 +246,7 @@ fn unary_operator(input: Input) -> IResult<Input, UnaryOperator> {
 
 fn binary_op<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (
             spanned(binary_operator.map(Spanned::new)),
@@ -282,7 +283,7 @@ fn binary_operator(input: Input) -> IResult<Input, BinaryOperator> {
 
 fn conditional<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (
             preceded(b'?', decorated(sp, expr, sp)),
@@ -295,7 +296,7 @@ fn conditional<'i, 's>(
 
 fn array<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         delimited(
             b'[',
@@ -308,7 +309,7 @@ fn array<'i, 's>(
 
 fn for_list_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (for_intro, decorated(ws, expr, ws), opt(for_cond))
             .map(|(intro, value_expr, cond)| {
@@ -325,7 +326,7 @@ fn for_list_expr<'i, 's>(
 
 fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let values = separated0(decorated(ws, preceded(not(b']'), expr), ws), b',');
 
@@ -345,7 +346,7 @@ fn array_items<'i, 's>(
 
 fn object<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         delimited(
             b'{',
@@ -358,7 +359,7 @@ fn object<'i, 's>(
 
 fn for_object_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (
             for_intro,
@@ -386,7 +387,7 @@ fn for_object_expr<'i, 's>(
 
 fn object_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let mut remaining_input = input;
         let mut object = Object::new();
@@ -445,10 +446,10 @@ fn object_items<'i, 's>(
                 }
                 _ => {
                     return cut_err(fail)
-                        .context(Context::Expression("object item"))
-                        .context(Context::Expected(Expected::Char('}')))
-                        .context(Context::Expected(Expected::Char(',')))
-                        .context(Context::Expected(Expected::Char('\n')))
+                        .context(StrContext::Label("object item"))
+                        .context(StrContext::Expected(StrContextValue::CharLiteral('}')))
+                        .context(StrContext::Expected(StrContextValue::CharLiteral(',')))
+                        .context(StrContext::Expected(StrContextValue::CharLiteral('\n')))
                         .parse_next(input)
                 }
             };
@@ -494,9 +495,9 @@ fn object_value_assignment(input: Input) -> IResult<Input, ObjectValueAssignment
         b'=' => success(ObjectValueAssignment::Equals),
         b':' => success(ObjectValueAssignment::Colon),
         _ => cut_err(fail)
-            .context(Context::Expression("object value assignment"))
-            .context(Context::Expected(Expected::Char('=')))
-            .context(Context::Expected(Expected::Char(':'))),
+            .context(StrContext::Label("object value assignment"))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('=')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral(':'))),
     }
     .parse_next(input)
 }
@@ -504,10 +505,10 @@ fn object_value_assignment(input: Input) -> IResult<Input, ObjectValueAssignment
 fn for_expr_or_items<'i, F, I>(
     mut for_expr_parser: F,
     mut items_parser: I,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>>
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>>
 where
-    F: Parser<Input<'i>, (), ParseError<Input<'i>>>,
-    I: Parser<Input<'i>, (), ParseError<Input<'i>>>,
+    F: Parser<Input<'i>, (), ContextError<Input<'i>>>,
+    I: Parser<Input<'i>, (), ContextError<Input<'i>>>,
 {
     move |input: Input<'i>| {
         // The `for` tag needs to be followed by either a space character or a comment start to
@@ -555,7 +556,7 @@ fn for_cond(input: Input) -> IResult<Input, ForCond> {
 
 fn parenthesis<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         delimited(
             cut_char('('),
@@ -569,7 +570,7 @@ fn parenthesis<'i, 's>(
 
 fn heredoc<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let (input, (indented, delim)) = heredoc_start(input)?;
 
@@ -577,7 +578,7 @@ fn heredoc<'i, 's>(
             spanned(heredoc_template(delim)),
             terminated(
                 raw_string(space0),
-                cut_err(delim).context(Context::Expected(Expected::Description(
+                cut_err(delim).context(StrContext::Expected(StrContextValue::Description(
                     "heredoc end delimiter",
                 ))),
             ),
@@ -603,16 +604,18 @@ fn heredoc_start(input: Input) -> IResult<Input, (bool, &str)> {
     terminated(
         (
             preceded(b"<<", opt(b'-')).map(|indent| indent.is_some()),
-            cut_err(str_ident).context(Context::Expected(Expected::Description("identifier"))),
+            cut_err(str_ident).context(StrContext::Expected(StrContextValue::Description(
+                "identifier",
+            ))),
         ),
-        cut_err(line_ending).context(Context::Expected(Expected::Char('\n'))),
+        cut_err(line_ending).context(StrContext::Expected(StrContextValue::CharLiteral('\n'))),
     )
     .parse_next(input)
 }
 
 fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ParseError<Input<'i>>> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         (str_ident.with_span(), opt(prefix_decorated(ws, func_args)))
             .map(|((ident, span), func_args)| {

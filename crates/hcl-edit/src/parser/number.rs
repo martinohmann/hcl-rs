@@ -1,5 +1,5 @@
 use super::{
-    context::{Context, Expected},
+    context::{StrContext, StrContextValue},
     string::from_utf8_unchecked,
     IResult, Input,
 };
@@ -45,7 +45,7 @@ fn exponent(input: Input) -> IResult<Input, &[u8]> {
     (
         one_of("eE"),
         opt(one_of("+-")),
-        cut_err(digit1).context(Context::Expected(Expected::Description("digit"))),
+        cut_err(digit1).context(StrContext::Expected(StrContextValue::Description("digit"))),
     )
         .recognize()
         .parse_next(input)
