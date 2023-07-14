@@ -1,4 +1,5 @@
 use hcl_edit::expr::Expression;
+use hcl_edit::structure::{Attribute, Block, Body};
 use hcl_edit::template::{Element, Interpolation, Template};
 use hcl_edit::Ident;
 use pretty_assertions::assert_eq;
@@ -27,4 +28,32 @@ fn issue_256() {
     ]);
 
     assert_eq!(parsed, expected);
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/270
+#[test]
+fn issue_270() {
+    let no_trailing_newline = String::from("block {\nfoo = \"bar\"\n}\nbar = \"baz\"");
+    let trailing_newline = format!("{no_trailing_newline}\n");
+
+    // Parsed
+    let parsed: Body = no_trailing_newline.parse().unwrap();
+    assert_eq!(parsed.to_string(), no_trailing_newline);
+
+    let parsed: Body = trailing_newline.parse().unwrap();
+    assert_eq!(parsed.to_string(), trailing_newline);
+
+    // Manually constructed
+    let mut body = Body::builder()
+        .block(
+            Block::builder(Ident::new("block"))
+                .attribute(Attribute::new(Ident::new("foo"), "bar"))
+                .build(),
+        )
+        .attribute(Attribute::new(Ident::new("bar"), "baz"))
+        .build();
+    assert_eq!(body.to_string(), trailing_newline);
+
+    body.set_prefer_omit_trailing_newline(true);
+    assert_eq!(body.to_string(), no_trailing_newline);
 }

@@ -32,11 +32,14 @@ pub(super) fn body(input: &mut Input) -> PResult<Body> {
                         .span()
                         .map(|span| state.borrow_mut().on_ws(span)),
                 ),
-                cut_err(alt((line_ending, eof)).map(|_| state.borrow_mut().on_line_ending()))
-                    .context(StrContext::Expected(StrContextValue::Description(
-                        "newline",
-                    )))
-                    .context(StrContext::Expected(StrContextValue::Description("eof"))),
+                cut_err(alt((
+                    line_ending.map(|_| state.borrow_mut().on_line_ending()),
+                    eof.map(|_| state.borrow_mut().on_eof()),
+                )))
+                .context(StrContext::Expected(StrContextValue::Description(
+                    "newline",
+                )))
+                .context(StrContext::Expected(StrContextValue::Description("eof"))),
             ),
         ))
         .span(),
