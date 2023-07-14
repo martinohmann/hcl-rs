@@ -1,5 +1,6 @@
 use super::{
-    context::{cut_char, cut_str_ident, Context, Expected},
+    context::{cut_char, cut_str_ident, StrContext, StrContextValue},
+    error::ContextError,
     expr::expr,
     repr::{decorated, prefix_decorated, suffix_decorated},
     state::BodyParseState,
@@ -37,8 +38,10 @@ pub(super) fn body(input: Input) -> IResult<Input, Body> {
                         .map(|span| state.borrow_mut().on_ws(span)),
                 ),
                 cut_err(alt((line_ending, eof)).map(|_| state.borrow_mut().on_line_ending()))
-                    .context(Context::Expected(Expected::Description("newline")))
-                    .context(Context::Expected(Expected::Description("eof"))),
+                    .context(StrContext::Expected(StrContextValue::Description(
+                        "newline",
+                    )))
+                    .context(StrContext::Expected(StrContextValue::Description("eof"))),
             ),
         ))
         .span(),
@@ -54,7 +57,7 @@ pub(super) fn body(input: Input) -> IResult<Input, Body> {
 
 fn structure<'i, 's>(
     state: &'s RefCell<BodyParseState<'i>>,
-) -> impl FnMut(Input<'i>) -> IResult<Input<'i>, ()> + 's {
+) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
     move |input: Input<'i>| {
         let start = input.location();
         let initial_input = input;
@@ -67,8 +70,8 @@ fn structure<'i, 's>(
             b'=' => {
                 if state.borrow_mut().is_redefined(ident) {
                     return cut_err(fail)
-                        .context(Context::Expression("attribute"))
-                        .context(Context::Expected(Expected::Description(
+                        .context(StrContext::Label("attribute"))
+                        .context(StrContext::Expected(StrContextValue::Description(
                             "unique attribute key; found redefined attribute",
                         )))
                         .parse_next(initial_input);
@@ -100,11 +103,13 @@ fn structure<'i, 's>(
             }
             _ => {
                 return cut_err(fail)
-                    .context(Context::Expression("structure"))
-                    .context(Context::Expected(Expected::Char('{')))
-                    .context(Context::Expected(Expected::Char('=')))
-                    .context(Context::Expected(Expected::Char('"')))
-                    .context(Context::Expected(Expected::Description("identifier")))
+                    .context(StrContext::Label("structure"))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('{')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('=')))
+                    .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
+                    .context(StrContext::Expected(StrContextValue::Description(
+                        "identifier",
+                    )))
                     .parse_next(input)
             }
         };
@@ -118,7 +123,7 @@ fn structure<'i, 's>(
 
 fn attribute_expr(input: Input) -> IResult<Input, Expression> {
     preceded(
-        cut_char('=').context(Context::Expression("attribute")),
+        cut_char('=').context(StrContext::Label("attribute")),
         prefix_decorated(sp, expr),
     )
     .parse_next(input)
@@ -157,9 +162,11 @@ fn block_body(input: Input) -> IResult<Input, Body> {
             }),
         )),
         cut_char('}')
-            .context(Context::Expression("block body"))
-            .context(Context::Expected(Expected::Char('\n')))
-            .context(Context::Expected(Expected::Description("identifier"))),
+            .context(StrContext::Label("block body"))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('\n')))
+            .context(StrContext::Expected(StrContextValue::Description(
+                "identifier",
+            ))),
     )
     .parse_next(input)
 }

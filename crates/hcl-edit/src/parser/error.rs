@@ -1,7 +1,7 @@
-use super::context::Context;
+use super::context::StrContext;
 use std::fmt;
 use winnow::{
-    error::{ContextError, FromExternalError},
+    error::{AddContext, FromExternalError},
     stream::{AsBytes, Offset},
 };
 
@@ -12,7 +12,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_parse_error<I>(input: &I, err: &ParseError<I>) -> Error
+    pub(super) fn from_parse_error<I>(input: &I, err: &ContextError<I>) -> Error
     where
         I: AsBytes + Offset,
     {
@@ -55,7 +55,7 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_parse_error<I>(input: &I, err: &ParseError<I>) -> ErrorInner
+    fn from_parse_error<I>(input: &I, err: &ContextError<I>) -> ErrorInner
     where
         I: AsBytes + Offset,
     {
@@ -119,7 +119,7 @@ impl Location {
 }
 
 fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Location) {
-    let offset = input.offset_to(remaining_input);
+    let offset = remaining_input.offset_from(input);
     let consumed_input = &input[..offset];
 
     // Find the line that includes the subslice:
@@ -142,7 +142,7 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
     let line = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
 
     // The (1-indexed) column number is the offset of the remaining input into that line.
-    let column = line_context.offset_to(remaining_input) + 1;
+    let column = remaining_input.offset_from(line_context) + 1;
 
     (
         line_context,
@@ -155,16 +155,16 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
 }
 
 #[derive(Debug)]
-pub(super) struct ParseError<I> {
+pub(super) struct ContextError<I> {
     input: I,
-    context: Vec<Context>,
+    context: Vec<StrContext>,
     cause: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
 }
 
-impl<I> ParseError<I> {
+impl<I> ContextError<I> {
     #[inline]
-    pub(super) fn new(input: I) -> ParseError<I> {
-        ParseError {
+    pub(super) fn new(input: I) -> ContextError<I> {
+        ContextError {
             input,
             context: Vec::new(),
             cause: None,
@@ -172,7 +172,7 @@ impl<I> ParseError<I> {
     }
 }
 
-impl<I> PartialEq for ParseError<I>
+impl<I> PartialEq for ContextError<I>
 where
     I: PartialEq,
 {
@@ -184,10 +184,10 @@ where
     }
 }
 
-impl<I> winnow::error::ParseError<I> for ParseError<I> {
+impl<I> winnow::error::ParserError<I> for ContextError<I> {
     #[inline]
     fn from_error_kind(input: I, _kind: winnow::error::ErrorKind) -> Self {
-        ParseError::new(input)
+        ContextError::new(input)
     }
 
     #[inline]
@@ -196,21 +196,21 @@ impl<I> winnow::error::ParseError<I> for ParseError<I> {
     }
 }
 
-impl<I> ContextError<I, Context> for ParseError<I> {
+impl<I> AddContext<I, StrContext> for ContextError<I> {
     #[inline]
-    fn add_context(mut self, _input: I, ctx: Context) -> Self {
+    fn add_context(mut self, _input: I, ctx: StrContext) -> Self {
         self.context.push(ctx);
         self
     }
 }
 
-impl<I, E> FromExternalError<I, E> for ParseError<I>
+impl<I, E> FromExternalError<I, E> for ContextError<I>
 where
     E: std::error::Error + Send + Sync + 'static,
 {
     #[inline]
     fn from_external_error(input: I, _kind: winnow::error::ErrorKind, err: E) -> Self {
-        ParseError {
+        ContextError {
             input,
             context: Vec::new(),
             cause: Some(Box::new(err)),
@@ -218,24 +218,24 @@ where
     }
 }
 
-impl<I> fmt::Display for ParseError<I> {
+impl<I> fmt::Display for ContextError<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let expression = self.context.iter().find_map(|c| match c {
-            Context::Expression(c) => Some(c),
-            Context::Expected(_) => None,
+        let label = self.context.iter().find_map(|c| match c {
+            StrContext::Label(c) => Some(c),
+            StrContext::Expected(_) => None,
         });
 
         let expected = self
             .context
             .iter()
             .filter_map(|c| match c {
-                Context::Expected(c) => Some(c),
-                Context::Expression(_) => None,
+                StrContext::Expected(c) => Some(c),
+                StrContext::Label(_) => None,
             })
             .collect::<Vec<_>>();
 
-        if let Some(expression) = expression {
-            write!(f, "invalid {expression}; ")?;
+        if let Some(label) = label {
+            write!(f, "invalid {label}; ")?;
         }
 
         if expected.is_empty() {
@@ -268,4 +268,4 @@ impl<I> fmt::Display for ParseError<I> {
     }
 }
 
-impl<I> std::error::Error for ParseError<I> where I: fmt::Debug + fmt::Display {}
+impl<I> std::error::Error for ContextError<I> where I: fmt::Debug + fmt::Display {}

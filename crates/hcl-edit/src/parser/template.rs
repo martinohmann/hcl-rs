@@ -1,6 +1,6 @@
 use super::{
     context::{cut_char, cut_ident, cut_tag},
-    error::ParseError,
+    error::ContextError,
     expr::expr,
     repr::{decorated, spanned},
     string::{
@@ -39,7 +39,7 @@ pub(super) fn template(input: Input) -> IResult<Input, Template> {
 
 pub(super) fn heredoc_template<'a>(
     delim: &'a str,
-) -> impl Parser<Input<'a>, Template, ParseError<Input<'a>>> {
+) -> impl Parser<Input<'a>, Template, ContextError<Input<'a>>> {
     move |input: Input<'a>| {
         // We'll need to look for a line ending followed by optional space and the heredoc
         // delimiter.
@@ -84,16 +84,16 @@ pub(super) fn heredoc_template<'a>(
 #[inline]
 fn template_literal<'a, F, T>(
     literal_end: F,
-) -> impl Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>
+) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError<Input<'a>>>
 where
-    F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
+    F: Parser<Input<'a>, T, ContextError<Input<'a>>>,
 {
     build_string(template_string_fragment(literal_end))
 }
 
-fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseError<Input<'a>>>
+fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ContextError<Input<'a>>>
 where
-    P: Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>,
+    P: Parser<Input<'a>, Cow<'a, str>, ContextError<Input<'a>>>,
 {
     repeat(
         0..,
@@ -217,10 +217,10 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
 fn control<'a, S, P, O1, O2>(
     intro: S,
     inner: P,
-) -> impl Parser<Input<'a>, (O2, Strip), ParseError<Input<'a>>>
+) -> impl Parser<Input<'a>, (O2, Strip), ContextError<Input<'a>>>
 where
-    S: Parser<Input<'a>, O1, ParseError<Input<'a>>>,
-    P: Parser<Input<'a>, O2, ParseError<Input<'a>>>,
+    S: Parser<Input<'a>, O1, ContextError<Input<'a>>>,
+    P: Parser<Input<'a>, O2, ContextError<Input<'a>>>,
 {
     (
         preceded(intro, opt(b'~')),

@@ -1,6 +1,6 @@
 use super::{
-    context::{Context, Expected},
-    error::ParseError,
+    context::{StrContext, StrContextValue},
+    error::ContextError,
     trivia::void,
     IResult, Input,
 };
@@ -23,9 +23,9 @@ pub(super) fn string(input: Input) -> IResult<Input, String> {
 
 pub(super) fn build_string<'a, F>(
     mut fragment_parser: F,
-) -> impl Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>
+) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError<Input<'a>>>
 where
-    F: Parser<Input<'a>, StringFragment<'a>, ParseError<Input<'a>>>,
+    F: Parser<Input<'a>, StringFragment<'a>, ContextError<Input<'a>>>,
 {
     move |input: Input<'a>| {
         let (mut input, mut string) = match fragment_parser.parse_next(input) {
@@ -91,9 +91,9 @@ pub(super) fn quoted_string_fragment(input: Input) -> IResult<Input, StringFragm
 
 pub(super) fn template_string_fragment<'a, F, T>(
     mut literal_end: F,
-) -> impl Parser<Input<'a>, StringFragment<'a>, ParseError<Input<'a>>>
+) -> impl Parser<Input<'a>, StringFragment<'a>, ContextError<Input<'a>>>
 where
-    F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
+    F: Parser<Input<'a>, T, ContextError<Input<'a>>>,
 {
     move |input: Input<'a>| {
         alt((
@@ -115,9 +115,9 @@ fn string_literal(input: Input) -> IResult<Input, &str> {
     any_until(literal_end).parse_next(input)
 }
 
-fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ParseError<Input<'a>>>
+fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ContextError<Input<'a>>>
 where
-    F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
+    F: Parser<Input<'a>, T, ContextError<Input<'a>>>,
 {
     void(repeat(
         1..,
@@ -151,20 +151,20 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
         b'b' => success('\u{08}'),
         b'f' => success('\u{0C}'),
         b'u' => cut_err(hexescape::<4>)
-            .context(Context::Expression("unicode 4-digit hex code")),
+            .context(StrContext::Label("unicode 4-digit hex code")),
         b'U' => cut_err(hexescape::<8>)
-            .context(Context::Expression("unicode 8-digit hex code")),
+            .context(StrContext::Label("unicode 8-digit hex code")),
         _ => cut_err(fail)
-            .context(Context::Expression("escape sequence"))
-            .context(Context::Expected(Expected::Char('b')))
-            .context(Context::Expected(Expected::Char('f')))
-            .context(Context::Expected(Expected::Char('n')))
-            .context(Context::Expected(Expected::Char('r')))
-            .context(Context::Expected(Expected::Char('t')))
-            .context(Context::Expected(Expected::Char('u')))
-            .context(Context::Expected(Expected::Char('U')))
-            .context(Context::Expected(Expected::Char('\\')))
-            .context(Context::Expected(Expected::Char('"'))),
+            .context(StrContext::Label("escape sequence"))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('b')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('f')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('n')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('r')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('t')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('u')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('U')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('\\')))
+            .context(StrContext::Expected(StrContextValue::CharLiteral('"'))),
     }
     .parse_next(input)
 }
@@ -185,9 +185,9 @@ fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
 
 pub(super) fn raw_string<'a, P, O>(
     inner: P,
-) -> impl Parser<Input<'a>, RawString, ParseError<Input<'a>>>
+) -> impl Parser<Input<'a>, RawString, ContextError<Input<'a>>>
 where
-    P: Parser<Input<'a>, O, ParseError<Input<'a>>>,
+    P: Parser<Input<'a>, O, ContextError<Input<'a>>>,
 {
     inner.span().map(RawString::from_span)
 }
