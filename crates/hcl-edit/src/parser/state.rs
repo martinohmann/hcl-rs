@@ -40,11 +40,14 @@ impl<'a> BodyParseState<'a> {
         self.current = Some(structure);
     }
 
-    pub(super) fn on_line_ending(&mut self) {
+    pub(super) fn on_line_ending(&mut self, tail: Range<usize>) {
         let mut current = self.current.take().unwrap();
 
-        if let Some(suffix) = self.ws.take() {
+        if let Some(mut suffix) = self.ws.take() {
+            suffix.end = tail.end;
             current.decor_mut().set_suffix(RawString::from_span(suffix));
+        } else {
+            current.decor_mut().set_suffix(RawString::from_span(tail));
         }
 
         self.structures.push(current);

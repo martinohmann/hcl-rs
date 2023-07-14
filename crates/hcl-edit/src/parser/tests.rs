@@ -85,6 +85,7 @@ fn roundtrip_body() {
         "#},
         "block { attr = 1 }\n",
         "foo = \"bar\"\nbar = 2\n",
+        "foo = \"bar\"\nbar = 3",
         indoc! {r#"
             indented_heredoc = <<-EOT
                 ${foo}

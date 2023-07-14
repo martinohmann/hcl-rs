@@ -36,9 +36,12 @@ pub(super) fn body(input: Input) -> IResult<Input, Body> {
                         .span()
                         .map(|span| state.borrow_mut().on_ws(span)),
                 ),
-                cut_err(alt((line_ending, eof)).map(|_| state.borrow_mut().on_line_ending()))
-                    .context(Context::Expected(Expected::Description("newline")))
-                    .context(Context::Expected(Expected::Description("eof"))),
+                cut_err(
+                    (alt((line_ending, eof)).span())
+                        .map(|tail| state.borrow_mut().on_line_ending(tail)),
+                )
+                .context(Context::Expected(Expected::Description("newline")))
+                .context(Context::Expected(Expected::Description("eof"))),
             ),
         ))
         .span(),
