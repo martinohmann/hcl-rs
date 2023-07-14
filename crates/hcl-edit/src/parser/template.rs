@@ -25,13 +25,13 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn string_template<'a>(input: &mut Input<'a>) -> PResult<StringTemplate> {
+pub(super) fn string_template(input: &mut Input) -> PResult<StringTemplate> {
     delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')
         .output_into()
         .parse_next(input)
 }
 
-pub(super) fn template<'a>(input: &mut Input<'a>) -> PResult<Template> {
+pub(super) fn template(input: &mut Input) -> PResult<Template> {
     let literal_end = alt((b"${", b"%{"));
     let literal = template_literal(literal_end);
     elements(literal).output_into().parse_next(input)
@@ -103,7 +103,7 @@ where
     )
 }
 
-fn interpolation<'a>(input: &mut Input<'a>) -> PResult<Interpolation> {
+fn interpolation(input: &mut Input) -> PResult<Interpolation> {
     control(b"${", decorated(ws, expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
@@ -113,7 +113,7 @@ fn interpolation<'a>(input: &mut Input<'a>) -> PResult<Interpolation> {
         .parse_next(input)
 }
 
-fn directive<'a>(input: &mut Input<'a>) -> PResult<Directive> {
+fn directive(input: &mut Input) -> PResult<Directive> {
     alt((
         if_directive.map(Directive::If),
         for_directive.map(Directive::For),
@@ -121,7 +121,7 @@ fn directive<'a>(input: &mut Input<'a>) -> PResult<Directive> {
     .parse_next(input)
 }
 
-fn if_directive<'a>(input: &mut Input<'a>) -> PResult<IfDirective> {
+fn if_directive(input: &mut Input) -> PResult<IfDirective> {
     let if_expr = (
         control(
             b"%{",
@@ -168,7 +168,7 @@ fn if_directive<'a>(input: &mut Input<'a>) -> PResult<IfDirective> {
         .parse_next(input)
 }
 
-fn for_directive<'a>(input: &mut Input<'a>) -> PResult<ForDirective> {
+fn for_directive(input: &mut Input) -> PResult<ForDirective> {
     let for_expr = (
         control(
             b"%{",

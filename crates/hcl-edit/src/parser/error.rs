@@ -12,7 +12,7 @@ pub struct Error {
 }
 
 impl Error {
-    pub(super) fn from_parse_error(err: ParseError<Input, ContextError>) -> Error {
+    pub(super) fn from_parse_error(err: &ParseError<Input, ContextError>) -> Error {
         Error::new(ErrorInner::from_parse_error(err))
     }
 
@@ -52,8 +52,8 @@ struct ErrorInner {
 }
 
 impl ErrorInner {
-    fn from_parse_error(err: ParseError<Input, ContextError>) -> ErrorInner {
-        let (line, location) = locate_error(&err);
+    fn from_parse_error(err: &ParseError<Input, ContextError>) -> ErrorInner {
+        let (line, location) = locate_error(err);
 
         ErrorInner {
             message: format_context_error(err.inner()),
@@ -175,7 +175,7 @@ fn format_context_error(err: &ContextError) -> String {
     } else {
         _ = write!(buf, "expected ");
 
-        let _ = match expected.len() {
+        match expected.len() {
             0 => {}
             1 => {
                 _ = write!(buf, "{}", &expected[0]);

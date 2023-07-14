@@ -31,7 +31,7 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn expr<'a>(input: &mut Input<'a>) -> PResult<Expression> {
+pub(super) fn expr(input: &mut Input) -> PResult<Expression> {
     let state = RefCell::new(ExprParseState::default());
     expr_inner(&state).parse_next(input)?;
     let expr = state.into_inner().into_expr();
@@ -198,7 +198,7 @@ fn traversal<'i, 's>(
     }
 }
 
-fn traversal_operator<'a>(input: &mut Input<'a>) -> PResult<TraversalOperator> {
+fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
     dispatch! {any;
         b'.' => prefix_decorated(
             ws,
@@ -243,7 +243,7 @@ fn unary_op<'i, 's>(
     }
 }
 
-fn unary_operator<'a>(input: &mut Input<'a>) -> PResult<UnaryOperator> {
+fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
     dispatch! {any;
         b'-' => success(UnaryOperator::Neg),
         b'!' => success(UnaryOperator::Not),
@@ -265,7 +265,7 @@ fn binary_op<'i, 's>(
     }
 }
 
-fn binary_operator<'a>(input: &mut Input<'a>) -> PResult<BinaryOperator> {
+fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
     dispatch! {any;
         b'=' => b'='.value(BinaryOperator::Eq),
         b'!' => b'='.value(BinaryOperator::NotEq),
@@ -467,7 +467,7 @@ fn object_items<'i, 's>(
     }
 }
 
-fn object_key<'a>(input: &mut Input<'a>) -> PResult<ObjectKey> {
+fn object_key(input: &mut Input) -> PResult<ObjectKey> {
     suffix_decorated(
         expr.map(|expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
@@ -486,7 +486,7 @@ fn object_key<'a>(input: &mut Input<'a>) -> PResult<ObjectKey> {
     .parse_next(input)
 }
 
-fn object_value<'a>(input: &mut Input<'a>) -> PResult<ObjectValue> {
+fn object_value(input: &mut Input) -> PResult<ObjectValue> {
     (object_value_assignment, decorated(sp, expr, sp))
         .map(|(assignment, expr)| {
             let mut value = ObjectValue::new(expr);
@@ -496,7 +496,7 @@ fn object_value<'a>(input: &mut Input<'a>) -> PResult<ObjectValue> {
         .parse_next(input)
 }
 
-fn object_value_assignment<'a>(input: &mut Input<'a>) -> PResult<ObjectValueAssignment> {
+fn object_value_assignment(input: &mut Input) -> PResult<ObjectValueAssignment> {
     dispatch! {any;
         b'=' => success(ObjectValueAssignment::Equals),
         b':' => success(ObjectValueAssignment::Colon),
@@ -528,7 +528,7 @@ where
     }
 }
 
-fn for_intro<'a>(input: &mut Input<'a>) -> PResult<ForIntro> {
+fn for_intro(input: &mut Input) -> PResult<ForIntro> {
     prefix_decorated(
         ws,
         delimited(
@@ -552,7 +552,7 @@ fn for_intro<'a>(input: &mut Input<'a>) -> PResult<ForIntro> {
     .parse_next(input)
 }
 
-fn for_cond<'a>(input: &mut Input<'a>) -> PResult<ForCond> {
+fn for_cond(input: &mut Input) -> PResult<ForCond> {
     prefix_decorated(
         ws,
         preceded(b"if", decorated(ws, expr, ws)).map(ForCond::new),
@@ -646,7 +646,7 @@ fn identlike<'i, 's>(
     }
 }
 
-fn func_args<'a>(input: &mut Input<'a>) -> PResult<FuncArgs> {
+fn func_args(input: &mut Input) -> PResult<FuncArgs> {
     #[derive(Copy, Clone)]
     enum Trailer {
         Comma,

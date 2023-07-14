@@ -20,7 +20,7 @@ pub(super) fn cut_tag<'a>(tag: &'static str) -> impl Parser<Input<'a>, &'a [u8],
     cut_err(tag).context(StrContext::Expected(StrContextValue::StringLiteral(tag)))
 }
 
-pub(super) fn cut_ident<'a>(input: &mut Input<'a>) -> PResult<Decorated<Ident>> {
+pub(super) fn cut_ident(input: &mut Input) -> PResult<Decorated<Ident>> {
     cut_err(ident)
         .context(StrContext::Expected(StrContextValue::Description(
             "identifier",

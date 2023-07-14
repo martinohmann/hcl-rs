@@ -9,7 +9,7 @@ use winnow::{
     PResult, Parser,
 };
 
-pub(super) fn number<'a>(input: &mut Input<'a>) -> PResult<Number> {
+pub(super) fn number(input: &mut Input) -> PResult<Number> {
     alt((
         float.verify_map(Number::from_f64),
         integer.map(Number::from),
@@ -17,7 +17,7 @@ pub(super) fn number<'a>(input: &mut Input<'a>) -> PResult<Number> {
     .parse_next(input)
 }
 
-fn integer<'a>(input: &mut Input<'a>) -> PResult<u64> {
+fn integer(input: &mut Input) -> PResult<u64> {
     digit1
         .try_map(|s: &[u8]| {
             u64::from_str(unsafe { from_utf8_unchecked(s, "`digit1` filters out non-ascii") })
@@ -25,7 +25,7 @@ fn integer<'a>(input: &mut Input<'a>) -> PResult<u64> {
         .parse_next(input)
 }
 
-fn float<'a>(input: &mut Input<'a>) -> PResult<f64> {
+fn float(input: &mut Input) -> PResult<f64> {
     let fraction = preceded(b'.', digit1);
 
     terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
