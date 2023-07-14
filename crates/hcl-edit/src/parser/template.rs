@@ -1,10 +1,9 @@
 use super::{
-    context::{cut_char, cut_ident, cut_tag},
     expr::expr,
     repr::{decorated, spanned},
     string::{
-        build_string, from_utf8_unchecked, quoted_string_fragment, raw_string,
-        template_string_fragment,
+        build_string, cut_char, cut_ident, cut_tag, from_utf8_unchecked, quoted_string_fragment,
+        raw_string, template_string_fragment,
     },
     trivia::ws,
     Input,

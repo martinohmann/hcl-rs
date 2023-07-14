@@ -1,9 +1,8 @@
 use super::{
-    context::{cut_char, cut_str_ident},
     expr::expr,
     repr::{decorated, prefix_decorated, suffix_decorated},
     state::BodyParseState,
-    string::{ident, is_id_start, raw_string, string},
+    string::{cut_char, cut_str_ident, ident, is_id_start, raw_string, string},
     trivia::{line_comment, sp, void, ws},
     Input,
 };

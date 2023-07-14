@@ -1,9 +1,11 @@
 use super::{
-    context::{cut_char, cut_ident, cut_tag},
     number::number as num,
     repr::{decorated, prefix_decorated, spanned, suffix_decorated},
     state::ExprParseState,
-    string::{from_utf8_unchecked, ident, is_id_start, raw_string, str_ident, string},
+    string::{
+        cut_char, cut_ident, cut_tag, from_utf8_unchecked, ident, is_id_start, raw_string,
+        str_ident, string,
+    },
     template::{heredoc_template, string_template},
     trivia::{line_comment, sp, ws},
     Input,
