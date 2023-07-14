@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.1...hcl-edit-v0.7.2) (2023-07-14)
+
+
+### Bug Fixes
+
+* **structure:** handle absence of trailing newline in body ([#273](https://github.com/martinohmann/hcl-rs/issues/273)) ([2f54cb1](https://github.com/martinohmann/hcl-rs/commit/2f54cb188b87678de10975cc4f3bb399e093234a)), closes [#270](https://github.com/martinohmann/hcl-rs/issues/270)
+
 ## [0.7.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.0...hcl-edit-v0.7.1) (2023-07-14)
 
 
