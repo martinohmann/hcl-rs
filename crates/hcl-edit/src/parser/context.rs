@@ -1,11 +1,11 @@
 use super::{
     error::ContextError,
     string::{ident, str_ident},
-    IResult, Input,
+    Input,
 };
 use crate::{repr::Decorated, Ident};
 use std::fmt;
-use winnow::{combinator::cut_err, stream::AsChar, Parser};
+use winnow::{combinator::cut_err, stream::AsChar, PResult, Parser};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(super) enum StrContext {
@@ -46,7 +46,9 @@ pub(super) fn cut_tag<'a>(
     cut_err(tag).context(StrContext::Expected(StrContextValue::StringLiteral(tag)))
 }
 
-pub(super) fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
+pub(super) fn cut_ident<'a>(
+    input: &mut Input<'a>,
+) -> PResult<Decorated<Ident>, ContextError<Input<'a>>> {
     cut_err(ident)
         .context(StrContext::Expected(StrContextValue::Description(
             "identifier",
@@ -54,7 +56,9 @@ pub(super) fn cut_ident(input: Input) -> IResult<Input, Decorated<Ident>> {
         .parse_next(input)
 }
 
-pub(super) fn cut_str_ident(input: Input) -> IResult<Input, &str> {
+pub(super) fn cut_str_ident<'a>(
+    input: &mut Input<'a>,
+) -> PResult<&'a str, ContextError<Input<'a>>> {
     cut_err(str_ident)
         .context(StrContext::Expected(StrContextValue::Description(
             "identifier",

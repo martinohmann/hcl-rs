@@ -2,7 +2,7 @@ use super::{
     context::{StrContext, StrContextValue},
     error::ContextError,
     trivia::void,
-    IResult, Input,
+    Input,
 };
 use crate::{Decorated, Ident, RawString};
 use std::borrow::Cow;
@@ -11,10 +11,10 @@ use winnow::{
     dispatch,
     stream::AsChar,
     token::{any, one_of, take, take_while},
-    Parser,
+    PResult, Parser,
 };
 
-pub(super) fn string(input: Input) -> IResult<Input, String> {
+pub(super) fn string<'a>(input: &mut Input<'a>) -> PResult<String, ContextError<Input<'a>>> {
     delimited(b'"', opt(build_string(quoted_string_fragment)), b'"')
         .map(Option::unwrap_or_default)
         .output_into()
@@ -27,27 +27,26 @@ pub(super) fn build_string<'a, F>(
 where
     F: Parser<Input<'a>, StringFragment<'a>, ContextError<Input<'a>>>,
 {
-    move |input: Input<'a>| {
-        let (mut input, mut string) = match fragment_parser.parse_next(input) {
-            Ok((input, fragment)) => match fragment {
-                StringFragment::Literal(s) => (input, Cow::Borrowed(s)),
-                StringFragment::EscapedChar(c) => (input, Cow::Owned(String::from(c))),
-                StringFragment::EscapedMarker(m) => (input, Cow::Borrowed(m.unescape())),
+    move |input: &mut Input<'a>| {
+        let mut string = match fragment_parser.parse_next(input) {
+            Ok(fragment) => match fragment {
+                StringFragment::Literal(s) => Cow::Borrowed(s),
+                StringFragment::EscapedChar(c) => Cow::Owned(String::from(c)),
+                StringFragment::EscapedMarker(m) => Cow::Borrowed(m.unescape()),
             },
             Err(err) => return Err(err),
         };
 
         loop {
             match fragment_parser.parse_next(input) {
-                Ok((rest, fragment)) => {
+                Ok(fragment) => {
                     match fragment {
                         StringFragment::Literal(s) => string.to_mut().push_str(s),
                         StringFragment::EscapedChar(c) => string.to_mut().push(c),
                         StringFragment::EscapedMarker(m) => string.to_mut().push_str(m.unescape()),
                     };
-                    input = rest;
                 }
-                Err(_) => return Ok((input, string)),
+                Err(_) => return Ok(string),
             }
         }
     }
@@ -80,7 +79,9 @@ impl EscapedMarker {
     }
 }
 
-pub(super) fn quoted_string_fragment(input: Input) -> IResult<Input, StringFragment> {
+pub(super) fn quoted_string_fragment<'a>(
+    input: &mut Input<'a>,
+) -> PResult<StringFragment<'a>, ContextError<Input<'a>>> {
     alt((
         escaped_marker.map(StringFragment::EscapedMarker),
         string_literal.map(StringFragment::Literal),
@@ -95,7 +96,7 @@ pub(super) fn template_string_fragment<'a, F, T>(
 where
     F: Parser<Input<'a>, T, ContextError<Input<'a>>>,
 {
-    move |input: Input<'a>| {
+    move |input: &mut Input<'a>| {
         alt((
             escaped_marker.map(StringFragment::EscapedMarker),
             any_until(literal_end.by_ref()).map(StringFragment::Literal),
@@ -106,7 +107,7 @@ where
 
 /// Parse a non-empty block of text that doesn't include `"` or non-escaped template
 /// interpolation/directive start markers.
-fn string_literal(input: Input) -> IResult<Input, &str> {
+fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str, ContextError<Input<'a>>> {
     let literal_end = dispatch! {any;
         b'\"' | b'\\' => success(true),
         b'$' | b'%' => b'{'.value(true),
@@ -128,7 +129,7 @@ where
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
-fn escaped_marker(input: Input) -> IResult<Input, EscapedMarker> {
+fn escaped_marker<'a>(input: &mut Input<'a>) -> PResult<EscapedMarker, ContextError<Input<'a>>> {
     dispatch! {take::<_, Input, _>(3usize);
         b"$${" => success(EscapedMarker::Interpolation),
         b"%%{" => success(EscapedMarker::Directive),
@@ -138,8 +139,8 @@ fn escaped_marker(input: Input) -> IResult<Input, EscapedMarker> {
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
-fn escaped_char(input: Input) -> IResult<Input, char> {
-    let (input, _) = b'\\'.parse_next(input)?;
+fn escaped_char<'a>(input: &mut Input<'a>) -> PResult<char, ContextError<Input<'a>>> {
+    b'\\'.parse_next(input)?;
 
     dispatch! {any;
         b'n' => success('\n'),
@@ -169,7 +170,7 @@ fn escaped_char(input: Input) -> IResult<Input, char> {
     .parse_next(input)
 }
 
-fn hexescape<const N: usize>(input: Input) -> IResult<Input, char> {
+fn hexescape<'a, const N: usize>(input: &mut Input<'a>) -> PResult<char, ContextError<Input<'a>>> {
     let parse_hex =
         take_while(1..=N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
 
@@ -192,13 +193,15 @@ where
     inner.span().map(RawString::from_span)
 }
 
-pub(super) fn ident(input: Input) -> IResult<Input, Decorated<Ident>> {
+pub(super) fn ident<'a>(
+    input: &mut Input<'a>,
+) -> PResult<Decorated<Ident>, ContextError<Input<'a>>> {
     str_ident
         .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)
 }
 
-pub(super) fn str_ident(input: Input) -> IResult<Input, &str> {
+pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str, ContextError<Input<'a>>> {
     (one_of(is_id_start), take_while(0.., is_id_continue))
         .recognize()
         .map(|s: &[u8]| unsafe {

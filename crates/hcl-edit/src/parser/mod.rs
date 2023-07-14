@@ -20,8 +20,6 @@ use winnow::{stream::Located, Parser};
 
 type Input<'a> = Located<&'a [u8]>;
 
-type IResult<I, O, E = ContextError<I>> = winnow::IResult<I, O, E>;
-
 /// Parse an input into a [`Body`](crate::structure::Body).
 ///
 /// # Errors
@@ -63,5 +61,5 @@ where
 
     parser
         .parse(input)
-        .map_err(|err| Error::from_parse_error(&input, &err))
+        .map_err(|err| Error::from_parse_error(&input, err.inner()))
 }

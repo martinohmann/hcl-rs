@@ -119,7 +119,7 @@ impl Location {
 }
 
 fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Location) {
-    let offset = remaining_input.offset_from(input);
+    let offset = remaining_input.offset_from(&input);
     let consumed_input = &input[..offset];
 
     // Find the line that includes the subslice:
@@ -142,7 +142,7 @@ fn locate_error<'a>(input: &'a [u8], remaining_input: &'a [u8]) -> (&'a [u8], Lo
     let line = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
 
     // The (1-indexed) column number is the offset of the remaining input into that line.
-    let column = remaining_input.offset_from(line_context) + 1;
+    let column = remaining_input.offset_from(&line_context) + 1;
 
     (
         line_context,
@@ -184,21 +184,21 @@ where
     }
 }
 
-impl<I> winnow::error::ParserError<I> for ContextError<I> {
+impl<I: Clone> winnow::error::ParserError<I> for ContextError<I> {
     #[inline]
-    fn from_error_kind(input: I, _kind: winnow::error::ErrorKind) -> Self {
-        ContextError::new(input)
+    fn from_error_kind(input: &I, _kind: winnow::error::ErrorKind) -> Self {
+        ContextError::new(input.clone())
     }
 
     #[inline]
-    fn append(self, _input: I, _kind: winnow::error::ErrorKind) -> Self {
+    fn append(self, _input: &I, _kind: winnow::error::ErrorKind) -> Self {
         self
     }
 }
 
 impl<I> AddContext<I, StrContext> for ContextError<I> {
     #[inline]
-    fn add_context(mut self, _input: I, ctx: StrContext) -> Self {
+    fn add_context(mut self, _input: &I, ctx: StrContext) -> Self {
         self.context.push(ctx);
         self
     }
@@ -206,12 +206,13 @@ impl<I> AddContext<I, StrContext> for ContextError<I> {
 
 impl<I, E> FromExternalError<I, E> for ContextError<I>
 where
+    I: Clone,
     E: std::error::Error + Send + Sync + 'static,
 {
     #[inline]
-    fn from_external_error(input: I, _kind: winnow::error::ErrorKind, err: E) -> Self {
+    fn from_external_error(input: &I, _kind: winnow::error::ErrorKind, err: E) -> Self {
         ContextError {
-            input,
+            input: input.clone(),
             context: Vec::new(),
             cause: Some(Box::new(err)),
         }
