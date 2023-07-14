@@ -54,53 +54,47 @@ fn expr_inner<'i, 's>(
             // parser if none of these follow.
             let suffix = sp.span().parse_next(input)?;
 
-            // This is essentially a `peek` for the next two bytes to identify the following operation.
-            if let Ok(peek) = peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
-                match peek {
-                    // The sequence `..` might introduce a `...` operator within a for object expr
-                    // or after the last argument of a function call, do not mistakenly parse it as
-                    // a `.` traversal operator.
-                    //
-                    // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
-                    // division operator.
-                    b"//" | b"/*" | b".." => {
-                        input.reset(checkpoint);
-                        return Ok(());
-                    }
-                    // Traversal operator.
-                    //
-                    // Note: after the traversal is consumed, the loop is entered again to consume
-                    // a potentially following conditional or binary operation.
-                    [b'.' | b'[', _] => {
-                        state.borrow_mut().on_ws(suffix);
-                        traversal(state).parse_next(input)?;
-                        continue;
-                    }
-                    // Conditional.
-                    [b'?', _] => {
-                        state.borrow_mut().on_ws(suffix);
-                        return conditional(state).parse_next(input);
-                    }
-                    // Binary operation.
-                    //
-                    // Note: matching a single `=` is ambiguous as it could also be an object
-                    // key-value separator, so we'll need to match on `==`.
-                    b"=="
-                    | [b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _] => {
-                        state.borrow_mut().on_ws(suffix);
-                        return binary_op(state).parse_next(input);
-                    }
-                    // None of the above matched.
-                    _ => {
-                        input.reset(checkpoint);
-                        return Ok(());
-                    }
+            // Peek the next two bytes to identify the following operation, if any.
+            match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
+                // The sequence `..` might introduce a `...` operator within a for object expr
+                // or after the last argument of a function call, do not mistakenly parse it as
+                // a `.` traversal operator.
+                //
+                // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
+                // division operator.
+                Ok(b"//" | b"/*" | b"..") => {
+                    input.reset(checkpoint);
+                    return Ok(());
+                }
+                // Traversal operator.
+                //
+                // Note: after the traversal is consumed, the loop is entered again to consume
+                // a potentially following conditional or binary operation.
+                Ok([b'.' | b'[', _]) => {
+                    state.borrow_mut().on_ws(suffix);
+                    traversal(state).parse_next(input)?;
+                    continue;
+                }
+                // Conditional.
+                Ok([b'?', _]) => {
+                    state.borrow_mut().on_ws(suffix);
+                    return conditional(state).parse_next(input);
+                }
+                // Binary operation.
+                //
+                // Note: matching a single `=` is ambiguous as it could also be an object
+                // key-value separator, so we'll need to match on `==`.
+                Ok(b"==")
+                | Ok([b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _]) => {
+                    state.borrow_mut().on_ws(suffix);
+                    return binary_op(state).parse_next(input);
+                }
+                // None of the above matched or we hit the end of input.
+                _ => {
+                    input.reset(checkpoint);
+                    return Ok(());
                 }
             }
-
-            // We hit the end of input.
-            input.reset(checkpoint);
-            return Ok(());
         }
     }
 }
