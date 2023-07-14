@@ -1,6 +1,5 @@
 //! An HCL parser which keeps track of whitespace, comments and span information.
 
-mod context;
 mod error;
 mod expr;
 mod number;

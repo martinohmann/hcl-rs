@@ -200,6 +200,32 @@ pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
         .parse_next(input)
 }
 
+pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, ContextError> {
+    cut_err(c)
+        .map(AsChar::as_char)
+        .context(StrContext::Expected(StrContextValue::CharLiteral(c)))
+}
+
+pub(super) fn cut_tag<'a>(tag: &'static str) -> impl Parser<Input<'a>, &'a [u8], ContextError> {
+    cut_err(tag).context(StrContext::Expected(StrContextValue::StringLiteral(tag)))
+}
+
+pub(super) fn cut_ident(input: &mut Input) -> PResult<Decorated<Ident>> {
+    cut_err(ident)
+        .context(StrContext::Expected(StrContextValue::Description(
+            "identifier",
+        )))
+        .parse_next(input)
+}
+
+pub(super) fn cut_str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
+    cut_err(str_ident)
+        .context(StrContext::Expected(StrContextValue::Description(
+            "identifier",
+        )))
+        .parse_next(input)
+}
+
 #[inline]
 pub(super) fn is_id_start(b: u8) -> bool {
     hcl_primitives::ident::is_id_start(b.as_char())
