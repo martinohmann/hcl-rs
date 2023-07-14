@@ -150,6 +150,9 @@ fn locate_error<'a>(err: &ParseError<Input<'a>, ContextError>) -> (&'a [u8], Loc
     )
 }
 
+// This is almost identical to `ContextError::to_string` but produces a slightly different format
+// which does not contain line breaks and emits "unexpected token" when there was no expectation in
+// the context.
 fn format_context_error(err: &ContextError) -> String {
     let mut buf = String::new();
 
