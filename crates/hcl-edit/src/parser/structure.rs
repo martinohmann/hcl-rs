@@ -6,7 +6,7 @@ use super::{
     state::BodyParseState,
     string::{ident, is_id_start, raw_string, string},
     trivia::{line_comment, sp, void, ws},
-    IResult, Input,
+    Input,
 };
 use crate::{
     expr::Expression,
@@ -18,15 +18,15 @@ use std::cell::RefCell;
 use winnow::{
     ascii::line_ending,
     combinator::{alt, cut_err, delimited, eof, fail, opt, peek, preceded, repeat, terminated},
-    stream::Location,
+    stream::{Location, Stream},
     token::{any, one_of},
-    Parser,
+    PResult, Parser,
 };
 
-pub(super) fn body(input: Input) -> IResult<Input, Body> {
+pub(super) fn body<'a>(input: &mut Input<'a>) -> PResult<Body, ContextError<Input<'a>>> {
     let state = RefCell::new(BodyParseState::default());
 
-    let (input, (span, suffix)) = (
+    let (span, suffix) = (
         void(repeat(
             0..,
             terminated(
@@ -52,54 +52,54 @@ pub(super) fn body(input: Input) -> IResult<Input, Body> {
     let mut body = state.into_inner().into_body();
     body.set_span(span);
     body.decor_mut().set_suffix(suffix);
-    Ok((input, body))
+    Ok(body)
 }
 
 fn structure<'i, 's>(
     state: &'s RefCell<BodyParseState<'i>>,
 ) -> impl Parser<Input<'i>, (), ContextError<Input<'i>>> + 's {
-    move |input: Input<'i>| {
+    move |input: &mut Input<'i>| {
         let start = input.location();
-        let initial_input = input;
-        let (input, _) = peek(one_of(is_id_start)).parse_next(input)?;
-        let (input, ident) = cut_str_ident.parse_next(input)?;
-        let (input, suffix) = raw_string(sp).parse_next(input)?;
-        let (input, ch) = peek(any).parse_next(input)?;
+        let checkpoint = input.checkpoint();
+        peek(one_of(is_id_start)).parse_next(input)?;
+        let ident = cut_str_ident.parse_next(input)?;
+        let suffix = raw_string(sp).parse_next(input)?;
 
-        let (input, mut structure) = match ch {
+        let mut structure = match peek(any).parse_next(input)? {
             b'=' => {
                 if state.borrow_mut().is_redefined(ident) {
+                    input.reset(checkpoint);
                     return cut_err(fail)
                         .context(StrContext::Label("attribute"))
                         .context(StrContext::Expected(StrContextValue::Description(
                             "unique attribute key; found redefined attribute",
                         )))
-                        .parse_next(initial_input);
+                        .parse_next(input);
                 }
 
-                let (input, expr) = attribute_expr(input)?;
+                let expr = attribute_expr(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
                 let attr = Attribute::new(ident, expr);
-                (input, Structure::Attribute(attr))
+                Structure::Attribute(attr)
             }
             b'{' => {
-                let (input, body) = block_body(input)?;
+                let body = block_body(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
                 let mut block = Block::new(ident);
                 block.body = body;
-                (input, Structure::Block(block))
+                Structure::Block(block)
             }
             ch if ch == b'"' || is_id_start(ch) => {
-                let (input, labels) = block_labels(input)?;
-                let (input, body) = block_body(input)?;
+                let labels = block_labels(input)?;
+                let body = block_body(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
                 let mut block = Block::new(ident);
                 block.body = body;
                 block.labels = labels;
-                (input, Structure::Block(block))
+                Structure::Block(block)
             }
             _ => {
                 return cut_err(fail)
@@ -117,11 +117,11 @@ fn structure<'i, 's>(
         let end = input.location();
         structure.set_span(start..end);
         state.borrow_mut().on_structure(structure);
-        Ok((input, ()))
+        Ok(())
     }
 }
 
-fn attribute_expr(input: Input) -> IResult<Input, Expression> {
+fn attribute_expr<'a>(input: &mut Input<'a>) -> PResult<Expression, ContextError<Input<'a>>> {
     preceded(
         cut_char('=').context(StrContext::Label("attribute")),
         prefix_decorated(sp, expr),
@@ -129,11 +129,11 @@ fn attribute_expr(input: Input) -> IResult<Input, Expression> {
     .parse_next(input)
 }
 
-fn block_labels(input: Input) -> IResult<Input, Vec<BlockLabel>> {
+fn block_labels<'a>(input: &mut Input<'a>) -> PResult<Vec<BlockLabel>, ContextError<Input<'a>>> {
     repeat(0.., suffix_decorated(block_label, sp)).parse_next(input)
 }
 
-fn block_label(input: Input) -> IResult<Input, BlockLabel> {
+fn block_label<'a>(input: &mut Input<'a>) -> PResult<BlockLabel, ContextError<Input<'a>>> {
     alt((
         string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
@@ -141,7 +141,7 @@ fn block_label(input: Input) -> IResult<Input, BlockLabel> {
     .parse_next(input)
 }
 
-fn block_body(input: Input) -> IResult<Input, Body> {
+fn block_body<'a>(input: &mut Input<'a>) -> PResult<Body, ContextError<Input<'a>>> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 
