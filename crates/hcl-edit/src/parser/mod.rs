@@ -13,11 +13,22 @@ mod tests;
 mod trivia;
 
 pub use self::error::{Error, Location};
-use self::{expr::expr, structure::body, template::template};
-use crate::{expr::Expression, structure::Body, template::Template};
-use winnow::{error::ContextError, stream::Located, Parser};
+use self::expr::expr;
+use self::structure::body;
+use self::template::template;
+use crate::expr::Expression;
+use crate::structure::Body;
+use crate::template::Template;
 
-type Input<'a> = Located<&'a [u8]>;
+mod prelude {
+    pub(super) use winnow::error::{ContextError, StrContext, StrContextValue};
+    pub(super) use winnow::stream::Stream;
+    pub(super) use winnow::{dispatch, PResult, Parser};
+
+    pub(super) type Input<'a> = winnow::stream::Located<&'a [u8]>;
+}
+
+use self::prelude::*;
 
 /// Parse an input into a [`Body`](crate::structure::Body).
 ///

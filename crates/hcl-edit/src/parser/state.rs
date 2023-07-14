@@ -1,11 +1,9 @@
-use crate::{
-    expr::{
-        BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
-        UnaryOperator,
-    },
-    structure::{Body, Structure},
-    Decorate, Decorated, RawString, SetSpan, Spanned,
+use crate::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
+    UnaryOperator,
 };
+use crate::structure::{Body, Structure};
+use crate::{Decorate, Decorated, RawString, SetSpan, Spanned};
 use fnv::FnvHashSet;
 use std::ops::Range;
 
