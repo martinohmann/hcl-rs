@@ -77,8 +77,10 @@ fn expr_inner<'i, 's>(
                 //
                 // Note: matching a single `=` is ambiguous as it could also be an object
                 // key-value separator, so we'll need to match on `==`.
-                Ok(b"==")
-                | Ok([b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _]) => {
+                Ok(
+                    b"=="
+                    | [b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _],
+                ) => {
                     state.borrow_mut().on_ws(suffix);
                     return binary_op(state).parse_next(input);
                 }
