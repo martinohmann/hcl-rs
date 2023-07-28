@@ -1,16 +1,14 @@
-use crate::{
-    expr::{
-        Array, Expression, FuncArgs, Object, ObjectKey, ObjectKeyMut, ObjectValue,
-        ObjectValueAssignment, ObjectValueTerminator,
-    },
-    format::{
-        decor::{ModifyDecor, Padding},
-        Formatter,
-    },
-    structure::{AttributeMut, Block, BlockLabel, Body, StructureMut},
-    visit_mut::{visit_body_mut, visit_expr_mut, visit_object_mut, VisitMut},
-    Decorate,
+use crate::expr::{
+    Array, Expression, FuncArgs, Object, ObjectKey, ObjectKeyMut, ObjectValue,
+    ObjectValueAssignment, ObjectValueTerminator,
 };
+use crate::format::{
+    decor::{ModifyDecor, Padding},
+    Formatter,
+};
+use crate::structure::{AttributeMut, Block, BlockLabel, Body, StructureMut};
+use crate::visit_mut::{visit_body_mut, visit_expr_mut, visit_object_mut, VisitMut};
+use crate::Decorate;
 
 impl VisitMut for Formatter {
     fn visit_body_mut(&mut self, node: &mut Body) {

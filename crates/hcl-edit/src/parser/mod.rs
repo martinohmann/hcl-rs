@@ -1,5 +1,6 @@
 //! An HCL parser which keeps track of whitespace, comments and span information.
 
+pub(crate) mod decor;
 mod error;
 mod expr;
 mod number;

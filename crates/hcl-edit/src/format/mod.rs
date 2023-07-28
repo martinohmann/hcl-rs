@@ -1,6 +1,6 @@
 //! Format HCL language items.
 
-mod decor;
+pub(crate) mod decor;
 #[cfg(test)]
 mod tests;
 mod visit;
@@ -109,7 +109,6 @@ impl Default for Indent {
 }
 
 impl Indent {
-    /// Creates a new `Indent` from a prefix.
     pub fn new(prefix: impl Into<InternalString>) -> Indent {
         Indent {
             level: 0,

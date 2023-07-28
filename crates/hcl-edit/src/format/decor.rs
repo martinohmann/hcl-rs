@@ -1,12 +1,7 @@
 use super::{Formatter, Indent};
+use crate::parser::decor;
 use crate::{util::dedent, RawString};
 use std::borrow::Cow;
-use winnow::{
-    ascii::{not_line_ending, space1},
-    combinator::{alt, repeat},
-    token::{take_until0, take_while},
-    Parser,
-};
 
 #[derive(Debug, Clone, Copy)]
 enum DecorKind {
@@ -15,7 +10,7 @@ enum DecorKind {
 }
 
 #[derive(Debug, Clone)]
-enum DecorFragment<'a> {
+pub(crate) enum DecorFragment<'a> {
     Space,
     LineBreaks(&'a str),
     InlineComment(&'a str),
@@ -23,7 +18,7 @@ enum DecorFragment<'a> {
 }
 
 #[derive(Debug, Default, Clone)]
-struct Decor<'a> {
+pub(crate) struct Decor<'a> {
     fragments: Vec<DecorFragment<'a>>,
 }
 
@@ -62,8 +57,8 @@ impl<'a> DecorFragment<'a> {
 impl<'a> Decor<'a> {
     fn parse(input: &str, kind: DecorKind) -> Option<Decor> {
         match kind {
-            DecorKind::Inline => parse_inline(input),
-            DecorKind::Multiline => parse_multiline(input),
+            DecorKind::Inline => decor::parse_inline(input),
+            DecorKind::Multiline => decor::parse_multiline(input),
         }
     }
 
@@ -180,27 +175,27 @@ impl<'a> DecorFormatter<'a> {
         }
     }
 
-    pub(super) fn inline(mut self) -> Self {
+    pub fn inline(mut self) -> Self {
         self.kind = DecorKind::Inline;
         self
     }
 
-    pub(super) fn leading_newline(mut self) -> Self {
+    pub fn leading_newline(mut self) -> Self {
         self.leading_newline = true;
         self
     }
 
-    pub(super) fn indent_first_line(mut self, yes: bool) -> Self {
+    pub fn indent_first_line(mut self, yes: bool) -> Self {
         self.indent_first_line = Some(yes);
         self
     }
 
-    pub(super) fn padding(mut self, padding: Padding) -> Self {
+    pub fn padding(mut self, padding: Padding) -> Self {
         self.padding = Some(padding);
         self
     }
 
-    pub(super) fn format(self, fmt: &mut Formatter) {
+    pub fn format(self, fmt: &mut Formatter) {
         let mut decor = Decor::parse(self.raw.get(), self.kind).unwrap_or_default();
 
         decor.remove_insignificant_spaces();
@@ -258,44 +253,6 @@ where
     fn modify(&mut self) -> DecorFormatter<'_> {
         DecorFormatter::new(self)
     }
-}
-
-fn parse_multiline(input: &str) -> Option<Decor> {
-    repeat::<_, _, Vec<_>, (), _>(
-        0..,
-        alt((
-            space1.value(DecorFragment::Space),
-            take_while(1.., is_line_break).map(DecorFragment::LineBreaks),
-            (alt(("#", "//")), not_line_ending)
-                .recognize()
-                .map(DecorFragment::LineComment),
-            ("/*", take_until0("*/"), "*/")
-                .recognize()
-                .map(DecorFragment::InlineComment),
-        )),
-    )
-    .parse(input)
-    .map(Into::into)
-    .ok()
-}
-
-fn parse_inline(input: &str) -> Option<Decor> {
-    repeat::<_, _, Vec<_>, (), _>(
-        0..,
-        alt((
-            space1.value(DecorFragment::Space),
-            ("/*", take_until0("*/"), "*/")
-                .recognize()
-                .map(DecorFragment::InlineComment),
-        )),
-    )
-    .parse(input)
-    .map(Into::into)
-    .ok()
-}
-
-fn is_line_break(ch: char) -> bool {
-    ch == '\n' || ch == '\r'
 }
 
 fn reindent<'a, S>(s: S, prefix: &str, skip_first_line: bool) -> Cow<'a, str>
