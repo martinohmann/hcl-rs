@@ -12,7 +12,6 @@ use crate::{
     Decorate,
 };
 
-#[doc(hidden)]
 impl VisitMut for Formatter {
     fn visit_body_mut(&mut self, node: &mut Body) {
         self.visit(node, visit_body_mut);

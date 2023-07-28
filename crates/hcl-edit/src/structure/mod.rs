@@ -10,7 +10,7 @@ pub use self::body::{
     Attributes, AttributesMut, Blocks, BlocksMut, Body, BodyBuilder, IntoAttributes, IntoBlocks,
     IntoIter, Iter, IterMut,
 };
-use crate::format::{Format, FormatConfig, Formatter};
+use crate::format::{Format, Formatter};
 use crate::visit_mut::VisitMut;
 use crate::{Decor, Decorate, Span};
 use std::ops::Range;
@@ -119,9 +119,9 @@ forward_decorate_impl!(Structure => { Attribute, Block });
 forward_span_impl!(Structure => { Attribute, Block });
 
 impl Format for Structure {
-    fn format(&mut self, config: &FormatConfig) {
-        let mut fmt = Formatter::new(config);
+    fn format(&mut self, fmt: &mut Formatter) {
         fmt.visit_structure_mut(StructureMut::new(self));
+        fmt.reset();
     }
 }
 
@@ -186,7 +186,7 @@ impl<'a> Span for StructureMut<'a> {
 }
 
 impl<'a> Format for StructureMut<'a> {
-    fn format(&mut self, config: &FormatConfig) {
-        self.structure.format(config);
+    fn format(&mut self, fmt: &mut Formatter) {
+        self.structure.format(fmt);
     }
 }

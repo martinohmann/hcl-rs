@@ -1,5 +1,5 @@
 use crate::expr::Expression;
-use crate::format::{Format, FormatConfig, Formatter};
+use crate::format::{Format, Formatter};
 use crate::visit_mut::VisitMut;
 use crate::{Decor, Decorate, Decorated, Ident, RawString, Span};
 use std::ops::{self, Range};
@@ -328,9 +328,9 @@ impl From<Expression> for ObjectKey {
 }
 
 impl Format for ObjectKey {
-    fn format(&mut self, config: &FormatConfig) {
-        let mut fmt = Formatter::new(config);
+    fn format(&mut self, fmt: &mut Formatter) {
         fmt.visit_object_key_mut(ObjectKeyMut::new(self));
+        fmt.reset();
     }
 }
 
@@ -379,8 +379,8 @@ impl<'k> Span for ObjectKeyMut<'k> {
 }
 
 impl<'k> Format for ObjectKeyMut<'k> {
-    fn format(&mut self, config: &FormatConfig) {
-        self.key.format(config);
+    fn format(&mut self, fmt: &mut Formatter) {
+        self.key.format(fmt);
     }
 }
 

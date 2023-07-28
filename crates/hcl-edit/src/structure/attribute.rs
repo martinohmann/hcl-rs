@@ -1,5 +1,5 @@
 use crate::expr::Expression;
-use crate::format::{Format, FormatConfig, Formatter};
+use crate::format::{Format, Formatter};
 use crate::visit_mut::VisitMut;
 use crate::{Decor, Decorate, Decorated, Ident, Span};
 use std::ops::{self, Range};
@@ -69,9 +69,9 @@ decorate_impl!(Attribute);
 span_impl!(Attribute);
 
 impl Format for Attribute {
-    fn format(&mut self, config: &FormatConfig) {
-        let mut fmt = Formatter::new(config);
+    fn format(&mut self, fmt: &mut Formatter) {
         fmt.visit_attr_mut(AttributeMut::new(self));
+        fmt.reset();
     }
 }
 
@@ -132,7 +132,7 @@ impl<'a> Span for AttributeMut<'a> {
 }
 
 impl<'a> Format for AttributeMut<'a> {
-    fn format(&mut self, config: &FormatConfig) {
-        self.attr.format(config);
+    fn format(&mut self, fmt: &mut Formatter) {
+        self.attr.format(fmt);
     }
 }
