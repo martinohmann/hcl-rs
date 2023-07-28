@@ -19,8 +19,9 @@ pub use self::object::{
 pub use self::operation::{BinaryOp, BinaryOperator, UnaryOp, UnaryOperator};
 pub use self::traversal::{Splat, Traversal, TraversalOperator};
 use crate::encode::{EncodeDecorated, EncodeState, NO_DECOR};
-use crate::template::{HeredocTemplate, StringTemplate};
+use crate::template::{HeredocTemplate, StringTemplate, Template};
 use crate::{parser, Decor, Decorate, Decorated, Formatted, Ident, Number};
+use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 use std::str::FromStr;
@@ -42,7 +43,7 @@ pub enum Expression {
     /// Represents an HCL object.
     Object(Object),
     /// Represents a string containing template interpolations and template directives.
-    Template(StringTemplate),
+    StringTemplate(StringTemplate),
     /// Represents an HCL heredoc template.
     HeredocTemplate(Box<HeredocTemplate>),
     /// Represents a sub-expression wrapped in parenthesis.
@@ -66,6 +67,11 @@ pub enum Expression {
 }
 
 impl Expression {
+    /// Creates a `null` expression.
+    pub fn null() -> Expression {
+        Expression::Null(Decorated::new(Null))
+    }
+
     /// Returns `true` if the expression represents `null`.
     pub fn is_null(&self) -> bool {
         matches!(self, Expression::Null(_))
@@ -152,15 +158,31 @@ impl Expression {
         }
     }
 
-    /// Returns `true` if the expression is a template.
+    /// Returns `true` if the expression is either of variant `StringTemplate` or
+    /// `HeredocTemplate`.
     pub fn is_template(&self) -> bool {
         self.as_template().is_some()
     }
 
-    /// If the expression is a template, returns a reference to it, otherwise `None`.
-    pub fn as_template(&self) -> Option<&StringTemplate> {
+    /// If the expression is either of variant `StringTemplate` or `HeredocTemplate`, returns a
+    /// reference to the underlying `Template`, otherwise `None`.
+    pub fn as_template(&self) -> Option<&Template> {
         match self {
-            Expression::Template(value) => Some(value),
+            Expression::StringTemplate(value) => Some(value),
+            Expression::HeredocTemplate(value) => Some(&value.template),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if the expression is a string template.
+    pub fn is_string_template(&self) -> bool {
+        self.as_string_template().is_some()
+    }
+
+    /// If the expression is a string template, returns a reference to it, otherwise `None`.
+    pub fn as_string_template(&self) -> Option<&StringTemplate> {
+        match self {
+            Expression::StringTemplate(value) => Some(value),
             _ => None,
         }
     }
@@ -291,7 +313,7 @@ impl Expression {
             Expression::String(s) => s.decor_mut().despan(input),
             Expression::Array(array) => array.despan(input),
             Expression::Object(object) => object.despan(input),
-            Expression::Template(template) => template.despan(input),
+            Expression::StringTemplate(template) => template.despan(input),
             Expression::HeredocTemplate(heredoc) => heredoc.despan(input),
             Expression::Parenthesis(expr) => expr.despan(input),
             Expression::Variable(var) => var.decor_mut().despan(input),
@@ -310,6 +332,33 @@ impl FromStr for Expression {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parser::parse_expr(s)
+    }
+}
+
+macro_rules! impl_from_integer {
+    ($($ty:ty),*) => {
+        $(
+            impl From<$ty> for Expression {
+                fn from(n: $ty) -> Self {
+                    Expression::from(Number::from(n))
+                }
+            }
+        )*
+    };
+}
+
+impl_from_integer!(i8, i16, i32, i64, isize);
+impl_from_integer!(u8, u16, u32, u64, usize);
+
+impl From<f32> for Expression {
+    fn from(f: f32) -> Self {
+        From::from(f64::from(f))
+    }
+}
+
+impl From<f64> for Expression {
+    fn from(f: f64) -> Self {
+        Number::from_f64(f).map_or_else(Expression::null, Into::into)
     }
 }
 
@@ -349,6 +398,12 @@ impl From<String> for Expression {
     }
 }
 
+impl<'a> From<Cow<'a, str>> for Expression {
+    fn from(s: Cow<'a, str>) -> Self {
+        Expression::from(s.into_owned())
+    }
+}
+
 impl From<Decorated<String>> for Expression {
     fn from(value: Decorated<String>) -> Self {
         Expression::String(value)
@@ -369,7 +424,7 @@ impl From<Object> for Expression {
 
 impl From<StringTemplate> for Expression {
     fn from(value: StringTemplate) -> Self {
-        Expression::Template(value)
+        Expression::StringTemplate(value)
     }
 }
 
@@ -430,6 +485,36 @@ impl From<BinaryOp> for Expression {
 impl From<ForExpr> for Expression {
     fn from(value: ForExpr) -> Self {
         Expression::ForExpr(Box::new(value))
+    }
+}
+
+impl<T> From<Vec<T>> for Expression
+where
+    T: Into<Expression>,
+{
+    fn from(value: Vec<T>) -> Self {
+        Expression::from_iter(value)
+    }
+}
+
+impl<'a, T> From<&'a [T]> for Expression
+where
+    T: Clone + Into<Expression>,
+{
+    fn from(value: &'a [T]) -> Self {
+        value.iter().cloned().collect()
+    }
+}
+
+impl<T: Into<Expression>> FromIterator<T> for Expression {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Expression::Array(Array::from_iter(iter))
+    }
+}
+
+impl<K: Into<ObjectKey>, V: Into<ObjectValue>> FromIterator<(K, V)> for Expression {
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        Expression::Object(Object::from_iter(iter))
     }
 }
 
@@ -500,10 +585,10 @@ span_impl!(Parenthesis);
 format_impl!(Expression => visit_expr_mut, Parenthesis => visit_parenthesis_mut);
 
 forward_decorate_impl!(Expression => {
-    Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+    Null, Bool, Number, String, Array, Object, StringTemplate, HeredocTemplate, Parenthesis,
     Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
 });
 forward_span_impl!(Expression => {
-    Null, Bool, Number, String, Array, Object, Template, HeredocTemplate, Parenthesis,
+    Null, Bool, Number, String, Array, Object, StringTemplate, HeredocTemplate, Parenthesis,
     Variable, ForExpr, Conditional, FuncCall, UnaryOp, BinaryOp, Traversal
 });

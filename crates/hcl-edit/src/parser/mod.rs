@@ -1,6 +1,5 @@
 //! An HCL parser which keeps track of whitespace, comments and span information.
 
-mod context;
 mod error;
 mod expr;
 mod number;
@@ -14,13 +13,22 @@ mod tests;
 mod trivia;
 
 pub use self::error::{Error, Location};
-use self::{error::ParseError, expr::expr, structure::body, template::template};
-use crate::{expr::Expression, structure::Body, template::Template};
-use winnow::{stream::Located, Parser};
+use self::expr::expr;
+use self::structure::body;
+use self::template::template;
+use crate::expr::Expression;
+use crate::structure::Body;
+use crate::template::Template;
 
-type Input<'a> = Located<&'a [u8]>;
+mod prelude {
+    pub(super) use winnow::error::{ContextError, StrContext, StrContextValue};
+    pub(super) use winnow::stream::Stream;
+    pub(super) use winnow::{dispatch, PResult, Parser};
 
-type IResult<I, O, E = ParseError<I>> = winnow::IResult<I, O, E>;
+    pub(super) type Input<'a> = winnow::stream::Located<&'a [u8]>;
+}
+
+use self::prelude::*;
 
 /// Parse an input into a [`Body`](crate::structure::Body).
 ///
@@ -57,11 +65,11 @@ pub fn parse_template(input: &str) -> Result<Template, Error> {
 
 fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> Result<O, Error>
 where
-    P: Parser<Input<'a>, O, ParseError<Input<'a>>>,
+    P: Parser<Input<'a>, O, ContextError>,
 {
     let input = Input::new(input.as_bytes());
 
     parser
         .parse(input)
-        .map_err(|err| Error::from_parse_error(&input, &err))
+        .map_err(|err| Error::from_parse_error(&err))
 }

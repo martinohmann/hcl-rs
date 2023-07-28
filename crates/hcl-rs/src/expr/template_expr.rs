@@ -1,4 +1,3 @@
-use crate::util::try_unescape;
 use crate::{Error, Identifier, Result};
 use serde::Deserialize;
 use std::fmt;
@@ -51,10 +50,7 @@ impl From<Heredoc> for TemplateExpr {
 
 impl fmt::Display for TemplateExpr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TemplateExpr::QuotedString(_) => f.write_str(&try_unescape(self.as_str())),
-            TemplateExpr::Heredoc(_) => f.write_str(self.as_str()),
-        }
+        f.write_str(self.as_str())
     }
 }
 

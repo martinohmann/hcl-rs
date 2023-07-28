@@ -1,11 +1,9 @@
-use crate::{
-    expr::{
-        BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
-        UnaryOperator,
-    },
-    structure::{Body, Structure},
-    Decorate, Decorated, RawString, SetSpan, Spanned,
+use crate::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
+    UnaryOperator,
 };
+use crate::structure::{Body, Structure};
+use crate::{Decorate, Decorated, RawString, SetSpan, Spanned};
 use fnv::FnvHashSet;
 use std::ops::Range;
 
@@ -15,6 +13,7 @@ pub(super) struct BodyParseState<'a> {
     current: Option<Structure>,
     structures: Vec<Structure>,
     ws: Option<Range<usize>>,
+    eof: bool,
 }
 
 impl<'a> BodyParseState<'a> {
@@ -50,8 +49,15 @@ impl<'a> BodyParseState<'a> {
         self.structures.push(current);
     }
 
+    pub(super) fn on_eof(&mut self) {
+        self.on_line_ending();
+        self.eof = true;
+    }
+
     pub(super) fn into_body(self) -> Body {
-        Body::from_vec_unchecked(self.structures)
+        let mut body = Body::from_vec_unchecked(self.structures);
+        body.set_prefer_omit_trailing_newline(self.eof);
+        body
     }
 }
 

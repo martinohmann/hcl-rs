@@ -1,5 +1,58 @@
 # Changelog
 
+## [0.7.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.1...hcl-edit-v0.7.2) (2023-07-14)
+
+
+### Bug Fixes
+
+* **structure:** handle absence of trailing newline in body ([#273](https://github.com/martinohmann/hcl-rs/issues/273)) ([2f54cb1](https://github.com/martinohmann/hcl-rs/commit/2f54cb188b87678de10975cc4f3bb399e093234a)), closes [#270](https://github.com/martinohmann/hcl-rs/issues/270)
+
+## [0.7.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.0...hcl-edit-v0.7.1) (2023-07-14)
+
+
+### Performance Improvements
+
+* **parser:** use `winnow::error::ContextError` internally ([b829c21](https://github.com/martinohmann/hcl-rs/commit/b829c212904c0ae0005370788bf1ea20aaee36e7))
+
+## [0.7.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.7...hcl-edit-v0.7.0) (2023-07-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **template:** make `StringTemplate` deref to `Template` ([#260](https://github.com/martinohmann/hcl-rs/issues/260))
+* **expr:** `Expression::Template` was renamed to `Expression::StringTemplate`. Furthermore, the `Expression` type's methods `is_template` and `as_template` were renamed to `is_string_template` and `as_string_template` respectively.
+
+### Features
+
+* **expr:** add back `Expression::{is_template,as_template}` ([#261](https://github.com/martinohmann/hcl-rs/issues/261)) ([2ac21c2](https://github.com/martinohmann/hcl-rs/commit/2ac21c2995df3bae04bd4aaed6fc13463fd762a0))
+
+
+### Bug Fixes
+
+* **expr:** rename string template enum variant ([119be53](https://github.com/martinohmann/hcl-rs/commit/119be534972d2e50d586f4d671c5316fa7cdcb5d))
+* **template:** ensure heredoc dedenting works correctly ([4c7baa3](https://github.com/martinohmann/hcl-rs/commit/4c7baa3c7ddad0624ea6640a6c01580fe9c6a1c2))
+
+
+### Code Refactoring
+
+* **template:** make `StringTemplate` deref to `Template` ([#260](https://github.com/martinohmann/hcl-rs/issues/260)) ([9b57e5b](https://github.com/martinohmann/hcl-rs/commit/9b57e5bd95283de10b7266a8f52a9520c80e3f1a))
+
+## [0.6.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.6...hcl-edit-v0.6.7) (2023-07-08)
+
+
+### Bug Fixes
+
+* **parser:** correctly handle escaped markers in templates ([#257](https://github.com/martinohmann/hcl-rs/issues/257)) ([92ec924](https://github.com/martinohmann/hcl-rs/commit/92ec924159d6f48a1604c7d60faa6d4ca74b3586)), closes [#256](https://github.com/martinohmann/hcl-rs/issues/256)
+
+## [0.6.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.5...hcl-edit-v0.6.6) (2023-07-07)
+
+
+### Features
+
+* **expr:** add `Expression::null` ([fac00fd](https://github.com/martinohmann/hcl-rs/commit/fac00fd5abbde5dc9db8f97f6fb9fedc2cabbfc3))
+* **expr:** add more `From` impls to for `Expression` ([07b5417](https://github.com/martinohmann/hcl-rs/commit/07b5417cbf9422745e2475b77467b84e5cddda64))
+* **repr:** add `{Spanned,Decorated,Formatted}::value_into` ([683f548](https://github.com/martinohmann/hcl-rs/commit/683f5487b5e07de481935e07d3ab2cb305126518))
+
 ## [0.6.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.6.4...hcl-edit-v0.6.5) (2023-06-18)
 
 

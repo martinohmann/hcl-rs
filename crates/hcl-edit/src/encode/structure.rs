@@ -7,9 +7,12 @@ use std::fmt::{self, Write};
 
 impl Encode for Body {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        for structure in self.iter() {
+        for (index, structure) in self.iter().enumerate() {
             structure.encode_decorated(buf, NO_DECOR)?;
-            buf.write_char('\n')?;
+
+            if index < self.len() - 1 || !self.prefer_omit_trailing_newline() {
+                buf.write_char('\n')?;
+            }
         }
 
         Ok(())
@@ -52,7 +55,11 @@ impl Encode for Block {
                 }
             } else {
                 buf.write_char('\n')?;
-                body.encode(buf)?;
+
+                for structure in body {
+                    structure.encode_decorated(buf, NO_DECOR)?;
+                    buf.write_char('\n')?;
+                }
             }
 
             Ok(())

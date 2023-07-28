@@ -5,6 +5,7 @@
 
 mod conditional;
 pub(crate) mod de;
+mod edit;
 mod for_expr;
 mod func_call;
 mod operation;

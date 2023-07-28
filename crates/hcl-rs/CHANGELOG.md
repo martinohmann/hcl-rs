@@ -4,6 +4,68 @@
   * dependencies
     * hcl-primitives bumped from 0.0.2 to 0.0.3
 
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.6.6 to 0.6.7
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.7.0 to 0.7.1
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.7.1 to 0.7.2
+
+## [0.16.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.15.0...hcl-rs-v0.16.0) (2023-07-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **error:** The variants `Eof`, `InvalidEscape`, `InvalidUnicodeCodePoint` and `InvalidIdentifier` were removed from the `Error` enum because they are not emitted anymore.
+* **parser:** switch to `hcl-edit` for parsing HCL ([#267](https://github.com/martinohmann/hcl-rs/issues/267))
+
+### Bug Fixes
+
+* **error:** remove obsolete `Error` variants ([af9996a](https://github.com/martinohmann/hcl-rs/commit/af9996a709c4c7faeb0ad88318d0bba3b0ca0e2f))
+* **expr:** remove unnecessary unescaping ([8001e5e](https://github.com/martinohmann/hcl-rs/commit/8001e5ebba12974c93738726c91ba6e57a2180c3))
+
+
+### Code Refactoring
+
+* **parser:** switch to `hcl-edit` for parsing HCL ([#267](https://github.com/martinohmann/hcl-rs/issues/267)) ([c6d0588](https://github.com/martinohmann/hcl-rs/commit/c6d0588cd24c1a7dcd722b3d45b97d82fb77d0c2))
+
+## [0.15.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.6...hcl-rs-v0.15.0) (2023-07-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **expr:** `Expression::Template` was renamed to `Expression::StringTemplate`. Furthermore, the `Expression` type's methods `is_template` and `as_template` were renamed to `is_string_template` and `as_string_template` respectively.
+
+### Bug Fixes
+
+* **expr:** rename string template enum variant ([119be53](https://github.com/martinohmann/hcl-rs/commit/119be534972d2e50d586f4d671c5316fa7cdcb5d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.6.7 to 0.7.0
+
+## [0.14.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.4...hcl-rs-v0.14.5) (2023-07-07)
+
+
+### Features
+
+* interop with `hcl-edit` types ([#255](https://github.com/martinohmann/hcl-rs/issues/255)) ([726e6e9](https://github.com/martinohmann/hcl-rs/commit/726e6e9426b2112ba0ab8fd4d7cd12a8150eaf4b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * hcl-edit bumped from 0.6.5 to 0.6.6
+
 ## [0.14.4](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.14.3...hcl-rs-v0.14.4) (2023-06-18)
 
 

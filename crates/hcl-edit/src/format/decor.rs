@@ -3,9 +3,8 @@ use crate::{util::dedent, RawString};
 use std::borrow::Cow;
 use winnow::{
     ascii::{not_line_ending, space1},
-    branch::alt,
-    bytes::{take_until0, take_while},
-    combinator::repeat,
+    combinator::{alt, repeat},
+    token::{take_until0, take_while},
     Parser,
 };
 

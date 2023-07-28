@@ -1,25 +1,7 @@
-mod expr;
-mod structure;
-mod template;
-#[cfg(test)]
-mod tests;
-
-use self::{expr::expression, structure::body, template::template};
-use crate::{
-    expr::Expression, structure::Body, template::Template, util::unescape, Identifier, Number,
-    Result,
-};
-use hcl_primitives::template::unescape_markers;
-use pest::{
-    iterators::{Pair, Pairs},
-    Parser as _,
-};
-use pest_derive::Parser;
-use std::str::FromStr;
-
-#[derive(Parser)]
-#[grammar = "parser/grammar/hcl.pest"]
-struct HclParser;
+use crate::edit;
+use crate::structure::Body;
+use crate::template::Template;
+use crate::Result;
 
 /// Parse a `hcl::Body` from a `&str`.
 ///
@@ -63,40 +45,11 @@ struct HclParser;
 ///
 /// This function fails with an error if the `input` cannot be parsed as HCL.
 pub fn parse(input: &str) -> Result<Body> {
-    let pair = HclParser::parse(Rule::Hcl, input)?.next().unwrap();
-    body(pair)
+    let body: edit::structure::Body = input.parse()?;
+    Ok(body.into())
 }
 
 pub fn parse_template(input: &str) -> Result<Template> {
-    let pair = HclParser::parse(Rule::HclTemplate, input)?.next().unwrap();
-    template(inner(pair))
-}
-
-fn string(pair: Pair<Rule>) -> String {
-    pair.as_str().to_owned()
-}
-
-fn unescape_string(pair: Pair<Rule>) -> Result<String> {
-    unescape(pair.as_str()).map(|c| unescape_markers(&c).to_string())
-}
-
-fn ident(pair: Pair<Rule>) -> Identifier {
-    Identifier::unchecked(pair.as_str())
-}
-
-fn from_str<T>(pair: Pair<Rule>) -> T
-where
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Debug,
-{
-    pair.as_str().parse::<T>().unwrap()
-}
-
-fn inner(pair: Pair<Rule>) -> Pair<Rule> {
-    pair.into_inner().next().unwrap()
-}
-
-#[track_caller]
-fn unexpected_rule(rule: Rule) -> ! {
-    panic!("unexpected rule: {rule:?}")
+    let template: edit::template::Template = input.parse()?;
+    Ok(template.into())
 }

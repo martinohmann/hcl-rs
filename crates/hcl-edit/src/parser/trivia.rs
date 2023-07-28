@@ -1,13 +1,10 @@
-use super::{IResult, Input};
-use winnow::{
-    ascii::{multispace0, not_line_ending, space0},
-    combinator::{alt, delimited, fail, peek, preceded, repeat},
-    dispatch,
-    token::{any, take_until0},
-    Parser,
-};
+use super::prelude::*;
 
-pub(super) fn ws(input: Input) -> IResult<Input, ()> {
+use winnow::ascii::{multispace0, not_line_ending, space0};
+use winnow::combinator::{alt, delimited, fail, peek, preceded, repeat};
+use winnow::token::{any, take_until0};
+
+pub(super) fn ws(input: &mut Input) -> PResult<()> {
     (
         multispace0.void(),
         void(repeat(0.., (comment, multispace0.void()))),
@@ -16,7 +13,7 @@ pub(super) fn ws(input: Input) -> IResult<Input, ()> {
         .parse_next(input)
 }
 
-pub(super) fn sp(input: Input) -> IResult<Input, ()> {
+pub(super) fn sp(input: &mut Input) -> PResult<()> {
     (
         space0.void(),
         void(repeat(0.., (inline_comment, space0.void()))),
@@ -25,7 +22,7 @@ pub(super) fn sp(input: Input) -> IResult<Input, ()> {
         .parse_next(input)
 }
 
-fn comment(input: Input) -> IResult<Input, ()> {
+fn comment(input: &mut Input) -> PResult<()> {
     dispatch! {peek(any);
         b'#' => hash_line_comment,
         b'/' => alt((double_slash_line_comment, inline_comment)),
@@ -34,7 +31,7 @@ fn comment(input: Input) -> IResult<Input, ()> {
     .parse_next(input)
 }
 
-pub(super) fn line_comment(input: Input) -> IResult<Input, ()> {
+pub(super) fn line_comment(input: &mut Input) -> PResult<()> {
     dispatch! {peek(any);
         b'#' => hash_line_comment,
         b'/' => double_slash_line_comment,
@@ -43,15 +40,15 @@ pub(super) fn line_comment(input: Input) -> IResult<Input, ()> {
     .parse_next(input)
 }
 
-fn hash_line_comment(input: Input) -> IResult<Input, ()> {
+fn hash_line_comment(input: &mut Input) -> PResult<()> {
     preceded(b'#', not_line_ending).void().parse_next(input)
 }
 
-fn double_slash_line_comment(input: Input) -> IResult<Input, ()> {
+fn double_slash_line_comment(input: &mut Input) -> PResult<()> {
     preceded(b"//", not_line_ending).void().parse_next(input)
 }
 
-fn inline_comment(input: Input) -> IResult<Input, ()> {
+fn inline_comment(input: &mut Input) -> PResult<()> {
     delimited(b"/*", take_until0("*/"), b"*/")
         .void()
         .parse_next(input)

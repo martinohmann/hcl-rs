@@ -1,37 +1,30 @@
-use super::{
-    context::{cut_char, cut_ident, cut_tag},
-    error::ParseError,
-    expr::expr,
-    repr::{decorated, spanned},
-    string::{
-        build_string, from_utf8_unchecked, quoted_string_fragment, raw_string,
-        template_string_fragment,
-    },
-    trivia::ws,
-    IResult, Input,
-};
-use crate::{
-    template::{
-        Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
-        ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip,
-        Template,
-    },
-    SetSpan, Span, Spanned,
-};
-use std::borrow::Cow;
-use winnow::{
-    ascii::{line_ending, space0},
-    combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated},
-    Parser,
-};
+use super::prelude::*;
 
-pub(super) fn string_template(input: Input) -> IResult<Input, StringTemplate> {
+use super::expr::expr;
+use super::repr::{decorated, spanned};
+use super::string::{
+    build_string, cut_char, cut_ident, cut_tag, from_utf8_unchecked, quoted_string_fragment,
+    raw_string, template_string_fragment,
+};
+use super::trivia::ws;
+
+use crate::template::{
+    Directive, Element, ElseTemplateExpr, EndforTemplateExpr, EndifTemplateExpr, ForDirective,
+    ForTemplateExpr, IfDirective, IfTemplateExpr, Interpolation, StringTemplate, Strip, Template,
+};
+use crate::{SetSpan, Span, Spanned};
+
+use std::borrow::Cow;
+use winnow::ascii::{line_ending, space0};
+use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated};
+
+pub(super) fn string_template(input: &mut Input) -> PResult<StringTemplate> {
     delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')
         .output_into()
         .parse_next(input)
 }
 
-pub(super) fn template(input: Input) -> IResult<Input, Template> {
+pub(super) fn template(input: &mut Input) -> PResult<Template> {
     let literal_end = alt((b"${", b"%{"));
     let literal = template_literal(literal_end);
     elements(literal).output_into().parse_next(input)
@@ -39,8 +32,8 @@ pub(super) fn template(input: Input) -> IResult<Input, Template> {
 
 pub(super) fn heredoc_template<'a>(
     delim: &'a str,
-) -> impl Parser<Input<'a>, Template, ParseError<Input<'a>>> {
-    move |input: Input<'a>| {
+) -> impl Parser<Input<'a>, Template, ContextError> {
+    move |input: &mut Input<'a>| {
         // We'll need to look for a line ending followed by optional space and the heredoc
         // delimiter.
         //
@@ -82,18 +75,16 @@ pub(super) fn heredoc_template<'a>(
 }
 
 #[inline]
-fn template_literal<'a, F, T>(
-    literal_end: F,
-) -> impl Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>
+fn template_literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError>
 where
-    F: Parser<Input<'a>, T, ParseError<Input<'a>>>,
+    F: Parser<Input<'a>, T, ContextError>,
 {
     build_string(template_string_fragment(literal_end))
 }
 
-fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ParseError<Input<'a>>>
+fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ContextError>
 where
-    P: Parser<Input<'a>, Cow<'a, str>, ParseError<Input<'a>>>,
+    P: Parser<Input<'a>, Cow<'a, str>, ContextError>,
 {
     repeat(
         0..,
@@ -105,7 +96,7 @@ where
     )
 }
 
-fn interpolation(input: Input) -> IResult<Input, Interpolation> {
+fn interpolation(input: &mut Input) -> PResult<Interpolation> {
     control(b"${", decorated(ws, expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
@@ -115,7 +106,7 @@ fn interpolation(input: Input) -> IResult<Input, Interpolation> {
         .parse_next(input)
 }
 
-fn directive(input: Input) -> IResult<Input, Directive> {
+fn directive(input: &mut Input) -> PResult<Directive> {
     alt((
         if_directive.map(Directive::If),
         for_directive.map(Directive::For),
@@ -123,7 +114,7 @@ fn directive(input: Input) -> IResult<Input, Directive> {
     .parse_next(input)
 }
 
-fn if_directive(input: Input) -> IResult<Input, IfDirective> {
+fn if_directive(input: &mut Input) -> PResult<IfDirective> {
     let if_expr = (
         control(
             b"%{",
@@ -170,7 +161,7 @@ fn if_directive(input: Input) -> IResult<Input, IfDirective> {
         .parse_next(input)
 }
 
-fn for_directive(input: Input) -> IResult<Input, ForDirective> {
+fn for_directive(input: &mut Input) -> PResult<ForDirective> {
     let for_expr = (
         control(
             b"%{",
@@ -217,10 +208,10 @@ fn for_directive(input: Input) -> IResult<Input, ForDirective> {
 fn control<'a, S, P, O1, O2>(
     intro: S,
     inner: P,
-) -> impl Parser<Input<'a>, (O2, Strip), ParseError<Input<'a>>>
+) -> impl Parser<Input<'a>, (O2, Strip), ContextError>
 where
-    S: Parser<Input<'a>, O1, ParseError<Input<'a>>>,
-    P: Parser<Input<'a>, O2, ParseError<Input<'a>>>,
+    S: Parser<Input<'a>, O1, ContextError>,
+    P: Parser<Input<'a>, O2, ContextError>,
 {
     (
         preceded(intro, opt(b'~')),

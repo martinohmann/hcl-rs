@@ -86,6 +86,7 @@ pub type BlocksMut<'a> = Box<dyn Iterator<Item = &'a mut Block> + 'a>;
 pub struct Body {
     structures: Vec<Structure>,
     prefer_oneline: bool,
+    prefer_omit_trailing_newline: bool,
     decor: Decor,
     span: Option<Range<usize>>,
 }
@@ -642,6 +643,27 @@ impl Body {
     #[inline]
     pub fn prefer_oneline(&self) -> bool {
         self.prefer_oneline
+    }
+
+    /// Configures whether the trailing newline after the last structure in the body should be
+    /// omitted.
+    ///
+    /// This is only a hint which will be applied if this is the top-level `Body` of a HCL
+    /// document and is ignored if the `Body` is part of a [`Block`].
+    ///
+    /// The default is to always emit a trailing newline after the last body structure.
+    #[inline]
+    pub fn set_prefer_omit_trailing_newline(&mut self, yes: bool) {
+        self.prefer_omit_trailing_newline = yes;
+    }
+
+    /// Returns `true` if the trailing newline after the last structure in the body should be
+    /// omitted.
+    ///
+    /// See the documentation of [`Body::set_prefer_omit_trailing_newline`] for more.
+    #[inline]
+    pub fn prefer_omit_trailing_newline(&self) -> bool {
+        self.prefer_omit_trailing_newline
     }
 
     /// Returns `true` if the body only consist of a single `Attribute`.

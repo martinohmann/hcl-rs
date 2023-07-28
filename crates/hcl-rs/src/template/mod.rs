@@ -83,6 +83,8 @@
 //! The [`eval`][crate::eval] module provides evaluation capabilities for templates and
 //! expressions. See the [module-level documentation][crate::eval] for examples.
 
+mod edit;
+
 use crate::de::FromStrVisitor;
 use crate::expr::{Expression, TemplateExpr};
 use crate::{format, parser, Error, Identifier, Result};

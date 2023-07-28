@@ -1,11 +1,14 @@
 //! Types to represent the HCL template sub-language.
 
+#[cfg(test)]
+mod tests;
+
 use crate::encode::{Encode, EncodeState};
 use crate::expr::Expression;
 use crate::util::{dedent_by, min_leading_whitespace};
 use crate::{parser, Decor, Decorate, Decorated, Ident, RawString, Spanned};
 use std::fmt;
-use std::ops::Range;
+use std::ops::{Deref, DerefMut, Range};
 use std::str::FromStr;
 
 // Re-exported for convenience.
@@ -43,9 +46,8 @@ pub type IterMut<'a> = Box<dyn Iterator<Item = &'a mut Element> + 'a>;
 /// elements of the template are evaluated and combined into a single string to return.
 #[derive(Debug, Clone, Eq, Default)]
 pub struct StringTemplate {
-    elements: Vec<Element>,
+    template: Template,
     decor: Decor,
-    span: Option<Range<usize>>,
 }
 
 impl StringTemplate {
@@ -59,172 +61,45 @@ impl StringTemplate {
     #[inline]
     pub fn with_capacity(capacity: usize) -> Self {
         StringTemplate {
-            elements: Vec::with_capacity(capacity),
+            template: Template::with_capacity(capacity),
             ..Default::default()
-        }
-    }
-
-    /// Returns `true` if the template contains no elements.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.elements.is_empty()
-    }
-
-    /// Returns the number of elements in the template, also referred to as its 'length'.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.elements.len()
-    }
-
-    /// Clears the template, removing all elements.
-    #[inline]
-    pub fn clear(&mut self) {
-        self.elements.clear();
-    }
-
-    /// Returns a reference to the element at the given index, or `None` if the index is out of
-    /// bounds.
-    #[inline]
-    pub fn get(&self, index: usize) -> Option<&Element> {
-        self.elements.get(index)
-    }
-
-    /// Returns a mutable reference to the element at the given index, or `None` if the index is
-    /// out of bounds.
-    #[inline]
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut Element> {
-        self.elements.get_mut(index)
-    }
-
-    /// Inserts an element at position `index` within the template, shifting all elements after it
-    /// to the right.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index > len`.
-    #[inline]
-    pub fn insert(&mut self, index: usize, element: impl Into<Element>) {
-        self.elements.insert(index, element.into());
-    }
-
-    /// Appends an element to the back of the template.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the new capacity exceeds `isize::MAX` bytes.
-    #[inline]
-    pub fn push(&mut self, element: impl Into<Element>) {
-        self.elements.push(element.into());
-    }
-
-    /// Removes the last element from the template and returns it, or [`None`] if it is empty.
-    #[inline]
-    pub fn pop(&mut self) -> Option<Element> {
-        self.elements.pop()
-    }
-
-    /// Removes and returns the element at position `index` within the template, shifting all
-    /// elements after it to the left.
-    ///
-    /// Like `Vec::remove`, the element is removed by shifting all of the elements that follow it,
-    /// preserving their relative order. **This perturbs the index of all of those elements!**
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is out of bounds.
-    #[inline]
-    pub fn remove(&mut self, index: usize) -> Element {
-        self.elements.remove(index)
-    }
-
-    /// An iterator visiting all template elements in insertion order. The iterator element type
-    /// is `&'a Element`.
-    #[inline]
-    pub fn iter(&self) -> Iter<'_> {
-        Box::new(self.elements.iter())
-    }
-
-    /// An iterator visiting all template elements in insertion order, with mutable references to
-    /// the values. The iterator element type is `&'a mut Element`.
-    #[inline]
-    pub fn iter_mut(&mut self) -> IterMut<'_> {
-        Box::new(self.elements.iter_mut())
-    }
-
-    /// If the template consists of a single `Element`, returns a reference to it, otherwise
-    /// `None`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use hcl_edit::template::{Element, StringTemplate};
-    ///
-    /// let mut template = StringTemplate::new();
-    ///
-    /// template.push("one");
-    ///
-    /// assert_eq!(template.as_single_element(), Some(&Element::from("one")));
-    ///
-    /// template.push("two");
-    ///
-    /// assert_eq!(template.as_single_element(), None);
-    /// ```
-    pub fn as_single_element(&self) -> Option<&Element> {
-        match self.len() {
-            1 => self.get(0),
-            _ => None,
-        }
-    }
-
-    /// If the template consists of a single `Element`, returns a mutable reference to it,
-    /// otherwise `None`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use hcl_edit::template::{Element, StringTemplate};
-    ///
-    /// let mut template = StringTemplate::new();
-    ///
-    /// template.push("one");
-    ///
-    /// if let Some(element) = template.as_single_element_mut() {
-    ///     *element = Element::from("two");
-    /// }
-    ///
-    /// template.push("three");
-    ///
-    /// assert_eq!(template.as_single_element(), None);
-    /// assert_eq!(template, StringTemplate::from_iter(["two", "three"]));
-    /// ```
-    pub fn as_single_element_mut(&mut self) -> Option<&mut Element> {
-        match self.len() {
-            1 => self.get_mut(0),
-            _ => None,
         }
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
-        for element in &mut self.elements {
-            element.despan(input);
-        }
+        self.template.despan(input);
     }
 }
 
 impl From<Vec<Element>> for StringTemplate {
     fn from(elements: Vec<Element>) -> Self {
         StringTemplate {
-            elements,
+            template: Template::from(elements),
             decor: Decor::default(),
-            span: None,
         }
     }
 }
 
 impl PartialEq for StringTemplate {
     fn eq(&self, other: &Self) -> bool {
-        self.elements == other.elements
+        self.template == other.template
+    }
+}
+
+impl Deref for StringTemplate {
+    type Target = Template;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.template
+    }
+}
+
+impl DerefMut for StringTemplate {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.template
     }
 }
 
@@ -236,14 +111,7 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        let iter = iterable.into_iter();
-        let reserve = if self.is_empty() {
-            iter.size_hint().0
-        } else {
-            (iter.size_hint().0 + 1) / 2
-        };
-        self.elements.reserve(reserve);
-        iter.for_each(|v| self.push(v));
+        self.template.extend(iterable);
     }
 }
 
@@ -255,11 +123,7 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        let iter = iterable.into_iter();
-        let lower = iter.size_hint().0;
-        let mut template = StringTemplate::with_capacity(lower);
-        template.extend(iter);
-        template
+        Template::from_iter(iterable).into()
     }
 }
 
@@ -268,7 +132,7 @@ impl IntoIterator for StringTemplate {
     type IntoIter = IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.elements.into_iter())
+        self.template.into_iter()
     }
 }
 
@@ -277,7 +141,7 @@ impl<'a> IntoIterator for &'a StringTemplate {
     type IntoIter = Iter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
+        self.template.iter()
     }
 }
 
@@ -286,7 +150,7 @@ impl<'a> IntoIterator for &'a mut StringTemplate {
     type IntoIter = IterMut<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter_mut()
+        self.template.iter_mut()
     }
 }
 
@@ -338,36 +202,13 @@ impl HeredocTemplate {
         self.trailing = trailing.into();
     }
 
-    /// Dedent the heredoc.
+    /// Dedent the heredoc template.
+    ///
+    /// This will set the heredoc's indent to the number of leading
+    /// spaces that were stripped off of template string literals, if any.
     pub fn dedent(&mut self) {
-        let mut indent: Option<usize> = None;
-        let mut skip_first = false;
-
-        for element in self.template.iter() {
-            if let Element::Literal(literal) = element {
-                let leading_ws = min_leading_whitespace(literal, skip_first);
-                indent = Some(indent.map_or(leading_ws, |indent| indent.min(leading_ws)));
-                skip_first = !literal.ends_with('\n');
-            } else {
-                skip_first = true;
-            }
-        }
-
-        if let Some(indent) = indent {
-            skip_first = false;
-
-            for element in self.template.iter_mut() {
-                if let Element::Literal(literal) = element {
-                    let dedented = dedent_by(literal.as_ref(), indent, skip_first);
-                    *literal.as_mut() = dedented.into();
-                    skip_first = !literal.ends_with('\n');
-                } else {
-                    skip_first = true;
-                }
-            }
-
-            self.set_indent(indent);
-        }
+        let stripped_indent = self.template.dedent();
+        self.indent = stripped_indent;
     }
 
     pub(crate) fn despan(&mut self, input: &str) {
@@ -557,6 +398,42 @@ impl Template {
             element.despan(input);
         }
     }
+
+    /// Dedents string literals in the template, returning the maximum indent that was stripped,
+    /// if any.
+    pub(crate) fn dedent(&mut self) -> Option<usize> {
+        let mut indent: Option<usize> = None;
+        let mut skip_first_line = false;
+
+        for element in &self.elements {
+            if let Element::Literal(literal) = element {
+                if let Some(leading_ws) = min_leading_whitespace(literal, skip_first_line) {
+                    indent = Some(indent.map_or(leading_ws, |indent| indent.min(leading_ws)));
+                }
+                skip_first_line = !literal.ends_with('\n');
+            } else if !skip_first_line {
+                // Directive or interpolation at line start always mean that no indent can be
+                // stripped.
+                return None;
+            }
+        }
+
+        if let Some(indent) = indent {
+            skip_first_line = false;
+
+            for element in &mut self.elements {
+                if let Element::Literal(literal) = element {
+                    let dedented = dedent_by(literal.as_ref(), indent, skip_first_line);
+                    *literal.as_mut() = dedented.into();
+                    skip_first_line = !literal.ends_with('\n');
+                } else if !skip_first_line {
+                    skip_first_line = true;
+                }
+            }
+        }
+
+        indent
+    }
 }
 
 impl PartialEq for Template {
@@ -592,7 +469,7 @@ impl From<Vec<Element>> for Template {
 impl From<Template> for StringTemplate {
     fn from(template: Template) -> Self {
         StringTemplate {
-            elements: template.elements,
+            template,
             ..Default::default()
         }
     }
@@ -600,10 +477,7 @@ impl From<Template> for StringTemplate {
 
 impl From<StringTemplate> for Template {
     fn from(template: StringTemplate) -> Self {
-        Template {
-            elements: template.elements,
-            ..Default::default()
-        }
+        template.template
     }
 }
 

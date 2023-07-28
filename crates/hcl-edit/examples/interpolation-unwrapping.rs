@@ -34,7 +34,7 @@
 use hcl_edit::expr::Expression;
 use hcl_edit::prelude::*;
 use hcl_edit::structure::Body;
-use hcl_edit::template::{Element, StringTemplate};
+use hcl_edit::template::{Element, Template};
 use hcl_edit::visit_mut::{visit_expr_mut, VisitMut};
 
 struct InterpolationUnwrapper;
@@ -44,7 +44,7 @@ impl VisitMut for InterpolationUnwrapper {
         // Only templates containing a single interpolation can be unwrapped.
         if let Some(interpolation) = expr
             .as_template()
-            .and_then(StringTemplate::as_single_element)
+            .and_then(Template::as_single_element)
             .and_then(Element::as_interpolation)
         {
             let mut unwrapped_expr = interpolation.expr.clone();

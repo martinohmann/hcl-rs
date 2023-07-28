@@ -185,6 +185,15 @@ impl<T> Spanned<T> {
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
     }
+
+    /// Consumes the `Spanned<T>` and converts the inner value into another type.
+    #[inline]
+    pub fn value_into<U>(self) -> U
+    where
+        T: Into<U>,
+    {
+        self.value.into()
+    }
 }
 
 impl<T> PartialEq for Spanned<T>
@@ -294,6 +303,15 @@ impl<T> Decorated<T> {
     /// Returns a mutable reference to the wrapped value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
+    }
+
+    /// Consumes the `Decorated<T>` and converts the inner value into another type.
+    #[inline]
+    pub fn value_into<U>(self) -> U
+    where
+        T: Into<U>,
+    {
+        self.value.into()
     }
 }
 
@@ -436,6 +454,15 @@ impl<T> Formatted<T> {
     /// Returns a mutable reference to the wrapped value.
     pub fn value_mut(&mut self) -> &mut T {
         &mut self.value
+    }
+
+    /// Consumes the `Formatted<T>` and converts the inner value into another type.
+    #[inline]
+    pub fn value_into<U>(self) -> U
+    where
+        T: Into<U>,
+    {
+        self.value.into()
     }
 }
 
