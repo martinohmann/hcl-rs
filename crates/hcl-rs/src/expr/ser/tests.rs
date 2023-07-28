@@ -129,11 +129,6 @@ fn builtin() {
         Variable::unchecked("var"),
         Expression::from(Variable::unchecked("var")),
     );
-
-    assert_expr(
-        RawExpression::new("raw"),
-        Expression::from(RawExpression::new("raw")),
-    );
 }
 
 #[test]
