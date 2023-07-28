@@ -16,6 +16,13 @@
   * dependencies
     * hcl-edit bumped from 0.7.1 to 0.7.2
 
+## [0.16.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.2...hcl-rs-v0.16.3) (2023-07-28)
+
+
+### Bug Fixes
+
+* **expr:** deprecate `RawExpression` ([#275](https://github.com/martinohmann/hcl-rs/issues/275)) ([1c0c368](https://github.com/martinohmann/hcl-rs/commit/1c0c3685e4062e71690be39ef221cbfa9cab9016))
+
 ## [0.16.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.15.0...hcl-rs-v0.16.0) (2023-07-13)
 
 
