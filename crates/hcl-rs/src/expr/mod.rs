@@ -3,6 +3,8 @@
 //! The module contains the [`Expression`] enum which can represent any valid HCL expression in
 //! HCL attribute values and templates.
 
+#![allow(deprecated)]
+
 mod conditional;
 pub(crate) mod de;
 mod edit;
@@ -71,6 +73,10 @@ pub enum Expression {
     ForExpr(Box<ForExpr>),
     /// Represents a raw HCL expression. This variant will never be emitted by the parser. See
     /// [`RawExpression`] for more details.
+    #[deprecated(
+        since = "0.16.3",
+        note = "Support for raw expressions will be removed in an upcoming release"
+    )]
     Raw(RawExpression),
 }
 
@@ -96,7 +102,7 @@ impl From<Expression> for Value {
             Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
             Expression::Parenthesis(expr) => Value::from(*expr),
             Expression::Raw(raw) => Value::String(raw.into()),
-            other => Value::String(RawExpression(other.to_string()).into()),
+            other => Value::String(format::to_interpolated_string(&other).unwrap()),
         }
     }
 }
@@ -343,6 +349,10 @@ impl Display for ObjectKey {
 ///
 /// *Please note*: raw expressions are not validated during serialization, so it is your
 /// responsiblity to ensure that they are valid HCL.
+#[deprecated(
+    since = "0.16.3",
+    note = "Support for raw expressions will be removed in an upcoming release"
+)]
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct RawExpression(String);

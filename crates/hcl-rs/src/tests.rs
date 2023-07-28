@@ -1,4 +1,4 @@
-use crate::expr::{Expression, Object, ObjectKey, RawExpression};
+use crate::expr::{Expression, Object, ObjectKey};
 use crate::structure::{Attribute, Block, Body, Structure};
 use crate::{Identifier, Number};
 use pretty_assertions::assert_eq;
@@ -28,37 +28,22 @@ fn expression_macro_arrays() {
 fn expression_macro_objects() {
     let expected = Expression::Object(Object::from([
         (ObjectKey::from("foo"), "bar".into()),
-        (ObjectKey::from("baz"), true.into()),
-        (ObjectKey::from("qux"), vec![1, 2, 3].into()),
-        (ObjectKey::from(1), 2.into()),
-    ]));
-
-    assert_eq!(
-        expression!({
-            "foo" = "bar",
-            "baz" = true,
-            "qux" = [1, 2, 3],
-            1 = 2
-        }),
-        expected
-    );
-
-    let expected = Expression::Object(Object::from([
-        (ObjectKey::from(Identifier::unchecked("foo")), "bar".into()),
         (ObjectKey::from("bar"), true.into()),
         (
-            ObjectKey::Expression(RawExpression::from("qux").into()),
+            ObjectKey::from(Identifier::unchecked("qux")),
             vec![1, 2, 3].into(),
         ),
+        (ObjectKey::from(1), 2.into()),
     ]));
 
     let baz = "bar";
 
     assert_eq!(
         expression!({
-            foo = (baz)
-            (baz) = true
-            #{"qux"} = [1, 2, 3]
+            "foo" = (baz),
+            (baz) = true,
+            qux = [1, 2, 3],
+            1 = 2
         }),
         expected
     );
@@ -154,9 +139,5 @@ fn structure_macro() {
     assert_eq!(
         structure!((foo) = "bar"),
         Structure::Attribute(Attribute::new("bar", "bar"))
-    );
-    assert_eq!(
-        structure!((foo) = #{"raw"}),
-        Structure::Attribute(Attribute::new("bar", RawExpression::new("raw")))
     );
 }

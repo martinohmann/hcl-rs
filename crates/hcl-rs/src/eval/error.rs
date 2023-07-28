@@ -123,6 +123,10 @@ pub enum ErrorKind {
     /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
     /// It was attempted to evaluate a raw expression.
+    #[deprecated(
+        since = "0.16.3",
+        note = "Support for raw expressions will be removed in an upcoming release"
+    )]
     RawExpression,
 }
 
@@ -171,6 +175,7 @@ impl fmt::Display for ErrorKind {
             ErrorKind::FuncCall(name, msg) => {
                 write!(f, "error calling function `{name}`: {msg}")
             }
+            #[allow(deprecated)]
             ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),
         }
     }

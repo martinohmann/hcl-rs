@@ -1,7 +1,7 @@
 mod common;
 
 use common::assert_serialize;
-use hcl::expr::{Expression, RawExpression};
+use hcl::expr::{Expression, Traversal, Variable};
 use hcl::structure::Attribute;
 use indoc::indoc;
 
@@ -88,6 +88,13 @@ fn custom_enum() {
 
 #[test]
 fn body() {
+    let enabled_var = Traversal::builder(Variable::unchecked("var"))
+        .attr("enabled")
+        .build();
+    let name_var = Traversal::builder(Variable::unchecked("var"))
+        .attr("name")
+        .build();
+
     let value = hcl::body!({
         foo = 1
         bar = "baz"
@@ -105,8 +112,8 @@ fn body() {
 
           an_object = {
             foo = "bar"
-            "enabled" = (RawExpression::new("var.enabled"))
-            (RawExpression::from("var.name")) = "the value"
+            "enabled" = (enabled_var)
+            (name_var) = "the value"
           }
         }
     });
