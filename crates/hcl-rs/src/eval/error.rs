@@ -4,8 +4,22 @@ use std::fmt;
 /// The result type used by this module.
 pub type EvalResult<T, E = Error> = std::result::Result<T, E>;
 
+pub(crate) trait IntoEvalResult {
+    fn into_eval_result(self) -> EvalResult<()>;
+}
+
+impl IntoEvalResult for Vec<Error> {
+    fn into_eval_result(self) -> EvalResult<()> {
+        if self.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::Chain(self)))
+        }
+    }
+}
+
 /// The error type returned by all fallible operations within this module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     inner: Box<ErrorInner>,
 }
@@ -48,6 +62,14 @@ impl Error {
     pub fn into_kind(self) -> ErrorKind {
         self.inner.kind
     }
+
+    /// Returns an iterator over all potentially chained errors that this error encloses.
+    pub fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Error> + 'a> {
+        match self.kind() {
+            ErrorKind::Chain(chain) => Box::new(chain.iter().flat_map(Error::iter)),
+            _ => Box::new(std::iter::once(self)),
+        }
+    }
 }
 
 impl fmt::Display for Error {
@@ -73,7 +95,7 @@ impl std::error::Error for Error {}
 // The inner type that holds the actual error data.
 //
 // This is a separate type because it gets boxed to keep the size of the `Error` struct small.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ErrorInner {
     kind: ErrorKind,
     expr: Option<Expression>,
@@ -122,6 +144,8 @@ pub enum ErrorKind {
     KeyExists(String),
     /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
+    /// A chain of errors that occurred during expression evaluation.
+    Chain(Vec<Error>),
     /// It was attempted to evaluate a raw expression.
     #[deprecated(
         since = "0.16.3",
@@ -174,6 +198,13 @@ impl fmt::Display for ErrorKind {
             ),
             ErrorKind::FuncCall(name, msg) => {
                 write!(f, "error calling function `{name}`: {msg}")
+            }
+            ErrorKind::Chain(errs) => {
+                for err in errs {
+                    writeln!(f, "{err}")?;
+                }
+
+                Ok(())
             }
             #[allow(deprecated)]
             ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),

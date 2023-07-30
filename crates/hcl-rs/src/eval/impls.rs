@@ -1,3 +1,4 @@
+use super::error::IntoEvalResult;
 use super::*;
 use indexmap::map::Entry;
 use std::hash::Hash;
@@ -12,6 +13,18 @@ impl Evaluate for Body {
             .map(|structure| structure.evaluate(ctx))
             .collect()
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let mut errors = Vec::new();
+
+        for structure in self.iter_mut() {
+            if let Err(err) = structure.evaluate_in_place(ctx) {
+                errors.push(err);
+            }
+        }
+
+        errors.into_eval_result()
+    }
 }
 
 impl private::Sealed for Structure {}
@@ -23,6 +36,13 @@ impl Evaluate for Structure {
         match self {
             Structure::Attribute(attr) => attr.evaluate(ctx).map(Structure::Attribute),
             Structure::Block(block) => block.evaluate(ctx).map(Structure::Block),
+        }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        match self {
+            Structure::Attribute(attr) => attr.evaluate_in_place(ctx),
+            Structure::Block(block) => block.evaluate_in_place(ctx),
         }
     }
 }
@@ -38,6 +58,10 @@ impl Evaluate for Attribute {
             expr: self.expr.evaluate(ctx).map(Into::into)?,
         })
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        self.expr.evaluate_in_place(ctx)
+    }
 }
 
 impl private::Sealed for Block {}
@@ -51,6 +75,10 @@ impl Evaluate for Block {
             labels: self.labels.clone(),
             body: self.body.evaluate(ctx)?,
         })
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        self.body.evaluate_in_place(ctx)
     }
 }
 
@@ -77,6 +105,38 @@ impl Evaluate for Expression {
             other => Ok(Value::from(other.clone())),
         }
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let expr = self.clone();
+        let ctx = &ctx.child_with_expr(&expr);
+
+        match self {
+            // We can return early for expressions that cannot be further evaluated. This avoids an
+            // unnecessary clone operation in `evaluate`.
+            Expression::Null
+            | Expression::Bool(_)
+            | Expression::Number(_)
+            | Expression::String(_) => return Ok(()),
+            // These variants contain nested expressions which can be evaluated in place.
+            Expression::Array(array) => array.evaluate_in_place(ctx)?,
+            Expression::Object(object) => object.evaluate_in_place(ctx)?,
+            Expression::Traversal(traversal) => traversal.evaluate_in_place(ctx)?,
+            Expression::FuncCall(func_call) => func_call.evaluate_in_place(ctx)?,
+            Expression::Parenthesis(expr) => expr.evaluate_in_place(ctx)?,
+            Expression::Conditional(cond) => cond.evaluate_in_place(ctx)?,
+            Expression::Operation(op) => op.evaluate_in_place(ctx)?,
+            Expression::ForExpr(expr) => expr.evaluate_in_place(ctx)?,
+            // All other expressions do not contain nested expressions that could be evaluated in
+            // place.
+            _ => {}
+        }
+
+        // If all nested expressions were evaluated without errors, we can attempt to
+        // evaluate the full expression.
+        let value = self.evaluate(ctx)?;
+        *self = value.into();
+        Ok(())
+    }
 }
 
 impl<T> private::Sealed for Vec<T> where T: Evaluate {}
@@ -90,6 +150,18 @@ where
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter().map(|expr| expr.evaluate(ctx)).collect()
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let mut errors = Vec::new();
+
+        for element in self.iter_mut() {
+            if let Err(err) = element.evaluate_in_place(ctx) {
+                errors.push(err);
+            }
+        }
+
+        errors.into_eval_result()
+    }
 }
 
 impl<K, V> private::Sealed for Object<K, V>
@@ -101,7 +173,7 @@ where
 
 impl<K, V> Evaluate for Object<K, V>
 where
-    K: Evaluate,
+    K: Evaluate + Eq + ToString,
     K::Output: Hash + Eq,
     V: Evaluate,
 {
@@ -111,6 +183,34 @@ where
         self.iter()
             .map(|(key, expr)| Ok((key.evaluate(ctx)?, expr.evaluate(ctx)?)))
             .collect()
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let mut new_object = Object::with_capacity(self.len());
+        let mut errors = Vec::new();
+
+        for (mut key, mut value) in self.drain(..) {
+            if let Err(err) = key.evaluate_in_place(ctx) {
+                errors.push(err);
+            }
+
+            if let Err(err) = value.evaluate_in_place(ctx) {
+                errors.push(err);
+            }
+
+            match new_object.entry(key) {
+                vecmap::map::Entry::Occupied(entry) => {
+                    errors.push(ctx.error(ErrorKind::KeyExists(entry.key().to_string())));
+                }
+                vecmap::map::Entry::Vacant(entry) => {
+                    entry.insert(value);
+                }
+            }
+        }
+
+        *self = new_object;
+
+        errors.into_eval_result()
     }
 }
 
@@ -124,6 +224,14 @@ impl Evaluate for ObjectKey {
             ObjectKey::Expression(expr) => expr::evaluate_object_key(expr, ctx),
             ident => Ok(ident.to_string()),
         }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        if let ObjectKey::Expression(expr) = self {
+            expr.evaluate_in_place(ctx)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -160,6 +268,49 @@ impl Evaluate for Template {
         template::evaluate_template(&mut result, self, ctx, Strip::None, Strip::None)?;
         Ok(result)
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let mut errors = Vec::new();
+
+        for element in self.elements_mut() {
+            match element {
+                Element::Literal(_) => {}
+                Element::Interpolation(interp) => {
+                    if let Err(err) = interp.expr.evaluate_in_place(ctx) {
+                        errors.push(err);
+                    }
+                }
+                Element::Directive(dir) => match dir {
+                    Directive::If(dir) => {
+                        if let Err(err) = dir.cond_expr.evaluate_in_place(ctx) {
+                            errors.push(err);
+                        }
+
+                        if let Err(err) = dir.true_template.evaluate_in_place(ctx) {
+                            errors.push(err);
+                        }
+
+                        if let Some(false_template) = &mut dir.false_template {
+                            if let Err(err) = false_template.evaluate_in_place(ctx) {
+                                errors.push(err);
+                            }
+                        }
+                    }
+                    Directive::For(dir) => {
+                        if let Err(err) = dir.collection_expr.evaluate_in_place(ctx) {
+                            errors.push(err);
+                        }
+
+                        if let Err(err) = dir.template.evaluate_in_place(ctx) {
+                            errors.push(err);
+                        }
+                    }
+                },
+            }
+        }
+
+        errors.into_eval_result()
+    }
 }
 
 impl private::Sealed for Traversal {}
@@ -171,6 +322,20 @@ impl Evaluate for Traversal {
         let value = self.expr.evaluate(ctx)?;
         let deque = self.operators.iter().collect();
         expr::evaluate_traversal(value, deque, ctx)
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let mut errors = Vec::new();
+
+        for operator in &mut self.operators {
+            if let TraversalOperator::Index(expr) = operator {
+                if let Err(err) = expr.evaluate_in_place(ctx) {
+                    errors.push(err);
+                }
+            }
+        }
+
+        errors.into_eval_result()
     }
 }
 
@@ -196,6 +361,10 @@ impl Evaluate for FuncCall {
         func.call(args)
             .map_err(|err| ctx.error(ErrorKind::FuncCall(name.clone(), err)))
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        self.args.evaluate_in_place(ctx)
+    }
 }
 
 impl private::Sealed for Conditional {}
@@ -210,6 +379,26 @@ impl Evaluate for Conditional {
             self.false_expr.evaluate(ctx)
         }
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let cond = expr::evaluate_bool(&self.cond_expr, ctx)?;
+
+        self.cond_expr = Expression::from(cond);
+
+        let mut errors = Vec::new();
+
+        if cond {
+            if let Err(err) = self.true_expr.evaluate_in_place(ctx) {
+                errors.push(err);
+            }
+        } else {
+            if let Err(err) = self.false_expr.evaluate_in_place(ctx) {
+                errors.push(err);
+            }
+        }
+
+        errors.into_eval_result()
+    }
 }
 
 impl private::Sealed for Operation {}
@@ -221,6 +410,13 @@ impl Evaluate for Operation {
         match self {
             Operation::Unary(unary) => unary.evaluate(ctx),
             Operation::Binary(binary) => binary.evaluate(ctx),
+        }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        match self {
+            Operation::Unary(unary) => unary.evaluate_in_place(ctx),
+            Operation::Binary(binary) => binary.evaluate_in_place(ctx),
         }
     }
 }
@@ -242,6 +438,10 @@ impl Evaluate for UnaryOp {
         };
 
         Ok(value)
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        self.expr.evaluate_in_place(ctx)
     }
 }
 
@@ -275,6 +475,20 @@ impl Evaluate for BinaryOp {
         };
 
         Ok(value)
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        let mut errors = Vec::new();
+
+        if let Err(err) = self.lhs_expr.evaluate_in_place(ctx) {
+            errors.push(err);
+        }
+
+        if let Err(err) = self.rhs_expr.evaluate_in_place(ctx) {
+            errors.push(err);
+        }
+
+        errors.into_eval_result()
     }
 }
 
@@ -327,5 +541,9 @@ impl Evaluate for ForExpr {
                 Ok(Value::Array(result))
             }
         }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        self.collection_expr.evaluate_in_place(ctx)
     }
 }

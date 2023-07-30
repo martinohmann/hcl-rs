@@ -250,7 +250,7 @@ mod private {
 /// in their fields.
 ///
 /// This trait is sealed to prevent implementation outside of this crate.
-pub trait Evaluate: private::Sealed {
+pub trait Evaluate: private::Sealed + Sized {
     /// The type that is returned by [`evaluate`][Evaluate::evaluate] on success.
     type Output;
 
@@ -269,6 +269,21 @@ pub trait Evaluate: private::Sealed {
     /// - an undefined variable or function is encountered.
     /// - a defined function is called with unexpected arguments.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
+
+    /// Recursively tries to evaluate all nested expressions in place.
+    ///
+    /// This function does not stop at the first error but continues to evaluate expressions as far
+    /// as it can.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the evaluation fails for the same reasons as [`Evaluate::evaluate`].
+    /// The error may return `ErrorKind::Chain(_)` as its [`.kind()`](Error::kind) to denote that
+    /// multiple errors were encountered.
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+        _ = ctx;
+        Ok(())
+    }
 }
 
 /// A type holding the evaluation context.
