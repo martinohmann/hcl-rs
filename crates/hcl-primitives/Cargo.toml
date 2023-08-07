@@ -36,4 +36,4 @@ itoa = "1.0.8"
 kstring = { version = "2.0.0", features = ["max_inline"], optional = true }
 serde = { version = "1.0.156", default-features = false, features = ["alloc", "derive"], optional = true }
 unicode-ident = "1.0.11"
-ryu = "1.0.12"
+ryu = "1.0.15"
