@@ -57,3 +57,18 @@ fn issue_270() {
     body.set_prefer_omit_trailing_newline(true);
     assert_eq!(body.to_string(), no_trailing_newline);
 }
+
+#[test]
+fn issue_284() {
+    let input = r#"
+      locals {
+        test = {
+          a = b// this comment breaks the parser
+          c = d // but this one doesn't
+        }
+      }
+    "#;
+
+    let res: Result<Body, _> = input.parse();
+    assert!(res.is_ok());
+}
