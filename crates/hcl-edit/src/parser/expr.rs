@@ -431,12 +431,12 @@ fn object_items<'i, 's>(
 
                     // Associate the trailing comment with the item value, updating the span if it
                     // already has a decor suffix.
-                    let suffix_start = match decor.suffix() {
-                        Some(suffix) => suffix.span().unwrap().start,
-                        None => comment_span.start,
+                    let suffix_span = match decor.suffix().and_then(RawString::span) {
+                        Some(span) => span.start..comment_span.end,
+                        None => comment_span,
                     };
 
-                    decor.set_suffix(RawString::from_span(suffix_start..comment_span.end));
+                    decor.set_suffix(RawString::from_span(suffix_span));
 
                     line_ending
                         .value(ObjectValueTerminator::Newline)
