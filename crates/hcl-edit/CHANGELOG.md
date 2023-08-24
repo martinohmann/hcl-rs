@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.2...hcl-edit-v0.7.3) (2023-08-24)
+
+
+### Bug Fixes
+
+* **parser:** prevent panic in object item parser ([#285](https://github.com/martinohmann/hcl-rs/issues/285)) ([8502d2f](https://github.com/martinohmann/hcl-rs/commit/8502d2fe4c455ebd3ebfb982912389588b132a5f)), closes [#284](https://github.com/martinohmann/hcl-rs/issues/284)
+
 ## [0.7.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.1...hcl-edit-v0.7.2) (2023-07-14)
 
 
