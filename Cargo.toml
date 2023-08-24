@@ -7,3 +7,4 @@ members = [
     "crates/specsuite",
     "crates/testdata"
 ]
+resolver = "2"
