@@ -36,7 +36,7 @@ impl Format for Body {
     where
         W: io::Write,
     {
-        for structure in self.iter() {
+        for structure in self {
             structure.format(fmt)?;
         }
 

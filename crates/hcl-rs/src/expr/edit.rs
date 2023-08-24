@@ -213,7 +213,7 @@ impl From<Heredoc> for template::HeredocTemplate {
 
 impl From<expr::Traversal> for Traversal {
     fn from(value: expr::Traversal) -> Self {
-        Traversal::new(value.expr, value.operators.into_iter())
+        Traversal::new(value.expr, value.operators)
     }
 }
 

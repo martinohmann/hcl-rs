@@ -83,7 +83,7 @@ impl Encode for Object {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('{')?;
 
-        for (key, value) in self.iter() {
+        for (key, value) in self {
             key.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
             value.encode(buf)?;
         }

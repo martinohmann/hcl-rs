@@ -18,7 +18,7 @@ impl Encode for StringTemplate {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
         buf.write_char('"')?;
         buf.escaped(|buf| {
-            for element in self.iter() {
+            for element in self {
                 element.encode(buf)?;
             }
 
@@ -57,7 +57,7 @@ impl Encode for HeredocTemplate {
 
 impl Encode for Template {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        for element in self.iter() {
+        for element in self {
             element.encode(buf)?;
         }
 

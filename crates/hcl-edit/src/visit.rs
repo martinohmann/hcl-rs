@@ -156,7 +156,7 @@ pub fn visit_body<V>(v: &mut V, node: &Body)
 where
     V: Visit + ?Sized,
 {
-    for structure in node.iter() {
+    for structure in node {
         v.visit_structure(structure);
     }
 }
@@ -228,7 +228,7 @@ pub fn visit_array<V>(v: &mut V, node: &Array)
 where
     V: Visit + ?Sized,
 {
-    for expr in node.iter() {
+    for expr in node {
         v.visit_expr(expr);
     }
 }
@@ -237,7 +237,7 @@ pub fn visit_object<V>(v: &mut V, node: &Object)
 where
     V: Visit + ?Sized,
 {
-    for (key, value) in node.iter() {
+    for (key, value) in node {
         v.visit_object_item(key, value);
     }
 }
@@ -336,7 +336,7 @@ pub fn visit_func_args<V>(v: &mut V, node: &FuncArgs)
 where
     V: Visit + ?Sized,
 {
-    for arg in node.iter() {
+    for arg in node {
         v.visit_expr(arg);
     }
 }
@@ -377,7 +377,7 @@ pub fn visit_string_template<V>(v: &mut V, node: &StringTemplate)
 where
     V: Visit + ?Sized,
 {
-    for element in node.iter() {
+    for element in node {
         v.visit_element(element);
     }
 }
@@ -393,7 +393,7 @@ pub fn visit_template<V>(v: &mut V, node: &Template)
 where
     V: Visit + ?Sized,
 {
-    for element in node.iter() {
+    for element in node {
         v.visit_element(element);
     }
 }

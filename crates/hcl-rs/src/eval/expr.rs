@@ -58,7 +58,7 @@ pub(super) fn evaluate_traversal(
             }
             TraversalOperator::FullSplat => {
                 // Consume all remaining operators and apply them to each array element.
-                let remaining: VecDeque<&TraversalOperator> = operators.drain(..).collect();
+                let remaining: VecDeque<&TraversalOperator> = std::mem::take(&mut operators);
 
                 evaluate_splat(value, remaining, ctx)?
             }

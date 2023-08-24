@@ -311,7 +311,7 @@ impl FuncDefBuilder {
     where
         I: IntoIterator<Item = ParamType>,
     {
-        self.params.extend(params.into_iter());
+        self.params.extend(params);
         self
     }
 
