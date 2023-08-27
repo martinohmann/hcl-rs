@@ -4,17 +4,92 @@ use std::fmt;
 /// The result type used by this module.
 pub type EvalResult<T, E = Error> = std::result::Result<T, E>;
 
-pub(crate) trait IntoEvalResult {
-    fn into_eval_result(self) -> EvalResult<()>;
+pub(super) trait IntoEvalResult {
+    fn into_eval_result(self) -> EvalResult<(), Errors>;
 }
 
 impl IntoEvalResult for Vec<Error> {
-    fn into_eval_result(self) -> EvalResult<()> {
-        if self.is_empty() {
-            Ok(())
-        } else {
-            Err(Error::new(ErrorKind::Chain(self)))
+    fn into_eval_result(self) -> EvalResult<(), Errors> {
+        match Errors::from_vec(self) {
+            None => Ok(()),
+            Some(errors) => Err(errors),
         }
+    }
+}
+
+/// A type holding multiple errors that occurred during in-place expression evaluation via
+/// [`Evaluate::evaluate_in_place`].
+///
+/// It is guaranteed that `Errors` instances hold at least one error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Errors {
+    errors: Vec<Error>,
+}
+
+impl Errors {
+    pub(super) fn from_vec(errors: Vec<Error>) -> Option<Errors> {
+        if errors.is_empty() {
+            None
+        } else {
+            Some(Errors { errors })
+        }
+    }
+
+    /// Returns the number of errors.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.errors.len()
+    }
+
+    /// Returns an iterator over all errors.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<Error> {
+        self.errors.iter()
+    }
+}
+
+impl fmt::Display for Errors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.len() == 1 {
+            self.errors[0].fmt(f)
+        } else {
+            writeln!(f, "{} errors occurred:", self.len())?;
+
+            for error in self {
+                writeln!(f, "- {error}")?;
+            }
+
+            Ok(())
+        }
+    }
+}
+
+impl From<Error> for Errors {
+    #[inline]
+    fn from(error: Error) -> Self {
+        Errors {
+            errors: vec![error],
+        }
+    }
+}
+
+impl std::error::Error for Errors {}
+
+impl IntoIterator for Errors {
+    type Item = Error;
+    type IntoIter = std::vec::IntoIter<Error>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.errors.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Errors {
+    type Item = &'a Error;
+    type IntoIter = std::slice::Iter<'a, Error>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -61,14 +136,6 @@ impl Error {
     /// Consume the `Error` and return the `ErrorKind`.
     pub fn into_kind(self) -> ErrorKind {
         self.inner.kind
-    }
-
-    /// Returns an iterator over all potentially chained errors that this error encloses.
-    pub fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a Error> + 'a> {
-        match self.kind() {
-            ErrorKind::Chain(chain) => Box::new(chain.iter().flat_map(Error::iter)),
-            _ => Box::new(std::iter::once(self)),
-        }
     }
 }
 
@@ -144,8 +211,6 @@ pub enum ErrorKind {
     KeyExists(String),
     /// A function call in an expression returned an error.
     FuncCall(Identifier, String),
-    /// A chain of errors that occurred during expression evaluation.
-    Chain(Vec<Error>),
     /// It was attempted to evaluate a raw expression.
     #[deprecated(
         since = "0.16.3",
@@ -198,13 +263,6 @@ impl fmt::Display for ErrorKind {
             ),
             ErrorKind::FuncCall(name, msg) => {
                 write!(f, "error calling function `{name}`: {msg}")
-            }
-            ErrorKind::Chain(errs) => {
-                for err in errs {
-                    writeln!(f, "{err}")?;
-                }
-
-                Ok(())
             }
             #[allow(deprecated)]
             ErrorKind::RawExpression => f.write_str("raw expressions cannot be evaluated"),

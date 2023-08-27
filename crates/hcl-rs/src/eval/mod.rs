@@ -224,7 +224,7 @@ mod func;
 mod impls;
 mod template;
 
-pub use self::error::{Error, ErrorKind, EvalResult};
+pub use self::error::{Error, ErrorKind, Errors, EvalResult};
 pub use self::func::{
     Func, FuncArgs, FuncDef, FuncDefBuilder, ParamType, PositionalArgs, VariadicArgs,
 };
@@ -275,12 +275,15 @@ pub trait Evaluate: private::Sealed + Sized {
     /// This function does not stop at the first error but continues to evaluate expressions as far
     /// as it can.
     ///
+    /// The default implementation does nothing and always returns `Ok(())`.
+    ///
     /// # Errors
     ///
-    /// Returns an error if the evaluation fails for the same reasons as [`Evaluate::evaluate`].
-    /// The error may return `ErrorKind::Chain(_)` as its [`.kind()`](Error::kind) to denote that
-    /// multiple errors were encountered.
-    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<()> {
+    /// Returns an [`Errors`] value containing one of more [`Error`]s if the evaluation of any
+    /// (potentially nested) expression fails.
+    ///
+    /// See the errors section of [`Evaluate::evaluate`] for a list of failure modes.
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
         _ = ctx;
         Ok(())
     }
