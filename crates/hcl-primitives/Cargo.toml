@@ -32,7 +32,7 @@ perf = ["std", "dep:kstring"]
 serde = ["dep:serde", "kstring?/serde"]
 
 [dependencies]
-itoa = "1.0.8"
+itoa = "1.0.9"
 kstring = { version = "2.0.0", features = ["max_inline"], optional = true }
 serde = { version = "1.0.156", default-features = false, features = ["alloc", "derive"], optional = true }
 unicode-ident = "1.0.11"
