@@ -455,7 +455,7 @@ fn eval_in_place_error() {
         .add_attribute((
             "bar",
             Conditional::new(
-                true,
+                BinaryOp::new(1, BinaryOperator::Less, 2),
                 FuncCall::builder("true_action").arg(1).build(),
                 FuncCall::new("false_action"),
             ),
@@ -470,7 +470,7 @@ fn eval_in_place_error() {
         indoc! {r#"
             2 errors occurred:
             - undefined variable `bar` in expression `1 + bar`
-            - undefined function `true_action` in expression `true ? true_action(1) : false_action()`
+            - undefined function `true_action` in expression `1 < 2 ? true_action(1) : false_action()`
             "#
         }
     )

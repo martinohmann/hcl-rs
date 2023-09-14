@@ -1,4 +1,4 @@
-use super::error::IntoEvalResult;
+use super::error::EvalResultExt;
 use super::*;
 use indexmap::map::Entry;
 use std::hash::Hash;
@@ -15,15 +15,9 @@ impl Evaluate for Body {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
-        let mut errors = Vec::new();
-
-        for structure in self.iter_mut() {
-            if let Err(err) = structure.evaluate_in_place(ctx) {
-                errors.extend(err);
-            }
-        }
-
-        errors.into_eval_result()
+        self.iter_mut().fold(Ok(()), |res, structure| {
+            res.add_errors(structure.evaluate_in_place(ctx))
+        })
     }
 }
 
@@ -107,41 +101,35 @@ impl Evaluate for Expression {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
-        match self {
-            // We can return early for expressions that cannot be further evaluated. This avoids an
-            // unnecessary clone operation in `evaluate`.
-            Expression::Null
-            | Expression::Bool(_)
-            | Expression::Number(_)
-            | Expression::String(_) => return Ok(()),
-            _ => {}
+        // We can ignore expressions that cannot be further evaluated. This avoids unnecessary
+        // clone operations.
+        if !matches!(
+            self,
+            Expression::Null | Expression::Bool(_) | Expression::Number(_) | Expression::String(_)
+        ) {
+            evaluate_nested_exprs(self, ctx)?;
+            let value = self.evaluate(ctx)?;
+            *self = value.into();
         }
 
-        {
-            let expr = self.clone();
-            let ctx = &ctx.child_with_expr(&expr);
-
-            match self {
-                // These variants contain nested expressions which can be evaluated in place.
-                Expression::Array(array) => array.evaluate_in_place(ctx)?,
-                Expression::Object(object) => object.evaluate_in_place(ctx)?,
-                Expression::Traversal(traversal) => traversal.evaluate_in_place(ctx)?,
-                Expression::FuncCall(func_call) => func_call.evaluate_in_place(ctx)?,
-                Expression::Parenthesis(expr) => expr.evaluate_in_place(ctx)?,
-                Expression::Conditional(cond) => cond.evaluate_in_place(ctx)?,
-                Expression::Operation(op) => op.evaluate_in_place(ctx)?,
-                Expression::ForExpr(expr) => expr.evaluate_in_place(ctx)?,
-                // All other expressions do not contain nested expressions that could be evaluated in
-                // place.
-                _ => {}
-            }
-        }
-
-        // If all nested expressions were evaluated without errors, we can attempt to
-        // evaluate the full expression.
-        let value = self.evaluate(ctx)?;
-        *self = value.into();
         Ok(())
+    }
+}
+
+fn evaluate_nested_exprs(expr: &mut Expression, ctx: &Context) -> EvalResult<(), Errors> {
+    let expr_clone = expr.clone();
+    let ctx = &ctx.child_with_expr(&expr_clone);
+
+    match expr {
+        Expression::Array(array) => array.evaluate_in_place(ctx),
+        Expression::Object(object) => object.evaluate_in_place(ctx),
+        Expression::Traversal(traversal) => traversal.evaluate_in_place(ctx),
+        Expression::FuncCall(func_call) => func_call.evaluate_in_place(ctx),
+        Expression::Parenthesis(expr) => expr.evaluate_in_place(ctx),
+        Expression::Conditional(cond) => cond.evaluate_in_place(ctx),
+        Expression::Operation(op) => op.evaluate_in_place(ctx),
+        Expression::ForExpr(expr) => expr.evaluate_in_place(ctx),
+        _ => Ok(()),
     }
 }
 
@@ -158,15 +146,9 @@ where
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
-        let mut errors = Vec::new();
-
-        for element in self.iter_mut() {
-            if let Err(err) = element.evaluate_in_place(ctx) {
-                errors.extend(err);
-            }
-        }
-
-        errors.into_eval_result()
+        self.iter_mut().fold(Ok(()), |res, element| {
+            res.add_errors(element.evaluate_in_place(ctx))
+        })
     }
 }
 
@@ -179,7 +161,7 @@ where
 
 impl<K, V> Evaluate for Object<K, V>
 where
-    K: Evaluate + Eq + ToString,
+    K: Evaluate + Eq,
     K::Output: Hash + Eq,
     V: Evaluate,
 {
@@ -193,30 +175,20 @@ where
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
         let mut new_object = Object::with_capacity(self.len());
-        let mut errors = Vec::new();
 
-        for (mut key, mut value) in self.drain(..) {
-            if let Err(err) = key.evaluate_in_place(ctx) {
-                errors.extend(err);
-            }
-
-            if let Err(err) = value.evaluate_in_place(ctx) {
-                errors.extend(err);
-            }
-
-            match new_object.entry(key) {
-                vecmap::map::Entry::Occupied(entry) => {
-                    errors.push(ctx.error(ErrorKind::KeyExists(entry.key().to_string())));
-                }
-                vecmap::map::Entry::Vacant(entry) => {
-                    entry.insert(value);
-                }
-            }
-        }
+        let res = self
+            .drain(..)
+            .fold(Ok(()), |mut res, (mut key, mut value)| {
+                res = res
+                    .add_errors(key.evaluate_in_place(ctx))
+                    .add_errors(value.evaluate_in_place(ctx));
+                new_object.insert(key, value);
+                res
+            });
 
         *self = new_object;
 
-        errors.into_eval_result()
+        res
     }
 }
 
@@ -276,46 +248,31 @@ impl Evaluate for Template {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
-        let mut errors = Vec::new();
-
-        for element in self.elements_mut() {
-            match element {
-                Element::Literal(_) => {}
+        self.elements_mut()
+            .iter_mut()
+            .fold(Ok(()), |mut res, element| match element {
+                Element::Literal(_) => res,
                 Element::Interpolation(interp) => {
-                    if let Err(err) = interp.expr.evaluate_in_place(ctx) {
-                        errors.extend(err);
-                    }
+                    res.add_errors(interp.expr.evaluate_in_place(ctx))
                 }
                 Element::Directive(dir) => match dir {
                     Directive::If(dir) => {
-                        if let Err(err) = dir.cond_expr.evaluate_in_place(ctx) {
-                            errors.extend(err);
-                        }
+                        res = res
+                            .add_errors(dir.cond_expr.evaluate_in_place(ctx))
+                            .add_errors(dir.true_template.evaluate_in_place(ctx));
 
-                        if let Err(err) = dir.true_template.evaluate_in_place(ctx) {
-                            errors.extend(err);
-                        }
-
-                        if let Some(false_template) = &mut dir.false_template {
-                            if let Err(err) = false_template.evaluate_in_place(ctx) {
-                                errors.extend(err);
+                        match &mut dir.false_template {
+                            Some(false_template) => {
+                                res.add_errors(false_template.evaluate_in_place(ctx))
                             }
+                            None => res,
                         }
                     }
-                    Directive::For(dir) => {
-                        if let Err(err) = dir.collection_expr.evaluate_in_place(ctx) {
-                            errors.extend(err);
-                        }
-
-                        if let Err(err) = dir.template.evaluate_in_place(ctx) {
-                            errors.extend(err);
-                        }
-                    }
+                    Directive::For(dir) => res
+                        .add_errors(dir.collection_expr.evaluate_in_place(ctx))
+                        .add_errors(dir.template.evaluate_in_place(ctx)),
                 },
-            }
-        }
-
-        errors.into_eval_result()
+            })
     }
 }
 
@@ -331,17 +288,12 @@ impl Evaluate for Traversal {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
-        let mut errors = Vec::new();
-
-        for operator in &mut self.operators {
-            if let TraversalOperator::Index(expr) = operator {
-                if let Err(err) = expr.evaluate_in_place(ctx) {
-                    errors.extend(err);
-                }
-            }
-        }
-
-        errors.into_eval_result()
+        self.operators
+            .iter_mut()
+            .fold(Ok(()), |res, operator| match operator {
+                TraversalOperator::Index(expr) => res.add_errors(expr.evaluate_in_place(ctx)),
+                _ => res,
+            })
     }
 }
 
@@ -391,19 +343,11 @@ impl Evaluate for Conditional {
 
         self.cond_expr = Expression::from(cond);
 
-        let mut errors = Vec::new();
-
         if cond {
-            if let Err(err) = self.true_expr.evaluate_in_place(ctx) {
-                errors.extend(err);
-            }
+            self.true_expr.evaluate_in_place(ctx)
         } else {
-            if let Err(err) = self.false_expr.evaluate_in_place(ctx) {
-                errors.extend(err);
-            }
+            self.false_expr.evaluate_in_place(ctx)
         }
-
-        errors.into_eval_result()
     }
 }
 
@@ -484,17 +428,9 @@ impl Evaluate for BinaryOp {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
-        let mut errors = Vec::new();
-
-        if let Err(err) = self.lhs_expr.evaluate_in_place(ctx) {
-            errors.extend(err);
-        }
-
-        if let Err(err) = self.rhs_expr.evaluate_in_place(ctx) {
-            errors.extend(err);
-        }
-
-        errors.into_eval_result()
+        self.lhs_expr
+            .evaluate_in_place(ctx)
+            .add_errors(self.rhs_expr.evaluate_in_place(ctx))
     }
 }
 

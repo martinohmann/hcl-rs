@@ -4,15 +4,18 @@ use std::fmt;
 /// The result type used by this module.
 pub type EvalResult<T, E = Error> = std::result::Result<T, E>;
 
-pub(super) trait IntoEvalResult {
-    fn into_eval_result(self) -> EvalResult<(), Errors>;
+pub(super) trait EvalResultExt {
+    fn add_errors(self, rhs: Self) -> Self;
 }
 
-impl IntoEvalResult for Vec<Error> {
-    fn into_eval_result(self) -> EvalResult<(), Errors> {
-        match Errors::from_vec(self) {
-            None => Ok(()),
-            Some(errors) => Err(errors),
+impl EvalResultExt for EvalResult<(), Errors> {
+    fn add_errors(self, rhs: Self) -> Self {
+        match self {
+            Err(mut lhs) => {
+                lhs.extend_from_result(rhs);
+                Err(lhs)
+            }
+            _ => rhs,
         }
     }
 }
@@ -23,35 +26,33 @@ impl IntoEvalResult for Vec<Error> {
 /// It is guaranteed that `Errors` instances hold at least one error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Errors {
-    errors: Vec<Error>,
+    inner: Vec<Error>,
 }
 
 impl Errors {
-    pub(super) fn from_vec(errors: Vec<Error>) -> Option<Errors> {
-        if errors.is_empty() {
-            None
-        } else {
-            Some(Errors { errors })
+    fn extend_from_result(&mut self, res: EvalResult<(), Errors>) {
+        if let Err(errors) = res {
+            self.inner.extend(errors);
         }
     }
 
     /// Returns the number of errors.
     #[inline]
     pub fn len(&self) -> usize {
-        self.errors.len()
+        self.inner.len()
     }
 
     /// Returns an iterator over all errors.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<Error> {
-        self.errors.iter()
+        self.inner.iter()
     }
 }
 
 impl fmt::Display for Errors {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.len() == 1 {
-            self.errors[0].fmt(f)
+            self.inner[0].fmt(f)
         } else {
             writeln!(f, "{} errors occurred:", self.len())?;
 
@@ -67,9 +68,7 @@ impl fmt::Display for Errors {
 impl From<Error> for Errors {
     #[inline]
     fn from(error: Error) -> Self {
-        Errors {
-            errors: vec![error],
-        }
+        Errors { inner: vec![error] }
     }
 }
 
@@ -80,7 +79,7 @@ impl IntoIterator for Errors {
     type IntoIter = std::vec::IntoIter<Error>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.errors.into_iter()
+        self.inner.into_iter()
     }
 }
 

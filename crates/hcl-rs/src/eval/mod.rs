@@ -250,7 +250,7 @@ mod private {
 /// in their fields.
 ///
 /// This trait is sealed to prevent implementation outside of this crate.
-pub trait Evaluate: private::Sealed + Sized {
+pub trait Evaluate: private::Sealed {
     /// The type that is returned by [`evaluate`][Evaluate::evaluate] on success.
     type Output;
 
