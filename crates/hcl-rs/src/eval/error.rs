@@ -38,6 +38,7 @@ impl Errors {
 
     /// Returns the number of errors.
     #[inline]
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.inner.len()
     }

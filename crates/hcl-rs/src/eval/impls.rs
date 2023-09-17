@@ -15,6 +15,7 @@ impl Evaluate for Body {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
         self.iter_mut().fold(Ok(()), |res, structure| {
             res.add_errors(structure.evaluate_in_place(ctx))
         })
@@ -146,6 +147,7 @@ where
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
         self.iter_mut().fold(Ok(()), |res, element| {
             res.add_errors(element.evaluate_in_place(ctx))
         })
@@ -176,6 +178,7 @@ where
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
         let mut new_object = Object::with_capacity(self.len());
 
+        #[allow(clippy::manual_try_fold)]
         let res = self
             .drain(..)
             .fold(Ok(()), |mut res, (mut key, mut value)| {
@@ -248,6 +251,7 @@ impl Evaluate for Template {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
         self.elements_mut()
             .iter_mut()
             .fold(Ok(()), |mut res, element| match element {
@@ -288,6 +292,7 @@ impl Evaluate for Traversal {
     }
 
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
         self.operators
             .iter_mut()
             .fold(Ok(()), |res, operator| match operator {
