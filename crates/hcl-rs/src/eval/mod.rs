@@ -282,7 +282,7 @@ pub trait Evaluate: private::Sealed {
     /// Returns an [`Errors`] value containing one of more [`Error`]s if the evaluation of any
     /// (potentially nested) expression fails.
     ///
-    /// See the errors section of [`Evaluate::evaluate`] for a list of failure modes.
+    /// See the errors section of [`evaluate`][Evaluate::evaluate] for a list of failure modes.
     fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
         _ = ctx;
         Ok(())
