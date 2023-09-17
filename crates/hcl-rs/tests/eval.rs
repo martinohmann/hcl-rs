@@ -1,14 +1,14 @@
 mod common;
 
 use common::{assert_eval, assert_eval_ctx, assert_eval_error};
-use hcl::eval::{Context, ErrorKind, EvalResult, FuncArgs, FuncDef, ParamType};
+use hcl::eval::{Context, ErrorKind, EvalResult, Evaluate, FuncArgs, FuncDef, ParamType};
 use hcl::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, TemplateExpr, Traversal,
     TraversalOperator, Variable,
 };
 use hcl::structure::Body;
 use hcl::template::Template;
-use hcl::{Identifier, Number, Value};
+use hcl::{Attribute, Block, Identifier, Number, Value};
 use indoc::indoc;
 
 #[test]
@@ -381,6 +381,98 @@ fn expr_error_context() {
     assert_eq!(
         err.to_string(),
         r#"eval error: undefined variable `cond` in expression `cond ? "yes" : "no"`"#,
+    )
+}
+
+#[test]
+fn eval_in_place() {
+    let mut ctx = Context::new();
+
+    let mut body = Body::builder()
+        .add_block(
+            Block::builder("foo")
+                .add_attribute(Attribute::new("bar", FuncCall::new("baz")))
+                .add_attribute(Attribute::new(
+                    "qux",
+                    BinaryOp::new(1, BinaryOperator::Plus, 1),
+                ))
+                .build(),
+        )
+        .add_block(
+            Block::builder("bar")
+                .add_attribute(Attribute::new("baz", Variable::unchecked("qux")))
+                .build(),
+        )
+        .build();
+
+    assert_eq!(body.evaluate_in_place(&ctx).unwrap_err().len(), 2);
+
+    let expected = Body::builder()
+        .add_block(
+            Block::builder("foo")
+                .add_attribute(Attribute::new("bar", FuncCall::new("baz")))
+                .add_attribute(Attribute::new("qux", 2))
+                .build(),
+        )
+        .add_block(
+            Block::builder("bar")
+                .add_attribute(Attribute::new("baz", Variable::unchecked("qux")))
+                .build(),
+        )
+        .build();
+
+    assert_eq!(body, expected);
+
+    ctx.declare_var("qux", "quxval");
+    ctx.declare_func("baz", FuncDef::builder().build(|_| Ok(Value::from("baz"))));
+
+    assert!(body.evaluate_in_place(&ctx).is_ok());
+
+    let expected = Body::builder()
+        .add_block(
+            Block::builder("foo")
+                .add_attribute(Attribute::new("bar", "baz"))
+                .add_attribute(Attribute::new("qux", 2))
+                .build(),
+        )
+        .add_block(
+            Block::builder("bar")
+                .add_attribute(Attribute::new("baz", "quxval"))
+                .build(),
+        )
+        .build();
+
+    assert_eq!(body, expected);
+}
+
+#[test]
+fn eval_in_place_error() {
+    let mut body = Body::builder()
+        .add_attribute((
+            "foo",
+            BinaryOp::new(1, BinaryOperator::Plus, Variable::unchecked("bar")),
+        ))
+        .add_attribute((
+            "bar",
+            Conditional::new(
+                BinaryOp::new(1, BinaryOperator::Less, 2),
+                FuncCall::builder("true_action").arg(1).build(),
+                FuncCall::new("false_action"),
+            ),
+        ))
+        .build();
+
+    let ctx = Context::new();
+    let err = body.evaluate_in_place(&ctx).unwrap_err();
+
+    assert_eq!(
+        err.to_string(),
+        indoc! {r#"
+            2 errors occurred:
+            - undefined variable `bar` in expression `1 + bar`
+            - undefined function `true_action` in expression `1 < 2 ? true_action(1) : false_action()`
+            "#
+        }
     )
 }
 

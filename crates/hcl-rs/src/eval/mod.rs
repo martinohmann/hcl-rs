@@ -224,7 +224,7 @@ mod func;
 mod impls;
 mod template;
 
-pub use self::error::{Error, ErrorKind, EvalResult};
+pub use self::error::{Error, ErrorKind, Errors, EvalResult};
 pub use self::func::{
     Func, FuncArgs, FuncDef, FuncDefBuilder, ParamType, PositionalArgs, VariadicArgs,
 };
@@ -269,6 +269,24 @@ pub trait Evaluate: private::Sealed {
     /// - an undefined variable or function is encountered.
     /// - a defined function is called with unexpected arguments.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
+
+    /// Recursively tries to evaluate all nested expressions in place.
+    ///
+    /// This function does not stop at the first error but continues to evaluate expressions as far
+    /// as it can.
+    ///
+    /// The default implementation does nothing and always returns `Ok(())`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Errors`] value containing one of more [`Error`]s if the evaluation of any
+    /// (potentially nested) expression fails.
+    ///
+    /// See the errors section of [`evaluate`][Evaluate::evaluate] for a list of failure modes.
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        _ = ctx;
+        Ok(())
+    }
 }
 
 /// A type holding the evaluation context.

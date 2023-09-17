@@ -4,8 +4,97 @@ use std::fmt;
 /// The result type used by this module.
 pub type EvalResult<T, E = Error> = std::result::Result<T, E>;
 
+pub(super) trait EvalResultExt {
+    fn add_errors(self, rhs: Self) -> Self;
+}
+
+impl EvalResultExt for EvalResult<(), Errors> {
+    fn add_errors(self, rhs: Self) -> Self {
+        match self {
+            Err(mut lhs) => {
+                lhs.extend_from_result(rhs);
+                Err(lhs)
+            }
+            _ => rhs,
+        }
+    }
+}
+
+/// A type holding multiple errors that occurred during in-place expression evaluation via
+/// [`Evaluate::evaluate_in_place`].
+///
+/// It is guaranteed that `Errors` instances hold at least one error.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Errors {
+    inner: Vec<Error>,
+}
+
+impl Errors {
+    fn extend_from_result(&mut self, res: EvalResult<(), Errors>) {
+        if let Err(errors) = res {
+            self.inner.extend(errors);
+        }
+    }
+
+    /// Returns the number of errors.
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Returns an iterator over all errors.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<Error> {
+        self.inner.iter()
+    }
+}
+
+impl fmt::Display for Errors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.len() == 1 {
+            self.inner[0].fmt(f)
+        } else {
+            writeln!(f, "{} errors occurred:", self.len())?;
+
+            for error in self {
+                writeln!(f, "- {error}")?;
+            }
+
+            Ok(())
+        }
+    }
+}
+
+impl From<Error> for Errors {
+    #[inline]
+    fn from(error: Error) -> Self {
+        Errors { inner: vec![error] }
+    }
+}
+
+impl std::error::Error for Errors {}
+
+impl IntoIterator for Errors {
+    type Item = Error;
+    type IntoIter = std::vec::IntoIter<Error>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Errors {
+    type Item = &'a Error;
+    type IntoIter = std::slice::Iter<'a, Error>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 /// The error type returned by all fallible operations within this module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
     inner: Box<ErrorInner>,
 }
@@ -73,7 +162,7 @@ impl std::error::Error for Error {}
 // The inner type that holds the actual error data.
 //
 // This is a separate type because it gets boxed to keep the size of the `Error` struct small.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ErrorInner {
     kind: ErrorKind,
     expr: Option<Expression>,
