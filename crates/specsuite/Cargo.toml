@@ -1,6 +1,6 @@
 [package]
 name = "specsuite"
-version = "0.0.15"
+version = "0.0.16"
 publish = false
 edition = "2021"
 
