@@ -1,7 +1,7 @@
 {
-  "crates/benchmarks": "0.0.36",
+  "crates/benchmarks": "0.0.37",
   "crates/hcl-edit": "0.7.3",
   "crates/hcl-primitives": "0.1.1",
-  "crates/hcl-rs": "0.16.4",
-  "crates/specsuite": "0.0.15"
+  "crates/hcl-rs": "0.16.5",
+  "crates/specsuite": "0.0.16"
 }

@@ -20,6 +20,13 @@
   * dependencies
     * hcl-edit bumped from 0.7.2 to 0.7.3
 
+## [0.16.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.4...hcl-rs-v0.16.5) (2023-09-17)
+
+
+### Features
+
+* **eval:** add `Evaluate::evaluate_in_place` ([#292](https://github.com/martinohmann/hcl-rs/issues/292)) ([ccc000f](https://github.com/martinohmann/hcl-rs/commit/ccc000f5d65834c1ea0c4ada43950f3e8420a0ba))
+
 ## [0.16.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.2...hcl-rs-v0.16.3) (2023-07-28)
 
 
