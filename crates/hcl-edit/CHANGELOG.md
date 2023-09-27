@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.3...hcl-edit-v0.7.4) (2023-09-27)
+
+
+### Bug Fixes
+
+* **parser:** attach missing span information to identifiers ([#295](https://github.com/martinohmann/hcl-rs/issues/295)) ([81bbc0d](https://github.com/martinohmann/hcl-rs/commit/81bbc0d82af49d1620e6af92875b25a7545d0f9b)), closes [#294](https://github.com/martinohmann/hcl-rs/issues/294)
+
 ## [0.7.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.2...hcl-edit-v0.7.3) (2023-08-24)
 
 
