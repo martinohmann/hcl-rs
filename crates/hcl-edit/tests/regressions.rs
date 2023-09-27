@@ -1,7 +1,7 @@
 use hcl_edit::expr::Expression;
-use hcl_edit::structure::{Attribute, Block, Body};
+use hcl_edit::structure::{Attribute, Block, Body, Structure};
 use hcl_edit::template::{Element, Interpolation, Template};
-use hcl_edit::Ident;
+use hcl_edit::{Ident, Span};
 use pretty_assertions::assert_eq;
 
 // https://github.com/martinohmann/hcl-rs/issues/248
@@ -58,6 +58,7 @@ fn issue_270() {
     assert_eq!(body.to_string(), no_trailing_newline);
 }
 
+// https://github.com/martinohmann/hcl-rs/issues/284
 #[test]
 fn issue_284() {
     let input = r#"
@@ -71,4 +72,30 @@ fn issue_284() {
 
     let res: Result<Body, _> = input.parse();
     assert!(res.is_ok());
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/294
+#[test]
+fn issue_294() {
+    let input = r#"
+        foo = bar
+        block {}
+        labeled_block "label" {}
+    "#;
+
+    let body: Body = input.parse().unwrap();
+
+    assert_eq!(body.len(), 3);
+
+    for structure in &body {
+        let ident = match structure {
+            Structure::Attribute(attr) => &attr.key,
+            Structure::Block(block) => &block.ident,
+        };
+
+        assert!(
+            ident.span().is_some(),
+            "ident `{ident}` misses span information in {structure:?}"
+        );
+    }
 }
