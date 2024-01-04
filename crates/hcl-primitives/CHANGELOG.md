@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.1...hcl-primitives-v0.1.2) (2024-01-04)
+
+
+### Bug Fixes
+
+* **cargo:** add more keywords ([7125a8c](https://github.com/martinohmann/hcl-rs/commit/7125a8cc05c95b9eaa872d8eb95840c583309575))
+
 ## [0.1.1](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.0...hcl-primitives-v0.1.1) (2023-06-15)
 
 
