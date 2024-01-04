@@ -325,8 +325,7 @@ impl From<Expression> for ObjectKey {
     }
 }
 
-/// Allows mutable access to the surrounding [`Decor`](crate::Decor) of an [`ObjectKey`] but not to
-/// its value.
+/// Allows mutable access to the surrounding [`Decor`] of an [`ObjectKey`] but not to its value.
 ///
 /// This type wraps the object key in the iterator returned by [`Object::iter_mut`].
 #[derive(Debug, Eq, PartialEq)]

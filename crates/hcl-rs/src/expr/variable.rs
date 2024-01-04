@@ -4,8 +4,8 @@ use std::ops::Deref;
 
 /// A type representing a variable in an HCL expression.
 ///
-/// It is a wrapper around the [`Identifier`][crate::Identifier] type and behaves the same in most
-/// cases via its `Deref` implementation.
+/// It is a wrapper around the [`Identifier`] type and behaves the same in most cases via its
+/// `Deref` implementation.
 ///
 /// This is a separate type to differentiate between bare identifiers and variable identifiers
 /// which have different semantics in different scopes.
@@ -17,7 +17,7 @@ impl Variable {
     /// Create a new `Variable` after validating that it only contains characters that are allowed
     /// in HCL identifiers.
     ///
-    /// See the documentation of [`Identifier::new`][crate::Identifier::new] for more.
+    /// See the documentation of [`Identifier::new`] for more.
     ///
     /// # Errors
     ///
@@ -32,7 +32,7 @@ impl Variable {
 
     /// Create a new `Variable` after sanitizing the input if necessary.
     ///
-    /// See the documentation of [`Identifier::sanitized`][crate::Identifier::sanitized] for more.
+    /// See the documentation of [`Identifier::sanitized`] for more.
     pub fn sanitized<T>(ident: T) -> Self
     where
         T: AsRef<str>,
@@ -44,7 +44,7 @@ impl Variable {
     ///
     /// It is the caller's responsibility to ensure that the variable identifier is valid.
     ///
-    /// See the documentation of [`Identifier::unchecked`][crate::Identifier::unchecked] for more.
+    /// See the documentation of [`Identifier::unchecked`] for more.
     ///
     /// # Safety
     ///

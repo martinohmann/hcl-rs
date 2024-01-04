@@ -80,8 +80,7 @@ pub type BlocksMut<'a> = Box<dyn Iterator<Item = &'a mut Block> + 'a>;
 
 /// Represents an HCL config file body.
 ///
-/// A `Body` consists of zero or more [`Attribute`][crate::structure::Attribute] and
-/// [`Block`][crate::structure::Block] HCL structures.
+/// A `Body` consists of zero or more [`Attribute`] and [`Block`] HCL structures.
 #[derive(Debug, Clone, Default, Eq)]
 pub struct Body {
     structures: Vec<Structure>,
