@@ -104,8 +104,6 @@ jobs:
           override: true
 
       - name: Check documentation
-        # @TODO(mohmann): find the time to properly fix all doc warnings
-        #
-        # env:
-        #   RUSTDOCFLAGS: -D warnings
+        env:
+          RUSTDOCFLAGS: -D warnings
         run: cargo doc --no-deps --document-private-items --workspace

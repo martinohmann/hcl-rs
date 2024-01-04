@@ -30,7 +30,7 @@ pub(crate) const BLOCK_MARKER: &str = "$hcl::Block";
 /// Wrapping a type `T` that does not fulfil one of the criteria above in a `Block<T>` will result
 /// in serialization errors.
 ///
-/// For more convenient usage, see the [`block`][crate::ser::block] function.
+/// For more convenient usage, see the [`block`][crate::ser::block()] function.
 ///
 /// # Example
 ///

@@ -14,7 +14,7 @@
 //! # Examples
 //!
 //! HCL expressions can contain variables and functions which are made available through the
-//! [`Context`] value passed to [`Evaluate::evaluate`][Evaluate::evaluate].
+//! [`Context`] value passed to [`Evaluate::evaluate`].
 //!
 //! Here's a short example which evaluates a template expression that contains a variable:
 //!
@@ -34,8 +34,8 @@
 //! # }
 //! ```
 //!
-//! Template directives like `for` loops can be evaluated as well, this time using a
-//! [`Template`][crate::template::Template] instead of [`TemplateExpr`][crate::expr::TemplateExpr]:
+//! Template directives like `for` loops can be evaluated as well, this time using a [`Template`]
+//! instead of [`TemplateExpr`]:
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -352,8 +352,8 @@ impl<'a> Context<'a> {
 
     /// Declare a function from a name and a function definition.
     ///
-    /// See the documentation of the [`FuncDef`][FuncDef] type to learn about all available
-    /// options for constructing a function definition.
+    /// See the documentation of the [`FuncDef`] type to learn about all available options for
+    /// constructing a function definition.
     ///
     /// # Example
     ///

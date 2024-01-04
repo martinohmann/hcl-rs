@@ -30,7 +30,7 @@ mod prelude {
 
 use self::prelude::*;
 
-/// Parse an input into a [`Body`](crate::structure::Body).
+/// Parse an input into a [`Body`].
 ///
 /// # Errors
 ///
@@ -41,7 +41,7 @@ pub fn parse_body(input: &str) -> Result<Body, Error> {
     Ok(body)
 }
 
-/// Parse an input into an [`Expression`](crate::expr::Expression).
+/// Parse an input into an [`Expression`].
 ///
 /// # Errors
 ///
@@ -52,7 +52,7 @@ pub fn parse_expr(input: &str) -> Result<Expression, Error> {
     Ok(expr)
 }
 
-/// Parse an input into a [`Template`](crate::template::Template).
+/// Parse an input into a [`Template`].
 ///
 /// # Errors
 ///

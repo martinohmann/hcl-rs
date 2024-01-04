@@ -38,7 +38,7 @@ pub use hcl_primitives::{Ident, Number};
 
 /// Core concepts available for glob import.
 ///
-/// This includes useful traits like [`Decorate`](crate::Decorate) and [`Span`](crate::Span).
+/// This includes useful traits like [`Decorate`] and [`Span`].
 ///
 /// # Example
 ///

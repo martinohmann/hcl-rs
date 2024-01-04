@@ -4,14 +4,13 @@
 //! [`to_vec`] and [`to_writer`] for serializing data to HCL.
 //!
 //! Furthermore, the [`Block`] and [`LabeledBlock`] wrapper types, and the
-//! [`block`][crate::ser::block], [`labeled_block`][crate::ser::labeled_block] and
-//! [`doubly_labeled_block`][crate::ser::doubly_labeled_block] functions can be used to construct
-//! HCL block structures from custom types. See the type and function level documentation for
-//! usage examples.
+//! [`block`][crate::ser::block()], [`labeled_block`] and [`doubly_labeled_block`] functions can be
+//! used to construct HCL block structures from custom types. See the type and function level
+//! documentation for usage examples.
 //!
-//! If you want to serialize the data structures provided by this crate (e.g.
-//! [`Body`](crate::Body)) consider using the functionality in the [`format`](crate::format) module
-//! instead because it is more efficient.
+//! If you want to serialize the data structures provided by this crate (e.g. [`Body`]) consider
+//! using the functionality in the [`format`](crate::format) module instead because it is more
+//! efficient.
 //!
 //! ## Supported top-level types
 //!
@@ -371,9 +370,8 @@ where
 
 /// Serialize the given value as an HCL byte vector.
 ///
-/// If you want to serialize the data structures provided by this crate (e.g.
-/// [`Body`](crate::Body)) consider using [`hcl::format::to_vec`](crate::format::to_vec) instead
-/// because it is more efficient.
+/// If you want to serialize the data structures provided by this crate (e.g. [`Body`]) consider
+/// using [`hcl::format::to_vec`](crate::format::to_vec) instead because it is more efficient.
 ///
 /// # Errors
 ///
@@ -388,9 +386,9 @@ where
 
 /// Serialize the given value as an HCL string.
 ///
-/// If you want to serialize the data structures provided by this crate (e.g.
-/// [`Body`](crate::Body)) consider using [`hcl::format::to_string`](crate::format::to_string)
-/// instead because it is more efficient.
+/// If you want to serialize the data structures provided by this crate (e.g. [`Body`]) consider
+/// using [`hcl::format::to_string`](crate::format::to_string) instead because it is more
+/// efficient.
 ///
 /// # Errors
 ///
@@ -405,9 +403,9 @@ where
 
 /// Serialize the given value as HCL into the IO stream.
 ///
-/// If you want to serialize the data structures provided by this crate (e.g.
-/// [`Body`](crate::Body)) consider using [`hcl::format::to_writer`](crate::format::to_writer)
-/// instead because it is more efficient.
+/// If you want to serialize the data structures provided by this crate (e.g. [`Body`]) consider
+/// using [`hcl::format::to_writer`](crate::format::to_writer) instead because it is more
+/// efficient.
 ///
 /// # Errors
 ///
