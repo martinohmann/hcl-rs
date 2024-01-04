@@ -52,7 +52,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "benchmarks"
-version = "0.0.38"
+version = "0.0.39"
 dependencies = [
  "criterion",
  "hcl-edit",
@@ -301,7 +301,7 @@ checksum = "7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12"
 
 [[package]]
 name = "hcl-edit"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "fnv",
  "hcl-primitives",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-primitives"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "itoa",
  "kstring",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-rs"
-version = "0.16.6"
+version = "0.16.7"
 dependencies = [
  "hcl-edit",
  "hcl-primitives",
@@ -664,7 +664,7 @@ checksum = "f67ad224767faa3c7d8b6d91985b78e70a1324408abcb1cfcc2be4c06bc06043"
 
 [[package]]
 name = "specsuite"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "assert-json-diff",
  "hcl-rs",
