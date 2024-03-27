@@ -65,6 +65,7 @@ impl<'a> BodyParseState<'a> {
 pub(super) struct ExprParseState {
     unary: Option<Spanned<UnaryOperator>>,
     current: Option<Expression>,
+    allow_newlines: bool,
     ws: Option<Range<usize>>,
 }
 
@@ -141,6 +142,14 @@ impl ExprParseState {
         let binary_op = BinaryOp::new(lhs_expr, operator, rhs_expr);
         let expr = Expression::BinaryOp(Box::new(binary_op));
         self.current = Some(expr);
+    }
+
+    pub(super) fn allow_newlines(&mut self, allow: bool) {
+        self.allow_newlines = allow;
+    }
+
+    pub(super) fn newlines_allowed(&self) -> bool {
+        self.allow_newlines
     }
 
     pub(super) fn into_expr(self) -> Expression {

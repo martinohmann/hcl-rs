@@ -99,3 +99,39 @@ fn issue_294() {
         );
     }
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/319
+#[test]
+fn issue_319() {
+    let valid = r#"
+    resource "foo" "inline" {
+        policy = (true ? "bar" : "baz")
+    }
+    "#;
+
+    // this passes
+    assert!(valid.parse::<Body>().is_ok());
+
+    let invalid = r#"
+    resource "foo" "inline" {
+        policy = true ?
+            "bar" :
+            "baz"
+    }
+    "#;
+
+    // this must fail
+    assert!(invalid.parse::<Body>().is_err());
+
+    let parens = r#"
+    resource "foo" "inline" {
+        policy = (true ?
+            "bar" :
+            "baz"
+        )
+    }
+    "#;
+
+    // this fails
+    assert!(parens.parse::<Body>().is_ok());
+}
