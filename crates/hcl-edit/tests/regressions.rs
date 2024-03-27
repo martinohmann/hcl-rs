@@ -99,3 +99,69 @@ fn issue_294() {
         );
     }
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/319
+#[test]
+fn issue_319() {
+    macro_rules! assert_ok {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_ok());
+        };
+    }
+
+    macro_rules! assert_err {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_err());
+        };
+    }
+
+    // single line expressions with parenthesis
+    assert_ok! {r#"
+        foo = (true ? "bar" : "baz")
+    "#};
+    assert_ok! {r#"
+        foo = (1 > 2)
+    "#};
+    assert_ok! {r#"
+        foo = (var.foo[2])
+    "#};
+
+    // multiline expressions with parenthesis
+    assert_ok! {r#"
+        foo = (true ?
+            "bar" :
+            "baz"
+        )
+    "#};
+    assert_ok! {r#"
+        foo = (
+            1
+            >
+            2
+        )
+    "#};
+    assert_ok! {r#"
+        foo = (
+            var
+                .foo
+                [2]
+        )
+    "#};
+
+    // invalid multiline expressions without parenthesis
+    assert_err! {r#"
+        foo = true ?
+            "bar" :
+            "baz"
+    "#};
+    assert_err! {r#"
+        foo = 1
+            >
+            2
+    "#};
+    assert_err! {r#"
+        foo = var
+            .foo
+            [2]
+    "#};
+}
