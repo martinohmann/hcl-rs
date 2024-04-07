@@ -5,7 +5,7 @@ use super::trivia::void;
 use crate::{Decorated, Ident, RawString};
 
 use std::borrow::Cow;
-use winnow::combinator::{alt, cut_err, delimited, fail, not, opt, preceded, repeat, success};
+use winnow::combinator::{alt, cut_err, delimited, empty, fail, not, opt, preceded, repeat};
 use winnow::stream::AsChar;
 use winnow::token::{any, one_of, take, take_while};
 
@@ -102,7 +102,7 @@ where
 /// interpolation/directive start markers.
 fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     let literal_end = dispatch! {any;
-        b'\"' | b'\\' => success(true),
+        b'\"' | b'\\' => empty.value(true),
         b'$' | b'%' => b'{'.value(true),
         _ => fail,
     };
@@ -124,8 +124,8 @@ where
 /// Parse an escaped start marker for a template interpolation or directive.
 fn escaped_marker(input: &mut Input) -> PResult<EscapedMarker> {
     dispatch! {take::<_, Input, _>(3usize);
-        b"$${" => success(EscapedMarker::Interpolation),
-        b"%%{" => success(EscapedMarker::Directive),
+        b"$${" => empty.value(EscapedMarker::Interpolation),
+        b"%%{" => empty.value(EscapedMarker::Directive),
         _ => fail,
     }
     .parse_next(input)
@@ -136,14 +136,14 @@ fn escaped_char(input: &mut Input) -> PResult<char> {
     b'\\'.parse_next(input)?;
 
     dispatch! {any;
-        b'n' => success('\n'),
-        b'r' => success('\r'),
-        b't' => success('\t'),
-        b'\\' => success('\\'),
-        b'"' => success('"'),
-        b'/' => success('/'),
-        b'b' => success('\u{08}'),
-        b'f' => success('\u{0C}'),
+        b'n' => empty.value('\n'),
+        b'r' => empty.value('\r'),
+        b't' => empty.value('\t'),
+        b'\\' => empty.value('\\'),
+        b'"' => empty.value('"'),
+        b'/' => empty.value('/'),
+        b'b' => empty.value('\u{08}'),
+        b'f' => empty.value('\u{0C}'),
         b'u' => cut_err(hexescape::<4>)
             .context(StrContext::Label("unicode 4-digit hex code")),
         b'U' => cut_err(hexescape::<8>)

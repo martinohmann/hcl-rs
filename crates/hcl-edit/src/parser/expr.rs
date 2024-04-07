@@ -21,8 +21,8 @@ use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
 use std::cell::RefCell;
 use winnow::ascii::{crlf, dec_uint, line_ending, newline, space0};
 use winnow::combinator::{
-    alt, cut_err, delimited, fail, not, opt, peek, preceded, repeat, separated0, separated1,
-    separated_pair, success, terminated,
+    alt, cut_err, delimited, empty, fail, not, opt, peek, preceded, repeat, separated,
+    separated_pair, terminated,
 };
 use winnow::token::{any, none_of, one_of, take};
 
@@ -56,7 +56,7 @@ fn expr_inner<'i, 's>(
                 // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
                 // division operator.
                 Ok(b"//" | b"/*" | b"..") => {
-                    input.reset(checkpoint);
+                    input.reset(&checkpoint);
                     return Ok(());
                 }
                 // Traversal operator.
@@ -86,7 +86,7 @@ fn expr_inner<'i, 's>(
                 }
                 // None of the above matched or we hit the end of input.
                 _ => {
-                    input.reset(checkpoint);
+                    input.reset(&checkpoint);
                     return Ok(());
                 }
             }
@@ -236,8 +236,8 @@ fn unary_op<'i, 's>(
 
 fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
     dispatch! {any;
-        b'-' => success(UnaryOperator::Neg),
-        b'!' => success(UnaryOperator::Not),
+        b'-' => empty.value(UnaryOperator::Neg),
+        b'!' => empty.value(UnaryOperator::Not),
         _ => fail,
     }
     .parse_next(input)
@@ -262,17 +262,17 @@ fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
         b'!' => b'='.value(BinaryOperator::NotEq),
         b'<' => alt((
             b'='.value(BinaryOperator::LessEq),
-            success(BinaryOperator::Less),
+            empty.value(BinaryOperator::Less),
         )),
         b'>' => alt((
             b'='.value(BinaryOperator::GreaterEq),
-            success(BinaryOperator::Greater),
+            empty.value(BinaryOperator::Greater),
         )),
-        b'+' => success(BinaryOperator::Plus),
-        b'-' => success(BinaryOperator::Minus),
-        b'*' => success(BinaryOperator::Mul),
-        b'/' => success(BinaryOperator::Div),
-        b'%' => success(BinaryOperator::Mod),
+        b'+' => empty.value(BinaryOperator::Plus),
+        b'-' => empty.value(BinaryOperator::Minus),
+        b'*' => empty.value(BinaryOperator::Mul),
+        b'/' => empty.value(BinaryOperator::Div),
+        b'%' => empty.value(BinaryOperator::Mod),
         b'&' => b'&'.value(BinaryOperator::And),
         b'|' => b'|'.value(BinaryOperator::Or),
         _ => fail,
@@ -327,7 +327,7 @@ fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let values = separated0(decorated(ws, preceded(not(b']'), expr), ws), b',');
+        let values = separated(0.., decorated(ws, preceded(not(b']'), expr), ws), b',');
 
         (values, opt(b','), raw_string(ws))
             .map(|(values, comma, trailing)| {
@@ -489,8 +489,8 @@ fn object_value(input: &mut Input) -> PResult<ObjectValue> {
 
 fn object_value_assignment(input: &mut Input) -> PResult<ObjectValueAssignment> {
     dispatch! {any;
-        b'=' => success(ObjectValueAssignment::Equals),
-        b':' => success(ObjectValueAssignment::Colon),
+        b'=' => empty.value(ObjectValueAssignment::Equals),
+        b':' => empty.value(ObjectValueAssignment::Colon),
         _ => cut_err(fail)
             .context(StrContext::Label("object value assignment"))
             .context(StrContext::Expected(StrContextValue::CharLiteral('=')))
@@ -644,13 +644,14 @@ fn func_args(input: &mut Input) -> PResult<FuncArgs> {
         Ellipsis,
     }
 
-    let args = separated1(
+    let args = separated(
+        1..,
         decorated(ws, preceded(peek(none_of(b",.)")), expr), ws),
         b',',
     );
 
     let trailer = dispatch! {any;
-        b',' => success(Trailer::Comma),
+        b',' => empty.value(Trailer::Comma),
         b'.' => cut_tag("..").value(Trailer::Ellipsis),
         _ => fail,
     };

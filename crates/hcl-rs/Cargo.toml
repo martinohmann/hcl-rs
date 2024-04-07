@@ -39,7 +39,7 @@ itoa = "1.0.9"
 hcl-edit = { version = "0.7.5", path = "../hcl-edit" }
 hcl-primitives = { version = "0.1.2", path = "../hcl-primitives", features = ["serde"] }
 serde = { version = "1.0.188", features = ["derive"] }
-vecmap-rs = { version = "0.1.12", features = ["serde"] }
+vecmap-rs = { version = "0.2", features = ["serde"] }
 
 [dev-dependencies]
 indoc = "2.0"
