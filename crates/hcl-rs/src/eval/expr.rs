@@ -138,6 +138,7 @@ pub(super) struct Collection<'a> {
     key_var: Option<&'a Identifier>,
     value_var: &'a Identifier,
     cond_expr: Option<&'a Expression>,
+    #[allow(clippy::struct_field_names)]
     collection: Vec<(Value, Value)>,
 }
 

@@ -230,7 +230,7 @@ impl Evaluate for TemplateExpr {
         // spec:
         //
         // https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#template-interpolation-unwrapping
-        match elements.get(0) {
+        match elements.first() {
             Some(Element::Interpolation(interp)) if elements.len() == 1 => {
                 interp.expr.evaluate(ctx)
             }
