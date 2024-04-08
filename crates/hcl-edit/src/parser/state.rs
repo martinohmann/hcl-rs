@@ -66,6 +66,7 @@ pub(super) struct ExprParseState {
     unary: Option<Spanned<UnaryOperator>>,
     current: Option<Expression>,
     ws: Option<Range<usize>>,
+    allow_newlines: bool,
 }
 
 impl ExprParseState {
@@ -143,7 +144,26 @@ impl ExprParseState {
         self.current = Some(expr);
     }
 
+    pub(super) fn allow_newlines(&mut self, allow: bool) {
+        self.allow_newlines = allow;
+    }
+
+    pub(super) fn newlines_allowed(&self) -> bool {
+        self.allow_newlines
+    }
+
     pub(super) fn into_expr(self) -> Expression {
         self.current.unwrap()
+    }
+}
+
+impl Clone for ExprParseState {
+    fn clone(&self) -> Self {
+        ExprParseState {
+            unary: None,
+            current: None,
+            ws: None,
+            allow_newlines: self.allow_newlines,
+        }
     }
 }

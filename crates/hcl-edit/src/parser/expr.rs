@@ -26,11 +26,32 @@ use winnow::combinator::{
 };
 use winnow::token::{any, none_of, one_of, take};
 
+fn ws_or_sp<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
+    move |input: &mut Input<'i>| {
+        if state.borrow().newlines_allowed() {
+            ws.parse_next(input)
+        } else {
+            sp.parse_next(input)
+        }
+    }
+}
+
 pub(super) fn expr(input: &mut Input) -> PResult<Expression> {
-    let state = RefCell::new(ExprParseState::default());
+    parse_expr(RefCell::default(), input)
+}
+
+fn expr_with_state<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, Expression, ContextError> + 's {
+    move |input: &mut Input<'i>| parse_expr(state.clone(), input)
+}
+
+#[inline]
+fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> PResult<Expression> {
     expr_inner(&state).parse_next(input)?;
-    let expr = state.into_inner().into_expr();
-    Ok(expr)
+    Ok(state.into_inner().into_expr())
 }
 
 fn expr_inner<'i, 's>(
@@ -45,7 +66,7 @@ fn expr_inner<'i, 's>(
             // Parse the next whitespace sequence and only add it as decor suffix to the expression if
             // we actually encounter a traversal, conditional or binary operation. We'll rewind the
             // parser if none of these follow.
-            let suffix = sp.span().parse_next(input)?;
+            let suffix = ws_or_sp(state).span().parse_next(input)?;
 
             // Peek the next two bytes to identify the following operation, if any.
             match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
@@ -182,7 +203,7 @@ fn traversal<'i, 's>(
     move |input: &mut Input<'i>| {
         repeat(
             1..,
-            prefix_decorated(sp, traversal_operator.map(Decorated::new)),
+            prefix_decorated(ws_or_sp(state), traversal_operator.map(Decorated::new)),
         )
         .map(|operators| state.borrow_mut().on_traversal(operators))
         .parse_next(input)
@@ -249,7 +270,7 @@ fn binary_op<'i, 's>(
     move |input: &mut Input<'i>| {
         (
             spanned(binary_operator.map(Spanned::new)),
-            prefix_decorated(sp, expr),
+            prefix_decorated(ws_or_sp(state), expr_with_state(state)),
         )
             .map(|(operator, rhs_expr)| state.borrow_mut().on_binary_op(operator, rhs_expr))
             .parse_next(input)
@@ -285,8 +306,14 @@ fn conditional<'i, 's>(
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         (
-            preceded(b'?', decorated(sp, expr, sp)),
-            preceded(cut_char(':'), prefix_decorated(sp, expr)),
+            preceded(
+                b'?',
+                decorated(ws_or_sp(state), expr_with_state(state), ws_or_sp(state)),
+            ),
+            preceded(
+                cut_char(':'),
+                prefix_decorated(ws_or_sp(state), expr_with_state(state)),
+            ),
         )
             .map(|(true_expr, false_expr)| state.borrow_mut().on_conditional(true_expr, false_expr))
             .parse_next(input)
@@ -555,9 +582,10 @@ fn parenthesis<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
+        state.borrow_mut().allow_newlines(true);
         delimited(
             cut_char('('),
-            decorated(ws, expr, ws)
+            decorated(ws, expr_with_state(state), ws)
                 .map(|expr| state.borrow_mut().on_expr_term(Parenthesis::new(expr))),
             cut_char(')'),
         )
