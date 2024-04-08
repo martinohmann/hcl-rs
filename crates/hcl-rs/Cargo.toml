@@ -44,7 +44,7 @@ vecmap-rs = { version = "0.1.12", features = ["serde"] }
 [dev-dependencies]
 indoc = "2.0"
 pretty_assertions = "1.4.0"
-serde_json = { version = "1.0.107", features = ["preserve_order"] }
+serde_json = { version = "1.0.112", features = ["preserve_order"] }
 
 [[example]]
 name = "in-place-expr-evaluation"
