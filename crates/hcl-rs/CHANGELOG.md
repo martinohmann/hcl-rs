@@ -1,33 +1,11 @@
 # Changelog
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-primitives bumped from 0.0.2 to 0.0.3
+## [0.16.8](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.7...hcl-rs-v0.16.8) - 2024-04-08
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.6.6 to 0.6.7
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.0 to 0.7.1
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.1 to 0.7.2
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.2 to 0.7.3
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.3 to 0.7.4
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.4 to 0.7.5
-    * hcl-primitives bumped from 0.1.1 to 0.1.2
+### Other
+- update winnow to 0.6+ and vecmap-rs to 0.2+ ([#324](https://github.com/martinohmann/hcl-rs/pull/324))
+- *(deps)* bump serde_json from 1.0.107 to 1.0.112 ([#328](https://github.com/martinohmann/hcl-rs/pull/328))
+- *(deps)* bump indexmap from 2.0.2 to 2.2.6 ([#329](https://github.com/martinohmann/hcl-rs/pull/329))
 
 ## [0.16.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.4...hcl-rs-v0.16.5) (2023-09-17)
 
