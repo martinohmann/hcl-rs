@@ -20,10 +20,10 @@ jobs:
           - nightly
         include:
           - build: stable
-            os: ubuntu-20.04
+            os: ubuntu-latest
             rust: stable
           - build: nightly
-            os: ubuntu-20.04
+            os: ubuntu-latest
             rust: nightly
     steps:
       - name: Checkout repository
@@ -55,7 +55,7 @@ jobs:
 
   rustfmt:
     name: rustfmt
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
 
   clippy:
     name: clippy
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -91,7 +91,7 @@ jobs:
 
   docs:
     name: Docs
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
