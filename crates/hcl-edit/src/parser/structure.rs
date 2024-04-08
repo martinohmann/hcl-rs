@@ -66,7 +66,7 @@ fn structure<'i, 's>(
         let mut structure = match peek(any).parse_next(input)? {
             b'=' => {
                 if state.borrow_mut().is_redefined(ident) {
-                    input.reset(checkpoint);
+                    input.reset(&checkpoint);
                     return cut_err(fail)
                         .context(StrContext::Label("attribute"))
                         .context(StrContext::Expected(StrContextValue::Description(

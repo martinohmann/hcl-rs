@@ -749,9 +749,9 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 
 [[package]]
 name = "vecmap-rs"
-version = "0.1.12"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cad664eb33a8dd1f8d70a8fdab8f65ec0cca43b3b0151b3ff8a1e19f5f2a1d57"
+checksum = "67d9c76f2c769d47dec11c6f4a9cd3be5e5e025a6bce297b07a311a3514ca97d"
 dependencies = [
  "serde",
 ]
@@ -942,9 +942,9 @@ checksum = "1a515f5799fe4961cb532f983ce2b23082366b898e52ffbce459c86f67c8378a"
 
 [[package]]
 name = "winnow"
-version = "0.5.15"
+version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c2e3184b9c4e92ad5167ca73039d0c42476302ab603e2fec4487511f38ccefc"
+checksum = "dffa400e67ed5a4dd237983829e66475f0a4a26938c4b04c21baede6262215b8"
 dependencies = [
  "memchr",
 ]

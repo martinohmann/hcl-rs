@@ -280,7 +280,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 pub use crate::expr::to_expression;
 
 thread_local! {
-    static INTERNAL_SERIALIZATION: AtomicBool = AtomicBool::new(false);
+    static INTERNAL_SERIALIZATION: AtomicBool = const { AtomicBool::new(false) };
 }
 
 pub(crate) fn in_internal_serialization() -> bool {

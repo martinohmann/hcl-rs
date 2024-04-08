@@ -1,8 +1,8 @@
 use super::prelude::*;
 
-use winnow::ascii::{multispace0, not_line_ending, space0};
+use winnow::ascii::{multispace0, space0, till_line_ending};
 use winnow::combinator::{alt, delimited, fail, peek, preceded, repeat};
-use winnow::token::{any, take_until0};
+use winnow::token::{any, take_until};
 
 pub(super) fn ws(input: &mut Input) -> PResult<()> {
     (
@@ -41,15 +41,15 @@ pub(super) fn line_comment(input: &mut Input) -> PResult<()> {
 }
 
 fn hash_line_comment(input: &mut Input) -> PResult<()> {
-    preceded(b'#', not_line_ending).void().parse_next(input)
+    preceded(b'#', till_line_ending).void().parse_next(input)
 }
 
 fn double_slash_line_comment(input: &mut Input) -> PResult<()> {
-    preceded(b"//", not_line_ending).void().parse_next(input)
+    preceded(b"//", till_line_ending).void().parse_next(input)
 }
 
 fn inline_comment(input: &mut Input) -> PResult<()> {
-    delimited(b"/*", take_until0("*/"), b"*/")
+    delimited(b"/*", take_until(0.., "*/"), b"*/")
         .void()
         .parse_next(input)
 }

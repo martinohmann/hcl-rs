@@ -779,6 +779,7 @@ impl<'de> de::MapAccess<'de> for FuncCallAccess {
     }
 }
 
+#[allow(clippy::struct_field_names)]
 pub struct ConditionalAccess {
     cond_expr: Option<Expression>,
     true_expr: Option<Expression>,

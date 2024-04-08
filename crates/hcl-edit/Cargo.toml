@@ -30,14 +30,14 @@ default = []
 perf = ["hcl-primitives/perf"]
 
 [dependencies]
-fnv = "1.0.7"
+fnv = "1.0"
 hcl-primitives = { version = "0.1.2", path = "../hcl-primitives" }
-vecmap-rs = "0.1.12"
-winnow = "0.5.15"
+vecmap-rs = "0.2"
+winnow = "0.6"
 
 [dev-dependencies]
 indoc = "2.0"
-pretty_assertions = "1.4.0"
+pretty_assertions = "1.4"
 testdata = { path = "../testdata" }
 
 [[example]]
