@@ -52,7 +52,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
 name = "benchmarks"
-version = "0.0.39"
+version = "0.0.0"
 dependencies = [
  "criterion",
  "hcl-edit",
@@ -664,7 +664,7 @@ checksum = "f67ad224767faa3c7d8b6d91985b78e70a1324408abcb1cfcc2be4c06bc06043"
 
 [[package]]
 name = "specsuite"
-version = "0.0.18"
+version = "0.0.0"
 dependencies = [
  "assert-json-diff",
  "hcl-rs",
