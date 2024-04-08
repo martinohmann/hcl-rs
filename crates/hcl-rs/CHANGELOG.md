@@ -1,34 +1,5 @@
 # Changelog
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-primitives bumped from 0.0.2 to 0.0.3
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.6.6 to 0.6.7
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.0 to 0.7.1
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.1 to 0.7.2
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.2 to 0.7.3
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.3 to 0.7.4
-
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.4 to 0.7.5
-    * hcl-primitives bumped from 0.1.1 to 0.1.2
-
 ## [0.16.8](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.7...hcl-rs-v0.16.8) - 2024-04-08
 
 ### Other
