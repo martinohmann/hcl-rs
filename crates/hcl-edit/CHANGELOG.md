@@ -4,6 +4,14 @@
   * dependencies
     * hcl-primitives bumped from 0.1.1 to 0.1.2
 
+## [0.7.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.5...hcl-edit-v0.7.6) - 2024-04-08
+
+### Fixed
+- *(parser)* allow newlines in parenthesis expressions ([#330](https://github.com/martinohmann/hcl-rs/pull/330))
+
+### Other
+- update winnow to 0.6+ and vecmap-rs to 0.2+ ([#324](https://github.com/martinohmann/hcl-rs/pull/324))
+
 ## [0.7.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.3...hcl-edit-v0.7.4) (2023-09-27)
 
 

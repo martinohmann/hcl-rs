@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.2...hcl-primitives-v0.1.3) - 2024-04-08
+
+### Other
+- *(deps)* bump ryu from 1.0.15 to 1.0.17 ([#325](https://github.com/martinohmann/hcl-rs/pull/325))
+
 ## [0.1.2](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.1...hcl-primitives-v0.1.2) (2024-01-04)
 
 
