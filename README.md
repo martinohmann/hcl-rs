@@ -14,6 +14,33 @@ Configuration Language (HCL):
 - [`hcl-primitives`](https://github.com/martinohmann/hcl-rs/blob/main/crates/hcl-primitives):
   Primitives used by the HCL sub-languages.
 
+## Feature parity with the go-hcl implementation
+
+The crates in this repository try to closely follow these specifications that
+are part of the Hashicorp's [HCL Go
+implementation](https://github.com/hashicorp/hcl):
+
+- [HCL Syntax-Agnostic Information Model](https://github.com/hashicorp/hcl/blob/main/spec.md)
+- [HCL Native Syntax Specification](https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md)
+- [HCL JSON Syntax Specification](https://github.com/hashicorp/hcl/blob/main/json/spec.md)
+
+At the parser level it should support all features that go-hcl does today.
+However, the implementations for formatting and expression evaluation in `hcl-rs`
+are relatively basic at the moment. There are plans to move formatting and
+expression evaluation capabilities into `hcl-edit` (which is used by `hcl-rs` under
+the hood and also contains the parser implementation) and to make them more
+powerful.
+
+Another thing that is not included (yet), is the support for HCL schemas in
+order to validate that a parsed HCL document only contains an allowed set of
+blocks with expected attributes (e.g. to enable validation that a given
+terraform configuration only contains well-formed `resource` and `data` blocks
+etc.).
+
+Additionally, schema support can help to make it easier to encode more complex
+configurations using custom types. These configurations are currently
+cumbersome to assemble because of limitations of the `serde` model.
+
 ## Contributing
 
 Contributions are welcome! Please read
