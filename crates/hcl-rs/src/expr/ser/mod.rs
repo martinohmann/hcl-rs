@@ -5,9 +5,8 @@ mod tests;
 
 use super::*;
 use crate::ser::{in_internal_serialization, InternalHandles, SerializeInternalHandleStruct};
-use crate::{format, Error, Identifier, Number, Result};
+use crate::Error;
 use serde::ser::{self, Impossible, SerializeMap};
-use std::fmt;
 
 const EXPR_HANDLE_MARKER: &str = "\x00$hcl::ExprHandle";
 

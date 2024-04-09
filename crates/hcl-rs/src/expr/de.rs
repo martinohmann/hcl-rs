@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::de::{EnumAccess, FromStrVisitor, OptionDeserializer, VariantName};
-use crate::{Error, Identifier, Result};
+use crate::Error;
 use serde::de::value::{MapAccessDeserializer, StrDeserializer, StringDeserializer};
 use serde::de::{self, Expected, IntoDeserializer, Unexpected, VariantAccess};
 use serde::{forward_to_deserialize_any, Deserializer};

@@ -1,7 +1,9 @@
 //! Provides the `InternalString` type and associated functionality.
 
 use alloc::borrow::{Borrow, Cow};
+#[cfg(not(feature = "std"))]
 use alloc::boxed::Box;
+#[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt;
 use core::ops::Deref;
