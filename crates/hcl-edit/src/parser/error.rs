@@ -21,6 +21,11 @@ impl Error {
         }
     }
 
+    /// Returns the message in the input where the error occurred.
+    pub fn message(&self) -> &str {
+        &self.inner.message
+    }
+
     /// Returns the line from the input where the error occurred.
     ///
     /// Note that this returns the full line containing the invalid input. Use
