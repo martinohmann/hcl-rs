@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.6...hcl-edit-v0.7.7) - 2024-04-13
+
+### Other
+- expose hcl-edit parser error message ([#334](https://github.com/martinohmann/hcl-rs/pull/334))
+- update notice in README
+
 ## [0.7.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.5...hcl-edit-v0.7.6) - 2024-04-08
 
 ### Fixed
