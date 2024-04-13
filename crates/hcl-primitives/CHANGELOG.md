@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.4](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.3...hcl-primitives-v0.1.4) - 2024-04-13
+
+### Other
+- *(clippy)* address new pedantic lints in nightly
+
 ## [0.1.3](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.2...hcl-primitives-v0.1.3) - 2024-04-08
 
 ### Other
