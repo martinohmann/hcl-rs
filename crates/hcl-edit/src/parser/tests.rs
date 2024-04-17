@@ -57,6 +57,8 @@ fn roundtrip_expr() {
         r#""foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}""#,
         r#""${var.l ? "us-east-1." : ""}""#,
         "element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)",
+        "foo::bar(baz...)",
+        "foo :: bar ()",
         "foo(bar...)",
         "foo(bar,)",
         "foo( )",

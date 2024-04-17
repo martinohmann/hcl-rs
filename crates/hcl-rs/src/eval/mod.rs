@@ -229,8 +229,8 @@ pub use self::func::{
     Func, FuncArgs, FuncDef, FuncDefBuilder, ParamType, PositionalArgs, VariadicArgs,
 };
 use crate::expr::{
-    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Object, ObjectKey,
-    Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, FuncName, Object,
+    ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::parser;
 use crate::structure::{Attribute, Block, Body, Structure};
@@ -239,6 +239,7 @@ use crate::template::{
 };
 use crate::{Identifier, Map, Result, Value};
 use serde::{de, ser};
+use vecmap::VecMap;
 
 mod private {
     pub trait Sealed {}
@@ -296,7 +297,7 @@ pub trait Evaluate: private::Sealed {
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     vars: Map<Identifier, Value>,
-    funcs: Map<Identifier, FuncDef>,
+    funcs: VecMap<FuncName, FuncDef>,
     parent: Option<&'a Context<'a>>,
     expr: Option<&'a Expression>,
 }
@@ -305,7 +306,7 @@ impl Default for Context<'_> {
     fn default() -> Self {
         Context {
             vars: Map::new(),
-            funcs: Map::new(),
+            funcs: VecMap::new(),
             parent: None,
             expr: None,
         }
@@ -378,7 +379,7 @@ impl<'a> Context<'a> {
     /// ```
     pub fn declare_func<I>(&mut self, name: I, func: FuncDef)
     where
-        I: Into<Identifier>,
+        I: Into<FuncName>,
     {
         self.funcs.insert(name.into(), func);
     }
@@ -396,7 +397,7 @@ impl<'a> Context<'a> {
     ///
     /// When the function is declared in multiple parent scopes, the innermost definition is
     /// returned.
-    fn lookup_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
+    fn lookup_func(&self, name: &FuncName) -> EvalResult<&FuncDef> {
         self.func(name)
             .ok_or_else(|| self.error(ErrorKind::UndefinedFunc(name.clone())))
     }
@@ -420,7 +421,7 @@ impl<'a> Context<'a> {
             .or_else(|| self.parent.and_then(|parent| parent.var(name)))
     }
 
-    fn func(&self, name: &Identifier) -> Option<&FuncDef> {
+    fn func(&self, name: &FuncName) -> Option<&FuncDef> {
         self.funcs
             .get(name)
             .or_else(|| self.parent.and_then(|parent| parent.func(name)))

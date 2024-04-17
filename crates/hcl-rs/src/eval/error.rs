@@ -196,7 +196,7 @@ pub enum ErrorKind {
     /// An expression contained an undefined variable.
     UndefinedVar(Identifier),
     /// An expression contained a call to an undefined function.
-    UndefinedFunc(Identifier),
+    UndefinedFunc(FuncName),
     /// A different type of value was expected.
     Unexpected(Value, &'static str),
     /// An expression tried to access a non-existing array index.
@@ -210,7 +210,7 @@ pub enum ErrorKind {
     /// A `for` expression attempted to set the same object key twice.
     KeyExists(String),
     /// A function call in an expression returned an error.
-    FuncCall(Identifier, String),
+    FuncCall(FuncName, String),
     /// It was attempted to evaluate a raw expression.
     #[deprecated(
         since = "0.16.3",
@@ -244,8 +244,8 @@ impl fmt::Display for ErrorKind {
             ErrorKind::UndefinedVar(ident) => {
                 write!(f, "undefined variable `{ident}`")
             }
-            ErrorKind::UndefinedFunc(ident) => {
-                write!(f, "undefined function `{ident}`")
+            ErrorKind::UndefinedFunc(func_name) => {
+                write!(f, "undefined function `{func_name}`")
             }
             ErrorKind::Unexpected(value, expected) => {
                 write!(f, "unexpected value `{value}`, expected {expected}")

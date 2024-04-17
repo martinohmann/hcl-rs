@@ -11,12 +11,12 @@ use super::template::{heredoc_template, string_template};
 use super::trivia::{line_comment, sp, ws};
 
 use crate::expr::{
-    Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
-    Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
-    Splat, TraversalOperator, UnaryOperator,
+    Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, FuncName,
+    Null, Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator,
+    Parenthesis, Splat, TraversalOperator, UnaryOperator,
 };
 use crate::template::HeredocTemplate;
-use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
+use crate::{Decorate, Decorated, Formatted, Ident, RawString, Spanned};
 
 use std::cell::RefCell;
 use winnow::ascii::{crlf, dec_uint, line_ending, newline, space0};
@@ -128,7 +128,7 @@ fn expr_term<'i, 's>(
             b'-' => alt((neg_number(state), unary_op(state))),
             b'!' => unary_op(state),
             b'(' => parenthesis(state),
-            b if is_id_start(b) => identlike(state),
+            b if is_id_start(b) => alt((func_call(state), identlike(state))),
             _ => cut_err(fail)
                 .context(StrContext::Label("expression"))
                 .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
@@ -638,25 +638,39 @@ fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
     .parse_next(input)
 }
 
+fn func_call<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + 's {
+    move |input: &mut Input<'i>| {
+        (
+            repeat(
+                0..,
+                terminated(suffix_decorated(ident, ws_or_sp(state)), b"::"),
+            ),
+            prefix_decorated(ws_or_sp(state), ident),
+            prefix_decorated(ws, func_args),
+        )
+            .map(|(namespace, name, func_args)| {
+                let func_name = FuncName { namespace, name };
+                let func_call = FuncCall::new(func_name, func_args);
+                let expr = Expression::FuncCall(Box::new(func_call));
+                state.borrow_mut().on_expr_term(expr);
+            })
+            .parse_next(input)
+    }
+}
+
 fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        (str_ident.with_span(), opt(prefix_decorated(ws, func_args)))
-            .map(|((ident, span), func_args)| {
-                let expr = match func_args {
-                    Some(func_args) => {
-                        let mut ident = Decorated::new(Ident::new_unchecked(ident));
-                        ident.set_span(span);
-                        let func_call = FuncCall::new(ident, func_args);
-                        Expression::FuncCall(Box::new(func_call))
-                    }
-                    None => match ident {
-                        "null" => Expression::Null(Null.into()),
-                        "true" => Expression::Bool(true.into()),
-                        "false" => Expression::Bool(false.into()),
-                        var => Expression::Variable(Ident::new_unchecked(var).into()),
-                    },
+        str_ident
+            .map(|ident| {
+                let expr = match ident {
+                    "null" => Expression::Null(Null.into()),
+                    "true" => Expression::Bool(true.into()),
+                    "false" => Expression::Bool(false.into()),
+                    var => Expression::Variable(Ident::new_unchecked(var).into()),
                 };
 
                 state.borrow_mut().on_expr_term(expr);

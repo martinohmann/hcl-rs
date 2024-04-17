@@ -62,7 +62,7 @@
 
 use crate::expr::{
     Array, BinaryOp, BinaryOperator, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs,
-    FuncCall, Null, Object, ObjectKey, ObjectValue, Parenthesis, Splat, Traversal,
+    FuncCall, FuncName, Null, Object, ObjectKey, ObjectValue, Parenthesis, Splat, Traversal,
     TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
@@ -130,6 +130,7 @@ pub trait Visit {
         visit_traversal => Traversal,
         visit_traversal_operator => TraversalOperator,
         visit_func_call => FuncCall,
+        visit_func_name => FuncName,
         visit_func_args => FuncArgs,
         visit_for_expr => ForExpr,
         visit_for_intro => ForIntro,
@@ -328,8 +329,18 @@ pub fn visit_func_call<V>(v: &mut V, node: &FuncCall)
 where
     V: Visit + ?Sized,
 {
-    v.visit_ident(&node.ident);
+    v.visit_func_name(&node.name);
     v.visit_func_args(&node.args);
+}
+
+pub fn visit_func_name<V>(v: &mut V, node: &FuncName)
+where
+    V: Visit + ?Sized,
+{
+    for ns in &node.namespace {
+        v.visit_ident(ns);
+    }
+    v.visit_ident(&node.name);
 }
 
 pub fn visit_func_args<V>(v: &mut V, node: &FuncArgs)

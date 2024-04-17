@@ -2,11 +2,116 @@ use crate::expr::{Expression, IntoIter, Iter, IterMut};
 use crate::{Decor, Decorate, Decorated, Ident, RawString};
 use std::ops::Range;
 
+/// Type representing a (potentially namespaced) function name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FuncName {
+    /// The function's namespace components, if any.
+    pub namespace: Vec<Decorated<Ident>>,
+    /// The function name.
+    pub name: Decorated<Ident>,
+}
+
+impl FuncName {
+    /// Create a new `FuncName` from a name identifier.
+    pub fn new(name: impl Into<Decorated<Ident>>) -> FuncName {
+        FuncName {
+            namespace: Vec::new(),
+            name: name.into(),
+        }
+    }
+
+    /// Sets the function namespace from an iterator of namespace parts.
+    pub fn set_namespace<I>(&mut self, namespace: I)
+    where
+        I: IntoIterator,
+        I::Item: Into<Decorated<Ident>>,
+    {
+        self.namespace = namespace.into_iter().map(Into::into).collect();
+    }
+
+    /// Returns `true` if the function name is namespaced.
+    ///
+    /// ```
+    /// use hcl_edit::{expr::FuncName, Ident};
+    ///
+    /// let mut func_name = FuncName::new(Ident::new("bar"));
+    ///
+    /// assert!(!func_name.is_namespaced());
+    ///
+    /// func_name.set_namespace([Ident::new("foo")]);
+    ///
+    /// assert!(func_name.is_namespaced());
+    /// ```
+    pub fn is_namespaced(&self) -> bool {
+        !self.namespace.is_empty()
+    }
+
+    /// Returns `true` if the function has the given namespace.
+    ///
+    /// ```
+    /// use hcl_edit::{expr::FuncName, Ident};
+    ///
+    /// let mut func_name = FuncName::new(Ident::new("baz"));
+    ///
+    /// assert!(!func_name.has_namespace(&["foo", "bar"]));
+    ///
+    /// func_name.set_namespace([Ident::new("foo"), Ident::new("bar")]);
+    ///
+    /// assert!(func_name.has_namespace(&["foo", "bar"]));
+    /// assert!(!func_name.has_namespace(&["foo"]));
+    /// assert!(!func_name.has_namespace(&["bar"]));
+    /// ```
+    pub fn has_namespace<T>(&self, namespace: &[T]) -> bool
+    where
+        T: AsRef<str>,
+    {
+        self.namespace.len() == namespace.len()
+            && self
+                .namespace
+                .iter()
+                .zip(namespace.iter())
+                .all(|(a, b)| a.as_str() == b.as_ref())
+    }
+
+    pub(crate) fn despan(&mut self, input: &str) {
+        for scope in &mut self.namespace {
+            scope.decor_mut().despan(input);
+        }
+        self.name.decor_mut().despan(input);
+    }
+}
+
+impl<T> From<T> for FuncName
+where
+    T: Into<Decorated<Ident>>,
+{
+    fn from(name: T) -> Self {
+        FuncName {
+            namespace: Vec::new(),
+            name: name.into(),
+        }
+    }
+}
+
+impl<T, U> From<(T, U)> for FuncName
+where
+    T: IntoIterator,
+    T::Item: Into<Decorated<Ident>>,
+    U: Into<Decorated<Ident>>,
+{
+    fn from((namespace, name): (T, U)) -> Self {
+        FuncName {
+            namespace: namespace.into_iter().map(Into::into).collect(),
+            name: name.into(),
+        }
+    }
+}
+
 /// Type representing a function call.
 #[derive(Debug, Clone, Eq)]
 pub struct FuncCall {
-    /// The function identifier (or name).
-    pub ident: Decorated<Ident>,
+    /// The function name.
+    pub name: FuncName,
     /// The arguments between the function call's `(` and `)` argument delimiters.
     pub args: FuncArgs,
 
@@ -16,9 +121,9 @@ pub struct FuncCall {
 
 impl FuncCall {
     /// Create a new `FuncCall` from an identifier and arguments.
-    pub fn new(ident: impl Into<Decorated<Ident>>, args: FuncArgs) -> FuncCall {
+    pub fn new(name: impl Into<FuncName>, args: FuncArgs) -> FuncCall {
         FuncCall {
-            ident: ident.into(),
+            name: name.into(),
             args,
             decor: Decor::default(),
             span: None,
@@ -27,14 +132,14 @@ impl FuncCall {
 
     pub(crate) fn despan(&mut self, input: &str) {
         self.decor.despan(input);
-        self.ident.decor_mut().despan(input);
+        self.name.despan(input);
         self.args.despan(input);
     }
 }
 
 impl PartialEq for FuncCall {
     fn eq(&self, other: &Self) -> bool {
-        self.ident == other.ident && self.args == other.args
+        self.name == other.name && self.args == other.args
     }
 }
 

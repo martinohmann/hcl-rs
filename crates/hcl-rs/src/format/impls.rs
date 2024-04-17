@@ -2,8 +2,8 @@ use super::{private, Format, Formatter};
 #[allow(deprecated)]
 use crate::expr::RawExpression;
 use crate::expr::{
-    BinaryOp, Conditional, Expression, ForExpr, FuncCall, Heredoc, HeredocStripMode, ObjectKey,
-    Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, Variable,
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncName, Heredoc, HeredocStripMode,
+    ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, Variable,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
@@ -348,6 +348,22 @@ impl Format for FuncCall {
         } else {
             fmt.write_bytes(b")")
         }
+    }
+}
+
+impl private::Sealed for FuncName {}
+
+impl Format for FuncName {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        for ns in &self.namespace {
+            ns.format(fmt)?;
+            fmt.write_bytes(b"::")?;
+        }
+
+        self.name.format(fmt)
     }
 }
 

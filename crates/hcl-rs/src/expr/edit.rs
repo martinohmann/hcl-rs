@@ -130,11 +130,29 @@ impl From<ForExpr> for expr::ForExpr {
     }
 }
 
+impl From<expr::FuncName> for FuncName {
+    fn from(value: expr::FuncName) -> Self {
+        FuncName {
+            namespace: value.namespace.into_iter().map(Into::into).collect(),
+            name: value.name.into(),
+        }
+    }
+}
+
+impl From<FuncName> for expr::FuncName {
+    fn from(value: FuncName) -> Self {
+        expr::FuncName {
+            namespace: value.namespace.into_iter().map(Into::into).collect(),
+            name: value.name.into(),
+        }
+    }
+}
+
 impl From<expr::FuncCall> for FuncCall {
     fn from(value: expr::FuncCall) -> Self {
         let expand_final = value.args.expand_final();
         FuncCall {
-            name: value.ident.into(),
+            name: value.name.into(),
             args: value.args.into_iter().map(Into::into).collect(),
             expand_final,
         }

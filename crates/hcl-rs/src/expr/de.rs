@@ -729,7 +729,7 @@ impl<'de> de::VariantAccess<'de> for TraversalOperator {
 }
 
 pub struct FuncCallAccess {
-    name: Option<Identifier>,
+    name: Option<FuncName>,
     args: Option<Vec<Expression>>,
     expand_final: Option<bool>,
 }
@@ -775,6 +775,50 @@ impl<'de> de::MapAccess<'de> for FuncCallAccess {
             seed.deserialize(expand_final.into_deserializer())
         } else {
             Err(de::Error::custom("invalid HCL function call"))
+        }
+    }
+}
+
+pub struct FuncNameAccess {
+    namespace: Option<Vec<Identifier>>,
+    name: Option<Identifier>,
+}
+
+impl FuncNameAccess {
+    fn new(func_name: FuncName) -> Self {
+        FuncNameAccess {
+            namespace: Some(func_name.namespace),
+            name: Some(func_name.name),
+        }
+    }
+}
+
+impl<'de> de::MapAccess<'de> for FuncNameAccess {
+    type Error = Error;
+
+    fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
+    where
+        K: de::DeserializeSeed<'de>,
+    {
+        if self.namespace.is_some() {
+            seed.deserialize("namespace".into_deserializer()).map(Some)
+        } else if self.name.is_some() {
+            seed.deserialize("name".into_deserializer()).map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn next_value_seed<V>(&mut self, seed: V) -> Result<V::Value, Self::Error>
+    where
+        V: de::DeserializeSeed<'de>,
+    {
+        if let Some(namespace) = self.namespace.take() {
+            seed.deserialize(namespace.into_deserializer())
+        } else if let Some(name) = self.name.take() {
+            seed.deserialize(name.into_deserializer())
+        } else {
+            Err(de::Error::custom("invalid HCL function name"))
         }
     }
 }
@@ -1251,6 +1295,7 @@ impl_into_map_access_deserializer! {
     Conditional => ConditionalAccess,
     ForExpr => ForExprAccess,
     FuncCall => FuncCallAccess,
+    FuncName => FuncNameAccess,
     Heredoc => HeredocAccess,
     Traversal => TraversalAccess,
     UnaryOp => UnaryOpAccess

@@ -1,12 +1,127 @@
 use super::Expression;
+use crate::format;
 use crate::Identifier;
 use serde::Deserialize;
+use std::fmt;
+
+/// Type representing a (potentially namespaced) function name.
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct FuncName {
+    /// The function's namespace components, if any.
+    pub namespace: Vec<Identifier>,
+    /// The function name.
+    pub name: Identifier,
+}
+
+impl FuncName {
+    /// Create a new `FuncName` from a name identifier.
+    pub fn new(name: impl Into<Identifier>) -> FuncName {
+        FuncName {
+            namespace: Vec::new(),
+            name: name.into(),
+        }
+    }
+
+    /// Adds a namespace to the function name.
+    pub fn with_namespace<I>(mut self, namespace: I) -> FuncName
+    where
+        I: IntoIterator,
+        I::Item: Into<Identifier>,
+    {
+        self.namespace = namespace.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Returns `true` if the function name is namespaced.
+    ///
+    /// ```
+    /// use hcl::{expr::FuncName, Identifier};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut func_name = FuncName::new(Identifier::new("bar")?);
+    ///
+    /// assert!(!func_name.is_namespaced());
+    ///
+    /// func_name = func_name.with_namespace([Identifier::new("foo")?]);
+    ///
+    /// assert!(func_name.is_namespaced());
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn is_namespaced(&self) -> bool {
+        !self.namespace.is_empty()
+    }
+
+    /// Returns `true` if the function has the given namespace.
+    ///
+    /// ```
+    /// use hcl::{expr::FuncName, Identifier};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut func_name = FuncName::new(Identifier::new("baz")?);
+    ///
+    /// assert!(!func_name.has_namespace(&["foo", "bar"]));
+    ///
+    /// func_name = func_name.with_namespace([Identifier::new("foo")?, Identifier::new("bar")?]);
+    ///
+    /// assert!(func_name.has_namespace(&["foo", "bar"]));
+    /// assert!(!func_name.has_namespace(&["foo"]));
+    /// assert!(!func_name.has_namespace(&["bar"]));
+    /// #   Ok(())
+    /// # }
+    /// ```
+    pub fn has_namespace<T>(&self, namespace: &[T]) -> bool
+    where
+        T: AsRef<str>,
+    {
+        self.namespace.len() == namespace.len()
+            && self
+                .namespace
+                .iter()
+                .zip(namespace.iter())
+                .all(|(a, b)| a.as_str() == b.as_ref())
+    }
+}
+
+impl<T> From<T> for FuncName
+where
+    T: Into<Identifier>,
+{
+    fn from(name: T) -> Self {
+        FuncName {
+            namespace: Vec::new(),
+            name: name.into(),
+        }
+    }
+}
+
+impl<T, U> From<(T, U)> for FuncName
+where
+    T: IntoIterator,
+    T::Item: Into<Identifier>,
+    U: Into<Identifier>,
+{
+    fn from((namespace, name): (T, U)) -> Self {
+        FuncName {
+            namespace: namespace.into_iter().map(Into::into).collect(),
+            name: name.into(),
+        }
+    }
+}
+
+impl fmt::Display for FuncName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Formatting a `FuncName` as string cannot fail.
+        let formatted = format::to_string(self).expect("a FuncName failed to format unexpectedly");
+        f.write_str(&formatted)
+    }
+}
 
 /// Represents a function call expression with zero or more arguments.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
     /// The name of the function.
-    pub name: Identifier,
+    pub name: FuncName,
     /// The function arguments.
     pub args: Vec<Expression>,
     /// If `true`, the final argument should be an array which will expand to be one argument per
@@ -18,7 +133,7 @@ impl FuncCall {
     /// Creates a new `FuncCall` for the function with given name.
     pub fn new<T>(name: T) -> FuncCall
     where
-        T: Into<Identifier>,
+        T: Into<FuncName>,
     {
         FuncCall {
             name: name.into(),
@@ -30,7 +145,7 @@ impl FuncCall {
     /// Creates a new `FuncCallBuilder` for the function with given name.
     pub fn builder<T>(name: T) -> FuncCallBuilder
     where
-        T: Into<Identifier>,
+        T: Into<FuncName>,
     {
         FuncCallBuilder {
             f: FuncCall::new(name),
