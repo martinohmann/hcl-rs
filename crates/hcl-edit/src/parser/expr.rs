@@ -16,7 +16,7 @@ use crate::expr::{
     Parenthesis, Splat, TraversalOperator, UnaryOperator,
 };
 use crate::template::HeredocTemplate;
-use crate::{Decorate, Decorated, Formatted, Ident, RawString, Spanned};
+use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
 
 use std::cell::RefCell;
 use winnow::ascii::{crlf, dec_uint, line_ending, newline, space0};
@@ -128,7 +128,7 @@ fn expr_term<'i, 's>(
             b'-' => alt((neg_number(state), unary_op(state))),
             b'!' => unary_op(state),
             b'(' => parenthesis(state),
-            b if is_id_start(b) => alt((func_call(state), identlike(state))),
+            b if is_id_start(b) => identlike(state),
             _ => cut_err(fail)
                 .context(StrContext::Label("expression"))
                 .context(StrContext::Expected(StrContextValue::CharLiteral('"')))
@@ -638,44 +638,70 @@ fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
     .parse_next(input)
 }
 
-fn func_call<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
-    move |input: &mut Input<'i>| {
-        (
-            repeat(
-                0..,
-                terminated(suffix_decorated(ident, ws_or_sp(state)), b"::"),
-            ),
-            prefix_decorated(ws_or_sp(state), ident),
-            prefix_decorated(ws, func_args),
-        )
-            .map(|(namespace, name, func_args)| {
-                let func_name = FuncName { namespace, name };
-                let func_call = FuncCall::new(func_name, func_args);
-                let expr = Expression::FuncCall(Box::new(func_call));
-                state.borrow_mut().on_expr_term(expr);
-            })
-            .parse_next(input)
-    }
-}
-
 fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        str_ident
-            .map(|ident| {
-                let expr = match ident {
+        let (ident_, span) = str_ident.with_span().parse_next(input)?;
+
+        let checkpoint = input.checkpoint();
+
+        // Parse the next whitespace sequence and only add it as decor suffix to the identifier if
+        // we actually encounter a function call.
+        let suffix = ws_or_sp(state).span().parse_next(input)?;
+
+        let expr = match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
+            // Function namespace.
+            Ok(b"::") => {
+                let (mut namespace, func_args): (Vec<Decorated<Ident>>, FuncArgs) = (
+                    repeat(
+                        1..,
+                        preceded(b"::", decorated(ws_or_sp(state), ident, ws_or_sp(state))),
+                    ),
+                    func_args,
+                )
+                    .parse_next(input)?;
+
+                let mut namespace_first = Decorated::new(Ident::new_unchecked(ident_));
+                namespace_first.set_span(span);
+                namespace_first
+                    .decor_mut()
+                    .set_suffix(RawString::from_span(suffix));
+
+                // We already parsed the first namespace element and the function name is now part
+                // of the remaining namspace, so we have to correct this.
+                let name = namespace.pop().unwrap();
+                namespace.insert(0, namespace_first);
+
+                let func_name = FuncName { namespace, name };
+                let func_call = FuncCall::new(func_name, func_args);
+                Expression::FuncCall(Box::new(func_call))
+            }
+            // Function arguments without namespace.
+            Ok([b'(', _]) => {
+                let func_args = func_args.parse_next(input)?;
+
+                let mut ident = Decorated::new(Ident::new_unchecked(ident_));
+                ident.set_span(span);
+                ident.decor_mut().set_suffix(RawString::from_span(suffix));
+                let func_call = FuncCall::new(ident, func_args);
+                Expression::FuncCall(Box::new(func_call))
+            }
+            // This is not a function call.
+            _ => {
+                input.reset(&checkpoint);
+
+                match ident_ {
                     "null" => Expression::Null(Null.into()),
                     "true" => Expression::Bool(true.into()),
                     "false" => Expression::Bool(false.into()),
                     var => Expression::Variable(Ident::new_unchecked(var).into()),
-                };
+                }
+            }
+        };
 
-                state.borrow_mut().on_expr_term(expr);
-            })
-            .parse_next(input)
+        state.borrow_mut().on_expr_term(expr);
+        return Ok(());
     }
 }
 
