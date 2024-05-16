@@ -656,7 +656,16 @@ fn identlike<'i, 's>(
                 let (mut namespace, func_args): (Vec<Decorated<Ident>>, FuncArgs) = (
                     repeat(
                         1..,
-                        preceded(b"::", decorated(ws_or_sp(state), ident, ws_or_sp(state))),
+                        preceded(
+                            b"::",
+                            decorated(
+                                ws_or_sp(state),
+                                cut_err(ident).context(StrContext::Expected(
+                                    StrContextValue::Description("identifier"),
+                                )),
+                                ws_or_sp(state),
+                            ),
+                        ),
                     ),
                     func_args,
                 )
@@ -725,7 +734,7 @@ fn func_args(input: &mut Input) -> PResult<FuncArgs> {
     };
 
     delimited(
-        b'(',
+        cut_char('('),
         (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
             let mut args = match args {
                 Some((args, Some(trailer))) => {
@@ -745,7 +754,9 @@ fn func_args(input: &mut Input) -> PResult<FuncArgs> {
             args.set_trailing(trailing);
             args
         }),
-        cut_char(')'),
+        cut_char(')').context(StrContext::Expected(StrContextValue::Description(
+            "expression",
+        ))),
     )
     .parse_next(input)
 }
