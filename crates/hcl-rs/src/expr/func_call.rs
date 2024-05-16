@@ -50,20 +50,6 @@ where
     }
 }
 
-impl<T, U> From<(T, U)> for FuncName
-where
-    T: IntoIterator,
-    T::Item: Into<Identifier>,
-    U: Into<Identifier>,
-{
-    fn from((namespace, name): (T, U)) -> Self {
-        FuncName {
-            namespace: namespace.into_iter().map(Into::into).collect(),
-            name: name.into(),
-        }
-    }
-}
-
 impl fmt::Display for FuncName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Formatting a `FuncName` as string cannot fail.

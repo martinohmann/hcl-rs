@@ -54,20 +54,6 @@ where
     }
 }
 
-impl<T, U> From<(T, U)> for FuncName
-where
-    T: IntoIterator,
-    T::Item: Into<Decorated<Ident>>,
-    U: Into<Decorated<Ident>>,
-{
-    fn from((namespace, name): (T, U)) -> Self {
-        FuncName {
-            namespace: namespace.into_iter().map(Into::into).collect(),
-            name: name.into(),
-        }
-    }
-}
-
 /// Type representing a function call.
 #[derive(Debug, Clone, Eq)]
 pub struct FuncCall {
