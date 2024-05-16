@@ -660,11 +660,11 @@ fn identlike<'i, 's>(
             ident.set_span(span);
 
             let func_name = if peeked == b"::" {
-                // Consume the remaining namespace parts and function name.
-                let mut namespace = func_namespace_parts(state).parse_next(input)?;
+                // Consume the remaining namespace components and function name.
+                let mut namespace = func_namespace_components(state).parse_next(input)?;
 
-                // We already parsed the first namespace element before and the function name
-                // is now part of the remaining namspace parts, so we have to correct this.
+                // We already parsed the first namespace element before and the function name is
+                // now part of the remaining namspace components, so we have to correct this.
                 let name = namespace.pop().unwrap();
                 namespace.insert(0, ident);
 
@@ -693,7 +693,7 @@ fn identlike<'i, 's>(
     }
 }
 
-fn func_namespace_parts<'i, 's>(
+fn func_namespace_components<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + 's {
     move |input: &mut Input<'i>| {

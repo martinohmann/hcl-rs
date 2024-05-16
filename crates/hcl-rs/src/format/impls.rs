@@ -358,8 +358,8 @@ impl Format for FuncName {
     where
         W: io::Write,
     {
-        for ns in &self.namespace {
-            ns.format(fmt)?;
+        for component in &self.namespace {
+            component.format(fmt)?;
             fmt.write_bytes(b"::")?;
         }
 

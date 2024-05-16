@@ -353,8 +353,8 @@ pub fn visit_func_name_mut<V>(v: &mut V, node: &mut FuncName)
 where
     V: VisitMut + ?Sized,
 {
-    for ns in &mut node.namespace {
-        v.visit_ident_mut(ns);
+    for component in &mut node.namespace {
+        v.visit_ident_mut(component);
     }
     v.visit_ident_mut(&mut node.name);
 }

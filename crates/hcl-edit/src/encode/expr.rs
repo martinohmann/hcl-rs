@@ -191,8 +191,8 @@ impl Encode for FuncCall {
 
 impl Encode for FuncName {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        for ns in &self.namespace {
-            ns.encode_decorated(buf, NO_DECOR)?;
+        for component in &self.namespace {
+            component.encode_decorated(buf, NO_DECOR)?;
             buf.write_str("::")?;
         }
         self.name.encode_decorated(buf, NO_DECOR)
