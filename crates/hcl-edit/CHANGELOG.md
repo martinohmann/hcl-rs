@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.7...hcl-edit-v0.8.0) - 2024-05-16
+
+### Added
+- [**breaking**] add support for namespaced functions ([#343](https://github.com/martinohmann/hcl-rs/pull/343))
+
 ## [0.7.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.6...hcl-edit-v0.7.7) - 2024-04-13
 
 ### Other

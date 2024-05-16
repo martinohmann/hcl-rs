@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.17.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.9...hcl-rs-v0.17.0) - 2024-05-16
+
+### Added
+- [**breaking**] add support for namespaced functions ([#343](https://github.com/martinohmann/hcl-rs/pull/343))
+
+### Other
+- *(deps)* bump serde_json from 1.0.112 to 1.0.116 ([#339](https://github.com/martinohmann/hcl-rs/pull/339))
+- *(deps)* bump itoa from 1.0.9 to 1.0.11 ([#337](https://github.com/martinohmann/hcl-rs/pull/337))
+
 ## [0.16.9](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.8...hcl-rs-v0.16.9) - 2024-04-13
 
 ### Other

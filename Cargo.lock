@@ -301,7 +301,7 @@ checksum = "7dfda62a12f55daeae5015f81b0baea145391cb4520f86c248fc615d72640d12"
 
 [[package]]
 name = "hcl-edit"
-version = "0.7.7"
+version = "0.8.0"
 dependencies = [
  "fnv",
  "hcl-primitives",
@@ -314,7 +314,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-primitives"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "itoa",
  "kstring",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-rs"
-version = "0.16.9"
+version = "0.17.0"
 dependencies = [
  "hcl-edit",
  "hcl-primitives",

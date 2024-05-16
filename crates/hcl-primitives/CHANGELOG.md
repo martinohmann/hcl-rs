@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.5](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.4...hcl-primitives-v0.1.5) - 2024-05-16
+
+### Other
+- *(deps)* bump itoa from 1.0.9 to 1.0.11 ([#337](https://github.com/martinohmann/hcl-rs/pull/337))
+
 ## [0.1.4](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.3...hcl-primitives-v0.1.4) - 2024-04-13
 
 ### Other
