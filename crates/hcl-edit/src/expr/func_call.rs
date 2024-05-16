@@ -30,47 +30,8 @@ impl FuncName {
     }
 
     /// Returns `true` if the function name is namespaced.
-    ///
-    /// ```
-    /// use hcl_edit::{expr::FuncName, Ident};
-    ///
-    /// let mut func_name = FuncName::new(Ident::new("bar"));
-    ///
-    /// assert!(!func_name.is_namespaced());
-    ///
-    /// func_name.set_namespace([Ident::new("foo")]);
-    ///
-    /// assert!(func_name.is_namespaced());
-    /// ```
     pub fn is_namespaced(&self) -> bool {
         !self.namespace.is_empty()
-    }
-
-    /// Returns `true` if the function has the given namespace.
-    ///
-    /// ```
-    /// use hcl_edit::{expr::FuncName, Ident};
-    ///
-    /// let mut func_name = FuncName::new(Ident::new("baz"));
-    ///
-    /// assert!(!func_name.has_namespace(&["foo", "bar"]));
-    ///
-    /// func_name.set_namespace([Ident::new("foo"), Ident::new("bar")]);
-    ///
-    /// assert!(func_name.has_namespace(&["foo", "bar"]));
-    /// assert!(!func_name.has_namespace(&["foo"]));
-    /// assert!(!func_name.has_namespace(&["bar"]));
-    /// ```
-    pub fn has_namespace<T>(&self, namespace: &[T]) -> bool
-    where
-        T: AsRef<str>,
-    {
-        self.namespace.len() == namespace.len()
-            && self
-                .namespace
-                .iter()
-                .zip(namespace.iter())
-                .all(|(a, b)| a.as_str() == b.as_ref())
     }
 
     pub(crate) fn despan(&mut self, input: &str) {

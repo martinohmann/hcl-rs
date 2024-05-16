@@ -33,53 +33,8 @@ impl FuncName {
     }
 
     /// Returns `true` if the function name is namespaced.
-    ///
-    /// ```
-    /// use hcl::{expr::FuncName, Identifier};
-    ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut func_name = FuncName::new(Identifier::new("bar")?);
-    ///
-    /// assert!(!func_name.is_namespaced());
-    ///
-    /// func_name = func_name.with_namespace([Identifier::new("foo")?]);
-    ///
-    /// assert!(func_name.is_namespaced());
-    /// #   Ok(())
-    /// # }
-    /// ```
     pub fn is_namespaced(&self) -> bool {
         !self.namespace.is_empty()
-    }
-
-    /// Returns `true` if the function has the given namespace.
-    ///
-    /// ```
-    /// use hcl::{expr::FuncName, Identifier};
-    ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut func_name = FuncName::new(Identifier::new("baz")?);
-    ///
-    /// assert!(!func_name.has_namespace(&["foo", "bar"]));
-    ///
-    /// func_name = func_name.with_namespace([Identifier::new("foo")?, Identifier::new("bar")?]);
-    ///
-    /// assert!(func_name.has_namespace(&["foo", "bar"]));
-    /// assert!(!func_name.has_namespace(&["foo"]));
-    /// assert!(!func_name.has_namespace(&["bar"]));
-    /// #   Ok(())
-    /// # }
-    /// ```
-    pub fn has_namespace<T>(&self, namespace: &[T]) -> bool
-    where
-        T: AsRef<str>,
-    {
-        self.namespace.len() == namespace.len()
-            && self
-                .namespace
-                .iter()
-                .zip(namespace.iter())
-                .all(|(a, b)| a.as_str() == b.as_ref())
     }
 }
 
@@ -120,7 +75,7 @@ impl fmt::Display for FuncName {
 /// Represents a function call expression with zero or more arguments.
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct FuncCall {
-    /// The name of the function.
+    /// The function name.
     pub name: FuncName,
     /// The function arguments.
     pub args: Vec<Expression>,
