@@ -1,7 +1,7 @@
 use hcl_edit::expr::Expression;
-use hcl_edit::structure::{Attribute, Block, Body};
+use hcl_edit::structure::{Attribute, Block, Body, Structure};
 use hcl_edit::template::{Element, Interpolation, Template};
-use hcl_edit::Ident;
+use hcl_edit::{Ident, Span};
 use pretty_assertions::assert_eq;
 
 // https://github.com/martinohmann/hcl-rs/issues/248
@@ -56,4 +56,112 @@ fn issue_270() {
 
     body.set_prefer_omit_trailing_newline(true);
     assert_eq!(body.to_string(), no_trailing_newline);
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/284
+#[test]
+fn issue_284() {
+    let input = r#"
+      locals {
+        test = {
+          a = b// this comment breaks the parser
+          c = d // but this one doesn't
+        }
+      }
+    "#;
+
+    let res: Result<Body, _> = input.parse();
+    assert!(res.is_ok());
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/294
+#[test]
+fn issue_294() {
+    let input = r#"
+        foo = bar
+        block {}
+        labeled_block "label" {}
+    "#;
+
+    let body: Body = input.parse().unwrap();
+
+    assert_eq!(body.len(), 3);
+
+    for structure in &body {
+        let ident = match structure {
+            Structure::Attribute(attr) => &attr.key,
+            Structure::Block(block) => &block.ident,
+        };
+
+        assert!(
+            ident.span().is_some(),
+            "ident `{ident}` misses span information in {structure:?}"
+        );
+    }
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/319
+#[test]
+fn issue_319() {
+    macro_rules! assert_ok {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_ok());
+        };
+    }
+
+    macro_rules! assert_err {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_err());
+        };
+    }
+
+    // single line expressions with parenthesis
+    assert_ok! {r#"
+        foo = (true ? "bar" : "baz")
+    "#};
+    assert_ok! {r#"
+        foo = (1 > 2)
+    "#};
+    assert_ok! {r#"
+        foo = (var.foo[2])
+    "#};
+
+    // multiline expressions with parenthesis
+    assert_ok! {r#"
+        foo = (true ?
+            "bar" :
+            "baz"
+        )
+    "#};
+    assert_ok! {r#"
+        foo = (
+            1
+            >
+            2
+        )
+    "#};
+    assert_ok! {r#"
+        foo = (
+            var
+                .foo
+                [2]
+        )
+    "#};
+
+    // invalid multiline expressions without parenthesis
+    assert_err! {r#"
+        foo = true ?
+            "bar" :
+            "baz"
+    "#};
+    assert_err! {r#"
+        foo = 1
+            >
+            2
+    "#};
+    assert_err! {r#"
+        foo = var
+            .foo
+            [2]
+    "#};
 }

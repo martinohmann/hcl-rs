@@ -3,6 +3,7 @@
 use crate::{Error, InternalString};
 use alloc::borrow::{Borrow, Cow};
 use alloc::format;
+#[cfg(not(feature = "std"))]
 use alloc::string::String;
 use core::fmt;
 use core::ops;

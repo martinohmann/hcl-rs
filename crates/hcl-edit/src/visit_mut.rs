@@ -79,7 +79,7 @@
 
 use crate::expr::{
     Array, BinaryOp, BinaryOperator, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs,
-    FuncCall, Null, Object, ObjectKeyMut, ObjectValue, Parenthesis, Splat, Traversal,
+    FuncCall, FuncName, Null, Object, ObjectKeyMut, ObjectValue, Parenthesis, Splat, Traversal,
     TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::structure::{AttributeMut, Block, BlockLabel, Body, StructureMut};
@@ -144,6 +144,7 @@ pub trait VisitMut {
         visit_traversal_mut => Traversal,
         visit_traversal_operator_mut => TraversalOperator,
         visit_func_call_mut => FuncCall,
+        visit_func_name_mut => FuncName,
         visit_func_args_mut => FuncArgs,
         visit_for_expr_mut => ForExpr,
         visit_for_intro_mut => ForIntro,
@@ -182,7 +183,7 @@ pub fn visit_body_mut<V>(v: &mut V, node: &mut Body)
 where
     V: VisitMut + ?Sized,
 {
-    for structure in node.iter_mut() {
+    for structure in &mut *node {
         v.visit_structure_mut(structure);
     }
 }
@@ -254,7 +255,7 @@ pub fn visit_array_mut<V>(v: &mut V, node: &mut Array)
 where
     V: VisitMut + ?Sized,
 {
-    for expr in node.iter_mut() {
+    for expr in &mut *node {
         v.visit_expr_mut(expr);
     }
 }
@@ -263,7 +264,7 @@ pub fn visit_object_mut<V>(v: &mut V, node: &mut Object)
 where
     V: VisitMut + ?Sized,
 {
-    for (key, value) in node.iter_mut() {
+    for (key, value) in &mut *node {
         v.visit_object_item_mut(key, value);
     }
 }
@@ -344,15 +345,25 @@ pub fn visit_func_call_mut<V>(v: &mut V, node: &mut FuncCall)
 where
     V: VisitMut + ?Sized,
 {
-    v.visit_ident_mut(&mut node.ident);
+    v.visit_func_name_mut(&mut node.name);
     v.visit_func_args_mut(&mut node.args);
+}
+
+pub fn visit_func_name_mut<V>(v: &mut V, node: &mut FuncName)
+where
+    V: VisitMut + ?Sized,
+{
+    for component in &mut node.namespace {
+        v.visit_ident_mut(component);
+    }
+    v.visit_ident_mut(&mut node.name);
 }
 
 pub fn visit_func_args_mut<V>(v: &mut V, node: &mut FuncArgs)
 where
     V: VisitMut + ?Sized,
 {
-    for arg in node.iter_mut() {
+    for arg in &mut *node {
         v.visit_expr_mut(arg);
     }
 }
@@ -393,7 +404,7 @@ pub fn visit_string_template_mut<V>(v: &mut V, node: &mut StringTemplate)
 where
     V: VisitMut + ?Sized,
 {
-    for element in node.iter_mut() {
+    for element in &mut *node {
         v.visit_element_mut(element);
     }
 }
@@ -409,7 +420,7 @@ pub fn visit_template_mut<V>(v: &mut V, node: &mut Template)
 where
     V: VisitMut + ?Sized,
 {
-    for element in node.iter_mut() {
+    for element in &mut *node {
         v.visit_element_mut(element);
     }
 }

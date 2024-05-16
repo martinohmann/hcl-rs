@@ -60,13 +60,13 @@ fn structure<'i, 's>(
         let start = input.location();
         let checkpoint = input.checkpoint();
         peek(one_of(is_id_start)).parse_next(input)?;
-        let ident = cut_str_ident.parse_next(input)?;
+        let (ident, ident_span) = cut_str_ident.with_span().parse_next(input)?;
         let suffix = raw_string(sp).parse_next(input)?;
 
         let mut structure = match peek(any).parse_next(input)? {
             b'=' => {
                 if state.borrow_mut().is_redefined(ident) {
-                    input.reset(checkpoint);
+                    input.reset(&checkpoint);
                     return cut_err(fail)
                         .context(StrContext::Label("attribute"))
                         .context(StrContext::Expected(StrContextValue::Description(
@@ -78,6 +78,7 @@ fn structure<'i, 's>(
                 let expr = attribute_expr(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
+                ident.set_span(ident_span);
                 let attr = Attribute::new(ident, expr);
                 Structure::Attribute(attr)
             }
@@ -85,6 +86,7 @@ fn structure<'i, 's>(
                 let body = block_body(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
+                ident.set_span(ident_span);
                 let mut block = Block::new(ident);
                 block.body = body;
                 Structure::Block(block)
@@ -94,6 +96,7 @@ fn structure<'i, 's>(
                 let body = block_body(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
+                ident.set_span(ident_span);
                 let mut block = Block::new(ident);
                 block.body = body;
                 block.labels = labels;

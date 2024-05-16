@@ -1,20 +1,39 @@
 # Changelog
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-primitives bumped from 0.0.2 to 0.0.3
+## [0.17.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.9...hcl-rs-v0.17.0) - 2024-05-16
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.6.6 to 0.6.7
+### Added
+- [**breaking**] add support for namespaced functions ([#343](https://github.com/martinohmann/hcl-rs/pull/343))
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.0 to 0.7.1
+### Other
+- *(deps)* bump serde_json from 1.0.112 to 1.0.116 ([#339](https://github.com/martinohmann/hcl-rs/pull/339))
+- *(deps)* bump itoa from 1.0.9 to 1.0.11 ([#337](https://github.com/martinohmann/hcl-rs/pull/337))
 
-* The following workspace dependencies were updated
-  * dependencies
-    * hcl-edit bumped from 0.7.1 to 0.7.2
+## [0.16.9](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.8...hcl-rs-v0.16.9) - 2024-04-13
+
+### Other
+- *(clippy)* address new pedantic lints in nightly
+
+## [0.16.8](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.7...hcl-rs-v0.16.8) - 2024-04-08
+
+### Other
+- update winnow to 0.6+ and vecmap-rs to 0.2+ ([#324](https://github.com/martinohmann/hcl-rs/pull/324))
+- *(deps)* bump serde_json from 1.0.107 to 1.0.112 ([#328](https://github.com/martinohmann/hcl-rs/pull/328))
+- *(deps)* bump indexmap from 2.0.2 to 2.2.6 ([#329](https://github.com/martinohmann/hcl-rs/pull/329))
+
+## [0.16.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.4...hcl-rs-v0.16.5) (2023-09-17)
+
+
+### Features
+
+* **eval:** add `Evaluate::evaluate_in_place` ([#292](https://github.com/martinohmann/hcl-rs/issues/292)) ([ccc000f](https://github.com/martinohmann/hcl-rs/commit/ccc000f5d65834c1ea0c4ada43950f3e8420a0ba))
+
+## [0.16.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.2...hcl-rs-v0.16.3) (2023-07-28)
+
+
+### Bug Fixes
+
+* **expr:** deprecate `RawExpression` ([#275](https://github.com/martinohmann/hcl-rs/issues/275)) ([1c0c368](https://github.com/martinohmann/hcl-rs/commit/1c0c3685e4062e71690be39ef221cbfa9cab9016))
 
 ## [0.16.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.15.0...hcl-rs-v0.16.0) (2023-07-13)
 

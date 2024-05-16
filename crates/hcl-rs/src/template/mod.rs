@@ -1,8 +1,7 @@
 //! Types to represent the HCL template sub-language.
 //!
-//! When parsing an HCL document, template expressions are emitted as
-//! [`TemplateExpr`][crate::expr::TemplateExpr] (as the `TemplateExpr` variant of the
-//! [`Expression`][crate::expr::Expression] enum) which contains the raw unparsed template
+//! When parsing an HCL document, template expressions are emitted as [`TemplateExpr`] (as the
+//! `TemplateExpr` variant of the [`Expression`] enum) which contains the raw unparsed template
 //! expressions.
 //!
 //! These template expressions can be further parsed into a [`Template`] which is composed of

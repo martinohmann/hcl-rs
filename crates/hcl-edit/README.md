@@ -12,9 +12,9 @@ fact, its API is heavily inspired by `toml_edit`.
 
 ## Notice
 
-**This crate is under heavy development right now** and the documentation as
-well as usage examples are scarce. There's still a lot of planned functionality
-missing and some APIs might even be cumbersome to use at the moment.
+The documentation as well as usage examples are scarce. There's still a lot of
+planned functionality missing and some APIs might even be cumbersome to use at
+the moment.
 
 This will improve over time as this project evolves.
 

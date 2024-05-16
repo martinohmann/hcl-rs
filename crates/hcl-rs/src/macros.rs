@@ -9,13 +9,9 @@
 ///   expressions (`(expr)`).
 /// - Block labels can be string literals (`"label"`), identifiers (`label`) or parenthesized
 ///   expressions (`(label_expr)`).
-/// - Object keys can be string literals (`"key"`), identifiers (`key`), parenthesized
-///   expressions (`(key_expr)`) or raw HCL expressions (`#{raw_expr}`).
-/// - Attribute expression values can be any valid primitive, collection, expression or raw HCL
-///   expression (`#{raw_expr}`).
-///
-/// Please note that HCL actually uses `${}` for interpolating expression, but since rust macros do
-/// not support matching on `$` it was chosen to use `#{}` instead to support raw expressions.
+/// - Object keys can be string literals (`"key"`), identifiers (`key`) or parenthesized
+///   expressions (`(key_expr)`).
+/// - Attribute expression values can be any valid primitive, collection or expression.
 ///
 /// # Unsupported syntax
 ///

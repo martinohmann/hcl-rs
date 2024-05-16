@@ -117,8 +117,8 @@ impl fmt::Display for ParamType {
 /// It defines the function to call, and number and types of parameters that the function accepts.
 /// The parameter information is used to validate function arguments prior to calling it.
 ///
-/// The signature of a function is defined by the [`Func`][Func] type alias. For available
-/// parameter types see the documentation of [`ParamType`][ParamType].
+/// The signature of a function is defined by the [`Func`] type alias. For available parameter
+/// types see the documentation of [`ParamType`].
 ///
 /// # Function call evaluation
 ///
@@ -311,7 +311,7 @@ impl FuncDefBuilder {
     where
         I: IntoIterator<Item = ParamType>,
     {
-        self.params.extend(params.into_iter());
+        self.params.extend(params);
         self
     }
 

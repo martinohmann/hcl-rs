@@ -20,14 +20,14 @@ jobs:
           - nightly
         include:
           - build: stable
-            os: ubuntu-20.04
+            os: ubuntu-latest
             rust: stable
           - build: nightly
-            os: ubuntu-20.04
+            os: ubuntu-latest
             rust: nightly
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -37,7 +37,7 @@ jobs:
           override: true
 
       - name: Load cache
-        uses: actions/cache@v3.3.1
+        uses: actions/cache@v4.0.2
         with:
           path: |
             ~/.cargo/bin/
@@ -55,10 +55,10 @@ jobs:
 
   rustfmt:
     name: rustfmt
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -73,10 +73,10 @@ jobs:
 
   clippy:
     name: clippy
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -91,10 +91,10 @@ jobs:
 
   docs:
     name: Docs
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1

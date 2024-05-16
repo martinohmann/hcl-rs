@@ -2,7 +2,7 @@ mod common;
 
 use common::{assert_format, assert_format_builder};
 use hcl::expr::{
-    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Heredoc,
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, FuncName, Heredoc,
     HeredocStripMode, Traversal, TraversalOperator, Variable,
 };
 use hcl::format::Formatter;
@@ -101,6 +101,20 @@ fn func_call_expand_final() {
             .build(),
         indoc! {r#"
             func(1, ["two", "three"]...)
+        "#}
+        .trim_end(),
+    );
+}
+
+#[test]
+fn namespaced_func_call() {
+    assert_format(
+        FuncCall::builder(FuncName::new("func").with_namespace(["some", "namespaced"]))
+            .arg(1)
+            .arg(2)
+            .build(),
+        indoc! {r#"
+            some::namespaced::func(1, 2)
         "#}
         .trim_end(),
     );

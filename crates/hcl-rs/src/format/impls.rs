@@ -1,7 +1,9 @@
 use super::{private, Format, Formatter};
+#[allow(deprecated)]
+use crate::expr::RawExpression;
 use crate::expr::{
-    BinaryOp, Conditional, Expression, ForExpr, FuncCall, Heredoc, HeredocStripMode, ObjectKey,
-    Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator, UnaryOp, Variable,
+    BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncName, Heredoc, HeredocStripMode,
+    ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, Variable,
 };
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::template::{
@@ -34,7 +36,7 @@ impl Format for Body {
     where
         W: io::Write,
     {
-        for structure in self.iter() {
+        for structure in self {
             structure.format(fmt)?;
         }
 
@@ -120,6 +122,7 @@ impl Format for Expression {
             Expression::String(string) => string.format(fmt),
             Expression::Array(array) => format_array(fmt, array.iter()),
             Expression::Object(object) => format_object(fmt, object.iter()),
+            #[allow(deprecated)]
             Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
             Expression::Variable(var) => var.format(fmt),
@@ -204,8 +207,10 @@ impl<'a> Format for StrKey<'a> {
     }
 }
 
+#[allow(deprecated)]
 impl private::Sealed for RawExpression {}
 
+#[allow(deprecated)]
 impl Format for RawExpression {
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
@@ -343,6 +348,22 @@ impl Format for FuncCall {
         } else {
             fmt.write_bytes(b")")
         }
+    }
+}
+
+impl private::Sealed for FuncName {}
+
+impl Format for FuncName {
+    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
+    where
+        W: io::Write,
+    {
+        for component in &self.namespace {
+            component.format(fmt)?;
+            fmt.write_bytes(b"::")?;
+        }
+
+        self.name.format(fmt)
     }
 }
 

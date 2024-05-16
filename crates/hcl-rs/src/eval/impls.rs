@@ -1,3 +1,4 @@
+use super::error::EvalResultExt;
 use super::*;
 use indexmap::map::Entry;
 use std::hash::Hash;
@@ -12,6 +13,13 @@ impl Evaluate for Body {
             .map(|structure| structure.evaluate(ctx))
             .collect()
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
+        self.iter_mut().fold(Ok(()), |res, structure| {
+            res.add_errors(structure.evaluate_in_place(ctx))
+        })
+    }
 }
 
 impl private::Sealed for Structure {}
@@ -23,6 +31,13 @@ impl Evaluate for Structure {
         match self {
             Structure::Attribute(attr) => attr.evaluate(ctx).map(Structure::Attribute),
             Structure::Block(block) => block.evaluate(ctx).map(Structure::Block),
+        }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        match self {
+            Structure::Attribute(attr) => attr.evaluate_in_place(ctx),
+            Structure::Block(block) => block.evaluate_in_place(ctx),
         }
     }
 }
@@ -38,6 +53,10 @@ impl Evaluate for Attribute {
             expr: self.expr.evaluate(ctx).map(Into::into)?,
         })
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        self.expr.evaluate_in_place(ctx)
+    }
 }
 
 impl private::Sealed for Block {}
@@ -51,6 +70,10 @@ impl Evaluate for Block {
             labels: self.labels.clone(),
             body: self.body.evaluate(ctx)?,
         })
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        self.body.evaluate_in_place(ctx)
     }
 }
 
@@ -72,9 +95,42 @@ impl Evaluate for Expression {
             Expression::Conditional(cond) => cond.evaluate(ctx),
             Expression::Operation(op) => op.evaluate(ctx),
             Expression::ForExpr(expr) => expr.evaluate(ctx),
+            #[allow(deprecated)]
             Expression::Raw(_) => Err(ctx.error(ErrorKind::RawExpression)),
             other => Ok(Value::from(other.clone())),
         }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        // We can ignore expressions that cannot be further evaluated. This avoids unnecessary
+        // clone operations.
+        if !matches!(
+            self,
+            Expression::Null | Expression::Bool(_) | Expression::Number(_) | Expression::String(_)
+        ) {
+            evaluate_nested_exprs(self, ctx)?;
+            let value = self.evaluate(ctx)?;
+            *self = value.into();
+        }
+
+        Ok(())
+    }
+}
+
+fn evaluate_nested_exprs(expr: &mut Expression, ctx: &Context) -> EvalResult<(), Errors> {
+    let expr_clone = expr.clone();
+    let ctx = &ctx.child_with_expr(&expr_clone);
+
+    match expr {
+        Expression::Array(array) => array.evaluate_in_place(ctx),
+        Expression::Object(object) => object.evaluate_in_place(ctx),
+        Expression::Traversal(traversal) => traversal.evaluate_in_place(ctx),
+        Expression::FuncCall(func_call) => func_call.evaluate_in_place(ctx),
+        Expression::Parenthesis(expr) => expr.evaluate_in_place(ctx),
+        Expression::Conditional(cond) => cond.evaluate_in_place(ctx),
+        Expression::Operation(op) => op.evaluate_in_place(ctx),
+        Expression::ForExpr(expr) => expr.evaluate_in_place(ctx),
+        _ => Ok(()),
     }
 }
 
@@ -89,6 +145,13 @@ where
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         self.iter().map(|expr| expr.evaluate(ctx)).collect()
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
+        self.iter_mut().fold(Ok(()), |res, element| {
+            res.add_errors(element.evaluate_in_place(ctx))
+        })
+    }
 }
 
 impl<K, V> private::Sealed for Object<K, V>
@@ -100,7 +163,7 @@ where
 
 impl<K, V> Evaluate for Object<K, V>
 where
-    K: Evaluate,
+    K: Evaluate + Eq,
     K::Output: Hash + Eq,
     V: Evaluate,
 {
@@ -110,6 +173,25 @@ where
         self.iter()
             .map(|(key, expr)| Ok((key.evaluate(ctx)?, expr.evaluate(ctx)?)))
             .collect()
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        let mut new_object = Object::with_capacity(self.len());
+
+        #[allow(clippy::manual_try_fold)]
+        let res = self
+            .drain(..)
+            .fold(Ok(()), |mut res, (mut key, mut value)| {
+                res = res
+                    .add_errors(key.evaluate_in_place(ctx))
+                    .add_errors(value.evaluate_in_place(ctx));
+                new_object.insert(key, value);
+                res
+            });
+
+        *self = new_object;
+
+        res
     }
 }
 
@@ -123,6 +205,14 @@ impl Evaluate for ObjectKey {
             ObjectKey::Expression(expr) => expr::evaluate_object_key(expr, ctx),
             ident => Ok(ident.to_string()),
         }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        if let ObjectKey::Expression(expr) = self {
+            expr.evaluate_in_place(ctx)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -140,7 +230,7 @@ impl Evaluate for TemplateExpr {
         // spec:
         //
         // https://github.com/hashicorp/hcl/blob/main/hclsyntax/spec.md#template-interpolation-unwrapping
-        match elements.get(0) {
+        match elements.first() {
             Some(Element::Interpolation(interp)) if elements.len() == 1 => {
                 interp.expr.evaluate(ctx)
             }
@@ -159,6 +249,35 @@ impl Evaluate for Template {
         template::evaluate_template(&mut result, self, ctx, Strip::None, Strip::None)?;
         Ok(result)
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
+        self.elements_mut()
+            .iter_mut()
+            .fold(Ok(()), |mut res, element| match element {
+                Element::Literal(_) => res,
+                Element::Interpolation(interp) => {
+                    res.add_errors(interp.expr.evaluate_in_place(ctx))
+                }
+                Element::Directive(dir) => match dir {
+                    Directive::If(dir) => {
+                        res = res
+                            .add_errors(dir.cond_expr.evaluate_in_place(ctx))
+                            .add_errors(dir.true_template.evaluate_in_place(ctx));
+
+                        match &mut dir.false_template {
+                            Some(false_template) => {
+                                res.add_errors(false_template.evaluate_in_place(ctx))
+                            }
+                            None => res,
+                        }
+                    }
+                    Directive::For(dir) => res
+                        .add_errors(dir.collection_expr.evaluate_in_place(ctx))
+                        .add_errors(dir.template.evaluate_in_place(ctx)),
+                },
+            })
+    }
 }
 
 impl private::Sealed for Traversal {}
@@ -170,6 +289,16 @@ impl Evaluate for Traversal {
         let value = self.expr.evaluate(ctx)?;
         let deque = self.operators.iter().collect();
         expr::evaluate_traversal(value, deque, ctx)
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        #[allow(clippy::manual_try_fold)]
+        self.operators
+            .iter_mut()
+            .fold(Ok(()), |res, operator| match operator {
+                TraversalOperator::Index(expr) => res.add_errors(expr.evaluate_in_place(ctx)),
+                _ => res,
+            })
     }
 }
 
@@ -195,6 +324,10 @@ impl Evaluate for FuncCall {
         func.call(args)
             .map_err(|err| ctx.error(ErrorKind::FuncCall(name.clone(), err)))
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        self.args.evaluate_in_place(ctx)
+    }
 }
 
 impl private::Sealed for Conditional {}
@@ -209,6 +342,18 @@ impl Evaluate for Conditional {
             self.false_expr.evaluate(ctx)
         }
     }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        let cond = expr::evaluate_bool(&self.cond_expr, ctx)?;
+
+        self.cond_expr = Expression::from(cond);
+
+        if cond {
+            self.true_expr.evaluate_in_place(ctx)
+        } else {
+            self.false_expr.evaluate_in_place(ctx)
+        }
+    }
 }
 
 impl private::Sealed for Operation {}
@@ -220,6 +365,13 @@ impl Evaluate for Operation {
         match self {
             Operation::Unary(unary) => unary.evaluate(ctx),
             Operation::Binary(binary) => binary.evaluate(ctx),
+        }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        match self {
+            Operation::Unary(unary) => unary.evaluate_in_place(ctx),
+            Operation::Binary(binary) => binary.evaluate_in_place(ctx),
         }
     }
 }
@@ -241,6 +393,10 @@ impl Evaluate for UnaryOp {
         };
 
         Ok(value)
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        self.expr.evaluate_in_place(ctx)
     }
 }
 
@@ -274,6 +430,12 @@ impl Evaluate for BinaryOp {
         };
 
         Ok(value)
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        self.lhs_expr
+            .evaluate_in_place(ctx)
+            .add_errors(self.rhs_expr.evaluate_in_place(ctx))
     }
 }
 
@@ -326,5 +488,9 @@ impl Evaluate for ForExpr {
                 Ok(Value::Array(result))
             }
         }
+    }
+
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        self.collection_expr.evaluate_in_place(ctx)
     }
 }

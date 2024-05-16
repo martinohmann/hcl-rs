@@ -11,7 +11,7 @@ mod traversal;
 pub use self::array::{Array, IntoIter, Iter, IterMut};
 pub use self::conditional::Conditional;
 pub use self::for_expr::{ForCond, ForExpr, ForIntro};
-pub use self::func_call::{FuncArgs, FuncCall};
+pub use self::func_call::{FuncArgs, FuncCall, FuncName};
 pub use self::object::{
     Object, ObjectIntoIter, ObjectIter, ObjectIterMut, ObjectKey, ObjectKeyMut, ObjectValue,
     ObjectValueAssignment, ObjectValueTerminator,

@@ -92,7 +92,7 @@ where
 
 /// Deserialize an instance of type `T` from an IO stream of HCL.
 ///
-/// See the documentation of [`from_str`][from_str] for more information.
+/// See the documentation of [`from_str`] for more information.
 ///
 /// # Example
 ///
@@ -147,7 +147,7 @@ where
 
 /// Deserialize an instance of type `T` from a byte slice.
 ///
-/// See the documentation of [`from_str`][from_str] for more information.
+/// See the documentation of [`from_str`] for more information.
 ///
 /// # Errors
 ///

@@ -117,4 +117,37 @@ fn invalid_exprs() {
               |
               = invalid object item; expected `}`, `,` or newline"#}
     );
+
+    assert_error!(
+        "ident = foo::",
+        indoc! {r#"
+             --> HCL parse error in line 1, column 14
+              |
+            1 | ident = foo::
+              |              ^---
+              |
+              = expected identifier"#}
+    );
+
+    assert_error!(
+        "ident = foo::bar",
+        indoc! {r#"
+             --> HCL parse error in line 1, column 17
+              |
+            1 | ident = foo::bar
+              |                 ^---
+              |
+              = expected `(`"#}
+    );
+
+    assert_error!(
+        "ident = foo( ",
+        indoc! {r#"
+             --> HCL parse error in line 1, column 14
+              |
+            1 | ident = foo( 
+              |              ^---
+              |
+              = expected `)` or expression"#}
+    );
 }

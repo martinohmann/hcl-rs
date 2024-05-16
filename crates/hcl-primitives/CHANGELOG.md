@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.1.5](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.4...hcl-primitives-v0.1.5) - 2024-05-16
+
+### Other
+- *(deps)* bump itoa from 1.0.9 to 1.0.11 ([#337](https://github.com/martinohmann/hcl-rs/pull/337))
+
+## [0.1.4](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.3...hcl-primitives-v0.1.4) - 2024-04-13
+
+### Other
+- *(clippy)* address new pedantic lints in nightly
+
+## [0.1.3](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.2...hcl-primitives-v0.1.3) - 2024-04-08
+
+### Other
+- *(deps)* bump ryu from 1.0.15 to 1.0.17 ([#325](https://github.com/martinohmann/hcl-rs/pull/325))
+
+## [0.1.2](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.1...hcl-primitives-v0.1.2) (2024-01-04)
+
+
+### Bug Fixes
+
+* **cargo:** add more keywords ([7125a8c](https://github.com/martinohmann/hcl-rs/commit/7125a8cc05c95b9eaa872d8eb95840c583309575))
+
 ## [0.1.1](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.0...hcl-primitives-v0.1.1) (2023-06-15)
 
 

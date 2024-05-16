@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.8.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.7...hcl-edit-v0.8.0) - 2024-05-16
+
+### Added
+- [**breaking**] add support for namespaced functions ([#343](https://github.com/martinohmann/hcl-rs/pull/343))
+
+## [0.7.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.6...hcl-edit-v0.7.7) - 2024-04-13
+
+### Other
+- expose hcl-edit parser error message ([#334](https://github.com/martinohmann/hcl-rs/pull/334))
+- update notice in README
+
+## [0.7.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.5...hcl-edit-v0.7.6) - 2024-04-08
+
+### Fixed
+- *(parser)* allow newlines in parenthesis expressions ([#330](https://github.com/martinohmann/hcl-rs/pull/330))
+
+### Other
+- update winnow to 0.6+ and vecmap-rs to 0.2+ ([#324](https://github.com/martinohmann/hcl-rs/pull/324))
+
+## [0.7.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.3...hcl-edit-v0.7.4) (2023-09-27)
+
+
+### Bug Fixes
+
+* **parser:** attach missing span information to identifiers ([#295](https://github.com/martinohmann/hcl-rs/issues/295)) ([81bbc0d](https://github.com/martinohmann/hcl-rs/commit/81bbc0d82af49d1620e6af92875b25a7545d0f9b)), closes [#294](https://github.com/martinohmann/hcl-rs/issues/294)
+
+## [0.7.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.2...hcl-edit-v0.7.3) (2023-08-24)
+
+
+### Bug Fixes
+
+* **parser:** prevent panic in object item parser ([#285](https://github.com/martinohmann/hcl-rs/issues/285)) ([8502d2f](https://github.com/martinohmann/hcl-rs/commit/8502d2fe4c455ebd3ebfb982912389588b132a5f)), closes [#284](https://github.com/martinohmann/hcl-rs/issues/284)
+
 ## [0.7.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.1...hcl-edit-v0.7.2) (2023-07-14)
 
 

@@ -14,7 +14,7 @@
 //! # Examples
 //!
 //! HCL expressions can contain variables and functions which are made available through the
-//! [`Context`] value passed to [`Evaluate::evaluate`][Evaluate::evaluate].
+//! [`Context`] value passed to [`Evaluate::evaluate`].
 //!
 //! Here's a short example which evaluates a template expression that contains a variable:
 //!
@@ -34,8 +34,8 @@
 //! # }
 //! ```
 //!
-//! Template directives like `for` loops can be evaluated as well, this time using a
-//! [`Template`][crate::template::Template] instead of [`TemplateExpr`][crate::expr::TemplateExpr]:
+//! Template directives like `for` loops can be evaluated as well, this time using a [`Template`]
+//! instead of [`TemplateExpr`]:
 //!
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -224,13 +224,13 @@ mod func;
 mod impls;
 mod template;
 
-pub use self::error::{Error, ErrorKind, EvalResult};
+pub use self::error::{Error, ErrorKind, Errors, EvalResult};
 pub use self::func::{
     Func, FuncArgs, FuncDef, FuncDefBuilder, ParamType, PositionalArgs, VariadicArgs,
 };
 use crate::expr::{
-    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, Object, ObjectKey,
-    Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
+    BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, FuncName, Object,
+    ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::parser;
 use crate::structure::{Attribute, Block, Body, Structure};
@@ -239,6 +239,7 @@ use crate::template::{
 };
 use crate::{Identifier, Map, Result, Value};
 use serde::{de, ser};
+use vecmap::VecMap;
 
 mod private {
     pub trait Sealed {}
@@ -269,6 +270,24 @@ pub trait Evaluate: private::Sealed {
     /// - an undefined variable or function is encountered.
     /// - a defined function is called with unexpected arguments.
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output>;
+
+    /// Recursively tries to evaluate all nested expressions in place.
+    ///
+    /// This function does not stop at the first error but continues to evaluate expressions as far
+    /// as it can.
+    ///
+    /// The default implementation does nothing and always returns `Ok(())`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Errors`] value containing one of more [`Error`]s if the evaluation of any
+    /// (potentially nested) expression fails.
+    ///
+    /// See the errors section of [`evaluate`][Evaluate::evaluate] for a list of failure modes.
+    fn evaluate_in_place(&mut self, ctx: &Context) -> EvalResult<(), Errors> {
+        _ = ctx;
+        Ok(())
+    }
 }
 
 /// A type holding the evaluation context.
@@ -278,7 +297,7 @@ pub trait Evaluate: private::Sealed {
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     vars: Map<Identifier, Value>,
-    funcs: Map<Identifier, FuncDef>,
+    funcs: VecMap<FuncName, FuncDef>,
     parent: Option<&'a Context<'a>>,
     expr: Option<&'a Expression>,
 }
@@ -287,7 +306,7 @@ impl Default for Context<'_> {
     fn default() -> Self {
         Context {
             vars: Map::new(),
-            funcs: Map::new(),
+            funcs: VecMap::new(),
             parent: None,
             expr: None,
         }
@@ -334,8 +353,8 @@ impl<'a> Context<'a> {
 
     /// Declare a function from a name and a function definition.
     ///
-    /// See the documentation of the [`FuncDef`][FuncDef] type to learn about all available
-    /// options for constructing a function definition.
+    /// See the documentation of the [`FuncDef`] type to learn about all available options for
+    /// constructing a function definition.
     ///
     /// # Example
     ///
@@ -360,7 +379,7 @@ impl<'a> Context<'a> {
     /// ```
     pub fn declare_func<I>(&mut self, name: I, func: FuncDef)
     where
-        I: Into<Identifier>,
+        I: Into<FuncName>,
     {
         self.funcs.insert(name.into(), func);
     }
@@ -378,7 +397,7 @@ impl<'a> Context<'a> {
     ///
     /// When the function is declared in multiple parent scopes, the innermost definition is
     /// returned.
-    fn lookup_func(&self, name: &Identifier) -> EvalResult<&FuncDef> {
+    fn lookup_func(&self, name: &FuncName) -> EvalResult<&FuncDef> {
         self.func(name)
             .ok_or_else(|| self.error(ErrorKind::UndefinedFunc(name.clone())))
     }
@@ -402,7 +421,7 @@ impl<'a> Context<'a> {
             .or_else(|| self.parent.and_then(|parent| parent.var(name)))
     }
 
-    fn func(&self, name: &Identifier) -> Option<&FuncDef> {
+    fn func(&self, name: &FuncName) -> Option<&FuncDef> {
         self.funcs
             .get(name)
             .or_else(|| self.parent.and_then(|parent| parent.func(name)))

@@ -1,5 +1,5 @@
 use super::{Block, Body};
-use crate::expr::{Heredoc, HeredocStripMode, RawExpression, TemplateExpr};
+use crate::expr::{Heredoc, HeredocStripMode, TemplateExpr, Traversal, Variable};
 use crate::{value, Identifier, Value};
 use pretty_assertions::assert_eq;
 
@@ -24,7 +24,12 @@ fn body_into_value() {
             Block::builder("bar")
                 .add_label("baz")
                 .add_attribute(("bar", "baz"))
-                .add_attribute(("baz", RawExpression::new("var.foo")))
+                .add_attribute((
+                    "baz",
+                    Traversal::builder(Variable::unchecked("var"))
+                        .attr("foo")
+                        .build(),
+                ))
                 .build(),
         )
         .add_attribute(("foo", "baz"))

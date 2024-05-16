@@ -75,8 +75,8 @@ impl Format for Attribute {
     }
 }
 
-/// Allows mutable access to the value and surrounding [`Decor`](crate::Decor) of an [`Attribute`]
-/// but not to its key.
+/// Allows mutable access to the value and surrounding [`Decor`] of an [`Attribute`] but not to its
+/// key.
 ///
 /// This type wraps the attribute returned by
 /// [`Body::get_attribute_mut`](crate::structure::Body::get_attribute_mut) and in the iterator

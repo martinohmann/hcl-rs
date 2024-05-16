@@ -1,9 +1,9 @@
 use super::prelude::*;
 use crate::format::decor::{Decor, DecorFragment};
 use winnow::{
-    ascii::{not_line_ending, space1},
+    ascii::{space1, till_line_ending},
     combinator::{alt, repeat},
-    token::{take_until0, take_while},
+    token::{take_until, take_while},
 };
 
 pub(crate) fn parse_multiline(input: &str) -> Option<Decor> {
@@ -12,10 +12,10 @@ pub(crate) fn parse_multiline(input: &str) -> Option<Decor> {
         alt((
             space1.value(DecorFragment::Space),
             take_while(1.., is_line_break).map(DecorFragment::LineBreaks),
-            (alt(("#", "//")), not_line_ending)
+            (alt(("#", "//")), till_line_ending)
                 .recognize()
                 .map(DecorFragment::LineComment),
-            ("/*", take_until0("*/"), "*/")
+            ("/*", take_until(0.., "*/"), "*/")
                 .recognize()
                 .map(DecorFragment::InlineComment),
         )),
@@ -30,7 +30,7 @@ pub(crate) fn parse_inline(input: &str) -> Option<Decor> {
         0..,
         alt((
             space1.value(DecorFragment::Space),
-            ("/*", take_until0("*/"), "*/")
+            ("/*", take_until(0.., "*/"), "*/")
                 .recognize()
                 .map(DecorFragment::InlineComment),
         )),

@@ -60,9 +60,13 @@ pub use expr::{to_expression, Expression, Object, ObjectKey};
 #[doc(hidden)]
 pub use expr::{
     BinaryOp, BinaryOperator, Conditional, ForExpr, FuncCall, FuncCallBuilder, Heredoc,
-    HeredocStripMode, Operation, RawExpression, TemplateExpr, Traversal, TraversalOperator,
-    UnaryOp, UnaryOperator, Variable,
+    HeredocStripMode, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp,
+    UnaryOperator, Variable,
 };
+
+#[allow(deprecated)]
+#[doc(hidden)]
+pub use expr::RawExpression;
 
 pub use ident::Identifier;
 pub use parser::parse;
