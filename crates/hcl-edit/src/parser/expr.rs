@@ -12,8 +12,8 @@ use super::trivia::{line_comment, sp, ws};
 
 use crate::expr::{
     Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, FuncName,
-    Null, Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator,
-    Parenthesis, Splat, TraversalOperator, UnaryOperator,
+    Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
+    Splat, TraversalOperator, UnaryOperator,
 };
 use crate::template::HeredocTemplate;
 use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
@@ -650,47 +650,46 @@ fn identlike<'i, 's>(
         // we actually encounter a function call.
         let suffix = ws_or_sp(state).span().parse_next(input)?;
 
-        let expr = match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
-            // This is a function call: identifier starts a function namespace, or function
+        let expr = if let Ok(peeked @ (b"::" | [b'(', _])) =
+            peek(take::<_, _, ContextError>(2usize)).parse_next(input)
+        {
+            // This is a function call: parsed identifier starts a function namespace, or function
             // arguments follow.
-            Ok(peeked @ (b"::" | [b'(', _])) => {
-                let mut ident = Decorated::new(Ident::new_unchecked(ident));
-                ident.decor_mut().set_suffix(RawString::from_span(suffix));
-                ident.set_span(span);
+            let mut ident = Decorated::new(Ident::new_unchecked(ident));
+            ident.decor_mut().set_suffix(RawString::from_span(suffix));
+            ident.set_span(span);
 
-                let func_name = if peeked == b"::" {
-                    // Consume the remaining namespace parts and function name.
-                    let mut namespace = func_namespace_parts(state).parse_next(input)?;
+            let func_name = if peeked == b"::" {
+                // Consume the remaining namespace parts and function name.
+                let mut namespace = func_namespace_parts(state).parse_next(input)?;
 
-                    // We already parsed the first namespace element before and the function name
-                    // is now part of the remaining namspace parts, so we have to correct this.
-                    let name = namespace.pop().unwrap();
-                    namespace.insert(0, ident);
+                // We already parsed the first namespace element before and the function name
+                // is now part of the remaining namspace parts, so we have to correct this.
+                let name = namespace.pop().unwrap();
+                namespace.insert(0, ident);
 
-                    FuncName { namespace, name }
-                } else {
-                    FuncName::from(ident)
-                };
+                FuncName { namespace, name }
+            } else {
+                FuncName::from(ident)
+            };
 
-                let func_args = func_args.parse_next(input)?;
-                let func_call = FuncCall::new(func_name, func_args);
-                Expression::FuncCall(Box::new(func_call))
-            }
-            // This is not a function call.
-            _ => {
-                input.reset(&checkpoint);
+            let func_args = func_args.parse_next(input)?;
+            let func_call = FuncCall::new(func_name, func_args);
+            Expression::FuncCall(Box::new(func_call))
+        } else {
+            // This is not a function call: identifier is either keyword or variable name.
+            input.reset(&checkpoint);
 
-                match ident {
-                    "null" => Expression::null(),
-                    "true" => Expression::from(true),
-                    "false" => Expression::from(false),
-                    var => Expression::from(Ident::new_unchecked(var)),
-                }
+            match ident {
+                "null" => Expression::null(),
+                "true" => Expression::from(true),
+                "false" => Expression::from(false),
+                var => Expression::from(Ident::new_unchecked(var)),
             }
         };
 
         state.borrow_mut().on_expr_term(expr);
-        return Ok(());
+        Ok(())
     }
 }
 
