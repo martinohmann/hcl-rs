@@ -20,7 +20,7 @@ use self::ser::ExpressionSerializer;
 pub use self::{
     conditional::Conditional,
     for_expr::ForExpr,
-    func_call::{FuncCall, FuncCallBuilder},
+    func_call::{FuncCall, FuncCallBuilder, FuncName},
     operation::{BinaryOp, BinaryOperator, Operation, UnaryOp, UnaryOperator},
     template_expr::{Heredoc, HeredocStripMode, TemplateExpr},
     traversal::{Traversal, TraversalBuilder, TraversalOperator},

@@ -11,7 +11,7 @@ use super::template::{heredoc_template, string_template};
 use super::trivia::{line_comment, sp, ws};
 
 use crate::expr::{
-    Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
+    Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, FuncName,
     Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
     Splat, TraversalOperator, UnaryOperator,
 };
@@ -642,26 +642,75 @@ fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        (str_ident.with_span(), opt(prefix_decorated(ws, func_args)))
-            .map(|((ident, span), func_args)| {
-                let expr = match func_args {
-                    Some(func_args) => {
-                        let mut ident = Decorated::new(Ident::new_unchecked(ident));
-                        ident.set_span(span);
-                        let func_call = FuncCall::new(ident, func_args);
-                        Expression::FuncCall(Box::new(func_call))
-                    }
-                    None => match ident {
-                        "null" => Expression::Null(Null.into()),
-                        "true" => Expression::Bool(true.into()),
-                        "false" => Expression::Bool(false.into()),
-                        var => Expression::Variable(Ident::new_unchecked(var).into()),
-                    },
-                };
+        let (ident, span) = str_ident.with_span().parse_next(input)?;
 
-                state.borrow_mut().on_expr_term(expr);
-            })
-            .parse_next(input)
+        let checkpoint = input.checkpoint();
+
+        // Parse the next whitespace sequence and only add it as decor suffix to the identifier if
+        // we actually encounter a function call.
+        let suffix = ws_or_sp(state).span().parse_next(input)?;
+
+        let expr = if let Ok(peeked @ (b"::" | [b'(', _])) =
+            peek(take::<_, _, ContextError>(2usize)).parse_next(input)
+        {
+            // This is a function call: parsed identifier starts a function namespace, or function
+            // arguments follow.
+            let mut ident = Decorated::new(Ident::new_unchecked(ident));
+            ident.decor_mut().set_suffix(RawString::from_span(suffix));
+            ident.set_span(span);
+
+            let func_name = if peeked == b"::" {
+                // Consume the remaining namespace components and function name.
+                let mut namespace = func_namespace_components(state).parse_next(input)?;
+
+                // We already parsed the first namespace element before and the function name is
+                // now part of the remaining namspace components, so we have to correct this.
+                let name = namespace.pop().unwrap();
+                namespace.insert(0, ident);
+
+                FuncName { namespace, name }
+            } else {
+                FuncName::from(ident)
+            };
+
+            let func_args = func_args.parse_next(input)?;
+            let func_call = FuncCall::new(func_name, func_args);
+            Expression::FuncCall(Box::new(func_call))
+        } else {
+            // This is not a function call: identifier is either keyword or variable name.
+            input.reset(&checkpoint);
+
+            match ident {
+                "null" => Expression::null(),
+                "true" => Expression::from(true),
+                "false" => Expression::from(false),
+                var => Expression::from(Ident::new_unchecked(var)),
+            }
+        };
+
+        state.borrow_mut().on_expr_term(expr);
+        Ok(())
+    }
+}
+
+fn func_namespace_components<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + 's {
+    move |input: &mut Input<'i>| {
+        repeat(
+            1..,
+            preceded(
+                b"::",
+                decorated(
+                    ws_or_sp(state),
+                    cut_err(ident).context(StrContext::Expected(StrContextValue::Description(
+                        "identifier",
+                    ))),
+                    ws_or_sp(state),
+                ),
+            ),
+        )
+        .parse_next(input)
     }
 }
 
@@ -685,7 +734,7 @@ fn func_args(input: &mut Input) -> PResult<FuncArgs> {
     };
 
     delimited(
-        b'(',
+        cut_char('('),
         (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
             let mut args = match args {
                 Some((args, Some(trailer))) => {
@@ -705,7 +754,9 @@ fn func_args(input: &mut Input) -> PResult<FuncArgs> {
             args.set_trailing(trailing);
             args
         }),
-        cut_char(')'),
+        cut_char(')').context(StrContext::Expected(StrContextValue::Description(
+            "expression",
+        ))),
     )
     .parse_next(input)
 }

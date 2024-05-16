@@ -3,9 +3,9 @@ use super::{
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
 use crate::expr::{
-    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, Null,
-    Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
-    Splat, Traversal, TraversalOperator, UnaryOp,
+    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall,
+    FuncName, Null, Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator,
+    Parenthesis, Splat, Traversal, TraversalOperator, UnaryOp,
 };
 use std::fmt::{self, Write};
 
@@ -184,8 +184,18 @@ impl Encode for Conditional {
 
 impl Encode for FuncCall {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.ident.encode_decorated(buf, NO_DECOR)?;
+        self.name.encode(buf)?;
         self.args.encode_decorated(buf, NO_DECOR)
+    }
+}
+
+impl Encode for FuncName {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        for component in &self.namespace {
+            component.encode_decorated(buf, NO_DECOR)?;
+            buf.write_str("::")?;
+        }
+        self.name.encode_decorated(buf, NO_DECOR)
     }
 }
 
