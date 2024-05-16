@@ -642,7 +642,7 @@ fn identlike<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let (ident_, span) = str_ident.with_span().parse_next(input)?;
+        let (ident, span) = str_ident.with_span().parse_next(input)?;
 
         let checkpoint = input.checkpoint();
 
@@ -651,66 +651,67 @@ fn identlike<'i, 's>(
         let suffix = ws_or_sp(state).span().parse_next(input)?;
 
         let expr = match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
-            // Function namespace.
-            Ok(b"::") => {
-                let (mut namespace, func_args): (Vec<Decorated<Ident>>, FuncArgs) = (
-                    repeat(
-                        1..,
-                        preceded(
-                            b"::",
-                            decorated(
-                                ws_or_sp(state),
-                                cut_err(ident).context(StrContext::Expected(
-                                    StrContextValue::Description("identifier"),
-                                )),
-                                ws_or_sp(state),
-                            ),
-                        ),
-                    ),
-                    func_args,
-                )
-                    .parse_next(input)?;
-
-                let mut namespace_first = Decorated::new(Ident::new_unchecked(ident_));
-                namespace_first.set_span(span);
-                namespace_first
-                    .decor_mut()
-                    .set_suffix(RawString::from_span(suffix));
-
-                // We already parsed the first namespace element and the function name is now part
-                // of the remaining namspace, so we have to correct this.
-                let name = namespace.pop().unwrap();
-                namespace.insert(0, namespace_first);
-
-                let func_name = FuncName { namespace, name };
-                let func_call = FuncCall::new(func_name, func_args);
-                Expression::FuncCall(Box::new(func_call))
-            }
-            // Function arguments without namespace.
-            Ok([b'(', _]) => {
-                let func_args = func_args.parse_next(input)?;
-
-                let mut ident = Decorated::new(Ident::new_unchecked(ident_));
-                ident.set_span(span);
+            // This is a function call: identifier starts a function namespace, or function
+            // arguments follow.
+            Ok(peeked @ (b"::" | [b'(', _])) => {
+                let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(RawString::from_span(suffix));
-                let func_call = FuncCall::new(ident, func_args);
+                ident.set_span(span);
+
+                let func_name = if peeked == b"::" {
+                    // Consume the remaining namespace parts and function name.
+                    let mut namespace = func_namespace_parts(state).parse_next(input)?;
+
+                    // We already parsed the first namespace element before and the function name
+                    // is now part of the remaining namspace parts, so we have to correct this.
+                    let name = namespace.pop().unwrap();
+                    namespace.insert(0, ident);
+
+                    FuncName { namespace, name }
+                } else {
+                    FuncName::from(ident)
+                };
+
+                let func_args = func_args.parse_next(input)?;
+                let func_call = FuncCall::new(func_name, func_args);
                 Expression::FuncCall(Box::new(func_call))
             }
             // This is not a function call.
             _ => {
                 input.reset(&checkpoint);
 
-                match ident_ {
-                    "null" => Expression::Null(Null.into()),
-                    "true" => Expression::Bool(true.into()),
-                    "false" => Expression::Bool(false.into()),
-                    var => Expression::Variable(Ident::new_unchecked(var).into()),
+                match ident {
+                    "null" => Expression::null(),
+                    "true" => Expression::from(true),
+                    "false" => Expression::from(false),
+                    var => Expression::from(Ident::new_unchecked(var)),
                 }
             }
         };
 
         state.borrow_mut().on_expr_term(expr);
         return Ok(());
+    }
+}
+
+fn func_namespace_parts<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + 's {
+    move |input: &mut Input<'i>| {
+        repeat(
+            1..,
+            preceded(
+                b"::",
+                decorated(
+                    ws_or_sp(state),
+                    cut_err(ident).context(StrContext::Expected(StrContextValue::Description(
+                        "identifier",
+                    ))),
+                    ws_or_sp(state),
+                ),
+            ),
+        )
+        .parse_next(input)
     }
 }
 
