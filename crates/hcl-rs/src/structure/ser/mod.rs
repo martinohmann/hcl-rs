@@ -6,14 +6,15 @@ mod tests;
 use super::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::expr::ser::{
     ExpressionSerializer, SerializeExpressionMap, SerializeExpressionStruct,
-    SerializeExpressionStructVariant, SerializeExpressionTupleVariant,
+    SerializeExpressionStructVariant, SerializeExpressionTupleVariant, EXPR_HANDLES,
+    EXPR_HANDLE_MARKER,
 };
 use crate::ser::{
     blocks::{BLOCK_MARKER, LABELED_BLOCK_MARKER},
     in_internal_serialization, IdentifierSerializer, InternalHandles,
     SerializeInternalHandleStruct, StringSerializer,
 };
-use crate::{Error, Expression, Identifier, Result};
+use crate::{Error, Expression, Identifier, ObjectKey, Result};
 use serde::ser::{self, Serialize, SerializeMap, SerializeStruct};
 use std::fmt;
 
@@ -302,14 +303,17 @@ impl ser::SerializeMap for SerializeBodyMap {
 }
 
 pub(crate) enum SerializeBodyStruct {
-    InternalHandle(SerializeInternalHandleStruct),
+    InternalStructureHandle(SerializeInternalHandleStruct),
+    InternalExprHandle(SerializeInternalHandleStruct),
     Map(SerializeBodyMap),
 }
 
 impl SerializeBodyStruct {
     fn new(name: &'static str, len: usize) -> Self {
         if name == STRUCTURE_HANDLE_MARKER {
-            SerializeBodyStruct::InternalHandle(SerializeInternalHandleStruct::new())
+            SerializeBodyStruct::InternalStructureHandle(SerializeInternalHandleStruct::new())
+        } else if name == EXPR_HANDLE_MARKER {
+            SerializeBodyStruct::InternalExprHandle(SerializeInternalHandleStruct::new())
         } else {
             SerializeBodyStruct::Map(SerializeBodyMap::new(Some(len)))
         }
@@ -326,15 +330,45 @@ impl ser::SerializeStruct for SerializeBodyStruct {
     {
         match self {
             SerializeBodyStruct::Map(ser) => ser.serialize_entry(key, value),
-            SerializeBodyStruct::InternalHandle(ser) => ser.serialize_field(key, value),
+            SerializeBodyStruct::InternalStructureHandle(ser)
+            | SerializeBodyStruct::InternalExprHandle(ser) => ser.serialize_field(key, value),
         }
     }
 
     fn end(self) -> Result<Self::Ok> {
         match self {
-            SerializeBodyStruct::InternalHandle(ser) => ser
+            SerializeBodyStruct::InternalStructureHandle(ser) => ser
                 .end()
                 .map(|handle| STRUCTURE_HANDLES.with(|sh| sh.remove(handle)).into()),
+            SerializeBodyStruct::InternalExprHandle(ser) => {
+                let handle = ser.end()?;
+
+                match EXPR_HANDLES.with(|sh| sh.remove(handle)) {
+                    Expression::Object(object) => {
+                        let attrs = object
+                            .into_iter()
+                            .map(|(key, value)| {
+                                let key = match key {
+                                    ObjectKey::Identifier(ident) => ident,
+                                    ObjectKey::Expression(Expression::String(s)) => s.into(),
+                                    ObjectKey::Expression(expr) => {
+                                        return Err(ser::Error::custom(format!(
+                                            "encountered invalid HCL attribute key `{expr}`",
+                                        )))
+                                    }
+                                };
+
+                                Ok(Attribute::new(key, value))
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+
+                        Ok(attrs.into())
+                    }
+                    _ => Err(ser::Error::custom(
+                        "non-object HCL expressions are not permitted in this context",
+                    )),
+                }
+            }
             SerializeBodyStruct::Map(ser) => ser.end(),
         }
     }
