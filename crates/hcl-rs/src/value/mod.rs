@@ -4,10 +4,12 @@ pub(crate) mod de;
 mod from;
 mod ser;
 
-use self::ser::ValueSerializer;
-use crate::{format, Number, Result};
-use serde::ser::Serialize;
 use std::fmt;
+
+use serde::{de::DeserializeOwned, ser::Serialize};
+
+use self::{de::ValueDeserializer, ser::ValueSerializer};
+use crate::{format, Number, Result};
 
 /// The map type used for HCL objects.
 pub type Map<K, V> = indexmap::IndexMap<K, V>;
@@ -206,7 +208,7 @@ impl fmt::Display for Value {
     }
 }
 
-/// Convert a `T` into `hcl::Value` which is an enum that can represent any valid HCL value.
+/// Convert a `T` into [`Value`] which is an enum that can represent any valid HCL value.
 ///
 /// # Example
 ///
@@ -249,4 +251,49 @@ where
     T: Serialize,
 {
     value.serialize(ValueSerializer)
+}
+
+/// Convert a [`Value`] into a type `T` that implements [`serde::de::Deserialize`].
+///
+/// # Example
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use hcl::{Map, Value};
+/// use serde::Deserialize;
+///
+/// #[derive(Debug, Deserialize)]
+/// struct Custom {
+///     foo: String,
+///     bar: u64,
+/// }
+///
+/// let value = Value::Object({
+///     let mut object = Map::new();
+///     object.insert("foo".into(), "baz".into());
+///     object.insert("bar".into(), 42u64.into());
+///     object
+/// });
+///
+///
+/// let expected = Custom {
+///     foo: "baz".into(),
+///     bar: 42,
+/// };
+///
+/// let custom: Custom = hcl::from_value(value)?;
+///
+/// assert_eq!(custom, expected);
+/// #     Ok(())
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// This conversion can fail if `T`'s implementation of [`serde::de::Deserialize`] decides to fail.
+pub fn from_value<T>(value: Value) -> Result<T>
+where
+    T: DeserializeOwned,
+{
+    T::deserialize(ValueDeserializer::new(value))
 }

@@ -85,4 +85,4 @@ pub use structure::{BlockBuilder, BodyBuilder};
 pub use template::Template;
 
 #[doc(inline)]
-pub use value::{to_value, Map, Value};
+pub use value::{from_value, to_value, Map, Value};
