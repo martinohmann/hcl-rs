@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.17.1](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.17.0...hcl-rs-v0.17.1) - 2024-05-20
+
+### Fixed
+- don't leak internal handles during serialization ([#346](https://github.com/martinohmann/hcl-rs/pull/346))
+
 ## [0.17.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.16.9...hcl-rs-v0.17.0) - 2024-05-16
 
 ### Added
