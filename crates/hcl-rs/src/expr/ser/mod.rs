@@ -8,10 +8,10 @@ use crate::ser::{in_internal_serialization, InternalHandles, SerializeInternalHa
 use crate::Error;
 use serde::ser::{self, Impossible, SerializeMap};
 
-const EXPR_HANDLE_MARKER: &str = "\x00$hcl::ExprHandle";
+pub(crate) const EXPR_HANDLE_MARKER: &str = "\x00$hcl::ExprHandle";
 
 thread_local! {
-    static EXPR_HANDLES: InternalHandles<Expression> = InternalHandles::new(EXPR_HANDLE_MARKER);
+    pub(crate) static EXPR_HANDLES: InternalHandles<Expression> = InternalHandles::new(EXPR_HANDLE_MARKER);
 }
 
 macro_rules! impl_serialize_for_expr {

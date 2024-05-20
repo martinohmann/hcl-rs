@@ -239,3 +239,26 @@ fn issue_248() {
     let parsed = hcl::parse(&formatted).unwrap();
     assert_eq!(parsed, body);
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/344
+#[test]
+fn issue_344() {
+    use hcl::Expression;
+    use vecmap::VecMap;
+
+    let value = [("foo", "bar"), ("baz", "qux")];
+    assert!(hcl::to_string(&VecMap::from_iter(value)).is_ok());
+    assert!(hcl::to_string(&Expression::from_iter(value)).is_ok());
+
+    let value = [(1usize, "bar"), (2usize, "qux")];
+    assert!(hcl::to_string(&VecMap::from_iter(value)).is_err());
+    assert!(hcl::to_string(&Expression::from_iter(value)).is_err());
+
+    let value = true;
+    assert!(hcl::to_string(&value).is_err());
+    assert!(hcl::to_string(&Expression::Bool(value)).is_err());
+
+    let value = [1, 2];
+    assert!(hcl::to_string(&value).is_err());
+    assert!(hcl::to_string(&Expression::from_iter(value)).is_err());
+}
