@@ -208,7 +208,7 @@ impl fmt::Display for Value {
     }
 }
 
-/// Convert a `T` into [`Value`] which is an enum that can represent any valid HCL value.
+/// Convert a `T` into `hcl::Value` which is an enum that can represent any valid HCL value.
 ///
 /// # Example
 ///
@@ -253,7 +253,7 @@ where
     value.serialize(ValueSerializer)
 }
 
-/// Convert a [`Value`] into a type `T` that implements [`serde::de::Deserialize`].
+/// Convert a `hcl::Value` into a type `T` that implements `serde::Deserialize`.
 ///
 /// # Example
 ///
@@ -290,7 +290,7 @@ where
 ///
 /// # Errors
 ///
-/// This conversion can fail if `T`'s implementation of [`serde::de::Deserialize`] decides to fail.
+/// This conversion can fail if `T`'s implementation of [`serde::Deserialize`] decides to fail.
 pub fn from_value<T>(value: Value) -> Result<T>
 where
     T: DeserializeOwned,
