@@ -262,7 +262,7 @@ where
 /// use hcl::{Map, Value};
 /// use serde::Deserialize;
 ///
-/// #[derive(Debug, Deserialize)]
+/// #[derive(Debug, Deserialize, PartialEq)]
 /// struct Custom {
 ///     foo: String,
 ///     bar: u64,
