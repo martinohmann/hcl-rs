@@ -53,9 +53,6 @@ impl From<Expression> for expr::Expression {
             Expression::Traversal(traversal) => expr::Traversal::from(*traversal).into(),
             Expression::Parenthesis(parens) => expr::Parenthesis::new((*parens).into()).into(),
             Expression::Conditional(cond) => expr::Conditional::from(*cond).into(),
-            Expression::Raw(raw) => {
-                template::StringTemplate::from(template_or_default(raw.as_str())).into()
-            }
         }
     }
 }

@@ -36,7 +36,7 @@ macro_rules! impl_serialize_for_expr {
 
 impl_serialize_for_expr! {
     Conditional ForExpr FuncCall Operation UnaryOp BinaryOp
-    TemplateExpr Heredoc RawExpression Traversal Variable
+    TemplateExpr Heredoc Traversal Variable
 }
 
 impl ser::Serialize for HeredocStripMode {
@@ -72,7 +72,6 @@ impl ser::Serialize for Expression {
             Expression::Conditional(cond) => cond.serialize(serializer),
             Expression::Operation(op) => op.serialize(serializer),
             Expression::ForExpr(expr) => expr.serialize(serializer),
-            Expression::Raw(raw) => raw.serialize(serializer),
         }
     }
 }

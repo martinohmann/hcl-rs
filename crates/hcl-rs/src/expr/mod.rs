@@ -3,8 +3,6 @@
 //! The module contains the [`Expression`] enum which can represent any valid HCL expression in
 //! HCL attribute values and templates.
 
-#![allow(deprecated)]
-
 mod conditional;
 pub(crate) mod de;
 mod edit;
@@ -31,7 +29,7 @@ use crate::ser::with_internal_serialization;
 use crate::{Identifier, Number, Result, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
-use std::fmt::{self, Display, Write};
+use std::fmt::{self, Display};
 
 /// The object type used in the expression sub-language.
 pub type Object<K, V> = vecmap::VecMap<K, V>;
@@ -71,13 +69,6 @@ pub enum Expression {
     Operation(Box<Operation>),
     /// A construct for constructing a collection by projecting the items from another collection.
     ForExpr(Box<ForExpr>),
-    /// Represents a raw HCL expression. This variant will never be emitted by the parser. See
-    /// [`RawExpression`] for more details.
-    #[deprecated(
-        since = "0.16.3",
-        note = "Support for raw expressions will be removed in an upcoming release"
-    )]
-    Raw(RawExpression),
 }
 
 impl Expression {
@@ -101,7 +92,6 @@ impl From<Expression> for Value {
             Expression::Object(object) => object.into_iter().collect(),
             Expression::TemplateExpr(expr) => Value::String(expr.to_string()),
             Expression::Parenthesis(expr) => Value::from(*expr),
-            Expression::Raw(raw) => Value::String(raw.into()),
             other => Value::String(format::to_interpolated_string(&other).unwrap()),
         }
     }
@@ -214,12 +204,6 @@ impl<K: Into<ObjectKey>, V: Into<Expression>> FromIterator<(K, V)> for Expressio
 impl From<()> for Expression {
     fn from((): ()) -> Self {
         Expression::Null
-    }
-}
-
-impl From<RawExpression> for Expression {
-    fn from(raw: RawExpression) -> Self {
-        Expression::Raw(raw)
     }
 }
 
@@ -341,73 +325,6 @@ impl Display for ObjectKey {
                 expr => Display::fmt(expr, f),
             },
         }
-    }
-}
-
-/// A type that holds the value of a raw expression. It can be used to serialize arbitrary
-/// HCL expressions.
-///
-/// *Please note*: raw expressions are not validated during serialization, so it is your
-/// responsiblity to ensure that they are valid HCL.
-#[deprecated(
-    since = "0.16.3",
-    note = "Support for raw expressions will be removed in an upcoming release"
-)]
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(transparent)]
-pub struct RawExpression(String);
-
-impl RawExpression {
-    /// Creates a new `RawExpression` from something that can be converted to a `String`.
-    pub fn new<E>(expr: E) -> RawExpression
-    where
-        E: Into<String>,
-    {
-        RawExpression(expr.into())
-    }
-
-    /// Consumes `self` and returns the `RawExpression` as a `String`. If you want to represent the
-    /// `RawExpression` as an interpolated string, use `.to_string()` instead.
-    pub fn into_inner(self) -> String {
-        self.0
-    }
-
-    /// Returns the `RawExpression` as a `&str`. If you want to represent the `RawExpression` as
-    /// an interpolated string, use `.to_string()` instead.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl From<String> for RawExpression {
-    fn from(expr: String) -> Self {
-        RawExpression::new(expr)
-    }
-}
-
-impl From<&str> for RawExpression {
-    fn from(expr: &str) -> Self {
-        RawExpression::new(expr)
-    }
-}
-
-impl<'a> From<Cow<'a, str>> for RawExpression {
-    fn from(expr: Cow<'a, str>) -> Self {
-        RawExpression::new(expr)
-    }
-}
-
-impl From<RawExpression> for String {
-    fn from(expr: RawExpression) -> Self {
-        expr.to_string()
-    }
-}
-
-impl Display for RawExpression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("${")?;
-        f.write_str(&self.0)?;
-        f.write_char('}')
     }
 }
 

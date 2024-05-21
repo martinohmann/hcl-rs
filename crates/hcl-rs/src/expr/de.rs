@@ -51,7 +51,6 @@ impl<'de> de::Deserialize<'de> for Expression {
             Conditional,
             Operation,
             ForExpr,
-            Raw,
         }
 
         struct FieldVisitor;
@@ -82,10 +81,9 @@ impl<'de> de::Deserialize<'de> for Expression {
                     11u64 => Ok(Field::Conditional),
                     12u64 => Ok(Field::Operation),
                     13u64 => Ok(Field::ForExpr),
-                    14u64 => Ok(Field::Raw),
                     _ => Err(de::Error::invalid_value(
                         Unexpected::Unsigned(value),
-                        &"variant index 0 <= i < 15",
+                        &"variant index 0 <= i < 14",
                     )),
                 }
             }
@@ -109,7 +107,6 @@ impl<'de> de::Deserialize<'de> for Expression {
                     "Conditional" => Ok(Field::Conditional),
                     "Operation" => Ok(Field::Operation),
                     "ForExpr" => Ok(Field::ForExpr),
-                    "Raw" => Ok(Field::Raw),
                     _ => Err(de::Error::unknown_variant(value, VARIANTS)),
                 }
             }
@@ -133,7 +130,6 @@ impl<'de> de::Deserialize<'de> for Expression {
                     b"Conditional" => Ok(Field::Conditional),
                     b"Operation" => Ok(Field::Operation),
                     b"ForExpr" => Ok(Field::ForExpr),
-                    b"Raw" => Ok(Field::Raw),
                     _ => {
                         let value = &String::from_utf8_lossy(value);
                         Err(de::Error::unknown_variant(value, VARIANTS))
@@ -248,7 +244,6 @@ impl<'de> de::Deserialize<'de> for Expression {
                     (Field::Conditional, v) => v.newtype_variant().map(Expression::Conditional),
                     (Field::Operation, v) => v.newtype_variant().map(Expression::Operation),
                     (Field::ForExpr, v) => v.newtype_variant().map(Expression::ForExpr),
-                    (Field::Raw, v) => v.newtype_variant().map(Expression::Raw),
                 }
             }
         }
@@ -268,7 +263,6 @@ impl<'de> de::Deserialize<'de> for Expression {
             "Conditional",
             "Operation",
             "ForExpr",
-            "Raw",
         ];
 
         deserializer.deserialize_enum("$hcl::Expression", VARIANTS, ExpressionVisitor)
@@ -558,7 +552,6 @@ impl<'de> de::VariantAccess<'de> for Expression {
             Expression::String(v) => seed.deserialize(v.into_deserializer()),
             Expression::Array(v) => seed.deserialize(v.into_deserializer()),
             Expression::Object(v) => seed.deserialize(v.into_deserializer()),
-            Expression::Raw(v) => seed.deserialize(v.into_deserializer()),
             Expression::TemplateExpr(v) => seed.deserialize(*v),
             Expression::Variable(v) => seed.deserialize(v.into_deserializer()),
             Expression::Traversal(v) => seed.deserialize(v.into_deserializer()),
@@ -1166,14 +1159,6 @@ impl<'de> de::VariantAccess<'de> for ObjectKey {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for RawExpression {
-    type Deserializer = StringDeserializer<Error>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        self.into_inner().into_deserializer()
-    }
-}
-
 impl<'de> IntoDeserializer<'de, Error> for TemplateExpr {
     type Deserializer = Self;
 
@@ -1281,7 +1266,7 @@ impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
 
 impl_variant_name! {
     Expression => {
-        Null, Bool, Number, String, Array, Object, Raw, TemplateExpr, Variable,
+        Null, Bool, Number, String, Array, Object, TemplateExpr, Variable,
         Traversal, FuncCall, Parenthesis, Conditional, Operation, ForExpr
     },
     ObjectKey => { Identifier, Expression },
