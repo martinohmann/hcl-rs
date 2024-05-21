@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.17.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.17.1...hcl-rs-v0.17.2) - 2024-05-21
+
+### Added
+- add `from_value` function for deserializing HCL `Value`. ([#348](https://github.com/martinohmann/hcl-rs/pull/348))
+
 ## [0.17.1](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.17.0...hcl-rs-v0.17.1) - 2024-05-20
 
 ### Fixed
