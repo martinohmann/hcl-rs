@@ -1,7 +1,5 @@
 use super::prelude::*;
 
-use super::string::from_utf8_unchecked;
-
 use crate::Number;
 
 use std::str::FromStr;
@@ -18,27 +16,19 @@ pub(super) fn number(input: &mut Input) -> PResult<Number> {
 }
 
 fn integer(input: &mut Input) -> PResult<u64> {
-    digit1
-        .try_map(|s: &[u8]| {
-            u64::from_str(unsafe { from_utf8_unchecked(s, "`digit1` filters out non-ascii") })
-        })
-        .parse_next(input)
+    digit1.try_map(|s: &str| u64::from_str(s)).parse_next(input)
 }
 
 fn float(input: &mut Input) -> PResult<f64> {
-    let fraction = preceded(b'.', digit1);
+    let fraction = preceded('.', digit1);
 
     terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
         .recognize()
-        .try_map(|s: &[u8]| {
-            f64::from_str(unsafe {
-                from_utf8_unchecked(s, "`digit1` and `exponent` filter out non-ascii")
-            })
-        })
+        .try_map(|s: &str| f64::from_str(s))
         .parse_next(input)
 }
 
-fn exponent<'a>(input: &mut Input<'a>) -> PResult<&'a [u8]> {
+fn exponent<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     (
         one_of(b"eE"),
         opt(one_of(b"+-")),
@@ -63,7 +53,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let parsed = integer.parse(Input::new(input.as_bytes()));
+            let parsed = integer.parse(Input::new(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
             assert_eq!(parsed.unwrap(), *expected);
         }
@@ -81,7 +71,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let parsed = float.parse(Input::new(input.as_bytes()));
+            let parsed = float.parse(Input::new(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
             assert_eq!(parsed.unwrap(), *expected);
         }

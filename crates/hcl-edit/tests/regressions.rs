@@ -165,3 +165,17 @@ fn issue_319() {
             [2]
     "#};
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/350
+#[test]
+fn issue_350() {
+    let unicode_input = r#"
+        locals {
+            é = 4
+        }
+        output "ééé" {
+            value = local.é
+        }
+    "#;
+    assert!(unicode_input.parse::<Body>().is_ok());
+}

@@ -3,13 +3,14 @@ use super::prelude::*;
 use super::expr::expr;
 use super::repr::{decorated, prefix_decorated, suffix_decorated};
 use super::state::BodyParseState;
-use super::string::{cut_char, cut_str_ident, ident, is_id_start, raw_string, string};
+use super::string::{cut_char, cut_str_ident, ident, raw_string, string};
 use super::trivia::{line_comment, sp, void, ws};
 
 use crate::expr::Expression;
 use crate::structure::{Attribute, Block, BlockLabel, Body, Structure};
 use crate::{Decorate, Decorated, Ident, SetSpan};
 
+use hcl_primitives::ident::is_id_start;
 use std::cell::RefCell;
 use winnow::ascii::line_ending;
 use winnow::combinator::{
@@ -64,7 +65,7 @@ fn structure<'i, 's>(
         let suffix = raw_string(sp).parse_next(input)?;
 
         let mut structure = match peek(any).parse_next(input)? {
-            b'=' => {
+            '=' => {
                 if state.borrow_mut().is_redefined(ident) {
                     input.reset(&checkpoint);
                     return cut_err(fail)
@@ -82,7 +83,7 @@ fn structure<'i, 's>(
                 let attr = Attribute::new(ident, expr);
                 Structure::Attribute(attr)
             }
-            b'{' => {
+            '{' => {
                 let body = block_body(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
                 ident.decor_mut().set_suffix(suffix);
@@ -91,7 +92,7 @@ fn structure<'i, 's>(
                 block.body = body;
                 Structure::Block(block)
             }
-            ch if ch == b'"' || is_id_start(ch) => {
+            ch if ch == '"' || is_id_start(ch) => {
                 let labels = block_labels(input)?;
                 let body = block_body(input)?;
                 let mut ident = Decorated::new(Ident::new_unchecked(ident));
