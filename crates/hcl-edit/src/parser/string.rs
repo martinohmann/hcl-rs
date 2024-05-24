@@ -4,13 +4,13 @@ use super::trivia::void;
 
 use crate::{Decorated, Ident, RawString};
 
+use hcl_primitives::ident::{is_id_continue, is_id_start};
 use std::borrow::Cow;
 use winnow::combinator::{alt, cut_err, delimited, empty, fail, not, opt, preceded, repeat};
-use winnow::stream::AsChar;
 use winnow::token::{any, one_of, take, take_while};
 
 pub(super) fn string(input: &mut Input) -> PResult<String> {
-    delimited(b'"', opt(build_string(quoted_string_fragment)), b'"')
+    delimited('"', opt(build_string(quoted_string_fragment)), '"')
         .map(Option::unwrap_or_default)
         .output_into()
         .parse_next(input)
@@ -102,8 +102,8 @@ where
 /// interpolation/directive start markers.
 fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     let literal_end = dispatch! {any;
-        b'\"' | b'\\' => empty.value(true),
-        b'$' | b'%' => b'{'.value(true),
+        '\"' | '\\' => empty.value(true),
+        '$' | '%' => '{'.value(true),
         _ => fail,
     };
     any_until(literal_end).parse_next(input)
@@ -118,14 +118,13 @@ where
         preceded(not(alt((escaped_marker.void(), literal_end.void()))), any),
     ))
     .recognize()
-    .try_map(std::str::from_utf8)
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
 fn escaped_marker(input: &mut Input) -> PResult<EscapedMarker> {
     dispatch! {take::<_, Input, _>(3usize);
-        b"$${" => empty.value(EscapedMarker::Interpolation),
-        b"%%{" => empty.value(EscapedMarker::Directive),
+        "$${" => empty.value(EscapedMarker::Interpolation),
+        "%%{" => empty.value(EscapedMarker::Directive),
         _ => fail,
     }
     .parse_next(input)
@@ -133,20 +132,20 @@ fn escaped_marker(input: &mut Input) -> PResult<EscapedMarker> {
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
 fn escaped_char(input: &mut Input) -> PResult<char> {
-    b'\\'.parse_next(input)?;
+    '\\'.parse_next(input)?;
 
     dispatch! {any;
-        b'n' => empty.value('\n'),
-        b'r' => empty.value('\r'),
-        b't' => empty.value('\t'),
-        b'\\' => empty.value('\\'),
-        b'"' => empty.value('"'),
-        b'/' => empty.value('/'),
-        b'b' => empty.value('\u{08}'),
-        b'f' => empty.value('\u{0C}'),
-        b'u' => cut_err(hexescape::<4>)
+        'n' => empty.value('\n'),
+        'r' => empty.value('\r'),
+        't' => empty.value('\t'),
+        '\\' => empty.value('\\'),
+        '"' => empty.value('"'),
+        '/' => empty.value('/'),
+        'b' => empty.value('\u{08}'),
+        'f' => empty.value('\u{0C}'),
+        'u' => cut_err(hexescape::<4>)
             .context(StrContext::Label("unicode 4-digit hex code")),
-        b'U' => cut_err(hexescape::<8>)
+        'U' => cut_err(hexescape::<8>)
             .context(StrContext::Label("unicode 8-digit hex code")),
         _ => cut_err(fail)
             .context(StrContext::Label("escape sequence"))
@@ -165,14 +164,9 @@ fn escaped_char(input: &mut Input) -> PResult<char> {
 
 fn hexescape<const N: usize>(input: &mut Input) -> PResult<char> {
     let parse_hex =
-        take_while(1..=N, |c: u8| c.is_ascii_hexdigit()).verify(|hex: &[u8]| hex.len() == N);
+        take_while(1..=N, |c: char| c.is_ascii_hexdigit()).verify(|hex: &str| hex.len() == N);
 
-    let parse_u32 = parse_hex.try_map(|hex: &[u8]| {
-        u32::from_str_radix(
-            unsafe { from_utf8_unchecked(hex, "`is_ascii_hexdigit` filters out non-ascii") },
-            16,
-        )
-    });
+    let parse_u32 = parse_hex.try_map(|hex: &str| u32::from_str_radix(hex, 16));
 
     parse_u32.verify_map(std::char::from_u32).parse_next(input)
 }
@@ -193,19 +187,14 @@ pub(super) fn ident(input: &mut Input) -> PResult<Decorated<Ident>> {
 pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     (one_of(is_id_start), take_while(0.., is_id_continue))
         .recognize()
-        .map(|s: &[u8]| unsafe {
-            from_utf8_unchecked(s, "`is_id_start` and `is_id_continue` filter out non-utf8")
-        })
         .parse_next(input)
 }
 
 pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, ContextError> {
-    cut_err(c)
-        .map(AsChar::as_char)
-        .context(StrContext::Expected(StrContextValue::CharLiteral(c)))
+    cut_err(c).context(StrContext::Expected(StrContextValue::CharLiteral(c)))
 }
 
-pub(super) fn cut_tag<'a>(tag: &'static str) -> impl Parser<Input<'a>, &'a [u8], ContextError> {
+pub(super) fn cut_tag<'a>(tag: &'static str) -> impl Parser<Input<'a>, &'a str, ContextError> {
     cut_err(tag).context(StrContext::Expected(StrContextValue::StringLiteral(tag)))
 }
 
@@ -223,25 +212,4 @@ pub(super) fn cut_str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
             "identifier",
         )))
         .parse_next(input)
-}
-
-#[inline]
-pub(super) fn is_id_start(b: u8) -> bool {
-    hcl_primitives::ident::is_id_start(b.as_char())
-}
-
-#[inline]
-fn is_id_continue(b: u8) -> bool {
-    hcl_primitives::ident::is_id_continue(b.as_char())
-}
-
-pub(super) unsafe fn from_utf8_unchecked<'b>(
-    bytes: &'b [u8],
-    safety_justification: &'static str,
-) -> &'b str {
-    if cfg!(debug_assertions) {
-        std::str::from_utf8(bytes).expect(safety_justification)
-    } else {
-        std::str::from_utf8_unchecked(bytes)
-    }
 }

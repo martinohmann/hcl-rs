@@ -3,10 +3,7 @@ use super::prelude::*;
 use super::number::number as num;
 use super::repr::{decorated, prefix_decorated, spanned, suffix_decorated};
 use super::state::ExprParseState;
-use super::string::{
-    cut_char, cut_ident, cut_tag, from_utf8_unchecked, ident, is_id_start, raw_string, str_ident,
-    string,
-};
+use super::string::{cut_char, cut_ident, cut_tag, ident, raw_string, str_ident, string};
 use super::template::{heredoc_template, string_template};
 use super::trivia::{line_comment, sp, ws};
 
@@ -18,6 +15,7 @@ use crate::expr::{
 use crate::template::HeredocTemplate;
 use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
 
+use hcl_primitives::ident::is_id_start;
 use std::cell::RefCell;
 use winnow::ascii::{crlf, dec_uint, line_ending, newline, space0};
 use winnow::combinator::{
@@ -76,7 +74,7 @@ fn expr_inner<'i, 's>(
                 //
                 // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
                 // division operator.
-                Ok(b"//" | b"/*" | b"..") => {
+                Ok("//" | "/*" | "..") => {
                     input.reset(&checkpoint);
                     return Ok(());
                 }
@@ -84,13 +82,13 @@ fn expr_inner<'i, 's>(
                 //
                 // Note: after the traversal is consumed, the loop is entered again to consume
                 // a potentially following conditional or binary operation.
-                Ok([b'.' | b'[', _]) => {
+                Ok(b) if b.starts_with(['.', '[']) => {
                     state.borrow_mut().on_ws(suffix);
                     traversal(state).parse_next(input)?;
                     continue;
                 }
                 // Conditional.
-                Ok([b'?', _]) => {
+                Ok(b) if b.starts_with('?') => {
                     state.borrow_mut().on_ws(suffix);
                     return conditional(state).parse_next(input);
                 }
@@ -98,10 +96,10 @@ fn expr_inner<'i, 's>(
                 //
                 // Note: matching a single `=` is ambiguous as it could also be an object
                 // key-value separator, so we'll need to match on `==`.
-                Ok(
-                    b"=="
-                    | [b'!' | b'<' | b'>' | b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|', _],
-                ) => {
+                Ok(b)
+                    if b == "=="
+                        || b.starts_with(['!', '<', '>', '+', '-', '*', '/', '%', '&', '|']) =>
+                {
                     state.borrow_mut().on_ws(suffix);
                     return binary_op(state).parse_next(input);
                 }
@@ -120,14 +118,14 @@ fn expr_term<'i, 's>(
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         dispatch! {peek(any);
-            b'"' => stringlike(state),
-            b'[' => array(state),
-            b'{' => object(state),
-            b'0'..=b'9' => number(state),
-            b'<' => heredoc(state),
-            b'-' => alt((neg_number(state), unary_op(state))),
-            b'!' => unary_op(state),
-            b'(' => parenthesis(state),
+            '"' => stringlike(state),
+            '[' => array(state),
+            '{' => object(state),
+            '0'..='9' => number(state),
+            '<' => heredoc(state),
+            '-' => alt((neg_number(state), unary_op(state))),
+            '!' => unary_op(state),
+            '(' => parenthesis(state),
             b if is_id_start(b) => identlike(state),
             _ => cut_err(fail)
                 .context(StrContext::Label("expression"))
@@ -173,7 +171,7 @@ fn number<'i, 's>(
         num.with_recognized()
             .map(|(num, repr)| {
                 let mut num = Formatted::new(num);
-                num.set_repr(unsafe { from_utf8_unchecked(repr, "`num` filters out non-ascii") });
+                num.set_repr(repr);
                 state.borrow_mut().on_expr_term(Expression::Number(num));
             })
             .parse_next(input)
@@ -184,14 +182,12 @@ fn neg_number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        preceded((b'-', sp), num)
+        preceded(('-', sp), num)
             .with_recognized()
-            .try_map(|(num, repr)| {
-                std::str::from_utf8(repr).map(|repr| {
-                    let mut num = Formatted::new(-num);
-                    num.set_repr(repr);
-                    state.borrow_mut().on_expr_term(Expression::Number(num));
-                })
+            .map(|(num, repr)| {
+                let mut num = Formatted::new(-num);
+                num.set_repr(repr);
+                state.borrow_mut().on_expr_term(Expression::Number(num));
             })
             .parse_next(input)
     }
@@ -212,11 +208,11 @@ fn traversal<'i, 's>(
 
 fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
     dispatch! {any;
-        b'.' => prefix_decorated(
+        '.' => prefix_decorated(
             ws,
             dispatch! {peek(any);
-                b'*' => b'*'.value(TraversalOperator::AttrSplat(Decorated::new(Splat))),
-                b'0'..=b'9' => dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
+                '*' => '*'.value(TraversalOperator::AttrSplat(Decorated::new(Splat))),
+                '0'..='9' => dec_uint.map(|index: u64| TraversalOperator::LegacyIndex(index.into())),
                 b if is_id_start(b) => ident.map(TraversalOperator::GetAttr),
                 _ => cut_err(fail)
                     .context(StrContext::Label("traversal operator"))
@@ -225,11 +221,11 @@ fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
                     .context(StrContext::Expected(StrContextValue::Description("unsigned integer"))),
             },
         ),
-        b'[' => terminated(
+        '[' => terminated(
             decorated(
                 ws,
                 dispatch! {peek(any);
-                    b'*' => b'*'.value(TraversalOperator::FullSplat(Decorated::new(Splat))),
+                    '*' => '*'.value(TraversalOperator::FullSplat(Decorated::new(Splat))),
                     _ => expr.map(TraversalOperator::Index),
                 },
                 ws,
@@ -257,8 +253,8 @@ fn unary_op<'i, 's>(
 
 fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
     dispatch! {any;
-        b'-' => empty.value(UnaryOperator::Neg),
-        b'!' => empty.value(UnaryOperator::Not),
+        '-' => empty.value(UnaryOperator::Neg),
+        '!' => empty.value(UnaryOperator::Not),
         _ => fail,
     }
     .parse_next(input)
@@ -279,23 +275,23 @@ fn binary_op<'i, 's>(
 
 fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
     dispatch! {any;
-        b'=' => b'='.value(BinaryOperator::Eq),
-        b'!' => b'='.value(BinaryOperator::NotEq),
-        b'<' => alt((
-            b'='.value(BinaryOperator::LessEq),
+        '=' => '='.value(BinaryOperator::Eq),
+        '!' => '='.value(BinaryOperator::NotEq),
+        '<' => alt((
+            '='.value(BinaryOperator::LessEq),
             empty.value(BinaryOperator::Less),
         )),
-        b'>' => alt((
-            b'='.value(BinaryOperator::GreaterEq),
+        '>' => alt((
+            '='.value(BinaryOperator::GreaterEq),
             empty.value(BinaryOperator::Greater),
         )),
-        b'+' => empty.value(BinaryOperator::Plus),
-        b'-' => empty.value(BinaryOperator::Minus),
-        b'*' => empty.value(BinaryOperator::Mul),
-        b'/' => empty.value(BinaryOperator::Div),
-        b'%' => empty.value(BinaryOperator::Mod),
-        b'&' => b'&'.value(BinaryOperator::And),
-        b'|' => b'|'.value(BinaryOperator::Or),
+        '+' => empty.value(BinaryOperator::Plus),
+        '-' => empty.value(BinaryOperator::Minus),
+        '*' => empty.value(BinaryOperator::Mul),
+        '/' => empty.value(BinaryOperator::Div),
+        '%' => empty.value(BinaryOperator::Mod),
+        '&' => '&'.value(BinaryOperator::And),
+        '|' => '|'.value(BinaryOperator::Or),
         _ => fail,
     }
     .parse_next(input)
@@ -307,7 +303,7 @@ fn conditional<'i, 's>(
     move |input: &mut Input<'i>| {
         (
             preceded(
-                b'?',
+                '?',
                 decorated(ws_or_sp(state), expr_with_state(state), ws_or_sp(state)),
             ),
             preceded(
@@ -325,7 +321,7 @@ fn array<'i, 's>(
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         delimited(
-            b'[',
+            '[',
             for_expr_or_items(for_list_expr(state), array_items(state)),
             cut_char(']'),
         )
@@ -354,9 +350,9 @@ fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let values = separated(0.., decorated(ws, preceded(not(b']'), expr), ws), b',');
+        let values = separated(0.., decorated(ws, preceded(not(']'), expr), ws), ',');
 
-        (values, opt(b','), raw_string(ws))
+        (values, opt(','), raw_string(ws))
             .map(|(values, comma, trailing)| {
                 let values: Vec<_> = values;
                 let mut array = Array::from(values);
@@ -375,7 +371,7 @@ fn object<'i, 's>(
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         delimited(
-            b'{',
+            '{',
             for_expr_or_items(for_object_expr(state), object_items(state)),
             cut_char('}'),
         )
@@ -394,7 +390,7 @@ fn for_object_expr<'i, 's>(
                 cut_tag("=>"),
                 decorated(ws, expr, ws),
             ),
-            opt(b"..."),
+            opt("..."),
             opt(for_cond),
         )
             .map(|(intro, (key_expr, value_expr), grouping, cond)| {
@@ -421,7 +417,7 @@ fn object_items<'i, 's>(
             let trailing = raw_string(ws).parse_next(input)?;
             let ch = peek(any).parse_next(input)?;
 
-            if ch == b'}' {
+            if ch == '}' {
                 object.set_trailing(trailing);
                 state.borrow_mut().on_expr_term(Expression::Object(object));
                 return Ok(());
@@ -436,22 +432,22 @@ fn object_items<'i, 's>(
             let ch = peek(any).parse_next(input)?;
 
             let value_terminator = match ch {
-                b'}' => {
+                '}' => {
                     value.set_terminator(ObjectValueTerminator::None);
                     object.insert(key, value);
                     state.borrow_mut().on_expr_term(Expression::Object(object));
                     return Ok(());
                 }
-                b'\r' => crlf
+                '\r' => crlf
                     .value(ObjectValueTerminator::Newline)
                     .parse_next(input)?,
-                b'\n' => newline
+                '\n' => newline
                     .value(ObjectValueTerminator::Newline)
                     .parse_next(input)?,
-                b',' => take(1usize)
+                ',' => take(1usize)
                     .value(ObjectValueTerminator::Comma)
                     .parse_next(input)?,
-                b'#' | b'/' => {
+                '#' | '/' => {
                     let comment_span = line_comment.span().parse_next(input)?;
 
                     let decor = value.expr_mut().decor_mut();
@@ -516,8 +512,8 @@ fn object_value(input: &mut Input) -> PResult<ObjectValue> {
 
 fn object_value_assignment(input: &mut Input) -> PResult<ObjectValueAssignment> {
     dispatch! {any;
-        b'=' => empty.value(ObjectValueAssignment::Equals),
-        b':' => empty.value(ObjectValueAssignment::Colon),
+        '=' => empty.value(ObjectValueAssignment::Equals),
+        ':' => empty.value(ObjectValueAssignment::Colon),
         _ => cut_err(fail)
             .context(StrContext::Label("object value assignment"))
             .context(StrContext::Expected(StrContextValue::CharLiteral('=')))
@@ -539,7 +535,7 @@ where
         // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
         // and the following identifier which would fail parsing of arrays with identifier/func
         // call elements and objects with those as keys.
-        match peek((ws, b"for", one_of(b" \t#/"))).parse_next(input) {
+        match peek((ws, "for", one_of(b" \t#/"))).parse_next(input) {
             Ok(_) => for_expr_parser.parse_next(input),
             Err(_) => items_parser.parse_next(input),
         }
@@ -550,10 +546,10 @@ fn for_intro(input: &mut Input) -> PResult<ForIntro> {
     prefix_decorated(
         ws,
         delimited(
-            b"for",
+            "for",
             (
                 decorated(ws, cut_ident, ws),
-                opt(preceded(b',', decorated(ws, cut_ident, ws))),
+                opt(preceded(',', decorated(ws, cut_ident, ws))),
                 preceded(cut_tag("in"), decorated(ws, expr, ws)),
             ),
             cut_char(':'),
@@ -573,7 +569,7 @@ fn for_intro(input: &mut Input) -> PResult<ForIntro> {
 fn for_cond(input: &mut Input) -> PResult<ForCond> {
     prefix_decorated(
         ws,
-        preceded(b"if", decorated(ws, expr, ws)).map(ForCond::new),
+        preceded("if", decorated(ws, expr, ws)).map(ForCond::new),
     )
     .parse_next(input)
 }
@@ -628,7 +624,7 @@ fn heredoc<'i, 's>(
 fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
     terminated(
         (
-            preceded(b"<<", opt(b'-')).map(|indent| indent.is_some()),
+            preceded("<<", opt('-')).map(|indent| indent.is_some()),
             cut_err(str_ident).context(StrContext::Expected(StrContextValue::Description(
                 "identifier",
             ))),
@@ -650,41 +646,42 @@ fn identlike<'i, 's>(
         // we actually encounter a function call.
         let suffix = ws_or_sp(state).span().parse_next(input)?;
 
-        let expr = if let Ok(peeked @ (b"::" | [b'(', _])) =
-            peek(take::<_, _, ContextError>(2usize)).parse_next(input)
-        {
-            // This is a function call: parsed identifier starts a function namespace, or function
-            // arguments follow.
-            let mut ident = Decorated::new(Ident::new_unchecked(ident));
-            ident.decor_mut().set_suffix(RawString::from_span(suffix));
-            ident.set_span(span);
+        let expr = match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
+            Ok(peeked) if peeked == "::" || peeked.starts_with('(') => {
+                // This is a function call: parsed identifier starts a function namespace, or function
+                // arguments follow.
+                let mut ident = Decorated::new(Ident::new_unchecked(ident));
+                ident.decor_mut().set_suffix(RawString::from_span(suffix));
+                ident.set_span(span);
 
-            let func_name = if peeked == b"::" {
-                // Consume the remaining namespace components and function name.
-                let mut namespace = func_namespace_components(state).parse_next(input)?;
+                let func_name = if peeked == "::" {
+                    // Consume the remaining namespace components and function name.
+                    let mut namespace = func_namespace_components(state).parse_next(input)?;
 
-                // We already parsed the first namespace element before and the function name is
-                // now part of the remaining namspace components, so we have to correct this.
-                let name = namespace.pop().unwrap();
-                namespace.insert(0, ident);
+                    // We already parsed the first namespace element before and the function name is
+                    // now part of the remaining namspace components, so we have to correct this.
+                    let name = namespace.pop().unwrap();
+                    namespace.insert(0, ident);
 
-                FuncName { namespace, name }
-            } else {
-                FuncName::from(ident)
-            };
+                    FuncName { namespace, name }
+                } else {
+                    FuncName::from(ident)
+                };
 
-            let func_args = func_args.parse_next(input)?;
-            let func_call = FuncCall::new(func_name, func_args);
-            Expression::FuncCall(Box::new(func_call))
-        } else {
-            // This is not a function call: identifier is either keyword or variable name.
-            input.reset(&checkpoint);
+                let func_args = func_args.parse_next(input)?;
+                let func_call = FuncCall::new(func_name, func_args);
+                Expression::FuncCall(Box::new(func_call))
+            }
+            _ => {
+                // This is not a function call: identifier is either keyword or variable name.
+                input.reset(&checkpoint);
 
-            match ident {
-                "null" => Expression::null(),
-                "true" => Expression::from(true),
-                "false" => Expression::from(false),
-                var => Expression::from(Ident::new_unchecked(var)),
+                match ident {
+                    "null" => Expression::null(),
+                    "true" => Expression::from(true),
+                    "false" => Expression::from(false),
+                    var => Expression::from(Ident::new_unchecked(var)),
+                }
             }
         };
 
@@ -700,7 +697,7 @@ fn func_namespace_components<'i, 's>(
         repeat(
             1..,
             preceded(
-                b"::",
+                "::",
                 decorated(
                     ws_or_sp(state),
                     cut_err(ident).context(StrContext::Expected(StrContextValue::Description(
@@ -724,12 +721,12 @@ fn func_args(input: &mut Input) -> PResult<FuncArgs> {
     let args = separated(
         1..,
         decorated(ws, preceded(peek(none_of(b",.)")), expr), ws),
-        b',',
+        ',',
     );
 
     let trailer = dispatch! {any;
-        b',' => empty.value(Trailer::Comma),
-        b'.' => cut_tag("..").value(Trailer::Ellipsis),
+        ',' => empty.value(Trailer::Comma),
+        '.' => cut_tag("..").value(Trailer::Ellipsis),
         _ => fail,
     };
 

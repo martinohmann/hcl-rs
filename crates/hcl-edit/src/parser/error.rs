@@ -115,10 +115,9 @@ impl Location {
         self.offset
     }
 }
-
-fn locate_error<'a>(err: &ParseError<Input<'a>, ContextError>) -> (&'a [u8], Location) {
+fn locate_error<'a>(err: &'a ParseError<Input<'a>, ContextError>) -> (&'a [u8], Location) {
     let offset = err.offset();
-    let input = err.input();
+    let input = err.input().as_bytes();
     let remaining_input = &input[offset..];
     let consumed_input = &input[..offset];
 

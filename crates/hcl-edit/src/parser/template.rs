@@ -3,8 +3,8 @@ use super::prelude::*;
 use super::expr::expr;
 use super::repr::{decorated, spanned};
 use super::string::{
-    build_string, cut_char, cut_ident, cut_tag, from_utf8_unchecked, quoted_string_fragment,
-    raw_string, template_string_fragment,
+    build_string, cut_char, cut_ident, cut_tag, quoted_string_fragment, raw_string,
+    template_string_fragment,
 };
 use super::trivia::ws;
 
@@ -19,13 +19,13 @@ use winnow::ascii::{line_ending, space0};
 use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated};
 
 pub(super) fn string_template(input: &mut Input) -> PResult<StringTemplate> {
-    delimited(b'"', elements(build_string(quoted_string_fragment)), b'"')
+    delimited('"', elements(build_string(quoted_string_fragment)), '"')
         .output_into()
         .parse_next(input)
 }
 
 pub(super) fn template(input: &mut Input) -> PResult<Template> {
-    let literal_end = alt((b"${", b"%{"));
+    let literal_end = alt(("${", "%{"));
     let literal = template_literal(literal_end);
     elements(literal).output_into().parse_next(input)
 }
@@ -45,15 +45,12 @@ pub(super) fn heredoc_template<'a>(
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
         // the line ending to the last template element below.
         let heredoc_end = (line_ending, space0, delim).recognize();
-        let literal_end = alt((b"${", b"%{", heredoc_end));
+        let literal_end = alt(("${", "%{", heredoc_end));
         let literal = template_literal(literal_end);
 
         // Use `opt` to handle an empty template.
         opt((elements(literal), line_ending.with_span()).map(
             |(mut elements, (line_ending, line_ending_span))| {
-                let line_ending = unsafe {
-                    from_utf8_unchecked(line_ending, "`line_ending` filters out non-ascii")
-                };
                 // If there is a trailing literal, update its span and append the line ending to
                 // it. Otherwise just add a new literal containing only the line ending.
                 if let Some(Element::Literal(lit)) = elements.last_mut() {
@@ -97,7 +94,7 @@ where
 }
 
 fn interpolation(input: &mut Input) -> PResult<Interpolation> {
-    control(b"${", decorated(ws, expr, ws))
+    control("${", decorated(ws, expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
             interp.strip = strip;
@@ -117,8 +114,8 @@ fn directive(input: &mut Input) -> PResult<Directive> {
 fn if_directive(input: &mut Input) -> PResult<IfDirective> {
     let if_expr = (
         control(
-            b"%{",
-            (terminated(raw_string(ws), b"if"), decorated(ws, expr, ws)),
+            "%{",
+            (terminated(raw_string(ws), "if"), decorated(ws, expr, ws)),
         ),
         spanned(template),
     )
@@ -130,10 +127,7 @@ fn if_directive(input: &mut Input) -> PResult<IfDirective> {
         });
 
     let else_expr = (
-        control(
-            b"%{",
-            separated_pair(raw_string(ws), b"else", raw_string(ws)),
-        ),
+        control("%{", separated_pair(raw_string(ws), "else", raw_string(ws))),
         spanned(template),
     )
         .map(|(((preamble, trailing), strip), template)| {
@@ -145,7 +139,7 @@ fn if_directive(input: &mut Input) -> PResult<IfDirective> {
         });
 
     let endif_expr = control(
-        b"%{",
+        "%{",
         separated_pair(raw_string(ws), cut_tag("endif"), raw_string(ws)),
     )
     .map(|((preamble, trailing), strip)| {
@@ -164,11 +158,11 @@ fn if_directive(input: &mut Input) -> PResult<IfDirective> {
 fn for_directive(input: &mut Input) -> PResult<ForDirective> {
     let for_expr = (
         control(
-            b"%{",
+            "%{",
             (
-                terminated(raw_string(ws), b"for"),
+                terminated(raw_string(ws), "for"),
                 decorated(ws, cut_ident, ws),
-                opt(preceded(b',', decorated(ws, cut_ident, ws))),
+                opt(preceded(',', decorated(ws, cut_ident, ws))),
                 preceded(cut_tag("in"), decorated(ws, expr, ws)),
             ),
         ),
@@ -189,7 +183,7 @@ fn for_directive(input: &mut Input) -> PResult<ForDirective> {
         );
 
     let endfor_expr = control(
-        b"%{",
+        "%{",
         separated_pair(raw_string(ws), cut_tag("endfor"), raw_string(ws)),
     )
     .map(|((preamble, trailing), strip)| {
@@ -214,9 +208,9 @@ where
     P: Parser<Input<'a>, O2, ContextError>,
 {
     (
-        preceded(intro, opt(b'~')),
+        preceded(intro, opt('~')),
         inner,
-        terminated(opt(b'~'), cut_char('}')),
+        terminated(opt('~'), cut_char('}')),
     )
         .map(|(strip_start, output, strip_end)| {
             (

@@ -24,8 +24,8 @@ pub(super) fn sp(input: &mut Input) -> PResult<()> {
 
 fn comment(input: &mut Input) -> PResult<()> {
     dispatch! {peek(any);
-        b'#' => hash_line_comment,
-        b'/' => alt((double_slash_line_comment, inline_comment)),
+        '#' => hash_line_comment,
+        '/' => alt((double_slash_line_comment, inline_comment)),
         _ => fail,
     }
     .parse_next(input)
@@ -33,23 +33,23 @@ fn comment(input: &mut Input) -> PResult<()> {
 
 pub(super) fn line_comment(input: &mut Input) -> PResult<()> {
     dispatch! {peek(any);
-        b'#' => hash_line_comment,
-        b'/' => double_slash_line_comment,
+        '#' => hash_line_comment,
+        '/' => double_slash_line_comment,
         _ => fail,
     }
     .parse_next(input)
 }
 
 fn hash_line_comment(input: &mut Input) -> PResult<()> {
-    preceded(b'#', till_line_ending).void().parse_next(input)
+    preceded('#', till_line_ending).void().parse_next(input)
 }
 
 fn double_slash_line_comment(input: &mut Input) -> PResult<()> {
-    preceded(b"//", till_line_ending).void().parse_next(input)
+    preceded("//", till_line_ending).void().parse_next(input)
 }
 
 fn inline_comment(input: &mut Input) -> PResult<()> {
-    delimited(b"/*", take_until(0.., "*/"), b"*/")
+    delimited("/*", take_until(0.., "*/"), "*/")
         .void()
         .parse_next(input)
 }
@@ -92,17 +92,17 @@ mod tests {
         ];
 
         for input in inline_comments {
-            let parsed = sp.parse(Input::new(input.as_bytes()));
+            let parsed = sp.parse(Input::new(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
         }
 
         for input in multiline_comments {
-            let parsed = sp.parse(Input::new(input.as_bytes()));
+            let parsed = sp.parse(Input::new(input));
             assert!(parsed.is_err(), "expected parse error for `{input}`");
         }
 
         for input in inline_comments.iter().chain(multiline_comments.iter()) {
-            let parsed = ws.parse(Input::new(input.as_bytes()));
+            let parsed = ws.parse(Input::new(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
         }
     }

@@ -25,7 +25,7 @@ mod prelude {
     pub(super) use winnow::stream::Stream;
     pub(super) use winnow::{dispatch, PResult, Parser};
 
-    pub(super) type Input<'a> = winnow::stream::Located<&'a [u8]>;
+    pub(super) type Input<'a> = winnow::stream::Located<&'a str>;
 }
 
 use self::prelude::*;
@@ -67,7 +67,7 @@ fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> Result<O, Error>
 where
     P: Parser<Input<'a>, O, ContextError>,
 {
-    let input = Input::new(input.as_bytes());
+    let input = Input::new(input);
 
     parser
         .parse(input)
