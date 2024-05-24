@@ -150,4 +150,15 @@ fn invalid_exprs() {
               |
               = expected `)` or expression"#}
     );
+
+    assert_error!(
+        "unicodé_ident = '4",
+        indoc! {r#"
+             --> HCL parse error in line 1, column 17
+              |
+            1 | unicodé_ident = '4
+              |                 ^---
+              |
+              = invalid expression; expected `"`, `[`, `{`, `-`, `!`, `(`, `_`, `<`, letter or digit"#}
+    );
 }
