@@ -115,21 +115,20 @@ impl Location {
         self.offset
     }
 }
-fn locate_error<'a>(err: &'a ParseError<Input<'a>, ContextError>) -> (&'a [u8], Location) {
-    let offset = err.offset();
-    let input = err.input().as_bytes();
-    let remaining_input = &input[offset..];
-    let consumed_input = &input[..offset];
 
-    // Find the line that includes the subslice:
-    // Find the *last* newline before the remaining input starts
-    let line_begin = consumed_input
+fn locate_error<'a>(err: &'a ParseError<Input<'a>, ContextError>) -> (&'a [u8], Location) {
+    let input = err.input().as_bytes();
+    let offset = err.offset().min(input.len() - 1);
+    let column_offset = err.offset() - offset;
+
+    // Find the start of the line containing the error.
+    let line_begin = input[..offset]
         .iter()
         .rev()
         .position(|&b| b == b'\n')
         .map_or(0, |pos| offset - pos);
 
-    // Find the full line after that newline
+    // Use the full line containing the error as context for later printing.
     let line_context = input[line_begin..]
         .iter()
         .position(|&b| b == b'\n')
@@ -137,11 +136,16 @@ fn locate_error<'a>(err: &'a ParseError<Input<'a>, ContextError>) -> (&'a [u8], 
             &input[line_begin..line_begin + pos]
         });
 
-    // Count the number of newlines in the first `offset` bytes of input
-    let line = consumed_input.iter().filter(|&&b| b == b'\n').count() + 1;
+    // Count the number of newlines in the input before the line containing the error to calculate
+    // the line number.
+    let line = input[..line_begin].iter().filter(|&&b| b == b'\n').count() + 1;
 
     // The (1-indexed) column number is the offset of the remaining input into that line.
-    let column = remaining_input.offset_from(&line_context) + 1;
+    // This also takes multi-byte unicode characters into account.
+    let column = std::str::from_utf8(&input[line_begin..=offset])
+        .map(|s| s.chars().count())
+        .unwrap_or_else(|_| offset - line_begin + 1)
+        + column_offset;
 
     (
         line_context,
