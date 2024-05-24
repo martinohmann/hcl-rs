@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.0...hcl-edit-v0.8.1) - 2024-05-24
+
+### Fixed
+- *(parser)* calculate correct error column in presence of unicode ([#353](https://github.com/martinohmann/hcl-rs/pull/353))
+- *(parser)* switch from `&[u8]` to `&str` based stream ([#351](https://github.com/martinohmann/hcl-rs/pull/351))
+
 ## [0.8.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.7.7...hcl-edit-v0.8.0) - 2024-05-16
 
 ### Added

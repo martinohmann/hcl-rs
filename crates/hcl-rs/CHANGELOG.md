@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.18.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.17.2...hcl-rs-v0.18.0) - 2024-05-24
+
+### Fixed
+- [**breaking**] remove deprecated items ([#355](https://github.com/martinohmann/hcl-rs/pull/355))
+
 ## [0.17.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.17.1...hcl-rs-v0.17.2) - 2024-05-21
 
 ### Added
