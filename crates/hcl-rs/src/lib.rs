@@ -64,10 +64,6 @@ pub use expr::{
     UnaryOperator, Variable,
 };
 
-#[allow(deprecated)]
-#[doc(hidden)]
-pub use expr::RawExpression;
-
 pub use ident::Identifier;
 pub use parser::parse;
 

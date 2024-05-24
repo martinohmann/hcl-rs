@@ -1,6 +1,4 @@
 use super::{private, Format, Formatter};
-#[allow(deprecated)]
-use crate::expr::RawExpression;
 use crate::expr::{
     BinaryOp, Conditional, Expression, ForExpr, FuncCall, FuncName, Heredoc, HeredocStripMode,
     ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, Variable,
@@ -122,8 +120,6 @@ impl Format for Expression {
             Expression::String(string) => string.format(fmt),
             Expression::Array(array) => format_array(fmt, array.iter()),
             Expression::Object(object) => format_object(fmt, object.iter()),
-            #[allow(deprecated)]
-            Expression::Raw(raw) => raw.format(fmt),
             Expression::TemplateExpr(expr) => expr.format(fmt),
             Expression::Variable(var) => var.format(fmt),
             Expression::Traversal(traversal) => traversal.format(fmt),
@@ -204,19 +200,6 @@ impl<'a> Format for StrKey<'a> {
         } else {
             fmt.write_quoted_string_escaped(self.0)
         }
-    }
-}
-
-#[allow(deprecated)]
-impl private::Sealed for RawExpression {}
-
-#[allow(deprecated)]
-impl Format for RawExpression {
-    fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
-    where
-        W: io::Write,
-    {
-        fmt.write_bytes(self.as_str().as_bytes())
     }
 }
 

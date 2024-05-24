@@ -44,7 +44,7 @@
 //! # fn main() -> Result<(), Box<dyn Error>> {
 //! use hcl::Identifier;
 //! use hcl::expr::Variable;
-//! use hcl::template::{ForDirective, StripMode, Template};
+//! use hcl::template::{ForDirective, Strip, Template};
 //! use std::str::FromStr;
 //!
 //! let raw = r#"
@@ -67,8 +67,8 @@
 //!                 .add_interpolation(Variable::new("item")?)
 //!                 .add_literal("\n")
 //!         )
-//!         .with_for_strip(StripMode::End)
-//!         .with_endfor_strip(StripMode::End)
+//!         .with_for_strip(Strip::End)
+//!         .with_endfor_strip(Strip::End)
 //!     )
 //!     .add_literal("\n");
 //!
@@ -94,10 +94,6 @@ use std::str::FromStr;
 // Re-exported for convenience.
 #[doc(inline)]
 pub use hcl_primitives::template::Strip;
-
-#[doc(hidden)]
-#[deprecated(since = "0.14.0", note = "use `hcl::template::Strip` instead")]
-pub type StripMode = Strip;
 
 /// The main type to represent the HCL template sub-languange.
 ///

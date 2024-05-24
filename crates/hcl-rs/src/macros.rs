@@ -361,10 +361,6 @@ macro_rules! object_key {
         $crate::expr::ObjectKey::Identifier($crate::Identifier::unchecked(std::stringify!($ident)))
     };
 
-    (#{$expr:expr}) => {
-        $crate::expr::ObjectKey::Expression($crate::expression!(#{$expr}))
-    };
-
     (($expr:expr)) => {
         $crate::expr::ObjectKey::Expression($crate::expression!($expr))
     };
@@ -586,11 +582,6 @@ macro_rules! expression_internal {
         $crate::expression_internal!(@object $object ($crate::object_key!($key)) ($($rest)*) ($($rest)*));
     };
 
-    // Munch a raw expression key.
-    (@object $object:ident () (#{$key:expr} $($rest:tt)*) $copy:tt) => {
-        $crate::expression_internal!(@object $object ($crate::object_key!(#{$key})) ($($rest)*) ($($rest)*));
-    };
-
     // Munch a parenthesized expression key.
     (@object $object:ident () (($key:expr) $($rest:tt)*) $copy:tt) => {
         $crate::expression_internal!(@object $object ($crate::object_key!(($key))) ($($rest)*) ($($rest)*));
@@ -612,10 +603,6 @@ macro_rules! expression_internal {
 
     (false) => {
         $crate::expr::Expression::Bool(false)
-    };
-
-    (#{$expr:expr}) => {
-        $crate::expr::Expression::Raw(($expr).into())
     };
 
     ([]) => {
