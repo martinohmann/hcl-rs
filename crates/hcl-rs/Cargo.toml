@@ -49,3 +49,6 @@ serde_json = { version = "1.0.116", features = ["preserve_order"] }
 [[example]]
 name = "in-place-expr-evaluation"
 test = true
+
+[[example]]
+name = "routes"
