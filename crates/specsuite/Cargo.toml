@@ -15,5 +15,5 @@ harness = false
 [dev-dependencies]
 assert-json-diff = "2.0.2"
 hcl-rs = { path = "../hcl-rs" }
-serde = { version = "1.0.188", features = ["derive"] }
+serde = { version = "1.0.204", features = ["derive"] }
 textwrap = "0.16.1"

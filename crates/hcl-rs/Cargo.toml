@@ -38,7 +38,7 @@ indexmap = { version = "2.2.6", features = ["serde"] }
 itoa = "1.0.11"
 hcl-edit = { version = "0.8.1", path = "../hcl-edit" }
 hcl-primitives = { version = "0.1.5", path = "../hcl-primitives", features = ["serde"] }
-serde = { version = "1.0.188", features = ["derive"] }
+serde = { version = "1.0.204", features = ["derive"] }
 vecmap-rs = { version = "0.2", features = ["serde"] }
 
 [dev-dependencies]
