@@ -68,7 +68,20 @@ logical_unary "!" {
   f = !false
 }
 
-conditional {
+conditional "regular" {
   t = true ? "a" : "b"
   f = false ? "a" : "b"
+}
+
+conditional "newline" {
+  t = [
+    true
+    ? "a"
+    : "b"
+  ]
+  f = [
+    false
+    ? "a"
+    : "b"
+  ]
 }

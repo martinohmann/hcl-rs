@@ -179,3 +179,59 @@ fn issue_350() {
     "#;
     assert!(unicode_input.parse::<Body>().is_ok());
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/367
+#[test]
+fn issue_367() {
+    macro_rules! assert_ok {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_ok());
+        };
+    }
+
+    // multiline expressions with function calls
+    assert_ok! {r#"
+        foo = length(
+            true
+            ? "bar"
+            : "baz"
+        )
+    "#};
+    assert_ok! {r#"
+        foo = length(
+            1
+            >
+            2
+        )
+    "#};
+    assert_ok! {r#"
+        foo = length(
+            var
+                .foo
+                [2]
+        )
+    "#};
+
+    // multiline expressions with arrays
+    assert_ok! {r#"
+        foo = [
+            true
+            ? "bar"
+            : "baz"
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            1
+            >
+            2
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            var
+                .foo
+                [2]
+        ]
+    "#};
+}

@@ -320,6 +320,7 @@ fn array<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
+        state.borrow_mut().allow_newlines(true);
         delimited(
             '[',
             for_expr_or_items(for_list_expr(state), array_items(state)),
@@ -350,7 +351,11 @@ fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let values = separated(0.., decorated(ws, preceded(not(']'), expr), ws), ',');
+        let values = separated(
+            0..,
+            decorated(ws, preceded(not(']'), expr_with_state(state)), ws),
+            ',',
+        );
 
         (values, opt(','), raw_string(ws))
             .map(|(values, comma, trailing)| {
@@ -668,7 +673,8 @@ fn identlike<'i, 's>(
                     FuncName::from(ident)
                 };
 
-                let func_args = func_args.parse_next(input)?;
+                state.borrow_mut().allow_newlines(true);
+                let func_args = func_args(state).parse_next(input)?;
                 let func_call = FuncCall::new(func_name, func_args);
                 Expression::FuncCall(Box::new(func_call))
             }
@@ -711,49 +717,57 @@ fn func_namespace_components<'i, 's>(
     }
 }
 
-fn func_args(input: &mut Input) -> PResult<FuncArgs> {
-    #[derive(Copy, Clone)]
-    enum Trailer {
-        Comma,
-        Ellipsis,
-    }
+fn func_args<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, FuncArgs, ContextError> + 's {
+    move |input: &mut Input| {
+        #[derive(Copy, Clone)]
+        enum Trailer {
+            Comma,
+            Ellipsis,
+        }
 
-    let args = separated(
-        1..,
-        decorated(ws, preceded(peek(none_of(b",.)")), expr), ws),
-        ',',
-    );
+        let args = separated(
+            1..,
+            decorated(
+                ws,
+                preceded(peek(none_of(b",.)")), expr_with_state(state)),
+                ws,
+            ),
+            ',',
+        );
 
-    let trailer = dispatch! {any;
-        ',' => empty.value(Trailer::Comma),
-        '.' => cut_tag("..").value(Trailer::Ellipsis),
-        _ => fail,
-    };
+        let trailer = dispatch! {any;
+            ',' => empty.value(Trailer::Comma),
+            '.' => cut_tag("..").value(Trailer::Ellipsis),
+            _ => fail,
+        };
 
-    delimited(
-        cut_char('('),
-        (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
-            let mut args = match args {
-                Some((args, Some(trailer))) => {
-                    let args: Vec<_> = args;
-                    let mut args = FuncArgs::from(args);
-                    if let Trailer::Ellipsis = trailer {
-                        args.set_expand_final(true);
-                    } else {
-                        args.set_trailing_comma(true);
+        delimited(
+            cut_char('('),
+            (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
+                let mut args = match args {
+                    Some((args, Some(trailer))) => {
+                        let args: Vec<_> = args;
+                        let mut args = FuncArgs::from(args);
+                        if let Trailer::Ellipsis = trailer {
+                            args.set_expand_final(true);
+                        } else {
+                            args.set_trailing_comma(true);
+                        }
+                        args
                     }
-                    args
-                }
-                Some((args, None)) => FuncArgs::from(args),
-                None => FuncArgs::default(),
-            };
+                    Some((args, None)) => FuncArgs::from(args),
+                    None => FuncArgs::default(),
+                };
 
-            args.set_trailing(trailing);
-            args
-        }),
-        cut_char(')').context(StrContext::Expected(StrContextValue::Description(
-            "expression",
-        ))),
-    )
-    .parse_next(input)
+                args.set_trailing(trailing);
+                args
+            }),
+            cut_char(')').context(StrContext::Expected(StrContextValue::Description(
+                "expression",
+            ))),
+        )
+        .parse_next(input)
+    }
 }
