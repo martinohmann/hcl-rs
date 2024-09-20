@@ -255,4 +255,13 @@ fn issue_367() {
             || "yes"
         ]
     "#};
+
+    // multiline expressions for expressions
+    assert_ok!{r#"
+        beep = {
+            for
+            num in [1] :
+            num => num
+        }
+    "#};
 }

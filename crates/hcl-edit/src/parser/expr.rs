@@ -544,7 +544,7 @@ where
         // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
         // and the following identifier which would fail parsing of arrays with identifier/func
         // call elements and objects with those as keys.
-        match peek((ws, "for", one_of(b" \t#/"))).parse_next(input) {
+        match peek((ws, "for", one_of(b" \t#/\n"))).parse_next(input) {
             Ok(_) => for_expr_parser.parse_next(input),
             Err(_) => items_parser.parse_next(input),
         }
