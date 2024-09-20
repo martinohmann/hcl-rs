@@ -337,11 +337,21 @@ fn for_list_expr<'i, 's>(
         (
             for_intro,
             decorated(ws, expr_with_state(state), ws),
+            opt(("...", raw_string(ws))),
             opt(for_cond(state)),
         )
-            .map(|(intro, value_expr, cond)| {
+            .map(|(intro, value_expr, grouping, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.cond = cond;
+
+                if let Some((_, trailing)) = grouping {
+                    expr.grouping = true;
+                    if let Some(ref mut cond) = expr.cond {
+                        cond.decor_mut().set_prefix(trailing);
+                    } else {
+                        expr.decor_mut().set_suffix(trailing);
+                    }
+                }
 
                 state
                     .borrow_mut()
@@ -399,14 +409,21 @@ fn for_object_expr<'i, 's>(
                 cut_tag("=>"),
                 decorated(ws, expr, ws),
             ),
-            opt("..."),
+            opt(("...", raw_string(ws))),
             opt(for_cond(state)),
         )
             .map(|(intro, (key_expr, value_expr), grouping, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.key_expr = Some(key_expr);
-                expr.grouping = grouping.is_some();
                 expr.cond = cond;
+                if let Some((_, trailing)) = grouping {
+                    expr.grouping = true;
+                    if let Some(ref mut cond) = expr.cond {
+                        cond.decor_mut().set_prefix(trailing);
+                    } else {
+                        expr.decor_mut().set_suffix(trailing);
+                    }
+                }
 
                 state
                     .borrow_mut()

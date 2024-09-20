@@ -255,6 +255,18 @@ fn issue_367() {
             || "yes"
         ]
     "#};
+    assert_ok!{r#"
+        beep = [
+            for num in range(1) :
+            splatme...
+        ]
+    "#};
+    assert_ok!{r#"
+        beep = {
+            for num in range(1) :
+            num => splatme...
+        }
+    "#};
 
     // multiline expressions for expressions
     assert_ok!{r#"
