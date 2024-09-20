@@ -334,7 +334,7 @@ fn for_list_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        (for_intro, decorated(ws, expr, ws), opt(for_cond))
+        (for_intro, decorated(ws, expr_with_state(state), ws), opt(for_cond))
             .map(|(intro, value_expr, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.cond = cond;

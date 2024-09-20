@@ -229,9 +229,22 @@ fn issue_367() {
     "#};
     assert_ok! {r#"
         foo = [
+            var.foo
+            || "yes"
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
             var
                 .foo
                 [2]
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            for a in range(10) :
+            var.foo
+            || "yes"
         ]
     "#};
 }
