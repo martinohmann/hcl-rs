@@ -334,7 +334,11 @@ fn for_list_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        (for_intro, decorated(ws, expr_with_state(state), ws), opt(for_cond))
+        (
+            for_intro,
+            decorated(ws, expr_with_state(state), ws),
+            opt(for_cond(state)),
+        )
             .map(|(intro, value_expr, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.cond = cond;
@@ -396,7 +400,7 @@ fn for_object_expr<'i, 's>(
                 decorated(ws, expr, ws),
             ),
             opt("..."),
-            opt(for_cond),
+            opt(for_cond(state)),
         )
             .map(|(intro, (key_expr, value_expr), grouping, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
@@ -571,12 +575,16 @@ fn for_intro(input: &mut Input) -> PResult<ForIntro> {
     .parse_next(input)
 }
 
-fn for_cond(input: &mut Input) -> PResult<ForCond> {
-    prefix_decorated(
-        ws,
-        preceded("if", decorated(ws, expr, ws)).map(ForCond::new),
-    )
-    .parse_next(input)
+fn for_cond<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, ForCond, ContextError> + 's {
+    move |input: &mut Input| {
+        prefix_decorated(
+            ws,
+            preceded("if", decorated(ws, expr_with_state(state), ws)).map(ForCond::new),
+        )
+        .parse_next(input)
+    }
 }
 
 fn parenthesis<'i, 's>(

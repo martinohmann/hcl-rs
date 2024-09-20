@@ -247,4 +247,12 @@ fn issue_367() {
             || "yes"
         ]
     "#};
+    assert_ok! {r#"
+        foo = [
+            for a in range(10) :
+            var.foo
+            if a > 5
+            || "yes"
+        ]
+    "#};
 }
