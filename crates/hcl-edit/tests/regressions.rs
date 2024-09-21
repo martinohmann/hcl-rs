@@ -276,4 +276,12 @@ fn issue_367() {
             num => num
         }
     "#};
+
+    // spread operator with nontrivial expressions
+    assert_ok!{r#"
+        origins = {
+            for behavior in var.behaviors :
+            behavior.origin => behavior.path...
+        }
+    "#};
 }

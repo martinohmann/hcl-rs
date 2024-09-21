@@ -199,7 +199,10 @@ fn traversal<'i, 's>(
     move |input: &mut Input<'i>| {
         repeat(
             1..,
-            prefix_decorated(ws_or_sp(state), traversal_operator.map(Decorated::new)),
+            prefix_decorated(
+                ws_or_sp(state),
+                preceded(not(".."), traversal_operator.map(Decorated::new)),
+            ),
         )
         .map(|operators| state.borrow_mut().on_traversal(operators))
         .parse_next(input)
