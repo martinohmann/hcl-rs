@@ -284,4 +284,12 @@ fn issue_367() {
             behavior.origin => behavior.path...
         }
     "#};
+    assert_ok!{r#"
+        origins = {
+            for behavior in var.behaviors :
+            behavior.origin => behavior.path...
+            if behavior.origin != null
+            && !startswith(behavior.origin, "forbidden/")
+        }
+    "#};
 }
