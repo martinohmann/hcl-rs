@@ -201,6 +201,8 @@ fn traversal<'i, 's>(
             1..,
             prefix_decorated(
                 ws_or_sp(state),
+                // A `..` may indicate a for object expr containing a `...`, ensure there isn't a
+                // subsequent `.` traversal operator and backtrack if there is.
                 preceded(not(".."), traversal_operator.map(Decorated::new)),
             ),
         )
