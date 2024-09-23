@@ -340,21 +340,11 @@ fn for_list_expr<'i, 's>(
         (
             for_intro,
             decorated(ws, expr_with_state(state), ws),
-            opt(("...", raw_string(ws))),
             opt(for_cond(state)),
         )
-            .map(|(intro, value_expr, grouping, cond)| {
+            .map(|(intro, value_expr, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.cond = cond;
-
-                if let Some((_, trailing)) = grouping {
-                    expr.grouping = true;
-                    if let Some(ref mut cond) = expr.cond {
-                        cond.decor_mut().set_prefix(trailing);
-                    } else {
-                        expr.decor_mut().set_suffix(trailing);
-                    }
-                }
 
                 state
                     .borrow_mut()

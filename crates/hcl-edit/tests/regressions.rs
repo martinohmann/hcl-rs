@@ -256,12 +256,6 @@ fn issue_367() {
         ]
     "#};
     assert_ok!{r#"
-        beep = [
-            for num in range(1) :
-            splatme...
-        ]
-    "#};
-    assert_ok!{r#"
         beep = {
             for num in range(1) :
             num => splatme...
