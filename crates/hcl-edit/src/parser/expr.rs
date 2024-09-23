@@ -382,7 +382,6 @@ fn object<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().allow_newlines(true);
         delimited(
             '{',
             for_expr_or_items(for_object_expr(state), object_items(state)),
@@ -396,6 +395,7 @@ fn for_object_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
+        state.borrow_mut().allow_newlines(true);
         (
             for_intro,
             separated_pair(

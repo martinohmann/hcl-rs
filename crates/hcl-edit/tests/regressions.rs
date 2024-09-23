@@ -189,6 +189,12 @@ fn issue_367() {
         };
     }
 
+    macro_rules! assert_err {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_err());
+        };
+    }
+
     // multiline expressions with function calls
     assert_ok! {r#"
         foo = length(
@@ -259,6 +265,22 @@ fn issue_367() {
         beep = {
             for num in range(1) :
             num => splatme...
+        }
+    "#};
+
+    // unsupported multiline expressions with objects
+    assert_err!{r#"
+        beep = {
+            a = true
+            ? "bar"
+            : "baz"
+        }
+    "#};
+    assert_err!{r#"
+        beep = {
+            a = 1
+            >
+            2
         }
     "#};
 
