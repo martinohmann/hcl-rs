@@ -261,7 +261,7 @@ fn issue_367() {
             || "yes"
         ]
     "#};
-    assert_ok!{r#"
+    assert_ok! {r#"
         beep = {
             for num in range(1) :
             num => splatme...
@@ -269,14 +269,14 @@ fn issue_367() {
     "#};
 
     // unsupported multiline expressions with objects
-    assert_err!{r#"
+    assert_err! {r#"
         beep = {
             a = true
             ? "bar"
             : "baz"
         }
     "#};
-    assert_err!{r#"
+    assert_err! {r#"
         beep = {
             a = 1
             >
@@ -285,7 +285,7 @@ fn issue_367() {
     "#};
 
     // multiline expressions for expressions
-    assert_ok!{r#"
+    assert_ok! {r#"
         beep = {
             for
             num in [1] :
@@ -294,13 +294,13 @@ fn issue_367() {
     "#};
 
     // spread operator with nontrivial expressions
-    assert_ok!{r#"
+    assert_ok! {r#"
         origins = {
             for behavior in var.behaviors :
             behavior.origin => behavior.path...
         }
     "#};
-    assert_ok!{r#"
+    assert_ok! {r#"
         origins = {
             for behavior in var.behaviors :
             behavior.origin => behavior.path...
