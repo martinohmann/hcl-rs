@@ -694,7 +694,6 @@ fn identlike<'i, 's>(
                     FuncName::from(ident)
                 };
 
-                state.borrow_mut().allow_newlines(true);
                 let func_args = func_args(state).parse_next(input)?;
                 let func_call = FuncCall::new(func_name, func_args);
                 Expression::FuncCall(Box::new(func_call))
@@ -747,6 +746,8 @@ fn func_args<'i, 's>(
             Comma,
             Ellipsis,
         }
+
+        state.borrow_mut().allow_newlines(true);
 
         let args = separated(
             1..,
