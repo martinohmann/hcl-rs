@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.5...hcl-primitives-v0.1.6) - 2024-09-25
+
+### Other
+
+- address linting issues
+- *(deps)* bump ryu from 1.0.17 to 1.0.18 ([#358](https://github.com/martinohmann/hcl-rs/pull/358))
+- *(deps)* bump kstring from 2.0.0 to 2.0.2 ([#364](https://github.com/martinohmann/hcl-rs/pull/364))
+- *(deps)* bump serde from 1.0.197 to 1.0.210 ([#371](https://github.com/martinohmann/hcl-rs/pull/371))
+
 ## [0.1.5](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.4...hcl-primitives-v0.1.5) - 2024-05-16
 
 ### Other

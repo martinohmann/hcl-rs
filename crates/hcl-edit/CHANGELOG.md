@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.1...hcl-edit-v0.8.2) - 2024-09-25
+
+### Fixed
+
+- *(parser)* allow newlines in function calls and arrays ([#368](https://github.com/martinohmann/hcl-rs/pull/368))
+
+### Other
+
+- address linting issues
+
 ## [0.8.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.0...hcl-edit-v0.8.1) - 2024-05-24
 
 ### Fixed
