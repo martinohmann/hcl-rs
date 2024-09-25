@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.0...hcl-rs-v0.18.1) - 2024-09-25
+
+### Other
+
+- *(deps)* bump serde from 1.0.197 to 1.0.210 ([#371](https://github.com/martinohmann/hcl-rs/pull/371))
+- *(deps)* bump serde_json from 1.0.116 to 1.0.128 ([#370](https://github.com/martinohmann/hcl-rs/pull/370))
+
 ## [0.18.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.17.2...hcl-rs-v0.18.0) - 2024-05-24
 
 ### Fixed
