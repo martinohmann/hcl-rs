@@ -179,3 +179,133 @@ fn issue_350() {
     "#;
     assert!(unicode_input.parse::<Body>().is_ok());
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/367
+#[test]
+fn issue_367() {
+    macro_rules! assert_ok {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_ok());
+        };
+    }
+
+    macro_rules! assert_err {
+        ($input:expr) => {
+            assert!($input.parse::<Body>().is_err());
+        };
+    }
+
+    // multiline expressions with function calls
+    assert_ok! {r#"
+        foo = length(
+            true
+            ? "bar"
+            : "baz"
+        )
+    "#};
+    assert_ok! {r#"
+        foo = length(
+            1
+            >
+            2
+        )
+    "#};
+    assert_ok! {r#"
+        foo = length(
+            var
+                .foo
+                [2]
+        )
+    "#};
+
+    // multiline expressions with arrays
+    assert_ok! {r#"
+        foo = [
+            true
+            ? "bar"
+            : "baz"
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            1
+            >
+            2
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            var.foo
+            || "yes"
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            var
+                .foo
+                [2]
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            for a in range(10) :
+            var.foo
+            || "yes"
+        ]
+    "#};
+    assert_ok! {r#"
+        foo = [
+            for a in range(10) :
+            var.foo
+            if a > 5
+            || "yes"
+        ]
+    "#};
+    assert_ok! {r#"
+        beep = {
+            for num in range(1) :
+            num => splatme...
+        }
+    "#};
+
+    // unsupported multiline expressions with objects
+    assert_err! {r#"
+        beep = {
+            a = true
+            ? "bar"
+            : "baz"
+        }
+    "#};
+    assert_err! {r#"
+        beep = {
+            a = 1
+            >
+            2
+        }
+    "#};
+
+    // multiline expressions for expressions
+    assert_ok! {r#"
+        beep = {
+            for
+            num in [1] :
+            num => num
+        }
+    "#};
+
+    // spread operator with nontrivial expressions
+    assert_ok! {r#"
+        origins = {
+            for behavior in var.behaviors :
+            behavior.origin => behavior.path...
+        }
+    "#};
+    assert_ok! {r#"
+        origins = {
+            for behavior in var.behaviors :
+            behavior.origin => behavior.path...
+            if behavior.origin != null
+            && !startswith(behavior.origin, "forbidden/")
+        }
+    "#};
+}

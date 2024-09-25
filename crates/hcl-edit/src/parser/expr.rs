@@ -199,7 +199,12 @@ fn traversal<'i, 's>(
     move |input: &mut Input<'i>| {
         repeat(
             1..,
-            prefix_decorated(ws_or_sp(state), traversal_operator.map(Decorated::new)),
+            prefix_decorated(
+                ws_or_sp(state),
+                // A `..` may indicate a for object expr containing a `...`, ensure there isn't a
+                // subsequent `.` traversal operator and backtrack if there is.
+                preceded(not(".."), traversal_operator.map(Decorated::new)),
+            ),
         )
         .map(|operators| state.borrow_mut().on_traversal(operators))
         .parse_next(input)
@@ -320,6 +325,7 @@ fn array<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
+        state.borrow_mut().allow_newlines(true);
         delimited(
             '[',
             for_expr_or_items(for_list_expr(state), array_items(state)),
@@ -333,7 +339,11 @@ fn for_list_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        (for_intro, decorated(ws, expr, ws), opt(for_cond))
+        (
+            for_intro,
+            decorated(ws, expr_with_state(state), ws),
+            opt(for_cond(state)),
+        )
             .map(|(intro, value_expr, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.cond = cond;
@@ -350,7 +360,11 @@ fn array_items<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let values = separated(0.., decorated(ws, preceded(not(']'), expr), ws), ',');
+        let values = separated(
+            0..,
+            decorated(ws, preceded(not(']'), expr_with_state(state)), ws),
+            ',',
+        );
 
         (values, opt(','), raw_string(ws))
             .map(|(values, comma, trailing)| {
@@ -383,6 +397,7 @@ fn for_object_expr<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
+        state.borrow_mut().allow_newlines(true);
         (
             for_intro,
             separated_pair(
@@ -390,14 +405,21 @@ fn for_object_expr<'i, 's>(
                 cut_tag("=>"),
                 decorated(ws, expr, ws),
             ),
-            opt("..."),
-            opt(for_cond),
+            opt(("...", raw_string(ws))),
+            opt(for_cond(state)),
         )
             .map(|(intro, (key_expr, value_expr), grouping, cond)| {
                 let mut expr = ForExpr::new(intro, value_expr);
                 expr.key_expr = Some(key_expr);
-                expr.grouping = grouping.is_some();
                 expr.cond = cond;
+                if let Some((_, trailing)) = grouping {
+                    expr.grouping = true;
+                    if let Some(ref mut cond) = expr.cond {
+                        cond.decor_mut().set_prefix(trailing);
+                    } else {
+                        expr.decor_mut().set_suffix(trailing);
+                    }
+                }
 
                 state
                     .borrow_mut()
@@ -535,7 +557,7 @@ where
         // disambiguate. Otherwise an identifier like `format` will match both the `for` tag
         // and the following identifier which would fail parsing of arrays with identifier/func
         // call elements and objects with those as keys.
-        match peek((ws, "for", one_of(b" \t#/"))).parse_next(input) {
+        match peek((ws, "for", one_of(b" \t#/\n"))).parse_next(input) {
             Ok(_) => for_expr_parser.parse_next(input),
             Err(_) => items_parser.parse_next(input),
         }
@@ -566,12 +588,16 @@ fn for_intro(input: &mut Input) -> PResult<ForIntro> {
     .parse_next(input)
 }
 
-fn for_cond(input: &mut Input) -> PResult<ForCond> {
-    prefix_decorated(
-        ws,
-        preceded("if", decorated(ws, expr, ws)).map(ForCond::new),
-    )
-    .parse_next(input)
+fn for_cond<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, ForCond, ContextError> + 's {
+    move |input: &mut Input| {
+        prefix_decorated(
+            ws,
+            preceded("if", decorated(ws, expr_with_state(state), ws)).map(ForCond::new),
+        )
+        .parse_next(input)
+    }
 }
 
 fn parenthesis<'i, 's>(
@@ -668,7 +694,7 @@ fn identlike<'i, 's>(
                     FuncName::from(ident)
                 };
 
-                let func_args = func_args.parse_next(input)?;
+                let func_args = func_args(state).parse_next(input)?;
                 let func_call = FuncCall::new(func_name, func_args);
                 Expression::FuncCall(Box::new(func_call))
             }
@@ -711,49 +737,59 @@ fn func_namespace_components<'i, 's>(
     }
 }
 
-fn func_args(input: &mut Input) -> PResult<FuncArgs> {
-    #[derive(Copy, Clone)]
-    enum Trailer {
-        Comma,
-        Ellipsis,
-    }
+fn func_args<'i, 's>(
+    state: &'s RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, FuncArgs, ContextError> + 's {
+    move |input: &mut Input| {
+        #[derive(Copy, Clone)]
+        enum Trailer {
+            Comma,
+            Ellipsis,
+        }
 
-    let args = separated(
-        1..,
-        decorated(ws, preceded(peek(none_of(b",.)")), expr), ws),
-        ',',
-    );
+        state.borrow_mut().allow_newlines(true);
 
-    let trailer = dispatch! {any;
-        ',' => empty.value(Trailer::Comma),
-        '.' => cut_tag("..").value(Trailer::Ellipsis),
-        _ => fail,
-    };
+        let args = separated(
+            1..,
+            decorated(
+                ws,
+                preceded(peek(none_of(b",.)")), expr_with_state(state)),
+                ws,
+            ),
+            ',',
+        );
 
-    delimited(
-        cut_char('('),
-        (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
-            let mut args = match args {
-                Some((args, Some(trailer))) => {
-                    let args: Vec<_> = args;
-                    let mut args = FuncArgs::from(args);
-                    if let Trailer::Ellipsis = trailer {
-                        args.set_expand_final(true);
-                    } else {
-                        args.set_trailing_comma(true);
+        let trailer = dispatch! {any;
+            ',' => empty.value(Trailer::Comma),
+            '.' => cut_tag("..").value(Trailer::Ellipsis),
+            _ => fail,
+        };
+
+        delimited(
+            cut_char('('),
+            (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
+                let mut args = match args {
+                    Some((args, Some(trailer))) => {
+                        let args: Vec<_> = args;
+                        let mut args = FuncArgs::from(args);
+                        if let Trailer::Ellipsis = trailer {
+                            args.set_expand_final(true);
+                        } else {
+                            args.set_trailing_comma(true);
+                        }
+                        args
                     }
-                    args
-                }
-                Some((args, None)) => FuncArgs::from(args),
-                None => FuncArgs::default(),
-            };
+                    Some((args, None)) => FuncArgs::from(args),
+                    None => FuncArgs::default(),
+                };
 
-            args.set_trailing(trailing);
-            args
-        }),
-        cut_char(')').context(StrContext::Expected(StrContextValue::Description(
-            "expression",
-        ))),
-    )
-    .parse_next(input)
+                args.set_trailing(trailing);
+                args
+            }),
+            cut_char(')').context(StrContext::Expected(StrContextValue::Description(
+                "expression",
+            ))),
+        )
+        .parse_next(input)
+    }
 }

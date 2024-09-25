@@ -67,7 +67,13 @@ result = {
     }
   }
   conditional = {
-    t = "a"
-    f = "b"
+    "regular" = {
+      t = "a"
+      f = "b"
+    }
+    "newline" = {
+      t = ["a"]
+      f = ["b"]
+    }
   }
 }
