@@ -328,6 +328,7 @@ macro_rules! impl_from_unsigned {
                 #[inline]
                 fn from(u: $ty) -> Self {
                     Number {
+                        #[allow(clippy::cast_lossless)]
                         n: N::PosInt(u as u64)
                     }
                 }
@@ -343,6 +344,7 @@ macro_rules! impl_from_signed {
                 #[inline]
                 fn from(i: $ty) -> Self {
                     Number {
+                        #[allow(clippy::cast_lossless)]
                         n: N::from(i as i64)
                     }
                 }

@@ -2,7 +2,6 @@ use super::prelude::*;
 
 use std::fmt::{self, Write};
 use winnow::error::ParseError;
-use winnow::stream::Offset;
 
 /// Error type returned when the parser encountered an error.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,8 +142,7 @@ fn locate_error<'a>(err: &'a ParseError<Input<'a>, ContextError>) -> (&'a [u8], 
     // The (1-indexed) column number is the offset of the remaining input into that line.
     // This also takes multi-byte unicode characters into account.
     let column = std::str::from_utf8(&input[line_begin..=offset])
-        .map(|s| s.chars().count())
-        .unwrap_or_else(|_| offset - line_begin + 1)
+        .map_or_else(|_| offset - line_begin + 1, |s| s.chars().count())
         + column_offset;
 
     (
