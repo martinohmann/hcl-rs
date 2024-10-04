@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.1...hcl-rs-v0.18.2) - 2024-10-04
+
+### Other
+
+- *(deps)* bump indexmap from 2.2.6 to 2.5.0 ([#373](https://github.com/martinohmann/hcl-rs/pull/373))
+- *(deps)* bump pretty_assertions from 1.4.0 to 1.4.1 ([#377](https://github.com/martinohmann/hcl-rs/pull/377))
+
 ## [0.18.1](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.0...hcl-rs-v0.18.1) - 2024-09-25
 
 ### Other
