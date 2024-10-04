@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.7](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.6...hcl-primitives-v0.1.7) - 2024-10-04
+
+### Other
+
+- *(deps)* bump unicode-ident from 1.0.12 to 1.0.13 ([#375](https://github.com/martinohmann/hcl-rs/pull/375))
+
 ## [0.1.6](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.5...hcl-primitives-v0.1.6) - 2024-09-25
 
 ### Other
