@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.2...hcl-edit-v0.8.3) - 2024-10-04
+
+### Other
+
+- update Cargo.lock dependencies
+
 ## [0.8.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.1...hcl-edit-v0.8.2) - 2024-09-25
 
 ### Fixed
