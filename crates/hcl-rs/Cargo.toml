@@ -34,7 +34,7 @@ default = []
 perf = ["hcl-edit/perf", "hcl-primitives/perf"]
 
 [dependencies]
-indexmap = { version = "2.5.0", features = ["serde"] }
+indexmap = { version = "2.6.0", features = ["serde"] }
 itoa = "1.0.11"
 hcl-edit = { version = "0.8.3", path = "../hcl-edit" }
 hcl-primitives = { version = "0.1.7", path = "../hcl-primitives", features = ["serde"] }
