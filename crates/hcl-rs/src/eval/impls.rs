@@ -445,46 +445,43 @@ impl Evaluate for ForExpr {
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         let collection = expr::Collection::from_for_expr(self, ctx)?;
 
-        match &self.key_expr {
-            Some(key_expr) => {
-                // Result will be an object.
-                let mut result = Map::with_capacity(collection.len());
+        if let Some(key_expr) = &self.key_expr {
+            // Result will be an object.
+            let mut result = Map::with_capacity(collection.len());
 
-                for ctx in collection {
-                    let ctx = &ctx?;
-                    let key = expr::evaluate_object_key(key_expr, ctx)?;
-                    let value = self.value_expr.evaluate(ctx)?;
+            for ctx in collection {
+                let ctx = &ctx?;
+                let key = expr::evaluate_object_key(key_expr, ctx)?;
+                let value = self.value_expr.evaluate(ctx)?;
 
-                    if self.grouping {
-                        result
-                            .entry(key)
-                            .or_insert_with(|| Value::Array(Vec::new()))
-                            .as_array_mut()
-                            .unwrap()
-                            .push(value);
-                    } else {
-                        match result.entry(key) {
-                            Entry::Occupied(entry) => {
-                                return Err(ctx.error(ErrorKind::KeyExists(entry.key().clone())))
-                            }
-                            Entry::Vacant(entry) => {
-                                entry.insert(value);
-                            }
+                if self.grouping {
+                    result
+                        .entry(key)
+                        .or_insert_with(|| Value::Array(Vec::new()))
+                        .as_array_mut()
+                        .unwrap()
+                        .push(value);
+                } else {
+                    match result.entry(key) {
+                        Entry::Occupied(entry) => {
+                            return Err(ctx.error(ErrorKind::KeyExists(entry.key().clone())))
+                        }
+                        Entry::Vacant(entry) => {
+                            entry.insert(value);
                         }
                     }
                 }
-
-                Ok(Value::Object(result))
             }
-            None => {
-                // Result will be an array.
-                let result = collection
-                    .into_iter()
-                    .map(|ctx| self.value_expr.evaluate(&ctx?))
-                    .collect::<EvalResult<_>>()?;
 
-                Ok(Value::Array(result))
-            }
+            Ok(Value::Object(result))
+        } else {
+            // Result will be an array.
+            let result = collection
+                .into_iter()
+                .map(|ctx| self.value_expr.evaluate(&ctx?))
+                .collect::<EvalResult<_>>()?;
+
+            Ok(Value::Array(result))
         }
     }
 

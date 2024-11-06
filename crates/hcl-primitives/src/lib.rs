@@ -5,7 +5,8 @@
 #![allow(
     clippy::must_use_candidate,
     clippy::module_name_repetitions,
-    clippy::missing_panics_doc
+    clippy::missing_panics_doc,
+    clippy::needless_lifetimes
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code)]

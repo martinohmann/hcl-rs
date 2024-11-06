@@ -1,5 +1,16 @@
 //! Types to represent the HCL structural sub-language.
 
+// `Attribute` and `Block` have the same size, yet clippy complains about large size difference
+// between the enum variants of `Structure` because it determines the size of `Attribute` to be
+// zero. As pointed out in the issue below, clippy seems to choke on recursive types, which is the
+// case for the `Expression` type used as attribute value.
+//
+// The incorrect size calculation also produces false positives for result types like
+// `Result<Attribute, Structure>` and `Result<Block, Structure>`.
+//
+// See https://github.com/rust-lang/rust-clippy/issues/9798
+#![allow(clippy::large_enum_variant, clippy::result_large_err)]
+
 mod attribute;
 mod block;
 mod body;
