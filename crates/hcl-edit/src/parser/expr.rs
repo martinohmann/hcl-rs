@@ -24,9 +24,7 @@ use winnow::combinator::{
 };
 use winnow::token::{any, none_of, one_of, take};
 
-fn ws_or_sp<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn ws_or_sp<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         if state.borrow().newlines_allowed() {
             ws.parse_next(input)
@@ -40,9 +38,9 @@ pub(super) fn expr(input: &mut Input) -> PResult<Expression> {
     parse_expr(RefCell::default(), input)
 }
 
-fn expr_with_state<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, Expression, ContextError> + 's {
+fn expr_with_state<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, Expression, ContextError> + '_ {
     move |input: &mut Input<'i>| parse_expr(state.clone(), input)
 }
 
@@ -52,9 +50,9 @@ fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> PResult<Expr
     Ok(state.into_inner().into_expr())
 }
 
-fn expr_inner<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn expr_inner<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let span = expr_term(state).span().parse_next(input)?;
         state.borrow_mut().on_span(span);
@@ -113,9 +111,7 @@ fn expr_inner<'i, 's>(
     }
 }
 
-fn expr_term<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn expr_term<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         dispatch! {peek(any);
             '"' => stringlike(state),
@@ -144,9 +140,9 @@ fn expr_term<'i, 's>(
     }
 }
 
-fn stringlike<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn stringlike<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         alt((
             string.map(|string| {
@@ -164,9 +160,7 @@ fn stringlike<'i, 's>(
     }
 }
 
-fn number<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn number<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         num.with_taken()
             .map(|(num, repr)| {
@@ -178,9 +172,9 @@ fn number<'i, 's>(
     }
 }
 
-fn neg_number<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn neg_number<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         preceded(('-', sp), num)
             .with_taken()
@@ -193,9 +187,7 @@ fn neg_number<'i, 's>(
     }
 }
 
-fn traversal<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn traversal<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         repeat(
             1..,
@@ -242,9 +234,7 @@ fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
     .parse_next(input)
 }
 
-fn unary_op<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn unary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         preceded(
             (spanned(unary_operator.map(Spanned::new)), sp.span())
@@ -265,9 +255,7 @@ fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
     .parse_next(input)
 }
 
-fn binary_op<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn binary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         (
             spanned(binary_operator.map(Spanned::new)),
@@ -302,9 +290,9 @@ fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
     .parse_next(input)
 }
 
-fn conditional<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn conditional<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         (
             preceded(
@@ -321,9 +309,7 @@ fn conditional<'i, 's>(
     }
 }
 
-fn array<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn array<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         state.borrow_mut().allow_newlines(true);
         delimited(
@@ -335,9 +321,9 @@ fn array<'i, 's>(
     }
 }
 
-fn for_list_expr<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn for_list_expr<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         (
             for_intro,
@@ -356,9 +342,9 @@ fn for_list_expr<'i, 's>(
     }
 }
 
-fn array_items<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn array_items<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let values = separated(
             0..,
@@ -380,9 +366,7 @@ fn array_items<'i, 's>(
     }
 }
 
-fn object<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn object<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         delimited(
             '{',
@@ -393,9 +377,9 @@ fn object<'i, 's>(
     }
 }
 
-fn for_object_expr<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn for_object_expr<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         state.borrow_mut().allow_newlines(true);
         (
@@ -429,9 +413,9 @@ fn for_object_expr<'i, 's>(
     }
 }
 
-fn object_items<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn object_items<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let mut object = Object::new();
 
@@ -600,9 +584,9 @@ fn for_cond<'i>(
     }
 }
 
-fn parenthesis<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn parenthesis<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         state.borrow_mut().allow_newlines(true);
         delimited(
@@ -615,9 +599,7 @@ fn parenthesis<'i, 's>(
     }
 }
 
-fn heredoc<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn heredoc<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let (indented, delim) = heredoc_start(input)?;
 
@@ -660,9 +642,7 @@ fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
     .parse_next(input)
 }
 
-fn identlike<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+fn identlike<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let (ident, span) = str_ident.with_span().parse_next(input)?;
 
@@ -716,9 +696,9 @@ fn identlike<'i, 's>(
     }
 }
 
-fn func_namespace_components<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + 's {
+fn func_namespace_components<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + '_ {
     move |input: &mut Input<'i>| {
         repeat(
             1..,
