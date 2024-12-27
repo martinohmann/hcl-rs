@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.3...hcl-edit-v0.8.4) - 2024-12-27
+
+### Other
+
+- address clippy lints
+- remove some unnecessary explicit lifetimes
+- Fix all warnings (#391)
+
 ## [0.8.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.2...hcl-edit-v0.8.3) - 2024-10-04
 
 ### Other
