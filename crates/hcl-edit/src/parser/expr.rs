@@ -168,7 +168,7 @@ fn number<'i, 's>(
     state: &'s RefCell<ExprParseState>,
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        num.with_recognized()
+        num.with_taken()
             .map(|(num, repr)| {
                 let mut num = Formatted::new(num);
                 num.set_repr(repr);
@@ -183,7 +183,7 @@ fn neg_number<'i, 's>(
 ) -> impl Parser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
         preceded(('-', sp), num)
-            .with_recognized()
+            .with_taken()
             .map(|(num, repr)| {
                 let mut num = Formatted::new(-num);
                 num.set_repr(repr);
@@ -588,9 +588,9 @@ fn for_intro(input: &mut Input) -> PResult<ForIntro> {
     .parse_next(input)
 }
 
-fn for_cond<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, ForCond, ContextError> + 's {
+fn for_cond<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, ForCond, ContextError> + '_ {
     move |input: &mut Input| {
         prefix_decorated(
             ws,
@@ -737,9 +737,9 @@ fn func_namespace_components<'i, 's>(
     }
 }
 
-fn func_args<'i, 's>(
-    state: &'s RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, FuncArgs, ContextError> + 's {
+fn func_args<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl Parser<Input<'i>, FuncArgs, ContextError> + '_ {
     move |input: &mut Input| {
         #[derive(Copy, Clone)]
         enum Trailer {

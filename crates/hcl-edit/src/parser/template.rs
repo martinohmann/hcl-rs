@@ -44,7 +44,7 @@ pub(super) fn heredoc_template<'a>(
         //
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
         // the line ending to the last template element below.
-        let heredoc_end = (line_ending, space0, delim).recognize();
+        let heredoc_end = (line_ending, space0, delim).take();
         let literal_end = alt(("${", "%{", heredoc_end));
         let literal = template_literal(literal_end);
 

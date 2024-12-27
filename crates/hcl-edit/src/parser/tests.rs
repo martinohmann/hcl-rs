@@ -48,12 +48,12 @@ fn roundtrip_expr() {
         "{ foo = 1 #comment\n }",
         "{ foo = 1, #comment\n bar = 1 }",
         "<<HEREDOC\nHEREDOC",
-        indoc! {r#"
+        indoc! {r"
             <<HEREDOC
             ${foo}
             %{if asdf}qux%{endif}
             heredoc
-            HEREDOC"#},
+            HEREDOC"},
         r#""foo ${bar} $${baz}, %{if cond ~} qux %{~ endif}""#,
         r#""${var.l ? "us-east-1." : ""}""#,
         "element(concat(aws_kms_key.key-one.*.arn, aws_kms_key.key-two.*.arn), 0)",
@@ -88,13 +88,13 @@ fn roundtrip_body() {
         "block { attr = 1 }\n",
         "foo = \"bar\"\nbar = 2\n",
         "foo = \"bar\"\nbar = 3",
-        indoc! {r#"
+        indoc! {r"
             indented_heredoc = <<-EOT
                 ${foo}
               %{if asdf}qux%{endif}bar
                   heredoc
                 EOT
-        "#},
+        "},
         "ami = \"ami-5f6495430e7781fe5\" // Ubuntu 20.04 LTS\n",
         "ami = \"ami-5f6495430e7781fe5\" /* Ubuntu 20.04 LTS */\n",
         "array =   [1, 2, 3]\n",
@@ -102,7 +102,7 @@ fn roundtrip_body() {
     ];
 
     let tests = testdata::load().unwrap();
-    assert!(tests.len() > 0);
+    assert!(!tests.is_empty());
 
     for test in &tests {
         inputs.push(&test.input);
@@ -117,12 +117,12 @@ fn roundtrip_body() {
 fn roundtrip_template() {
     let inputs = [
         "foo $${baz} ${bar}, %{if cond ~} qux %{~ endif}",
-        indoc! {r#"
+        indoc! {r"
             Bill of materials:
             %{ for item in items ~}
             - ${item}
             %{ endfor ~}
-        "#},
+        "},
         "literal $${escaped} ${value}",
     ];
 

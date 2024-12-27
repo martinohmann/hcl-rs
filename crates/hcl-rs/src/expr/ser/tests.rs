@@ -25,7 +25,7 @@ fn roundtrip() {
     assert_expr(
         Expression::from(Variable::unchecked("var")),
         Expression::from(Variable::unchecked("var")),
-    )
+    );
 }
 
 #[test]
