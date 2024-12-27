@@ -538,7 +538,7 @@ mod tests {
         assert_op!(int!(3u64) % int!(2u64), int!(1u64), is_u64);
         assert_op!(
             float!(4.1) % float!(2.0),
-            float!(0.09999999999999964),
+            float!(0.099_999_999_999_999_64),
             is_f64
         );
         assert_op!(int!(4u64) % int!(2u64), int!(0u64), is_u64);

@@ -60,7 +60,7 @@ impl VisitMut for InterpolationUnwrapper {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let Some(filename) = std::env::args().into_iter().skip(1).next() else {
+    let Some(filename) = std::env::args().nth(1) else {
         eprintln!("filename argument required");
         std::process::exit(1);
     };

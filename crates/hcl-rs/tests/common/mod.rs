@@ -31,7 +31,7 @@ where
 }
 
 #[track_caller]
-pub fn assert_format_builder<'a, T>(builder: FormatterBuilder<'a>, value: T, expected: &str)
+pub fn assert_format_builder<T>(builder: FormatterBuilder<'_>, value: T, expected: &str)
 where
     T: Format,
 {

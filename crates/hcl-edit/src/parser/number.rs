@@ -23,7 +23,7 @@ fn float(input: &mut Input) -> PResult<f64> {
     let fraction = preceded('.', digit1);
 
     terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
-        .recognize()
+        .take()
         .try_map(|s: &str| f64::from_str(s))
         .parse_next(input)
 }
@@ -34,7 +34,7 @@ fn exponent<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
         opt(one_of(b"+-")),
         cut_err(digit1).context(StrContext::Expected(StrContextValue::Description("digit"))),
     )
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
@@ -60,10 +60,12 @@ mod tests {
     }
 
     #[test]
+    // Strict comparison is safe because we don't do any math with these floats
+    #[allow(clippy::float_cmp)]
     fn parse_float() {
         let tests: &[(&str, f64)] = &[
             ("1.0", 1.0),
-            ("1e10", 10000000000.0),
+            ("1e10", 10_000_000_000.0),
             ("2.5E3", 2500.0),
             ("42e-3", 0.042),
             ("0.1E-4", 0.00001),

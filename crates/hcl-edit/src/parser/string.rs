@@ -117,7 +117,7 @@ where
         1..,
         preceded(not(alt((escaped_marker.void(), literal_end.void()))), any),
     ))
-    .recognize()
+    .take()
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
@@ -186,7 +186,7 @@ pub(super) fn ident(input: &mut Input) -> PResult<Decorated<Ident>> {
 
 pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     (one_of(is_id_start), take_while(0.., is_id_continue))
-        .recognize()
+        .take()
         .parse_next(input)
 }
 
