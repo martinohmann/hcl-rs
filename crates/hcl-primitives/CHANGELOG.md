@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.8](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.7...hcl-primitives-v0.1.8) - 2024-12-28
+
+### Other
+
+- *(deps)* bump serde from 1.0.210 to 1.0.217 (#396)
+- *(deps)* bump unicode-ident from 1.0.13 to 1.0.14 (#389)
+- address clippy lints
+- Fix all warnings (#391)
+
 ## [0.1.7](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.6...hcl-primitives-v0.1.7) - 2024-10-04
 
 ### Other
