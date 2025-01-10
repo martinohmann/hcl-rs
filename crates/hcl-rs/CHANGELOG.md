@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.18.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.2...hcl-rs-v0.18.3) - 2025-01-10
+
+### Added
+
+- Add from_body to Deserializer (#399)
+
+### Other
+
+- *(deps)* bump itoa from 1.0.11 to 1.0.14 (#387)
+- *(deps)* bump serde from 1.0.210 to 1.0.217 (#396)
+- *(deps)* bump serde_json from 1.0.128 to 1.0.134 (#395)
+- *(deps)* bump indexmap from 2.5.0 to 2.7.0 (#388)
+- address clippy lints
+- Fix all warnings (#391)
+
 ## [0.18.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.1...hcl-rs-v0.18.2) - 2024-10-04
 
 ### Other
