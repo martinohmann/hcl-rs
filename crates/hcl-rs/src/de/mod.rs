@@ -30,6 +30,11 @@ impl Deserializer {
         let body = parser::parse(input)?;
         Ok(Deserializer { body })
     }
+
+    /// Creates a HCL deserializer from a HCL body
+    pub fn from_body(body: Body) -> Self {
+        Self { body }
+    }
 }
 
 /// Deserialize an instance of type `T` from a string of HCL text.
