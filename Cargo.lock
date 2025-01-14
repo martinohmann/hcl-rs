@@ -229,6 +229,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56254986775e3233ffa9c4d7d3faaf6d36a2c09d30b20687e9f88bc8bafc16c8"
 
 [[package]]
+name = "dyn-clone"
+version = "1.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d6ef0072f8a535281e4876be788938b528e9a1d43900b82c2569af7da799125"
+
+[[package]]
+name = "dyn_std"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18150a3b95526a6f32f542e74999f7f34607794d2048a105a30474b361474e67"
+
+[[package]]
 name = "either"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -316,6 +328,8 @@ dependencies = [
 name = "hcl-primitives"
 version = "0.1.8"
 dependencies = [
+ "dyn-clone",
+ "dyn_std",
  "itoa",
  "kstring",
  "ryu",

@@ -156,6 +156,7 @@ impl Format for Value {
             }
             Value::Array(array) => format_array(fmt, array.iter()),
             Value::Object(object) => format_object(fmt, object.iter().map(|(k, v)| (StrKey(k), v))),
+            Value::Capsule(_) => todo!(),
         }
     }
 }

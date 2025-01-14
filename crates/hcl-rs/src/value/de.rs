@@ -124,6 +124,7 @@ impl<'de> de::Deserializer<'de> for ValueDeserializer {
             Value::String(s) => visitor.visit_string(s),
             Value::Array(array) => visitor.visit_seq(array.into_deserializer()),
             Value::Object(object) => visitor.visit_map(object.into_deserializer()),
+            Value::Capsule(_) => todo!(),
         }
     }
 

@@ -9,7 +9,7 @@ use std::fmt;
 use serde::{de::DeserializeOwned, ser::Serialize};
 
 use self::{de::ValueDeserializer, ser::ValueSerializer};
-use crate::{format, Number, Result};
+use crate::{capsule::Capsule, format, Number, Result};
 
 /// The map type used for HCL objects.
 pub type Map<K, V> = indexmap::IndexMap<K, V>;
@@ -30,6 +30,8 @@ pub enum Value {
     Array(Vec<Value>),
     /// Represents a HCL object.
     Object(Map<String, Value>),
+    /// Represents an opaque value emitted by the calling application.
+    Capsule(Capsule),
 }
 
 impl Value {

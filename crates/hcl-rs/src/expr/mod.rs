@@ -106,6 +106,7 @@ impl From<Value> for Expression {
             Value::String(s) => Expression::String(s),
             Value::Array(array) => array.into_iter().collect(),
             Value::Object(object) => object.into_iter().collect(),
+            Value::Capsule(_) => todo!(),
         }
     }
 }

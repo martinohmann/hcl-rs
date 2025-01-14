@@ -13,6 +13,7 @@
 
 extern crate alloc;
 
+pub mod capsule;
 #[cfg(feature = "serde")]
 mod de;
 mod error;
