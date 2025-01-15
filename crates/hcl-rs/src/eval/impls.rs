@@ -109,7 +109,7 @@ impl Evaluate for Expression {
             evaluate_nested_exprs(self, ctx)?;
             let value = self.evaluate(ctx)?;
 
-            if let Value::Capsule(_) = &value {
+            if value.is_capsule() {
                 return Err(Errors::from(ctx.error(ErrorKind::from(
                     "expression returning capsule values cannot be evaluated in place",
                 ))));

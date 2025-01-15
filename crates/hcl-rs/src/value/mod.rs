@@ -109,6 +109,24 @@ impl Value {
         }
     }
 
+    /// If the `Value` is a capsule, returns the associated Capsule. Returns None
+    /// otherwise.
+    pub fn as_capsule(&self) -> Option<&Capsule> {
+        match self {
+            Self::Capsule(capsule) => Some(capsule),
+            _ => None,
+        }
+    }
+
+    /// If the `Value` is a capsule, returns the associated mutable Capsule.
+    /// Returns None otherwise.
+    pub fn as_capsule_mut(&mut self) -> Option<&mut Capsule> {
+        match self {
+            Self::Capsule(capsule) => Some(capsule),
+            _ => None,
+        }
+    }
+
     /// If the `Value` is a String, returns the associated str. Returns None
     /// otherwise.
     pub fn as_str(&self) -> Option<&str> {
@@ -178,6 +196,14 @@ impl Value {
     /// object.
     pub fn is_object(&self) -> bool {
         self.as_object().is_some()
+    }
+
+    /// Returns true if the `Value` is a Capsule. Returns false otherwise.
+    ///
+    /// For any Value on which `is_capsule` returns true, `as_capsule` and
+    /// `as_capsule_mut` are guaranteed to return `Some(_)`.
+    pub fn is_capsule(&self) -> bool {
+        self.as_capsule().is_some()
     }
 
     /// Returns true if the `Value` is a String. Returns false otherwise.

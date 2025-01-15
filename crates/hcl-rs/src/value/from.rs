@@ -1,4 +1,4 @@
-use super::{Map, Number, Value};
+use super::{Capsule, Map, Number, Value};
 use std::borrow::Cow;
 
 macro_rules! impl_from_integer {
@@ -95,5 +95,11 @@ impl<K: Into<String>, V: Into<Value>> FromIterator<(K, V)> for Value {
 impl From<()> for Value {
     fn from((): ()) -> Self {
         Self::Null
+    }
+}
+
+impl From<Capsule> for Value {
+    fn from(c: Capsule) -> Self {
+        Self::Capsule(c)
     }
 }
