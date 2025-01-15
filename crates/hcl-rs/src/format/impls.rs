@@ -144,7 +144,7 @@ impl Format for Value {
         W: io::Write,
     {
         match self {
-            Value::Null => Ok(fmt.write_null()?),
+            Value::Null | Value::Capsule(_) => Ok(fmt.write_null()?),
             Value::Bool(b) => Ok(fmt.write_bool(*b)?),
             Value::Number(num) => num.format(fmt),
             Value::String(string) => {
@@ -156,7 +156,6 @@ impl Format for Value {
             }
             Value::Array(array) => format_array(fmt, array.iter()),
             Value::Object(object) => format_object(fmt, object.iter().map(|(k, v)| (StrKey(k), v))),
-            Value::Capsule(_) => todo!(),
         }
     }
 }

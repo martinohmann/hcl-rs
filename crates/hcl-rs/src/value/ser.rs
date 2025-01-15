@@ -15,7 +15,7 @@ impl ser::Serialize for Value {
             Value::String(ref s) => serializer.serialize_str(s),
             Value::Array(ref v) => v.serialize(serializer),
             Value::Object(ref v) => v.serialize(serializer),
-            Value::Capsule(_) => todo!(),
+            Value::Capsule(_) => Err(ser::Error::custom("capsule values cannot be serialized")),
         }
     }
 }

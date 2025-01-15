@@ -100,13 +100,12 @@ impl From<Expression> for Value {
 impl From<Value> for Expression {
     fn from(value: Value) -> Self {
         match value {
-            Value::Null => Expression::Null,
+            Value::Null | Value::Capsule(_) => Expression::Null,
             Value::Bool(b) => Expression::Bool(b),
             Value::Number(n) => Expression::Number(n),
             Value::String(s) => Expression::String(s),
             Value::Array(array) => array.into_iter().collect(),
             Value::Object(object) => object.into_iter().collect(),
-            Value::Capsule(_) => todo!(),
         }
     }
 }
