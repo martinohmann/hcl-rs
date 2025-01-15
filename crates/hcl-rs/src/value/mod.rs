@@ -4,7 +4,7 @@ pub(crate) mod de;
 mod from;
 mod ser;
 
-use std::fmt;
+use std::{any::Any, fmt};
 
 use serde::{de::DeserializeOwned, ser::Serialize};
 
@@ -225,6 +225,34 @@ impl Value {
     /// Takes the value out of the `Value`, leaving a `Null` in its place.
     pub fn take(&mut self) -> Value {
         std::mem::replace(self, Value::Null)
+    }
+
+    /// If the `Value`'s variant is `Capsule`, attempts to downcast the Capsule's value to a
+    /// concrete type.
+    ///
+    /// # Errors
+    ///
+    /// If the `Value`'s variant is not `Capsule`, or if a downcast into `T` is not possible, the
+    /// original Capsule is returned via `Result`'s `Err` variant.
+    pub fn downcast_capsule<T: Any>(self) -> Result<T, Value> {
+        if let Value::Capsule(capsule) = self {
+            capsule.downcast().map_err(Value::Capsule)
+        } else {
+            Err(self)
+        }
+    }
+
+    /// If the `Value`'s variant is `Capsule`, returns some reference to the inner value if it is
+    /// of type `T`, or `None` if it isn't.
+    pub fn downcast_capsule_ref<T: Any>(&self) -> Option<&T> {
+        self.as_capsule().and_then(|capsule| capsule.downcast_ref())
+    }
+
+    /// If the `Value`'s variant is `Capsule`, returns some mutable reference to the inner value if
+    /// it is of type `T`, or `None` if it isn't.
+    pub fn downcast_capsule_mut<T: Any>(&mut self) -> Option<&mut T> {
+        self.as_capsule_mut()
+            .and_then(|capsule| capsule.downcast_mut())
     }
 }
 

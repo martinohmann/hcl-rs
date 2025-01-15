@@ -83,10 +83,14 @@ fn evaluate_interpolation(
     interp: &Interpolation,
     ctx: &Context,
 ) -> EvalResult<()> {
-    let string = match interp.expr.evaluate(ctx)? {
-        Value::String(string) => string,
-        other => other.to_string(),
-    };
+    let string =
+        match interp.expr.evaluate(ctx)? {
+            Value::String(string) => string,
+            Value::Capsule(_) => return Err(Error::new(
+                "cannot format capsule value returned while evaluating an interpolation as string",
+            )),
+            other => other.to_string(),
+        };
 
     result.push_str(&string);
     Ok(())

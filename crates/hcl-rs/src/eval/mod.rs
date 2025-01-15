@@ -477,3 +477,36 @@ where
     let evaluated = value.evaluate(ctx)?;
     super::to_string(&evaluated)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::capsule::Capsule;
+    use crate::eval::{Context, Evaluate, FuncDef, ParamType};
+    use crate::expr::TemplateExpr;
+    use crate::Value;
+
+    #[test]
+    fn test_capsule() -> Result<(), Box<dyn std::error::Error>> {
+        let mut ctx = Context::new();
+        ctx.declare_func(
+            "bytes",
+            FuncDef::builder().param(ParamType::String).build(|args| {
+                Ok(Value::from(Capsule::new(
+                    args[0].as_str().unwrap().as_bytes().to_vec(),
+                )))
+            }),
+        );
+
+        let expr = TemplateExpr::from(r#"${bytes("foo")}"#);
+        let value = expr.evaluate(&ctx)?;
+
+        assert_eq!(
+            value.downcast_capsule::<Vec<u8>>().unwrap(),
+            &[0x66, 0x6f, 0x6f]
+        );
+
+        let expr = TemplateExpr::from(r#"${bytes("foo")} and some more"#);
+        assert!(expr.evaluate(&ctx).is_err());
+        Ok(())
+    }
+}
