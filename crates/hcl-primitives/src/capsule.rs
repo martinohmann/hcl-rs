@@ -1,35 +1,9 @@
 //! Support for HCL capsule types.
-use core::{any::Any, fmt};
-use dyn_clone::DynClone;
-use dyn_std::{any::Dyn, cmp::PartialEq as DynPartialEq};
 
-/// A trait for opaque encapsulated values.
-///
-/// Types that implement `Clone`, `PartialEq`, `Eq` and `Any` automatically implement
-/// `CapsuleValue`.
-pub trait CapsuleValue: DynClone + DynPartialEq + Dyn {}
+mod value;
 
-impl Clone for Box<dyn CapsuleValue> {
-    fn clone(&self) -> Self {
-        dyn_clone::clone_box(&**self)
-    }
-}
-
-impl PartialEq for dyn CapsuleValue {
-    fn eq(&self, other: &Self) -> bool {
-        DynPartialEq::dyn_eq(self, Dyn::as_any(other))
-    }
-}
-
-impl PartialEq<&Self> for Box<dyn CapsuleValue> {
-    fn eq(&self, other: &&Self) -> bool {
-        DynPartialEq::dyn_eq(self, Dyn::as_any(*other))
-    }
-}
-
-impl Eq for Box<dyn CapsuleValue> {}
-
-impl<T> CapsuleValue for T where T: Clone + PartialEq + Eq + Any {}
+pub use self::value::CapsuleValue;
+use core::fmt;
 
 /// A Capsule wraps values of custom types defined by the calling application.
 ///
@@ -56,8 +30,8 @@ impl Capsule {
     /// assert!(v.is::<u32>());
     /// assert!(!v.is::<String>());
     /// ```
-    pub fn is<T: Any>(&self) -> bool {
-        Dyn::as_any(&*self.0).is::<T>()
+    pub fn is<T: 'static>(&self) -> bool {
+        self.0.is::<T>()
     }
 
     /// Attempts to downcast the Capsule's value to a concrete type.
@@ -82,13 +56,8 @@ impl Capsule {
     ///
     /// If a downcast into `T` is not possible, the original Capsule is returned via `Result`'s
     /// `Err` variant.
-    pub fn downcast<T: Any>(self) -> Result<T, Capsule> {
-        if self.is::<T>() {
-            let boxed = Dyn::as_any_box(self.0).downcast().unwrap();
-            Ok(*boxed)
-        } else {
-            Err(self)
-        }
+    pub fn downcast<T: 'static>(self) -> Result<T, Capsule> {
+        self.0.downcast::<T>().map(|boxed| *boxed).map_err(Capsule)
     }
 
     /// Returns some reference to the inner value if it is of type `T`, or
@@ -110,8 +79,8 @@ impl Capsule {
     /// print_if_string(&Capsule::new(0));
     /// print_if_string(&Capsule::new("cookie monster".to_string()));
     /// ```
-    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
-        Dyn::as_any(&*self.0).downcast_ref()
+    pub fn downcast_ref<T: 'static>(&self) -> Option<&T> {
+        self.0.downcast_ref::<T>()
     }
 
     /// Returns some mutable reference to the inner value if it is of type `T`, or
@@ -137,13 +106,13 @@ impl Capsule {
     /// assert_eq!(x, Capsule::new(42u32));
     /// assert_eq!(s, Capsule::new("starlord".to_string()));
     /// ```
-    pub fn downcast_mut<T: Any>(&mut self) -> Option<&mut T> {
-        Dyn::as_any_mut(&mut *self.0).downcast_mut()
+    pub fn downcast_mut<T: 'static>(&mut self) -> Option<&mut T> {
+        self.0.downcast_mut::<T>()
     }
 }
 
 impl fmt::Debug for Capsule {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Capsule").finish_non_exhaustive()
+        f.debug_tuple("Capsule").finish_non_exhaustive()
     }
 }
