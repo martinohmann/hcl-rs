@@ -68,12 +68,12 @@ impl ParamType {
             ParamType::Bool => value.is_boolean(),
             ParamType::Number => value.is_number(),
             ParamType::String => value.is_string(),
-            ParamType::Array(elem_type) => value.as_array().map_or(false, |array| {
-                array.iter().all(|elem| elem_type.is_satisfied_by(elem))
-            }),
-            ParamType::Object(elem_type) => value.as_object().map_or(false, |object| {
-                object.values().all(|elem| elem_type.is_satisfied_by(elem))
-            }),
+            ParamType::Array(elem_type) => value
+                .as_array()
+                .is_some_and(|array| array.iter().all(|elem| elem_type.is_satisfied_by(elem))),
+            ParamType::Object(elem_type) => value
+                .as_object()
+                .is_some_and(|object| object.values().all(|elem| elem_type.is_satisfied_by(elem))),
             ParamType::Nullable(elem_type) => value.is_null() || elem_type.is_satisfied_by(value),
             ParamType::OneOf(elem_types) => elem_types
                 .iter()

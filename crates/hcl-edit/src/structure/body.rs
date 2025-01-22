@@ -478,7 +478,7 @@ impl Body {
             .position(|structure| {
                 structure
                     .as_attribute()
-                    .map_or(false, |attr| attr.has_key(key))
+                    .is_some_and(|attr| attr.has_key(key))
             })
             .and_then(|index| self.remove(index).into_attribute().ok())
     }
@@ -542,7 +542,7 @@ impl Body {
             .position(|structure| {
                 structure
                     .as_block()
-                    .map_or(false, |block| block.has_ident(ident))
+                    .is_some_and(|block| block.has_ident(ident))
             })
             .and_then(|index| self.remove(index).into_block().ok())
     }
@@ -668,7 +668,7 @@ impl Body {
     /// Returns `true` if the body only consist of a single `Attribute`.
     #[inline]
     pub(crate) fn has_single_attribute(&self) -> bool {
-        self.len() == 1 && self.get(0).map_or(false, Structure::is_attribute)
+        self.len() == 1 && self.get(0).is_some_and(Structure::is_attribute)
     }
 
     pub(crate) fn from_vec_unchecked(structures: Vec<Structure>) -> Self {

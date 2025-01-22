@@ -144,7 +144,7 @@ impl Value {
     /// For any Value on which `is_f64` returns true, `as_f64` is guaranteed to
     /// return the floating point value.
     pub fn is_f64(&self) -> bool {
-        self.as_number().map_or(false, Number::is_f64)
+        self.as_number().is_some_and(Number::is_f64)
     }
 
     /// Returns true if the `Value` is an integer between `i64::MIN` and
@@ -153,7 +153,7 @@ impl Value {
     /// For any Value on which `is_i64` returns true, `as_i64` is guaranteed to
     /// return the integer value.
     pub fn is_i64(&self) -> bool {
-        self.as_number().map_or(false, Number::is_i64)
+        self.as_number().is_some_and(Number::is_i64)
     }
 
     /// Returns true if the `Value` is a Number. Returns false otherwise.
@@ -191,7 +191,7 @@ impl Value {
     /// For any Value on which `is_u64` returns true, `as_u64` is guaranteed to
     /// return the integer value.
     pub fn is_u64(&self) -> bool {
-        self.as_number().map_or(false, Number::is_u64)
+        self.as_number().is_some_and(Number::is_u64)
     }
 
     /// Takes the value out of the `Value`, leaving a `Null` in its place.
