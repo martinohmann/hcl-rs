@@ -7,7 +7,7 @@ use winnow::ascii::digit1;
 use winnow::combinator::{alt, cut_err, opt, preceded, terminated};
 use winnow::token::one_of;
 
-pub(super) fn number(input: &mut Input) -> PResult<Number> {
+pub(super) fn number(input: &mut Input) -> ModalResult<Number> {
     alt((
         float.verify_map(Number::from_f64),
         integer.map(Number::from),
@@ -15,11 +15,11 @@ pub(super) fn number(input: &mut Input) -> PResult<Number> {
     .parse_next(input)
 }
 
-fn integer(input: &mut Input) -> PResult<u64> {
+fn integer(input: &mut Input) -> ModalResult<u64> {
     digit1.try_map(|s: &str| u64::from_str(s)).parse_next(input)
 }
 
-fn float(input: &mut Input) -> PResult<f64> {
+fn float(input: &mut Input) -> ModalResult<f64> {
     let fraction = preceded('.', digit1);
 
     terminated(digit1, alt((terminated(fraction, opt(exponent)), exponent)))
@@ -28,7 +28,7 @@ fn float(input: &mut Input) -> PResult<f64> {
         .parse_next(input)
 }
 
-fn exponent<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
+fn exponent<'a>(input: &mut Input<'a>) -> ModalResult<&'a str> {
     (
         one_of(b"eE"),
         opt(one_of(b"+-")),

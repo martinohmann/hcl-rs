@@ -34,7 +34,7 @@ fn ws_or_sp<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), C
     }
 }
 
-pub(super) fn expr(input: &mut Input) -> PResult<Expression> {
+pub(super) fn expr(input: &mut Input) -> ModalResult<Expression> {
     parse_expr(RefCell::default(), input)
 }
 
@@ -45,7 +45,7 @@ fn expr_with_state<'i>(
 }
 
 #[inline]
-fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> PResult<Expression> {
+fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
     expr_inner(&state).parse_next(input)?;
     Ok(state.into_inner().into_expr())
 }
@@ -203,7 +203,7 @@ fn traversal<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), 
     }
 }
 
-fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
+fn traversal_operator(input: &mut Input) -> ModalResult<TraversalOperator> {
     dispatch! {any;
         '.' => prefix_decorated(
             ws,
@@ -246,7 +246,7 @@ fn unary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), C
     }
 }
 
-fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
+fn unary_operator(input: &mut Input) -> ModalResult<UnaryOperator> {
     dispatch! {any;
         '-' => empty.value(UnaryOperator::Neg),
         '!' => empty.value(UnaryOperator::Not),
@@ -266,7 +266,7 @@ fn binary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), 
     }
 }
 
-fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
+fn binary_operator(input: &mut Input) -> ModalResult<BinaryOperator> {
     dispatch! {any;
         '=' => '='.value(BinaryOperator::Eq),
         '!' => '='.value(BinaryOperator::NotEq),
@@ -487,7 +487,7 @@ fn object_items<'i>(
     }
 }
 
-fn object_key(input: &mut Input) -> PResult<ObjectKey> {
+fn object_key(input: &mut Input) -> ModalResult<ObjectKey> {
     suffix_decorated(
         expr.map(|expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
@@ -506,7 +506,7 @@ fn object_key(input: &mut Input) -> PResult<ObjectKey> {
     .parse_next(input)
 }
 
-fn object_value(input: &mut Input) -> PResult<ObjectValue> {
+fn object_value(input: &mut Input) -> ModalResult<ObjectValue> {
     (object_value_assignment, decorated(sp, expr, sp))
         .map(|(assignment, expr)| {
             let mut value = ObjectValue::new(expr);
@@ -516,7 +516,7 @@ fn object_value(input: &mut Input) -> PResult<ObjectValue> {
         .parse_next(input)
 }
 
-fn object_value_assignment(input: &mut Input) -> PResult<ObjectValueAssignment> {
+fn object_value_assignment(input: &mut Input) -> ModalResult<ObjectValueAssignment> {
     dispatch! {any;
         '=' => empty.value(ObjectValueAssignment::Equals),
         ':' => empty.value(ObjectValueAssignment::Colon),
@@ -548,7 +548,7 @@ where
     }
 }
 
-fn for_intro(input: &mut Input) -> PResult<ForIntro> {
+fn for_intro(input: &mut Input) -> ModalResult<ForIntro> {
     prefix_decorated(
         ws,
         delimited(
@@ -629,7 +629,7 @@ fn heredoc<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), Co
     }
 }
 
-fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
+fn heredoc_start<'a>(input: &mut Input<'a>) -> ModalResult<(bool, &'a str)> {
     terminated(
         (
             preceded("<<", opt('-')).map(|indent| indent.is_some()),

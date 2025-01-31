@@ -19,7 +19,7 @@ use winnow::combinator::{
 use winnow::stream::Location;
 use winnow::token::{any, one_of};
 
-pub(super) fn body(input: &mut Input) -> PResult<Body> {
+pub(super) fn body(input: &mut Input) -> ModalResult<Body> {
     let state = RefCell::new(BodyParseState::default());
 
     let (span, suffix) = (
@@ -123,7 +123,7 @@ fn structure<'i, 's>(
     }
 }
 
-fn attribute_expr(input: &mut Input) -> PResult<Expression> {
+fn attribute_expr(input: &mut Input) -> ModalResult<Expression> {
     preceded(
         cut_char('=').context(StrContext::Label("attribute")),
         prefix_decorated(sp, expr),
@@ -131,11 +131,11 @@ fn attribute_expr(input: &mut Input) -> PResult<Expression> {
     .parse_next(input)
 }
 
-fn block_labels(input: &mut Input) -> PResult<Vec<BlockLabel>> {
+fn block_labels(input: &mut Input) -> ModalResult<Vec<BlockLabel>> {
     repeat(0.., suffix_decorated(block_label, sp)).parse_next(input)
 }
 
-fn block_label(input: &mut Input) -> PResult<BlockLabel> {
+fn block_label(input: &mut Input) -> ModalResult<BlockLabel> {
     alt((
         string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
@@ -143,7 +143,7 @@ fn block_label(input: &mut Input) -> PResult<BlockLabel> {
     .parse_next(input)
 }
 
-fn block_body(input: &mut Input) -> PResult<Body> {
+fn block_body(input: &mut Input) -> ModalResult<Body> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 

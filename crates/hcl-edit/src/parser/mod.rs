@@ -23,9 +23,9 @@ use crate::template::Template;
 mod prelude {
     pub(super) use winnow::error::{ContextError, StrContext, StrContextValue};
     pub(super) use winnow::stream::Stream;
-    pub(super) use winnow::{dispatch, PResult, Parser};
+    pub(super) use winnow::{dispatch, ModalResult, Parser};
 
-    pub(super) type Input<'a> = winnow::stream::Located<&'a str>;
+    pub(super) type Input<'a> = winnow::stream::LocatingSlice<&'a str>;
 }
 
 use self::prelude::*;
