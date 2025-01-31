@@ -32,7 +32,7 @@ pub(super) fn template(input: &mut Input) -> ModalResult<Template> {
 
 pub(super) fn heredoc_template<'a>(
     delim: &'a str,
-) -> impl Parser<Input<'a>, Template, ContextError> {
+) -> impl ModalParser<Input<'a>, Template, ContextError> {
     move |input: &mut Input<'a>| {
         // We'll need to look for a line ending followed by optional space and the heredoc
         // delimiter.
@@ -72,16 +72,18 @@ pub(super) fn heredoc_template<'a>(
 }
 
 #[inline]
-fn template_literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError>
+fn template_literal<'a, F, T>(
+    literal_end: F,
+) -> impl ModalParser<Input<'a>, Cow<'a, str>, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError>,
+    F: ModalParser<Input<'a>, T, ContextError>,
 {
     build_string(template_string_fragment(literal_end))
 }
 
-fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ContextError>
+fn elements<'a, P>(literal: P) -> impl ModalParser<Input<'a>, Vec<Element>, ContextError>
 where
-    P: Parser<Input<'a>, Cow<'a, str>, ContextError>,
+    P: ModalParser<Input<'a>, Cow<'a, str>, ContextError>,
 {
     repeat(
         0..,
@@ -202,10 +204,10 @@ fn for_directive(input: &mut Input) -> ModalResult<ForDirective> {
 fn control<'a, S, P, O1, O2>(
     intro: S,
     inner: P,
-) -> impl Parser<Input<'a>, (O2, Strip), ContextError>
+) -> impl ModalParser<Input<'a>, (O2, Strip), ContextError>
 where
-    S: Parser<Input<'a>, O1, ContextError>,
-    P: Parser<Input<'a>, O2, ContextError>,
+    S: ModalParser<Input<'a>, O1, ContextError>,
+    P: ModalParser<Input<'a>, O2, ContextError>,
 {
     (
         preceded(intro, opt('~')),

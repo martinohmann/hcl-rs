@@ -56,9 +56,9 @@ pub(super) fn body(input: &mut Input) -> ModalResult<Body> {
 
 fn structure<'i, 's>(
     state: &'s RefCell<BodyParseState<'i>>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+) -> impl ModalParser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let start = input.location();
+        let start = input.current_token_start();
         let checkpoint = input.checkpoint();
         peek(one_of(is_id_start)).parse_next(input)?;
         let (ident, ident_span) = cut_str_ident.with_span().parse_next(input)?;
@@ -116,7 +116,7 @@ fn structure<'i, 's>(
             }
         };
 
-        let end = input.location();
+        let end = input.previous_token_end();
         structure.set_span(start..end);
         state.borrow_mut().on_structure(structure);
         Ok(())

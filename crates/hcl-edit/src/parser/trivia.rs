@@ -55,9 +55,9 @@ fn inline_comment(input: &mut Input) -> ModalResult<()> {
 }
 
 #[inline]
-pub(super) fn void<P, I, E>(inner: P) -> impl Parser<I, (), E>
+pub(super) fn void<P, I, E>(inner: P) -> impl ModalParser<I, (), E>
 where
-    P: Parser<I, (), E>,
+    P: ModalParser<I, (), E>,
 {
     inner
 }

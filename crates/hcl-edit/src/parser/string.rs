@@ -18,9 +18,9 @@ pub(super) fn string(input: &mut Input) -> ModalResult<String> {
 
 pub(super) fn build_string<'a, F>(
     mut fragment_parser: F,
-) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError>
+) -> impl ModalParser<Input<'a>, Cow<'a, str>, ContextError>
 where
-    F: Parser<Input<'a>, StringFragment<'a>, ContextError>,
+    F: ModalParser<Input<'a>, StringFragment<'a>, ContextError>,
 {
     move |input: &mut Input<'a>| {
         let mut string = match fragment_parser.parse_next(input) {
@@ -85,9 +85,9 @@ pub(super) fn quoted_string_fragment<'a>(input: &mut Input<'a>) -> ModalResult<S
 
 pub(super) fn template_string_fragment<'a, F, T>(
     mut literal_end: F,
-) -> impl Parser<Input<'a>, StringFragment<'a>, ContextError>
+) -> impl ModalParser<Input<'a>, StringFragment<'a>, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError>,
+    F: ModalParser<Input<'a>, T, ContextError>,
 {
     move |input: &mut Input<'a>| {
         alt((
@@ -109,9 +109,9 @@ fn string_literal<'a>(input: &mut Input<'a>) -> ModalResult<&'a str> {
     any_until(literal_end).parse_next(input)
 }
 
-fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ContextError>
+fn any_until<'a, F, T>(literal_end: F) -> impl ModalParser<Input<'a>, &'a str, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError>,
+    F: ModalParser<Input<'a>, T, ContextError>,
 {
     void(repeat(
         1..,
@@ -171,9 +171,9 @@ fn hexescape<const N: usize>(input: &mut Input) -> ModalResult<char> {
     parse_u32.verify_map(std::char::from_u32).parse_next(input)
 }
 
-pub(super) fn raw_string<'a, P, O>(inner: P) -> impl Parser<Input<'a>, RawString, ContextError>
+pub(super) fn raw_string<'a, P, O>(inner: P) -> impl ModalParser<Input<'a>, RawString, ContextError>
 where
-    P: Parser<Input<'a>, O, ContextError>,
+    P: ModalParser<Input<'a>, O, ContextError>,
 {
     inner.span().map(RawString::from_span)
 }
@@ -190,11 +190,11 @@ pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> ModalResult<&'a str> {
         .parse_next(input)
 }
 
-pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, ContextError> {
+pub(super) fn cut_char<'a>(c: char) -> impl ModalParser<Input<'a>, char, ContextError> {
     cut_err(c).context(StrContext::Expected(StrContextValue::CharLiteral(c)))
 }
 
-pub(super) fn cut_tag<'a>(tag: &'static str) -> impl Parser<Input<'a>, &'a str, ContextError> {
+pub(super) fn cut_tag<'a>(tag: &'static str) -> impl ModalParser<Input<'a>, &'a str, ContextError> {
     cut_err(tag).context(StrContext::Expected(StrContextValue::StringLiteral(tag)))
 }
 
