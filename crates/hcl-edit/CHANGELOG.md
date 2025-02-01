@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.4...hcl-edit-v0.8.5) - 2025-02-01
+
+### Other
+
+- upgrade to winnow 0.7 (#403)
+- address new clippy lints
+
 ## [0.8.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.3...hcl-edit-v0.8.4) - 2025-01-10
 
 ### Other
