@@ -35,5 +35,5 @@ serde = ["dep:serde", "kstring?/serde"]
 itoa = "1.0.14"
 kstring = { version = "2.0.2", features = ["max_inline"], optional = true }
 serde = { version = "1.0.217", default-features = false, features = ["alloc", "derive"], optional = true }
-unicode-ident = "1.0.14"
+unicode-ident = "1.0.16"
 ryu = "1.0.18"
