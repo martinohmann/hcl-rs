@@ -2,9 +2,9 @@ use super::prelude::*;
 
 use crate::{Decorate, RawString, SetSpan};
 
-pub(super) fn spanned<'a, F, O>(inner: F) -> impl Parser<Input<'a>, O, ContextError>
+pub(super) fn spanned<'a, F, O>(inner: F) -> impl ModalParser<Input<'a>, O, ContextError>
 where
-    F: Parser<Input<'a>, O, ContextError>,
+    F: ModalParser<Input<'a>, O, ContextError>,
     O: SetSpan,
 {
     inner.with_span().map(|(mut value, span)| {
@@ -17,11 +17,11 @@ pub(super) fn decorated<'a, F, G, H, O1, O2, O3>(
     prefix: F,
     inner: G,
     suffix: H,
-) -> impl Parser<Input<'a>, O2, ContextError>
+) -> impl ModalParser<Input<'a>, O2, ContextError>
 where
-    F: Parser<Input<'a>, O1, ContextError>,
-    G: Parser<Input<'a>, O2, ContextError>,
-    H: Parser<Input<'a>, O3, ContextError>,
+    F: ModalParser<Input<'a>, O1, ContextError>,
+    G: ModalParser<Input<'a>, O2, ContextError>,
+    H: ModalParser<Input<'a>, O3, ContextError>,
     O2: Decorate + SetSpan,
 {
     (prefix.span(), spanned(inner), suffix.span()).map(|(prefix, mut value, suffix)| {
@@ -35,10 +35,10 @@ where
 pub(super) fn prefix_decorated<'a, F, G, O1, O2>(
     prefix: F,
     inner: G,
-) -> impl Parser<Input<'a>, O2, ContextError>
+) -> impl ModalParser<Input<'a>, O2, ContextError>
 where
-    F: Parser<Input<'a>, O1, ContextError>,
-    G: Parser<Input<'a>, O2, ContextError>,
+    F: ModalParser<Input<'a>, O1, ContextError>,
+    G: ModalParser<Input<'a>, O2, ContextError>,
     O2: Decorate + SetSpan,
 {
     (prefix.span(), spanned(inner)).map(|(prefix, mut value)| {
@@ -50,10 +50,10 @@ where
 pub(super) fn suffix_decorated<'a, F, G, O1, O2>(
     inner: F,
     suffix: G,
-) -> impl Parser<Input<'a>, O1, ContextError>
+) -> impl ModalParser<Input<'a>, O1, ContextError>
 where
-    F: Parser<Input<'a>, O1, ContextError>,
-    G: Parser<Input<'a>, O2, ContextError>,
+    F: ModalParser<Input<'a>, O1, ContextError>,
+    G: ModalParser<Input<'a>, O2, ContextError>,
     O1: Decorate + SetSpan,
 {
     (spanned(inner), suffix.span()).map(|(mut value, suffix)| {

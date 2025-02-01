@@ -4,7 +4,7 @@ use winnow::ascii::{multispace0, space0, till_line_ending};
 use winnow::combinator::{alt, delimited, fail, peek, preceded, repeat};
 use winnow::token::{any, take_until};
 
-pub(super) fn ws(input: &mut Input) -> PResult<()> {
+pub(super) fn ws(input: &mut Input) -> ModalResult<()> {
     (
         multispace0.void(),
         void(repeat(0.., (comment, multispace0.void()))),
@@ -13,7 +13,7 @@ pub(super) fn ws(input: &mut Input) -> PResult<()> {
         .parse_next(input)
 }
 
-pub(super) fn sp(input: &mut Input) -> PResult<()> {
+pub(super) fn sp(input: &mut Input) -> ModalResult<()> {
     (
         space0.void(),
         void(repeat(0.., (inline_comment, space0.void()))),
@@ -22,7 +22,7 @@ pub(super) fn sp(input: &mut Input) -> PResult<()> {
         .parse_next(input)
 }
 
-fn comment(input: &mut Input) -> PResult<()> {
+fn comment(input: &mut Input) -> ModalResult<()> {
     dispatch! {peek(any);
         '#' => hash_line_comment,
         '/' => alt((double_slash_line_comment, inline_comment)),
@@ -31,7 +31,7 @@ fn comment(input: &mut Input) -> PResult<()> {
     .parse_next(input)
 }
 
-pub(super) fn line_comment(input: &mut Input) -> PResult<()> {
+pub(super) fn line_comment(input: &mut Input) -> ModalResult<()> {
     dispatch! {peek(any);
         '#' => hash_line_comment,
         '/' => double_slash_line_comment,
@@ -40,24 +40,24 @@ pub(super) fn line_comment(input: &mut Input) -> PResult<()> {
     .parse_next(input)
 }
 
-fn hash_line_comment(input: &mut Input) -> PResult<()> {
+fn hash_line_comment(input: &mut Input) -> ModalResult<()> {
     preceded('#', till_line_ending).void().parse_next(input)
 }
 
-fn double_slash_line_comment(input: &mut Input) -> PResult<()> {
+fn double_slash_line_comment(input: &mut Input) -> ModalResult<()> {
     preceded("//", till_line_ending).void().parse_next(input)
 }
 
-fn inline_comment(input: &mut Input) -> PResult<()> {
+fn inline_comment(input: &mut Input) -> ModalResult<()> {
     delimited("/*", take_until(0.., "*/"), "*/")
         .void()
         .parse_next(input)
 }
 
 #[inline]
-pub(super) fn void<P, I, E>(inner: P) -> impl Parser<I, (), E>
+pub(super) fn void<P, I, E>(inner: P) -> impl ModalParser<I, (), E>
 where
-    P: Parser<I, (), E>,
+    P: ModalParser<I, (), E>,
 {
     inner
 }

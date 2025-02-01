@@ -18,13 +18,13 @@ use std::borrow::Cow;
 use winnow::ascii::{line_ending, space0};
 use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated};
 
-pub(super) fn string_template(input: &mut Input) -> PResult<StringTemplate> {
+pub(super) fn string_template(input: &mut Input) -> ModalResult<StringTemplate> {
     delimited('"', elements(build_string(quoted_string_fragment)), '"')
         .output_into()
         .parse_next(input)
 }
 
-pub(super) fn template(input: &mut Input) -> PResult<Template> {
+pub(super) fn template(input: &mut Input) -> ModalResult<Template> {
     let literal_end = alt(("${", "%{"));
     let literal = template_literal(literal_end);
     elements(literal).output_into().parse_next(input)
@@ -32,7 +32,7 @@ pub(super) fn template(input: &mut Input) -> PResult<Template> {
 
 pub(super) fn heredoc_template<'a>(
     delim: &'a str,
-) -> impl Parser<Input<'a>, Template, ContextError> {
+) -> impl ModalParser<Input<'a>, Template, ContextError> {
     move |input: &mut Input<'a>| {
         // We'll need to look for a line ending followed by optional space and the heredoc
         // delimiter.
@@ -72,16 +72,18 @@ pub(super) fn heredoc_template<'a>(
 }
 
 #[inline]
-fn template_literal<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError>
+fn template_literal<'a, F, T>(
+    literal_end: F,
+) -> impl ModalParser<Input<'a>, Cow<'a, str>, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError>,
+    F: ModalParser<Input<'a>, T, ContextError>,
 {
     build_string(template_string_fragment(literal_end))
 }
 
-fn elements<'a, P>(literal: P) -> impl Parser<Input<'a>, Vec<Element>, ContextError>
+fn elements<'a, P>(literal: P) -> impl ModalParser<Input<'a>, Vec<Element>, ContextError>
 where
-    P: Parser<Input<'a>, Cow<'a, str>, ContextError>,
+    P: ModalParser<Input<'a>, Cow<'a, str>, ContextError>,
 {
     repeat(
         0..,
@@ -93,7 +95,7 @@ where
     )
 }
 
-fn interpolation(input: &mut Input) -> PResult<Interpolation> {
+fn interpolation(input: &mut Input) -> ModalResult<Interpolation> {
     control("${", decorated(ws, expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
@@ -103,7 +105,7 @@ fn interpolation(input: &mut Input) -> PResult<Interpolation> {
         .parse_next(input)
 }
 
-fn directive(input: &mut Input) -> PResult<Directive> {
+fn directive(input: &mut Input) -> ModalResult<Directive> {
     alt((
         if_directive.map(Directive::If),
         for_directive.map(Directive::For),
@@ -111,7 +113,7 @@ fn directive(input: &mut Input) -> PResult<Directive> {
     .parse_next(input)
 }
 
-fn if_directive(input: &mut Input) -> PResult<IfDirective> {
+fn if_directive(input: &mut Input) -> ModalResult<IfDirective> {
     let if_expr = (
         control(
             "%{",
@@ -155,7 +157,7 @@ fn if_directive(input: &mut Input) -> PResult<IfDirective> {
         .parse_next(input)
 }
 
-fn for_directive(input: &mut Input) -> PResult<ForDirective> {
+fn for_directive(input: &mut Input) -> ModalResult<ForDirective> {
     let for_expr = (
         control(
             "%{",
@@ -202,10 +204,10 @@ fn for_directive(input: &mut Input) -> PResult<ForDirective> {
 fn control<'a, S, P, O1, O2>(
     intro: S,
     inner: P,
-) -> impl Parser<Input<'a>, (O2, Strip), ContextError>
+) -> impl ModalParser<Input<'a>, (O2, Strip), ContextError>
 where
-    S: Parser<Input<'a>, O1, ContextError>,
-    P: Parser<Input<'a>, O2, ContextError>,
+    S: ModalParser<Input<'a>, O1, ContextError>,
+    P: ModalParser<Input<'a>, O2, ContextError>,
 {
     (
         preceded(intro, opt('~')),

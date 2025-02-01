@@ -23,9 +23,9 @@ use crate::template::Template;
 mod prelude {
     pub(super) use winnow::error::{ContextError, StrContext, StrContextValue};
     pub(super) use winnow::stream::Stream;
-    pub(super) use winnow::{dispatch, PResult, Parser};
+    pub(super) use winnow::{dispatch, ModalParser, ModalResult, Parser};
 
-    pub(super) type Input<'a> = winnow::stream::Located<&'a str>;
+    pub(super) type Input<'a> = winnow::stream::LocatingSlice<&'a str>;
 }
 
 use self::prelude::*;
@@ -65,7 +65,7 @@ pub fn parse_template(input: &str) -> Result<Template, Error> {
 
 fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> Result<O, Error>
 where
-    P: Parser<Input<'a>, O, ContextError>,
+    P: ModalParser<Input<'a>, O, ContextError>,
 {
     let input = Input::new(input);
 

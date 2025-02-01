@@ -24,7 +24,9 @@ use winnow::combinator::{
 };
 use winnow::token::{any, none_of, one_of, take};
 
-fn ws_or_sp<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn ws_or_sp<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         if state.borrow().newlines_allowed() {
             ws.parse_next(input)
@@ -34,25 +36,25 @@ fn ws_or_sp<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), C
     }
 }
 
-pub(super) fn expr(input: &mut Input) -> PResult<Expression> {
+pub(super) fn expr(input: &mut Input) -> ModalResult<Expression> {
     parse_expr(RefCell::default(), input)
 }
 
 fn expr_with_state<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, Expression, ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, Expression, ContextError> + '_ {
     move |input: &mut Input<'i>| parse_expr(state.clone(), input)
 }
 
 #[inline]
-fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> PResult<Expression> {
+fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
     expr_inner(&state).parse_next(input)?;
     Ok(state.into_inner().into_expr())
 }
 
 fn expr_inner<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let span = expr_term(state).span().parse_next(input)?;
         state.borrow_mut().on_span(span);
@@ -111,7 +113,9 @@ fn expr_inner<'i>(
     }
 }
 
-fn expr_term<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn expr_term<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         dispatch! {peek(any);
             '"' => stringlike(state),
@@ -142,7 +146,7 @@ fn expr_term<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), 
 
 fn stringlike<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         alt((
             string.map(|string| {
@@ -160,7 +164,9 @@ fn stringlike<'i>(
     }
 }
 
-fn number<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn number<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         num.with_taken()
             .map(|(num, repr)| {
@@ -174,7 +180,7 @@ fn number<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), Con
 
 fn neg_number<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         preceded(('-', sp), num)
             .with_taken()
@@ -187,7 +193,9 @@ fn neg_number<'i>(
     }
 }
 
-fn traversal<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn traversal<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         repeat(
             1..,
@@ -203,7 +211,7 @@ fn traversal<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), 
     }
 }
 
-fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
+fn traversal_operator(input: &mut Input) -> ModalResult<TraversalOperator> {
     dispatch! {any;
         '.' => prefix_decorated(
             ws,
@@ -234,7 +242,9 @@ fn traversal_operator(input: &mut Input) -> PResult<TraversalOperator> {
     .parse_next(input)
 }
 
-fn unary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn unary_op<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         preceded(
             (spanned(unary_operator.map(Spanned::new)), sp.span())
@@ -246,7 +256,7 @@ fn unary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), C
     }
 }
 
-fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
+fn unary_operator(input: &mut Input) -> ModalResult<UnaryOperator> {
     dispatch! {any;
         '-' => empty.value(UnaryOperator::Neg),
         '!' => empty.value(UnaryOperator::Not),
@@ -255,7 +265,9 @@ fn unary_operator(input: &mut Input) -> PResult<UnaryOperator> {
     .parse_next(input)
 }
 
-fn binary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn binary_op<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         (
             spanned(binary_operator.map(Spanned::new)),
@@ -266,7 +278,7 @@ fn binary_op<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), 
     }
 }
 
-fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
+fn binary_operator(input: &mut Input) -> ModalResult<BinaryOperator> {
     dispatch! {any;
         '=' => '='.value(BinaryOperator::Eq),
         '!' => '='.value(BinaryOperator::NotEq),
@@ -292,7 +304,7 @@ fn binary_operator(input: &mut Input) -> PResult<BinaryOperator> {
 
 fn conditional<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         (
             preceded(
@@ -309,7 +321,9 @@ fn conditional<'i>(
     }
 }
 
-fn array<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn array<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         state.borrow_mut().allow_newlines(true);
         delimited(
@@ -323,7 +337,7 @@ fn array<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), Cont
 
 fn for_list_expr<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         (
             for_intro,
@@ -344,7 +358,7 @@ fn for_list_expr<'i>(
 
 fn array_items<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let values = separated(
             0..,
@@ -366,7 +380,9 @@ fn array_items<'i>(
     }
 }
 
-fn object<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn object<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         delimited(
             '{',
@@ -379,7 +395,7 @@ fn object<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), Con
 
 fn for_object_expr<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         state.borrow_mut().allow_newlines(true);
         (
@@ -415,7 +431,7 @@ fn for_object_expr<'i>(
 
 fn object_items<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let mut object = Object::new();
 
@@ -487,7 +503,7 @@ fn object_items<'i>(
     }
 }
 
-fn object_key(input: &mut Input) -> PResult<ObjectKey> {
+fn object_key(input: &mut Input) -> ModalResult<ObjectKey> {
     suffix_decorated(
         expr.map(|expr| {
             // Variable identifiers without traversal are treated as identifier object keys.
@@ -506,7 +522,7 @@ fn object_key(input: &mut Input) -> PResult<ObjectKey> {
     .parse_next(input)
 }
 
-fn object_value(input: &mut Input) -> PResult<ObjectValue> {
+fn object_value(input: &mut Input) -> ModalResult<ObjectValue> {
     (object_value_assignment, decorated(sp, expr, sp))
         .map(|(assignment, expr)| {
             let mut value = ObjectValue::new(expr);
@@ -516,7 +532,7 @@ fn object_value(input: &mut Input) -> PResult<ObjectValue> {
         .parse_next(input)
 }
 
-fn object_value_assignment(input: &mut Input) -> PResult<ObjectValueAssignment> {
+fn object_value_assignment(input: &mut Input) -> ModalResult<ObjectValueAssignment> {
     dispatch! {any;
         '=' => empty.value(ObjectValueAssignment::Equals),
         ':' => empty.value(ObjectValueAssignment::Colon),
@@ -531,10 +547,10 @@ fn object_value_assignment(input: &mut Input) -> PResult<ObjectValueAssignment> 
 fn for_expr_or_items<'i, F, I>(
     mut for_expr_parser: F,
     mut items_parser: I,
-) -> impl Parser<Input<'i>, (), ContextError>
+) -> impl ModalParser<Input<'i>, (), ContextError>
 where
-    F: Parser<Input<'i>, (), ContextError>,
-    I: Parser<Input<'i>, (), ContextError>,
+    F: ModalParser<Input<'i>, (), ContextError>,
+    I: ModalParser<Input<'i>, (), ContextError>,
 {
     move |input: &mut Input<'i>| {
         // The `for` tag needs to be followed by either a space character or a comment start to
@@ -548,7 +564,7 @@ where
     }
 }
 
-fn for_intro(input: &mut Input) -> PResult<ForIntro> {
+fn for_intro(input: &mut Input) -> ModalResult<ForIntro> {
     prefix_decorated(
         ws,
         delimited(
@@ -574,7 +590,7 @@ fn for_intro(input: &mut Input) -> PResult<ForIntro> {
 
 fn for_cond<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, ForCond, ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, ForCond, ContextError> + '_ {
     move |input: &mut Input| {
         prefix_decorated(
             ws,
@@ -586,7 +602,7 @@ fn for_cond<'i>(
 
 fn parenthesis<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         state.borrow_mut().allow_newlines(true);
         delimited(
@@ -599,7 +615,9 @@ fn parenthesis<'i>(
     }
 }
 
-fn heredoc<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn heredoc<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let (indented, delim) = heredoc_start(input)?;
 
@@ -629,7 +647,7 @@ fn heredoc<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), Co
     }
 }
 
-fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
+fn heredoc_start<'a>(input: &mut Input<'a>) -> ModalResult<(bool, &'a str)> {
     terminated(
         (
             preceded("<<", opt('-')).map(|indent| indent.is_some()),
@@ -642,7 +660,9 @@ fn heredoc_start<'a>(input: &mut Input<'a>) -> PResult<(bool, &'a str)> {
     .parse_next(input)
 }
 
-fn identlike<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), ContextError> + '_ {
+fn identlike<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
         let (ident, span) = str_ident.with_span().parse_next(input)?;
 
@@ -698,7 +718,7 @@ fn identlike<'i>(state: &RefCell<ExprParseState>) -> impl Parser<Input<'i>, (), 
 
 fn func_namespace_components<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, Vec<Decorated<Ident>>, ContextError> + '_ {
     move |input: &mut Input<'i>| {
         repeat(
             1..,
@@ -719,7 +739,7 @@ fn func_namespace_components<'i>(
 
 fn func_args<'i>(
     state: &RefCell<ExprParseState>,
-) -> impl Parser<Input<'i>, FuncArgs, ContextError> + '_ {
+) -> impl ModalParser<Input<'i>, FuncArgs, ContextError> + '_ {
     move |input: &mut Input| {
         #[derive(Copy, Clone)]
         enum Trailer {

@@ -19,7 +19,7 @@ use winnow::combinator::{
 use winnow::stream::Location;
 use winnow::token::{any, one_of};
 
-pub(super) fn body(input: &mut Input) -> PResult<Body> {
+pub(super) fn body(input: &mut Input) -> ModalResult<Body> {
     let state = RefCell::new(BodyParseState::default());
 
     let (span, suffix) = (
@@ -56,9 +56,9 @@ pub(super) fn body(input: &mut Input) -> PResult<Body> {
 
 fn structure<'i, 's>(
     state: &'s RefCell<BodyParseState<'i>>,
-) -> impl Parser<Input<'i>, (), ContextError> + 's {
+) -> impl ModalParser<Input<'i>, (), ContextError> + 's {
     move |input: &mut Input<'i>| {
-        let start = input.location();
+        let start = input.current_token_start();
         let checkpoint = input.checkpoint();
         peek(one_of(is_id_start)).parse_next(input)?;
         let (ident, ident_span) = cut_str_ident.with_span().parse_next(input)?;
@@ -116,14 +116,14 @@ fn structure<'i, 's>(
             }
         };
 
-        let end = input.location();
+        let end = input.previous_token_end();
         structure.set_span(start..end);
         state.borrow_mut().on_structure(structure);
         Ok(())
     }
 }
 
-fn attribute_expr(input: &mut Input) -> PResult<Expression> {
+fn attribute_expr(input: &mut Input) -> ModalResult<Expression> {
     preceded(
         cut_char('=').context(StrContext::Label("attribute")),
         prefix_decorated(sp, expr),
@@ -131,11 +131,11 @@ fn attribute_expr(input: &mut Input) -> PResult<Expression> {
     .parse_next(input)
 }
 
-fn block_labels(input: &mut Input) -> PResult<Vec<BlockLabel>> {
+fn block_labels(input: &mut Input) -> ModalResult<Vec<BlockLabel>> {
     repeat(0.., suffix_decorated(block_label, sp)).parse_next(input)
 }
 
-fn block_label(input: &mut Input) -> PResult<BlockLabel> {
+fn block_label(input: &mut Input) -> ModalResult<BlockLabel> {
     alt((
         string.map(|string| BlockLabel::String(Decorated::new(string))),
         ident.map(BlockLabel::Ident),
@@ -143,7 +143,7 @@ fn block_label(input: &mut Input) -> PResult<BlockLabel> {
     .parse_next(input)
 }
 
-fn block_body(input: &mut Input) -> PResult<Body> {
+fn block_body(input: &mut Input) -> ModalResult<Body> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 

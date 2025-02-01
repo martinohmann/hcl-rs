@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use winnow::combinator::{alt, cut_err, delimited, empty, fail, not, opt, preceded, repeat};
 use winnow::token::{any, one_of, take, take_while};
 
-pub(super) fn string(input: &mut Input) -> PResult<String> {
+pub(super) fn string(input: &mut Input) -> ModalResult<String> {
     delimited('"', opt(build_string(quoted_string_fragment)), '"')
         .map(Option::unwrap_or_default)
         .output_into()
@@ -18,9 +18,9 @@ pub(super) fn string(input: &mut Input) -> PResult<String> {
 
 pub(super) fn build_string<'a, F>(
     mut fragment_parser: F,
-) -> impl Parser<Input<'a>, Cow<'a, str>, ContextError>
+) -> impl ModalParser<Input<'a>, Cow<'a, str>, ContextError>
 where
-    F: Parser<Input<'a>, StringFragment<'a>, ContextError>,
+    F: ModalParser<Input<'a>, StringFragment<'a>, ContextError>,
 {
     move |input: &mut Input<'a>| {
         let mut string = match fragment_parser.parse_next(input) {
@@ -74,7 +74,7 @@ impl EscapedMarker {
     }
 }
 
-pub(super) fn quoted_string_fragment<'a>(input: &mut Input<'a>) -> PResult<StringFragment<'a>> {
+pub(super) fn quoted_string_fragment<'a>(input: &mut Input<'a>) -> ModalResult<StringFragment<'a>> {
     alt((
         escaped_marker.map(StringFragment::EscapedMarker),
         string_literal.map(StringFragment::Literal),
@@ -85,9 +85,9 @@ pub(super) fn quoted_string_fragment<'a>(input: &mut Input<'a>) -> PResult<Strin
 
 pub(super) fn template_string_fragment<'a, F, T>(
     mut literal_end: F,
-) -> impl Parser<Input<'a>, StringFragment<'a>, ContextError>
+) -> impl ModalParser<Input<'a>, StringFragment<'a>, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError>,
+    F: ModalParser<Input<'a>, T, ContextError>,
 {
     move |input: &mut Input<'a>| {
         alt((
@@ -100,7 +100,7 @@ where
 
 /// Parse a non-empty block of text that doesn't include `"` or non-escaped template
 /// interpolation/directive start markers.
-fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
+fn string_literal<'a>(input: &mut Input<'a>) -> ModalResult<&'a str> {
     let literal_end = dispatch! {any;
         '\"' | '\\' => empty.value(true),
         '$' | '%' => '{'.value(true),
@@ -109,9 +109,9 @@ fn string_literal<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
     any_until(literal_end).parse_next(input)
 }
 
-fn any_until<'a, F, T>(literal_end: F) -> impl Parser<Input<'a>, &'a str, ContextError>
+fn any_until<'a, F, T>(literal_end: F) -> impl ModalParser<Input<'a>, &'a str, ContextError>
 where
-    F: Parser<Input<'a>, T, ContextError>,
+    F: ModalParser<Input<'a>, T, ContextError>,
 {
     void(repeat(
         1..,
@@ -121,7 +121,7 @@ where
 }
 
 /// Parse an escaped start marker for a template interpolation or directive.
-fn escaped_marker(input: &mut Input) -> PResult<EscapedMarker> {
+fn escaped_marker(input: &mut Input) -> ModalResult<EscapedMarker> {
     dispatch! {take::<_, Input, _>(3usize);
         "$${" => empty.value(EscapedMarker::Interpolation),
         "%%{" => empty.value(EscapedMarker::Directive),
@@ -131,7 +131,7 @@ fn escaped_marker(input: &mut Input) -> PResult<EscapedMarker> {
 }
 
 /// Parse an escaped character: `\n`, `\t`, `\r`, `\u00AC`, etc.
-fn escaped_char(input: &mut Input) -> PResult<char> {
+fn escaped_char(input: &mut Input) -> ModalResult<char> {
     '\\'.parse_next(input)?;
 
     dispatch! {any;
@@ -162,7 +162,7 @@ fn escaped_char(input: &mut Input) -> PResult<char> {
     .parse_next(input)
 }
 
-fn hexescape<const N: usize>(input: &mut Input) -> PResult<char> {
+fn hexescape<const N: usize>(input: &mut Input) -> ModalResult<char> {
     let parse_hex =
         take_while(1..=N, |c: char| c.is_ascii_hexdigit()).verify(|hex: &str| hex.len() == N);
 
@@ -171,34 +171,34 @@ fn hexescape<const N: usize>(input: &mut Input) -> PResult<char> {
     parse_u32.verify_map(std::char::from_u32).parse_next(input)
 }
 
-pub(super) fn raw_string<'a, P, O>(inner: P) -> impl Parser<Input<'a>, RawString, ContextError>
+pub(super) fn raw_string<'a, P, O>(inner: P) -> impl ModalParser<Input<'a>, RawString, ContextError>
 where
-    P: Parser<Input<'a>, O, ContextError>,
+    P: ModalParser<Input<'a>, O, ContextError>,
 {
     inner.span().map(RawString::from_span)
 }
 
-pub(super) fn ident(input: &mut Input) -> PResult<Decorated<Ident>> {
+pub(super) fn ident(input: &mut Input) -> ModalResult<Decorated<Ident>> {
     str_ident
         .map(|ident| Decorated::new(Ident::new_unchecked(ident)))
         .parse_next(input)
 }
 
-pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
+pub(super) fn str_ident<'a>(input: &mut Input<'a>) -> ModalResult<&'a str> {
     (one_of(is_id_start), take_while(0.., is_id_continue))
         .take()
         .parse_next(input)
 }
 
-pub(super) fn cut_char<'a>(c: char) -> impl Parser<Input<'a>, char, ContextError> {
+pub(super) fn cut_char<'a>(c: char) -> impl ModalParser<Input<'a>, char, ContextError> {
     cut_err(c).context(StrContext::Expected(StrContextValue::CharLiteral(c)))
 }
 
-pub(super) fn cut_tag<'a>(tag: &'static str) -> impl Parser<Input<'a>, &'a str, ContextError> {
+pub(super) fn cut_tag<'a>(tag: &'static str) -> impl ModalParser<Input<'a>, &'a str, ContextError> {
     cut_err(tag).context(StrContext::Expected(StrContextValue::StringLiteral(tag)))
 }
 
-pub(super) fn cut_ident(input: &mut Input) -> PResult<Decorated<Ident>> {
+pub(super) fn cut_ident(input: &mut Input) -> ModalResult<Decorated<Ident>> {
     cut_err(ident)
         .context(StrContext::Expected(StrContextValue::Description(
             "identifier",
@@ -206,7 +206,7 @@ pub(super) fn cut_ident(input: &mut Input) -> PResult<Decorated<Ident>> {
         .parse_next(input)
 }
 
-pub(super) fn cut_str_ident<'a>(input: &mut Input<'a>) -> PResult<&'a str> {
+pub(super) fn cut_str_ident<'a>(input: &mut Input<'a>) -> ModalResult<&'a str> {
     cut_err(str_ident)
         .context(StrContext::Expected(StrContextValue::Description(
             "identifier",
