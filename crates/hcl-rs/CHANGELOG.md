@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.4](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.3...hcl-rs-v0.18.4) - 2025-02-01
+
+### Other
+
+- address new clippy lints
+
 ## [0.18.3](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.2...hcl-rs-v0.18.3) - 2025-01-10
 
 ### Added
