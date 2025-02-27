@@ -18,5 +18,8 @@
   "suppressNotifications": ["prEditedNotification", "prIgnoreNotification"],
   "rebaseWhen": "conflicted",
   "assigneesFromCodeOwners": false,
-  "reviewersFromCodeOwners": true
+  "reviewersFromCodeOwners": true,
+  "ignorePaths": [
+    "**/testdata/**",
+  ]
 }
