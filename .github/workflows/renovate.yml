@@ -1,0 +1,64 @@
+---
+name: "Renovate"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: Dry Run
+        default: "false"
+        required: false
+      logLevel:
+        description: Log Level
+        default: debug
+        required: false
+      version:
+        description: Renovate version
+        default: latest
+        required: false
+  schedule:
+    - cron: "0 18 * * *"
+  push:
+    branches: ["main"]
+    paths:
+      - .github/renovate.json5
+      - .github/renovate/**.json5
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  WORKFLOW_DRY_RUN: false
+  WORKFLOW_LOG_LEVEL: debug
+  WORKFLOW_VERSION: latest
+  RENOVATE_PLATFORM: github
+  RENOVATE_PLATFORM_COMMIT: true
+  RENOVATE_ONBOARDING_CONFIG_FILE_NAME: .github/renovate.json5
+  RENOVATE_AUTODISCOVER: true
+  RENOVATE_AUTODISCOVER_FILTER: "${{ github.repository }}"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Override default config from dispatch variables
+        shell: bash
+        run: |
+          echo "RENOVATE_DRY_RUN=${{ github.event.inputs.dryRun || env.WORKFLOW_DRY_RUN }}" >> "${GITHUB_ENV}"
+          echo "LOG_LEVEL=${{ github.event.inputs.logLevel || env.WORKFLOW_LOG_LEVEL }}" >> "${GITHUB_ENV}"
+
+      - name: Renovate
+        uses: renovatebot/github-action@d385c88822a237acaead89c462fa0aef7502748f # v41.0.11
+        with:
+          configurationFile: "${{ env.RENOVATE_ONBOARDING_CONFIG_FILE_NAME }}"
+          token: "${{ secrets.GITHUB_TOKEN }}"
+          renovate-version: "${{ github.event.inputs.version || env.WORKFLOW_VERSION }}"
