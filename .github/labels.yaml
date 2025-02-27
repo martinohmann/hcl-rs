@@ -1,0 +1,34 @@
+---
+# Renovate
+- name: renovate/container
+  color: "ffc300"
+- name: renovate/github-action
+  color: "ffc300"
+- name: renovate/github-release
+  color: "ffc300"
+# Semantic Type
+- name: type/digest
+  color: "ffeC19"
+- name: type/patch
+  color: "ffec19"
+- name: type/minor
+  color: "ff9800"
+- name: type/major
+  color: "f6412d"
+# Uncategorized
+- name: bug
+  color: "ee0701"
+- name: do-not-merge
+  color: "ee0701"
+- name: hold
+  color: "ee0701"
+- name: docs
+  color: "f4d1b7"
+- name: enhancement
+  color: "84b6eb"
+- name: broken-links
+  color: "7b55d7"
+- name: question
+  color: "cc317c"
+- name: community
+  color: "0e8a16"

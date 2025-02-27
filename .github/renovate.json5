@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:enableMajor",
+    ":automergeBranch",
+    ":automergeDigest",
+    ":dependencyDashboard",
+    ":disableRateLimiting",
+    ":semanticCommits",
+    "github>martinohmann/hcl-rs//.github/renovate/autoMerge.json5",
+    "github>martinohmann/hcl-rs//.github/renovate/labels.json5",
+    "github>martinohmann/hcl-rs//.github/renovate/semanticCommits.json5"
+  ],
+  "dependencyDashboard": true,
+  "dependencyDashboardTitle": "Renovate Dashboard 🤖",
+  "schedule": ["on the first day of the month"],
+  "suppressNotifications": ["prEditedNotification", "prIgnoreNotification"],
+  "rebaseWhen": "conflicted",
+  "assigneesFromCodeOwners": false,
+  "reviewersFromCodeOwners": true
+}
