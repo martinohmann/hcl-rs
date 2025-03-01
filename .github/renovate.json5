@@ -8,9 +8,9 @@
     ":dependencyDashboard",
     ":disableRateLimiting",
     ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
     "github>martinohmann/hcl-rs//.github/renovate/autoMerge.json5",
-    "github>martinohmann/hcl-rs//.github/renovate/labels.json5",
-    "github>martinohmann/hcl-rs//.github/renovate/semanticCommits.json5"
+    "github>martinohmann/hcl-rs//.github/renovate/labels.json5"
   ],
   "dependencyDashboard": true,
   "dependencyDashboardTitle": "Renovate Dashboard 🤖",
