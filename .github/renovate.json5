@@ -1,25 +1,39 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
-    "docker:enableMajor",
     ":automergeBranch",
     ":automergeDigest",
-    ":dependencyDashboard",
-    ":disableRateLimiting",
-    ":semanticCommits",
     ":semanticCommitTypeAll(chore)",
-    "github>martinohmann/hcl-rs//.github/renovate/autoMerge.json5",
-    "github>martinohmann/hcl-rs//.github/renovate/labels.json5"
+    "github>martinohmann/.github//renovate/default.json5"
   ],
-  "dependencyDashboard": true,
-  "dependencyDashboardTitle": "Renovate Dashboard 🤖",
   "schedule": ["on the first day of the month"],
-  "suppressNotifications": ["prEditedNotification", "prIgnoreNotification"],
-  "rebaseWhen": "conflicted",
-  "assigneesFromCodeOwners": false,
-  "reviewersFromCodeOwners": true,
   "ignorePaths": [
     "**/testdata/**",
+  ],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["major"],
+      "labels": ["type/major"]
+    },
+    {
+      "matchUpdateTypes": ["minor"],
+      "labels": ["type/minor"]
+    },
+    {
+      "matchUpdateTypes": ["patch"],
+      "labels": ["type/patch"]
+    },
+    {
+      "matchDatasources": ["docker"],
+      "addLabels": ["renovate/container"]
+    },
+    {
+      "matchDatasources": ["github-releases", "github-tags"],
+      "addLabels": ["renovate/github-release"]
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "addLabels": ["renovate/github-action"]
+    }
   ]
 }
