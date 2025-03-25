@@ -14,6 +14,7 @@ jobs:
   release-plz:
     name: Release-plz
     runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'martinohmann' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
