@@ -750,9 +750,9 @@ checksum = "c0edd1e5b14653f783770bce4a4dabb4a5108a5370a5f5d8cfe8710c361f6c8b"
 
 [[package]]
 name = "vecmap-rs"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e78fc839a22ab6c4e2f48cf5b935064188148258d467f49323134d503dd08294"
+checksum = "67cfc542f75493f412a51c02af26f58f710ab0e2204d264135054377244276be"
 dependencies = [
  "serde",
 ]
