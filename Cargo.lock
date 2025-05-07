@@ -261,7 +261,7 @@ checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
 
 [[package]]
 name = "hcl-edit"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "fnv",
  "hcl-primitives",
@@ -285,7 +285,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-rs"
-version = "0.18.4"
+version = "0.18.5"
 dependencies = [
  "hcl-edit",
  "hcl-primitives",
