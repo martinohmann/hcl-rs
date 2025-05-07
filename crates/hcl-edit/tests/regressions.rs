@@ -4,6 +4,18 @@ use hcl_edit::template::{Element, Interpolation, Template};
 use hcl_edit::{Ident, Span};
 use pretty_assertions::assert_eq;
 
+macro_rules! assert_ok {
+    ($input:expr) => {
+        assert!($input.parse::<Body>().is_ok());
+    };
+}
+
+macro_rules! assert_err {
+    ($input:expr) => {
+        assert!($input.parse::<Body>().is_err());
+    };
+}
+
 // https://github.com/martinohmann/hcl-rs/issues/248
 #[test]
 fn issue_248() {
@@ -101,20 +113,9 @@ fn issue_294() {
 }
 
 // https://github.com/martinohmann/hcl-rs/issues/319
+// https://github.com/martinohmann/hcl-rs/issues/426
 #[test]
-fn issue_319() {
-    macro_rules! assert_ok {
-        ($input:expr) => {
-            assert!($input.parse::<Body>().is_ok());
-        };
-    }
-
-    macro_rules! assert_err {
-        ($input:expr) => {
-            assert!($input.parse::<Body>().is_err());
-        };
-    }
-
+fn issues_319_426() {
     // single line expressions with parenthesis
     assert_ok! {r#"
         foo = (true ? "bar" : "baz")
@@ -164,6 +165,24 @@ fn issue_319() {
             .foo
             [2]
     "#};
+
+    // multiline expressions in traversal index operator
+    assert_ok! {r#"
+        foo = var.foo[
+            bar &&
+            baz ? 0 :
+            1
+        ]
+    "#};
+
+    // multiline expressions in template string interpolation
+    assert_ok! {r#"
+        foo = "template-string-${
+            bar &&
+            baz ? "qux" :
+            ""
+        }"
+    "#};
 }
 
 // https://github.com/martinohmann/hcl-rs/issues/350
@@ -183,18 +202,6 @@ fn issue_350() {
 // https://github.com/martinohmann/hcl-rs/issues/367
 #[test]
 fn issue_367() {
-    macro_rules! assert_ok {
-        ($input:expr) => {
-            assert!($input.parse::<Body>().is_ok());
-        };
-    }
-
-    macro_rules! assert_err {
-        ($input:expr) => {
-            assert!($input.parse::<Body>().is_err());
-        };
-    }
-
     // multiline expressions with function calls
     assert_ok! {r#"
         foo = length(
