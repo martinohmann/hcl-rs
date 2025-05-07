@@ -199,7 +199,7 @@ fn format_context_error(err: &ContextError) -> String {
                     _ = write!(buf, "{expected}");
                 }
             }
-        };
+        }
     }
 
     if let Some(cause) = err.cause() {

@@ -36,7 +36,7 @@ impl IntoJsonSpec for Body {
                         node.deep_merge_into(&mut map, key);
                     }
                 }
-            };
+            }
 
             map
         })

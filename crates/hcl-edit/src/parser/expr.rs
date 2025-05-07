@@ -85,7 +85,6 @@ fn expr_inner<'i>(
                 Ok(b) if b.starts_with(['.', '[']) => {
                     state.borrow_mut().on_ws(suffix);
                     traversal(state).parse_next(input)?;
-                    continue;
                 }
                 // Conditional.
                 Ok(b) if b.starts_with('?') => {

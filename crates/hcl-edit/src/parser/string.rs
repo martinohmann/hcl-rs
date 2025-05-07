@@ -39,7 +39,7 @@ where
                         StringFragment::Literal(s) => string.to_mut().push_str(s),
                         StringFragment::EscapedChar(c) => string.to_mut().push(c),
                         StringFragment::EscapedMarker(m) => string.to_mut().push_str(m.unescape()),
-                    };
+                    }
                 }
                 Err(_) => return Ok(string),
             }

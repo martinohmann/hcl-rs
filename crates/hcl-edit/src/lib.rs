@@ -5,6 +5,7 @@
 #![allow(
     clippy::bool_to_int_with_if,
     clippy::let_underscore_untyped,
+    clippy::manual_div_ceil,
     clippy::module_name_repetitions,
     clippy::must_use_candidate,
     clippy::naive_bytecount,
