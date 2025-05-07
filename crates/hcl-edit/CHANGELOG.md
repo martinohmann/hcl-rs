@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.5...hcl-edit-v0.8.6) - 2025-05-07
+
+### Fixed
+
+- *(parser)* allow multiline expressions in more places ([#429](https://github.com/martinohmann/hcl-rs/pull/429))
+
+### Other
+
+- address new clippy lints
+
 ## [0.8.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.4...hcl-edit-v0.8.5) - 2025-02-01
 
 ### Other
