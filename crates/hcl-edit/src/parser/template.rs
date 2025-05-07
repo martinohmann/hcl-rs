@@ -1,6 +1,6 @@
 use super::prelude::*;
 
-use super::expr::expr;
+use super::expr::{expr, multiline_expr};
 use super::repr::{decorated, spanned};
 use super::string::{
     build_string, cut_char, cut_ident, cut_tag, quoted_string_fragment, raw_string,
@@ -96,7 +96,7 @@ where
 }
 
 fn interpolation(input: &mut Input) -> ModalResult<Interpolation> {
-    control("${", decorated(ws, expr, ws))
+    control("${", decorated(ws, multiline_expr, ws))
         .map(|(expr, strip)| {
             let mut interp = Interpolation::new(expr);
             interp.strip = strip;

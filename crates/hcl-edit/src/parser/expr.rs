@@ -40,6 +40,12 @@ pub(super) fn expr(input: &mut Input) -> ModalResult<Expression> {
     parse_expr(RefCell::default(), input)
 }
 
+pub(super) fn multiline_expr(input: &mut Input) -> ModalResult<Expression> {
+    let mut state = ExprParseState::default();
+    state.allow_newlines(true);
+    parse_expr(RefCell::new(state), input)
+}
+
 fn expr_with_state<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, Expression, ContextError> + '_ {
@@ -230,7 +236,7 @@ fn traversal_operator(input: &mut Input) -> ModalResult<TraversalOperator> {
                 ws,
                 dispatch! {peek(any);
                     '*' => '*'.value(TraversalOperator::FullSplat(Decorated::new(Splat))),
-                    _ => expr.map(TraversalOperator::Index),
+                    _ => multiline_expr.map(TraversalOperator::Index),
                 },
                 ws,
             ),
@@ -603,10 +609,9 @@ fn parenthesis<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().allow_newlines(true);
         delimited(
             cut_char('('),
-            decorated(ws, expr_with_state(state), ws)
+            decorated(ws, multiline_expr, ws)
                 .map(|expr| state.borrow_mut().on_expr_term(Parenthesis::new(expr))),
             cut_char(')'),
         )

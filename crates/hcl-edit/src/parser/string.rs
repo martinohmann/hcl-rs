@@ -34,13 +34,11 @@ where
 
         loop {
             match fragment_parser.parse_next(input) {
-                Ok(fragment) => {
-                    match fragment {
-                        StringFragment::Literal(s) => string.to_mut().push_str(s),
-                        StringFragment::EscapedChar(c) => string.to_mut().push(c),
-                        StringFragment::EscapedMarker(m) => string.to_mut().push_str(m.unescape()),
-                    }
-                }
+                Ok(fragment) => match fragment {
+                    StringFragment::Literal(s) => string.to_mut().push_str(s),
+                    StringFragment::EscapedChar(c) => string.to_mut().push(c),
+                    StringFragment::EscapedMarker(m) => string.to_mut().push_str(m.unescape()),
+                },
                 Err(_) => return Ok(string),
             }
         }
