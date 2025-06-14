@@ -105,6 +105,9 @@ struct FormatConfig<'a> {
     compact_arrays: bool,
     compact_objects: bool,
     prefer_ident_keys: bool,
+    unwrap_interpolations: bool,
+    normalize_types: bool,
+    terraform_style: bool,
 }
 
 impl<'a> Default for FormatConfig<'a> {
@@ -115,6 +118,9 @@ impl<'a> Default for FormatConfig<'a> {
             compact_arrays: false,
             compact_objects: false,
             prefer_ident_keys: false,
+            unwrap_interpolations: false,
+            normalize_types: false,
+            terraform_style: false,
         }
     }
 }
@@ -302,6 +308,44 @@ impl<'a> FormatterBuilder<'a> {
     /// [ident-variant]: crate::expr::ObjectKey::Identifier
     pub fn prefer_ident_keys(mut self, yes: bool) -> Self {
         self.config.prefer_ident_keys = yes;
+        self
+    }
+
+    /// Enables Terraform-style interpolation unwrapping.
+    ///
+    /// When enabled, unnecessary interpolations like `"${var.foo}"` are unwrapped to just `var.foo`.
+    /// This follows the same logic as Terraform's formatter to avoid breaking complex expressions.
+    pub fn unwrap_interpolations(mut self, yes: bool) -> Self {
+        self.config.unwrap_interpolations = yes;
+        self
+    }
+
+    /// Enables Terraform-style type normalization.
+    ///
+    /// When enabled, legacy type expressions are normalized:
+    /// - `"string"` becomes `string`
+    /// - `"list"` becomes `list(string)`  
+    /// - `"map"` becomes `map(string)`
+    /// - Collection types without element types get `any` added: `list` becomes `list(any)`
+    pub fn normalize_types(mut self, yes: bool) -> Self {
+        self.config.normalize_types = yes;
+        self
+    }
+
+    /// Enables full Terraform-style formatting.
+    ///
+    /// This is a convenience method that enables interpolation unwrapping, type normalization,
+    /// and other Terraform-specific formatting rules.
+    pub fn terraform_style(mut self, yes: bool) -> Self {
+        if yes {
+            self.config.unwrap_interpolations = true;
+            self.config.normalize_types = true;
+            self.config.terraform_style = true;
+        } else {
+            self.config.unwrap_interpolations = false;
+            self.config.normalize_types = false;
+            self.config.terraform_style = false;
+        }
         self
     }
 
@@ -699,6 +743,118 @@ where
     fn in_compact_mode(&self) -> bool {
         self.compact_mode_level > 0
     }
+
+    /// Check if interpolation unwrapping is enabled
+    fn unwrap_interpolations(&self) -> bool {
+        self.config.unwrap_interpolations || self.config.terraform_style
+    }
+
+    /// Check if type normalization is enabled
+    fn normalize_types(&self) -> bool {
+        self.config.normalize_types || self.config.terraform_style
+    }
+
+    /// Format a template expression, potentially unwrapping unnecessary interpolations
+    fn format_template_expr<F>(&mut self, template_expr: &str, fallback: F) -> Result<()>
+    where
+        F: FnOnce(&mut Self) -> Result<()>,
+        W: io::Write,
+    {
+        if self.unwrap_interpolations() {
+            if let Some(unwrapped) = self.try_unwrap_interpolation(template_expr) {
+                return self.write_string_fragment(&unwrapped);
+            }
+        }
+        fallback(self)
+    }
+
+    /// Try to unwrap a simple interpolation like "${var.foo}" to just "var.foo"
+    fn try_unwrap_interpolation(&self, template: &str) -> Option<String> {
+        // Check if this is a simple "${...}" interpolation
+        let trimmed = template.trim();
+        if !trimmed.starts_with("${") || !trimmed.ends_with('}') {
+            return None;
+        }
+
+        let inner = &trimmed[2..trimmed.len() - 1].trim();
+
+        // Don't unwrap if it contains quotes (nested strings) or multiple interpolations
+        if inner.contains('"') || inner.contains("${") {
+            return None;
+        }
+
+        // Don't unwrap if it contains literal text mixed with interpolation
+        if template.len() != trimmed.len() || template.matches("${").count() > 1 {
+            return None;
+        }
+
+        // Additional safety checks based on Terraform's logic:
+        // Don't unwrap if there are template control sequences
+        if inner.contains("%{") {
+            return None;
+        }
+
+        // Check for quoted literals that would indicate this isn't a pure interpolation
+        let mut in_quotes = false;
+        let mut quote_count = 0;
+        for ch in inner.chars() {
+            match ch {
+                '"' if !in_quotes => {
+                    in_quotes = true;
+                    quote_count += 1;
+                }
+                '"' if in_quotes => {
+                    in_quotes = false;
+                }
+                _ if !in_quotes && ch.is_ascii_alphabetic() => {
+                    // This is good - variables, functions, etc.
+                }
+                _ => {}
+            }
+        }
+
+        // If we found quoted content, this might not be unwrappable
+        if quote_count > 0 && in_quotes {
+            return None;
+        }
+
+        // Check if expression would be multi-line when unwrapped
+        let lines: Vec<&str> = inner.lines().collect();
+        if lines.len() > 1 {
+            // For multi-line expressions, wrap in parentheses to ensure correct parsing
+            Some(format!("({})", inner))
+        } else {
+            Some(inner.to_string())
+        }
+    }
+
+    /// Format a type expression with Terraform-style normalization
+    fn format_type_expr(&mut self, expr: &crate::Expression) -> Result<()>
+    where
+        W: io::Write,
+    {
+        if !self.normalize_types() {
+            return expr.format(self);
+        }
+
+        match expr {
+            // Handle quoted legacy type expressions like "string", "list", "map"
+            crate::Expression::String(s) => match s.as_str() {
+                "string" => self.write_string_fragment("string"),
+                "list" => self.write_string_fragment("list(string)"),
+                "map" => self.write_string_fragment("map(string)"),
+                _ => expr.format(self),
+            },
+            // Handle unquoted collection types that need element type normalization
+            crate::Expression::Variable(var) => match var.as_str() {
+                "list" => self.write_string_fragment("list(any)"),
+                "map" => self.write_string_fragment("map(any)"),
+                "set" => self.write_string_fragment("set(any)"),
+                _ => expr.format(self),
+            },
+            _ => expr.format(self),
+        }
+    }
 }
 
 /// Format the given value as an HCL byte vector.
@@ -750,6 +906,55 @@ where
     value.format(&mut formatter)
 }
 
+/// Format the given value as an HCL string using Terraform-style formatting rules.
+///
+/// This enables interpolation unwrapping (e.g., `"${var.foo}"` becomes `var.foo`) and
+/// type normalization (e.g., `"string"` becomes `string`, `list` becomes `list(any)`).
+///
+/// # Errors
+///
+/// Formatting a value as string cannot fail.
+pub fn to_terraform_string<T>(value: &T) -> Result<String>
+where
+    T: ?Sized + Format,
+{
+    let mut formatter = Formatter::builder().terraform_style(true).build_vec();
+    value.format_string(&mut formatter)
+}
+
+/// Format the given value as an HCL byte vector using Terraform-style formatting rules.
+///
+/// This enables interpolation unwrapping (e.g., `"${var.foo}"` becomes `var.foo`) and
+/// type normalization (e.g., `"string"` becomes `string`, `list` becomes `list(any)`).
+///
+/// # Errors
+///
+/// Formatting a value as byte vector cannot fail.
+pub fn to_terraform_vec<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: ?Sized + Format,
+{
+    let mut formatter = Formatter::builder().terraform_style(true).build_vec();
+    value.format_vec(&mut formatter)
+}
+
+/// Format the given value as HCL into the IO stream using Terraform-style formatting rules.
+///
+/// This enables interpolation unwrapping (e.g., `"${var.foo}"` becomes `var.foo`) and
+/// type normalization (e.g., `"string"` becomes `string`, `list` becomes `list(any)`).
+///
+/// # Errors
+///
+/// Formatting fails if any operation on the writer fails.
+pub fn to_terraform_writer<W, T>(writer: W, value: &T) -> Result<()>
+where
+    W: io::Write,
+    T: ?Sized + Format,
+{
+    let mut formatter = Formatter::builder().terraform_style(true).build(writer);
+    value.format(&mut formatter)
+}
+
 /// Format the given value as an interpolated HCL string.
 ///
 /// It is the callers responsiblity to ensure that the value is not an HCL structure (i.e. `Body`,
@@ -771,8 +976,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::to_interpolated_string;
+    use super::{to_interpolated_string, to_terraform_string};
     use crate::expr::{BinaryOp, BinaryOperator, FuncCall};
+    use crate::structure::{Attribute, Block};
+    use crate::Expression;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -782,5 +989,90 @@ mod tests {
 
         let expr = FuncCall::builder("add").arg(1).arg(1).build();
         assert_eq!(to_interpolated_string(&expr).unwrap(), "${add(1, 1)}");
+    }
+
+    #[test]
+    fn terraform_interpolation_unwrapping() {
+        // Test simple variable unwrapping
+        let attr = Attribute::new(
+            "name",
+            Expression::TemplateExpr(Box::new(crate::expr::TemplateExpr::QuotedString(
+                "${var.instance_name}".to_string(),
+            ))),
+        );
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "name = var.instance_name\n");
+
+        // Test that complex interpolations are not unwrapped
+        let attr = Attribute::new(
+            "name",
+            Expression::TemplateExpr(Box::new(crate::expr::TemplateExpr::QuotedString(
+                "prefix-${var.name}-suffix".to_string(),
+            ))),
+        );
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "name = \"prefix-${var.name}-suffix\"\n");
+    }
+
+    #[test]
+    fn terraform_type_normalization() {
+        // Test legacy quoted type normalization
+        let attr = Attribute::new("type", Expression::String("string".to_string()));
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "type = string\n");
+
+        let attr = Attribute::new("type", Expression::String("list".to_string()));
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "type = list(string)\n");
+
+        // Test collection type normalization
+        let attr = Attribute::new(
+            "type",
+            Expression::Variable(crate::Variable::from(crate::Identifier::from("list"))),
+        );
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "type = list(any)\n");
+    }
+
+    #[test]
+    fn terraform_variable_block_formatting() {
+        let block = Block::builder("variable")
+            .add_label("instance_type")
+            .add_attribute(("description", "The instance type to use"))
+            .add_attribute(("type", Expression::String("string".to_string())))
+            .add_attribute(("default", "t2.micro"))
+            .build();
+
+        let result = to_terraform_string(&block).unwrap();
+        let expected = r#"variable "instance_type" {
+  description = "The instance type to use"
+  type = string
+  default = "t2.micro"
+}
+"#;
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn terraform_unwrapping_safety() {
+        // Test that nested quotes prevent unwrapping
+        let attr = Attribute::new(
+            "name",
+            Expression::TemplateExpr(Box::new(crate::expr::TemplateExpr::QuotedString(
+                "${lookup(var.map, \"key\")}".to_string(),
+            ))),
+        );
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "name = \"${lookup(var.map, \"key\")}\"\n");
+
+        // Test that multiple interpolations prevent unwrapping
+        let attr = Attribute::new(
+            "name",
+            Expression::TemplateExpr(Box::new(crate::expr::TemplateExpr::QuotedString(
+                "${var.first}${var.second}".to_string(),
+            ))),
+        );
+        let result = to_terraform_string(&attr).unwrap();
+        assert_eq!(result, "name = \"${var.first}${var.second}\"\n");
     }
 }

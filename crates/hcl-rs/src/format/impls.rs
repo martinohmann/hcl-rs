@@ -66,7 +66,14 @@ impl Format for Attribute {
         fmt.begin_attribute()?;
         self.key.format(fmt)?;
         fmt.begin_attribute_value()?;
-        self.expr.format(fmt)?;
+
+        // Special handling for type attributes in variable blocks when type normalization is enabled
+        if self.key.as_str() == "type" && fmt.normalize_types() {
+            fmt.format_type_expr(&self.expr)?;
+        } else {
+            self.expr.format(fmt)?;
+        }
+
         fmt.end_attribute()
     }
 }
@@ -211,7 +218,10 @@ impl Format for TemplateExpr {
         W: io::Write,
     {
         match self {
-            TemplateExpr::QuotedString(string) => fmt.write_quoted_string(string),
+            TemplateExpr::QuotedString(string) => {
+                // Try to unwrap simple interpolations when enabled
+                fmt.format_template_expr(string, |fmt| fmt.write_quoted_string(string))
+            }
             TemplateExpr::Heredoc(heredoc) => heredoc.format(fmt),
         }
     }
