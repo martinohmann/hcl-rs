@@ -97,7 +97,7 @@ impl<'a> AttributeMut<'a> {
     }
 }
 
-impl<'a> ops::Deref for AttributeMut<'a> {
+impl ops::Deref for AttributeMut<'_> {
     type Target = Attribute;
 
     #[inline]
@@ -106,7 +106,7 @@ impl<'a> ops::Deref for AttributeMut<'a> {
     }
 }
 
-impl<'a> Decorate for AttributeMut<'a> {
+impl Decorate for AttributeMut<'_> {
     fn decor(&self) -> &Decor {
         self.attr.decor()
     }
@@ -116,7 +116,7 @@ impl<'a> Decorate for AttributeMut<'a> {
     }
 }
 
-impl<'a> Span for AttributeMut<'a> {
+impl Span for AttributeMut<'_> {
     fn span(&self) -> Option<Range<usize>> {
         self.attr.span()
     }

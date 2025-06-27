@@ -174,7 +174,7 @@ impl<'de> serde::Deserialize<'de> for UnaryOperator {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> serde::de::IntoDeserializer<'de, Error> for UnaryOperator {
+impl serde::de::IntoDeserializer<'_, Error> for UnaryOperator {
     type Deserializer = serde::de::value::StrDeserializer<'static, Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -193,7 +193,7 @@ impl<'de> serde::Deserialize<'de> for BinaryOperator {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> serde::de::IntoDeserializer<'de, Error> for BinaryOperator {
+impl serde::de::IntoDeserializer<'_, Error> for BinaryOperator {
     type Deserializer = serde::de::value::StrDeserializer<'static, Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {

@@ -118,7 +118,7 @@ impl From<InternalString> for RawString {
     }
 }
 
-impl<'a> From<RawString> for Cow<'a, str> {
+impl From<RawString> for Cow<'_, str> {
     #[inline]
     fn from(s: RawString) -> Self {
         match s.0 {

@@ -443,7 +443,7 @@ impl<T> FromStrVisitor<T> {
     }
 }
 
-impl<'de, T> de::Visitor<'de> for FromStrVisitor<T>
+impl<T> de::Visitor<'_> for FromStrVisitor<T>
 where
     T: std::str::FromStr,
     T::Err: fmt::Display,
@@ -462,7 +462,7 @@ where
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Identifier {
+impl IntoDeserializer<'_, Error> for Identifier {
     type Deserializer = StringDeserializer<Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
