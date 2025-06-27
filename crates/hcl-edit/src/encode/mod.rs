@@ -44,7 +44,7 @@ impl<'a> EncodeState<'a> {
     }
 }
 
-impl<'a> fmt::Write for EncodeState<'a> {
+impl fmt::Write for EncodeState<'_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.buf.write_str(s)
     }

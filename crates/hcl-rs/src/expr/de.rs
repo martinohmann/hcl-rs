@@ -55,7 +55,7 @@ impl<'de> de::Deserialize<'de> for Expression {
 
         struct FieldVisitor;
 
-        impl<'de> de::Visitor<'de> for FieldVisitor {
+        impl de::Visitor<'_> for FieldVisitor {
             type Value = Field;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

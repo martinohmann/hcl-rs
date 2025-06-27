@@ -1,7 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![warn(missing_docs)]
-#![warn(clippy::pedantic)]
 #![allow(
     clippy::must_use_candidate,
     clippy::module_name_repetitions,

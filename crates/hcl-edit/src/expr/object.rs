@@ -344,7 +344,7 @@ impl<'k> ObjectKeyMut<'k> {
     }
 }
 
-impl<'k> ops::Deref for ObjectKeyMut<'k> {
+impl ops::Deref for ObjectKeyMut<'_> {
     type Target = ObjectKey;
 
     fn deref(&self) -> &Self::Target {
@@ -352,7 +352,7 @@ impl<'k> ops::Deref for ObjectKeyMut<'k> {
     }
 }
 
-impl<'k> Decorate for ObjectKeyMut<'k> {
+impl Decorate for ObjectKeyMut<'_> {
     fn decor(&self) -> &Decor {
         self.key.decor()
     }
@@ -362,7 +362,7 @@ impl<'k> Decorate for ObjectKeyMut<'k> {
     }
 }
 
-impl<'k> Span for ObjectKeyMut<'k> {
+impl Span for ObjectKeyMut<'_> {
     fn span(&self) -> Option<Range<usize>> {
         self.key.span()
     }

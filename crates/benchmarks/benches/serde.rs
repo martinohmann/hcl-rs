@@ -1,9 +1,8 @@
 mod common;
 
-use std::hint::black_box;
-
 use criterion::{criterion_group, criterion_main, BatchSize, BenchmarkId, Criterion};
 use hcl::{Body, Value};
+use std::hint::black_box;
 
 fn ser(c: &mut Criterion) {
     let tests = testdata::load().unwrap();
