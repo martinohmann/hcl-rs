@@ -26,14 +26,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 all-features = true
 
 [dependencies]
-anyhow = "1.0.98"
-clap = { version = "4.5.40", features = ["derive"] }
-globset = "0.4.16"
+anyhow.workspace = true
+clap = { workspace = true, features = ["derive"] }
+globset.workspace = true
 hcl-rs = { version = "0.18.6", path = "../hcl-rs", features = ["perf"] }
-rayon = "1.10.0"
-serde_json = { version = "1.0.140", features = ["preserve_order"] }
-walkdir = "2.5.0"
+rayon.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+walkdir.workspace = true
 
 [dev-dependencies]
-assert_cmd = { version = "2.0.17", features = ["color"] }
-predicates = "3.1.3"
+assert_cmd = { workspace = true, features = ["color"] }
+predicates.workspace = true

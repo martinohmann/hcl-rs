@@ -34,17 +34,17 @@ default = []
 perf = ["hcl-edit/perf", "hcl-primitives/perf"]
 
 [dependencies]
-indexmap = { version = "2.7.0", features = ["serde"] }
-itoa = "1.0.14"
 hcl-edit = { version = "0.8.7", path = "../hcl-edit" }
 hcl-primitives = { version = "0.1.9", path = "../hcl-primitives", features = ["serde"] }
-serde = { version = "1.0.217", features = ["derive"] }
-vecmap-rs = { version = "0.2", features = ["serde"] }
+indexmap = { workspace = true, features = ["serde"] }
+itoa.workspace = true
+serde = { workspace = true, features = ["derive"] }
+vecmap-rs = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
-indoc = "2.0"
-pretty_assertions = "1.4.1"
-serde_json = { version = "1.0.134", features = ["preserve_order"] }
+indoc.workspace = true
+pretty_assertions.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
 
 [[example]]
 name = "in-place-expr-evaluation"

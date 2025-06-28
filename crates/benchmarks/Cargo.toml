@@ -16,7 +16,7 @@ name = "serde"
 harness = false
 
 [dev-dependencies]
-criterion = "0.6"
+criterion.workspace = true
 hcl-edit = { path = "../hcl-edit" }
 hcl-rs = { path = "../hcl-rs" }
 testdata = { path = "../testdata" }
