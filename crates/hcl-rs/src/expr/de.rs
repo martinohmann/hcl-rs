@@ -269,7 +269,7 @@ impl<'de> de::Deserialize<'de> for Expression {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Expression {
+impl IntoDeserializer<'_, Error> for Expression {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -627,7 +627,7 @@ impl<'de> de::MapAccess<'de> for TraversalAccess {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for TraversalOperator {
+impl IntoDeserializer<'_, Error> for TraversalOperator {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -867,7 +867,7 @@ impl<'de> de::MapAccess<'de> for ConditionalAccess {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Operation {
+impl IntoDeserializer<'_, Error> for Operation {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -1068,7 +1068,7 @@ impl<'de> de::MapAccess<'de> for ForExprAccess {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for ObjectKey {
+impl IntoDeserializer<'_, Error> for ObjectKey {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -1159,7 +1159,7 @@ impl<'de> de::VariantAccess<'de> for ObjectKey {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for TemplateExpr {
+impl IntoDeserializer<'_, Error> for TemplateExpr {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -1239,7 +1239,7 @@ impl<'de> de::MapAccess<'de> for HeredocAccess {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Variable {
+impl IntoDeserializer<'_, Error> for Variable {
     type Deserializer = StringDeserializer<Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -1256,7 +1256,7 @@ impl<'de> de::Deserialize<'de> for HeredocStripMode {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for HeredocStripMode {
+impl IntoDeserializer<'_, Error> for HeredocStripMode {
     type Deserializer = StrDeserializer<'static, Error>;
 
     fn into_deserializer(self) -> Self::Deserializer {

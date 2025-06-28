@@ -7,7 +7,7 @@ use crate::{Error, Identifier, Result};
 use serde::de::{self, IntoDeserializer};
 use serde::forward_to_deserialize_any;
 
-impl<'de> IntoDeserializer<'de, Error> for Body {
+impl IntoDeserializer<'_, Error> for Body {
     type Deserializer = NewtypeStructDeserializer<Vec<Structure>>;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -15,7 +15,7 @@ impl<'de> IntoDeserializer<'de, Error> for Body {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Structure {
+impl IntoDeserializer<'_, Error> for Structure {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {
@@ -139,7 +139,7 @@ impl<'de> de::MapAccess<'de> for BlockAccess {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for BlockLabel {
+impl IntoDeserializer<'_, Error> for BlockLabel {
     type Deserializer = Self;
 
     fn into_deserializer(self) -> Self::Deserializer {

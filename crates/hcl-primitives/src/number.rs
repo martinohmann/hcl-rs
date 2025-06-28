@@ -419,7 +419,7 @@ impl<'de> serde::Deserialize<'de> for Number {
     {
         struct NumberVisitor;
 
-        impl<'de> serde::de::Visitor<'de> for NumberVisitor {
+        impl serde::de::Visitor<'_> for NumberVisitor {
             type Value = Number;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

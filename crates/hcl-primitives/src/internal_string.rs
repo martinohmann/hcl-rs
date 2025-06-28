@@ -153,7 +153,7 @@ impl From<InternalString> for String {
     }
 }
 
-impl<'a> From<InternalString> for Cow<'a, str> {
+impl From<InternalString> for Cow<'_, str> {
     fn from(value: InternalString) -> Self {
         value.into_cow_str()
     }

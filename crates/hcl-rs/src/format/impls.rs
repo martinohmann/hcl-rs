@@ -188,9 +188,9 @@ impl Format for ObjectKey {
 
 struct StrKey<'a>(&'a str);
 
-impl<'a> private::Sealed for StrKey<'a> {}
+impl private::Sealed for StrKey<'_> {}
 
-impl<'a> Format for StrKey<'a> {
+impl Format for StrKey<'_> {
     fn format<W>(&self, fmt: &mut Formatter<W>) -> Result<()>
     where
         W: io::Write,
