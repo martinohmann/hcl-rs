@@ -1,0 +1,34 @@
+[package]
+name = "hcl2json"
+version = "0.1.0"
+authors = ["Martin Ohmann <martinohmann@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "CLI program for converting HCL to JSON"
+repository = "https://github.com/martinohmann/hcl-rs"
+documentation = "https://docs.rs/hcl2json/"
+keywords = ["hcl", "json", "serialization"]
+categories = ["encoding"]
+readme = "README.md"
+edition = "2024"
+include = [
+  "CHANGELOG.md",
+  "Cargo.toml",
+  "LICENSE*",
+  "README.md",
+  "benches/**/*",
+  "examples/**/*",
+  "src/**/*",
+  "tests/**/*"
+]
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
+all-features = true
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.40", features = ["derive"] }
+glob = "0.3.2"
+hcl-rs = { version = "0.18.5", path = "../hcl-rs", features = ["perf"] }
+rayon = "1.10.0"
+serde_json = "1.0.140"

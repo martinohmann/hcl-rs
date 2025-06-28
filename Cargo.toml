@@ -4,7 +4,13 @@ members = [
     "crates/hcl-edit",
     "crates/hcl-primitives",
     "crates/hcl-rs",
+    "crates/hcl2json",
     "crates/specsuite",
     "crates/testdata"
 ]
 resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"

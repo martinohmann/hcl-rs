@@ -13,6 +13,8 @@ Configuration Language (HCL):
   Parse and modify HCL documents while preserving whitespace and comments.
 - [`hcl-primitives`](https://github.com/martinohmann/hcl-rs/blob/main/crates/hcl-primitives):
   Primitives used by the HCL sub-languages.
+- [`hcl2json`](https://github.com/martinohmann/hcl-rs/blob/main/crates/hcl2json):
+  CLI program for converting HCL to JSON.
 
 ## Feature parity with the go-hcl implementation
 
