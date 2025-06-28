@@ -337,7 +337,7 @@ where
     }
 }
 
-impl<'a, W> Serializer<'a, W>
+impl<W> Serializer<'_, W>
 where
     W: io::Write + AsMut<Vec<u8>>,
 {

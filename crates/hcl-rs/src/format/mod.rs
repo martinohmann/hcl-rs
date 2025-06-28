@@ -107,7 +107,7 @@ struct FormatConfig<'a> {
     prefer_ident_keys: bool,
 }
 
-impl<'a> Default for FormatConfig<'a> {
+impl Default for FormatConfig<'_> {
     fn default() -> Self {
         FormatConfig {
             indent: b"  ",
@@ -355,7 +355,7 @@ impl<'a> FormatterBuilder<'a> {
     }
 }
 
-impl<'a> Default for Formatter<'a, Vec<u8>> {
+impl Default for Formatter<'_, Vec<u8>> {
     /// Creates the default `Formatter` which is specialized to use a pre-allocated `Vec<u8>` as
     /// internal buffer.
     ///
@@ -397,7 +397,7 @@ where
 }
 
 // Internal formatter API.
-impl<'a, W> Formatter<'a, W>
+impl<W> Formatter<'_, W>
 where
     W: io::Write,
 {

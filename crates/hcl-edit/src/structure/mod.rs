@@ -170,7 +170,7 @@ impl<'a> StructureMut<'a> {
     }
 }
 
-impl<'a> Decorate for StructureMut<'a> {
+impl Decorate for StructureMut<'_> {
     fn decor(&self) -> &Decor {
         self.structure.decor()
     }
@@ -180,7 +180,7 @@ impl<'a> Decorate for StructureMut<'a> {
     }
 }
 
-impl<'a> Span for StructureMut<'a> {
+impl Span for StructureMut<'_> {
     fn span(&self) -> Option<Range<usize>> {
         self.structure.span()
     }

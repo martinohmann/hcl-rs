@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
-#![warn(missing_docs)]
+#![warn(missing_docs, clippy::pedantic)]
 #![allow(
     clippy::cast_lossless,
     clippy::cast_possible_truncation,

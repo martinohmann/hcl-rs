@@ -102,7 +102,7 @@ impl ValueDeserializer {
     }
 }
 
-impl<'de> IntoDeserializer<'de, Error> for Value {
+impl IntoDeserializer<'_, Error> for Value {
     type Deserializer = ValueDeserializer;
 
     fn into_deserializer(self) -> Self::Deserializer {
