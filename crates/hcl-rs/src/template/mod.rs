@@ -205,12 +205,12 @@ impl Display for Template {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
     /// A literal sequence of characters to include in the resulting string.
-    Literal(String),
+    Literal(Box<String>),
     /// An interpolation sequence that evaluates an expression (written in the expression
     /// sub-language), and converts the result to a string value.
-    Interpolation(Interpolation),
+    Interpolation(Box<Interpolation>),
     /// A `if` and `for` directive that allows for conditional template evaluation.
-    Directive(Directive),
+    Directive(Box<Directive>),
 }
 
 impl Element {
@@ -225,25 +225,25 @@ impl Element {
 
 impl From<&str> for Element {
     fn from(literal: &str) -> Self {
-        Element::Literal(literal.to_owned())
+        Element::Literal(Box::new(literal.to_owned()))
     }
 }
 
 impl From<String> for Element {
     fn from(literal: String) -> Self {
-        Element::Literal(literal)
+        Element::Literal(Box::new(literal))
     }
 }
 
 impl From<Interpolation> for Element {
     fn from(interpolation: Interpolation) -> Self {
-        Element::Interpolation(interpolation)
+        Element::Interpolation(Box::new(interpolation))
     }
 }
 
 impl From<Directive> for Element {
     fn from(directive: Directive) -> Self {
-        Element::Directive(directive)
+        Element::Directive(Box::new(directive))
     }
 }
 

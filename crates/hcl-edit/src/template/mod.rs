@@ -424,7 +424,7 @@ impl Template {
             for element in &mut self.elements {
                 if let Element::Literal(literal) = element {
                     let dedented = dedent_by(literal, indent, skip_first_line);
-                    *literal.as_mut() = dedented.into();
+                    *literal.as_mut() = dedented.into_owned().into();
                     skip_first_line = !literal.ends_with('\n');
                 } else if !skip_first_line {
                     skip_first_line = true;
@@ -547,12 +547,12 @@ impl<'a> IntoIterator for &'a mut Template {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Element {
     /// A literal sequence of characters to include in the resulting string.
-    Literal(Spanned<String>),
+    Literal(Box<Spanned<String>>),
     /// An interpolation sequence that evaluates an expression (written in the expression
     /// sub-language), and converts the result to a string value.
-    Interpolation(Interpolation),
+    Interpolation(Box<Interpolation>),
     /// An `if` or `for` directive that allows for conditional template evaluation.
-    Directive(Directive),
+    Directive(Box<Directive>),
 }
 
 impl Element {
@@ -618,19 +618,19 @@ impl From<String> for Element {
 
 impl From<Spanned<String>> for Element {
     fn from(value: Spanned<String>) -> Self {
-        Element::Literal(value)
+        Element::Literal(Box::new(value))
     }
 }
 
 impl From<Interpolation> for Element {
     fn from(value: Interpolation) -> Self {
-        Element::Interpolation(value)
+        Element::Interpolation(Box::new(value))
     }
 }
 
 impl From<Directive> for Element {
     fn from(value: Directive) -> Self {
-        Element::Directive(value)
+        Element::Directive(Box::new(value))
     }
 }
 

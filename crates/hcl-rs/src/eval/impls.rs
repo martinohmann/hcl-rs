@@ -257,7 +257,7 @@ impl Evaluate for Template {
                 Element::Interpolation(interp) => {
                     res.add_errors(interp.expr.evaluate_in_place(ctx))
                 }
-                Element::Directive(dir) => match dir {
+                Element::Directive(dir) => match &mut **dir {
                     Directive::If(dir) => {
                         res = res
                             .add_errors(dir.cond_expr.evaluate_in_place(ctx))

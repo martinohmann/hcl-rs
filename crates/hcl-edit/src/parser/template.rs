@@ -60,7 +60,7 @@ pub(super) fn heredoc_template<'a>(
                 } else {
                     let mut lit = Spanned::new(String::from(line_ending));
                     lit.set_span(line_ending_span);
-                    elements.push(Element::Literal(lit));
+                    elements.push(Element::Literal(Box::new(lit)));
                 }
 
                 Template::from(elements)
@@ -88,9 +88,9 @@ where
     repeat(
         0..,
         spanned(alt((
-            literal.map(|s| Element::Literal(Spanned::new(s.into()))),
-            interpolation.map(Element::Interpolation),
-            directive.map(Element::Directive),
+            literal.map(|s| Element::Literal(Box::new(Spanned::new(s.into())))),
+            interpolation.map(|i| Element::Interpolation(Box::new(i))),
+            directive.map(|d| Element::Directive(Box::new(d))),
         ))),
     )
 }
