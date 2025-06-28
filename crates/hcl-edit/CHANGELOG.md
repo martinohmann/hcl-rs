@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.6...hcl-edit-v0.8.7) - 2025-06-28
+
+### Fixed
+
+- restore clippy::pedantic and remove unused lifetime parameter
+
+### Other
+
+- Elide unused lifetime parameter
+
 ## [0.8.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.5...hcl-edit-v0.8.6) - 2025-05-07
 
 ### Fixed

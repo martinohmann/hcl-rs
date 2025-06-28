@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.9](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.8...hcl-primitives-v0.1.9) - 2025-06-28
+
+### Fixed
+
+- restore clippy::pedantic and remove unused lifetime parameter
+
+### Other
+
+- Elide unused lifetime parameter
+
 ## [0.1.8](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.7...hcl-primitives-v0.1.8) - 2025-01-10
 
 ### Other
