@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 use anyhow::{Result, bail};
 use clap::Parser;
 use hcl::eval::{Context, Evaluate};
@@ -54,7 +56,8 @@ fn main() -> Result<()> {
                 let Some(pattern) = &args.glob else {
                     bail!("--glob is required if directory arguments are specified")
                 };
-                paths.extend(glob_files(path, pattern)?);
+
+                glob_files(path, pattern, &mut paths)?;
             } else {
                 paths.push(path.clone());
             }
@@ -117,13 +120,15 @@ fn write_json<W: Write>(writer: W, value: &Value, args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn glob_files(path: &Path, pattern: &str) -> Result<Vec<PathBuf>> {
+fn glob_files(path: &Path, pattern: &str, paths: &mut Vec<PathBuf>) -> Result<()> {
     let path_pattern = path.join(pattern);
 
-    glob::glob(&path_pattern.to_string_lossy())?
-        .filter_map(|result| match result {
-            Ok(path) => path.is_file().then_some(Ok(path)),
-            Err(err) => Some(Err(err.into())),
-        })
-        .collect()
+    for result in glob::glob(&path_pattern.to_string_lossy())? {
+        let path = result?;
+        if path.is_file() {
+            paths.push(path);
+        }
+    }
+
+    Ok(())
 }
