@@ -1,4 +1,5 @@
 #![warn(clippy::pedantic)]
+#![allow(clippy::struct_excessive_bools)]
 
 use anyhow::{Result, bail};
 use clap::Parser;
@@ -130,7 +131,7 @@ fn bulk_convert<W: Write>(paths: &[PathBuf], mut writer: W, args: &Args) -> Resu
     let value = if args.file_paths {
         Value::from_iter(results)
     } else {
-        Value::from_iter(results.into_iter().map(|(_, value)| value))
+        results.into_iter().map(|(_, value)| value).collect()
     };
 
     write_json(writer, &value, args)
