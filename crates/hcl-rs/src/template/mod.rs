@@ -208,7 +208,7 @@ pub enum Element {
     Literal(String),
     /// An interpolation sequence that evaluates an expression (written in the expression
     /// sub-language), and converts the result to a string value.
-    Interpolation(Interpolation),
+    Interpolation(Box<Interpolation>),
     /// A `if` and `for` directive that allows for conditional template evaluation.
     Directive(Box<Directive>),
 }
@@ -237,7 +237,7 @@ impl From<String> for Element {
 
 impl From<Interpolation> for Element {
     fn from(interpolation: Interpolation) -> Self {
-        Element::Interpolation(interpolation)
+        Element::Interpolation(Box::new(interpolation))
     }
 }
 

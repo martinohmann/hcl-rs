@@ -20,7 +20,9 @@ impl From<template::Element> for Element {
             template::Element::Directive(directive) => {
                 Element::Directive(Box::new((*directive).into()))
             }
-            template::Element::Interpolation(interp) => Element::Interpolation(interp.into()),
+            template::Element::Interpolation(interp) => {
+                Element::Interpolation(Box::new((*interp).into()))
+            }
         }
     }
 }
@@ -32,7 +34,9 @@ impl From<Element> for template::Element {
             Element::Directive(directive) => {
                 template::Element::Directive(Box::new((*directive).into()))
             }
-            Element::Interpolation(interp) => template::Element::Interpolation(interp.into()),
+            Element::Interpolation(interp) => {
+                template::Element::Interpolation(Box::new((*interp).into()))
+            }
         }
     }
 }

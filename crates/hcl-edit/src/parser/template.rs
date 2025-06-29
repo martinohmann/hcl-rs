@@ -89,7 +89,7 @@ where
         0..,
         spanned(alt((
             literal.map(|s| Element::Literal(Spanned::new(s.into()))),
-            interpolation.map(Element::Interpolation),
+            interpolation.map(|i| Element::Interpolation(Box::new(i))),
             directive.map(|d| Element::Directive(Box::new(d))),
         ))),
     )
