@@ -210,7 +210,7 @@ pub enum Element {
     /// sub-language), and converts the result to a string value.
     Interpolation(Interpolation),
     /// A `if` and `for` directive that allows for conditional template evaluation.
-    Directive(Directive),
+    Directive(Box<Directive>),
 }
 
 impl Element {
@@ -243,7 +243,7 @@ impl From<Interpolation> for Element {
 
 impl From<Directive> for Element {
     fn from(directive: Directive) -> Self {
-        Element::Directive(directive)
+        Element::Directive(Box::new(directive))
     }
 }
 
