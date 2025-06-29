@@ -15,11 +15,23 @@ use std::path::{Path, PathBuf};
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// A glob pattern to match files when recursively scanning directories.
+    ///
+    /// Required if any of the input paths is a directory. Ignored otherwise.
     #[arg(short, long)]
     glob: Option<String>,
     /// Pretty-print the resulting JSON.
     #[arg(short, long)]
     pretty: bool,
+    /// Continue on errors that occur while converting individual files.
+    ///
+    /// If the flag is provided, `hcl2json` will continue to convert the remaining input
+    /// files. For example, this is useful if you want to process files using a glob pattern
+    /// and one of the files is malformed. In this case a warning is logged to stderr and the
+    /// file is skipped.
+    ///
+    /// This flag is ignored if the input a single file.
+    #[arg(short = 'C', long)]
+    continue_on_error: bool,
     /// Attempt to simply expressions which don't contain any variables or unknown functions.
     #[arg(short, long)]
     simplify: bool,
@@ -57,7 +69,16 @@ fn main() -> Result<()> {
                     bail!("--glob is required if directory arguments are specified")
                 };
 
-                glob_files(path, pattern, &mut paths)?;
+                if let Err(err) = glob_files(path, pattern, &mut paths) {
+                    if !args.continue_on_error {
+                        return Err(err);
+                    }
+
+                    eprintln!(
+                        "Warning: Directory `{}` skipped due to error: {err}",
+                        path.display()
+                    );
+                }
             } else {
                 paths.push(path.clone());
             }
@@ -79,17 +100,35 @@ fn bulk_convert<W: Write>(paths: &[PathBuf], mut writer: W, args: &Args) -> Resu
         return Ok(());
     }
 
-    let results = paths
-        .into_par_iter()
-        .map(|path| {
-            let value = read_hcl(File::open(path)?, args)?;
-            let path = path.display().to_string();
-            Ok((path, value))
+    let iter = paths.into_par_iter();
+
+    let results = if args.continue_on_error {
+        iter.filter_map(|path| match process_file(path, args) {
+            Ok(result) => Some(result),
+            Err(err) => {
+                eprintln!(
+                    "Warning: File `{}` skipped due to error: {err}",
+                    path.display()
+                );
+                None
+            }
         })
-        .collect::<Result<Vec<_>>>()?;
+        .collect::<Vec<_>>()
+    } else {
+        iter.map(|path| process_file(path, args))
+            .collect::<Result<_>>()?
+    };
 
     let value = Value::from_iter(results);
     write_json(writer, &value, args)
+}
+
+#[inline]
+fn process_file(path: &Path, args: &Args) -> Result<(String, Value)> {
+    let file = File::open(path)?;
+    let value = read_hcl(file, args)?;
+    let path = path.display().to_string();
+    Ok((path, value))
 }
 
 #[inline]
