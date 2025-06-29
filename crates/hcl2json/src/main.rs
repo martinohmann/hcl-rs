@@ -19,6 +19,14 @@ struct Args {
     /// Required if any of the input paths is a directory. Ignored otherwise.
     #[arg(short, long)]
     glob: Option<String>,
+    /// Read input into a map keyed by file path of the origin file.
+    ///
+    /// If multiple input files or at least one directory is provided, this reads the result into
+    /// a map keyed by file path instead of an array.
+    ///
+    /// If only one input file is provided, this option is ignored.
+    #[arg(short = 'P', long)]
+    file_paths: bool,
     /// Pretty-print the resulting JSON.
     #[arg(short, long)]
     pretty: bool,
@@ -119,7 +127,12 @@ fn bulk_convert<W: Write>(paths: &[PathBuf], mut writer: W, args: &Args) -> Resu
             .collect::<Result<_>>()?
     };
 
-    let value = Value::from_iter(results);
+    let value = if args.file_paths {
+        Value::from_iter(results)
+    } else {
+        Value::from_iter(results.into_iter().map(|(_, value)| value))
+    };
+
     write_json(writer, &value, args)
 }
 
