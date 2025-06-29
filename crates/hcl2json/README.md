@@ -28,8 +28,9 @@ cat file.hcl | hcl2json
 hcl2json file.hcl other-file.tf
 ```
 
-**Note**: When converting multiple files or directories the resulting JSON is a
-map keyed by input file path.
+**Note**: When converting multiple files or directories `hcl2json` emits a JSON
+array. By passing `--file-paths/-P` the behaviour can be changed to produce a
+JSON map keyed by input file path.
 
 ### Recursively convert files from a directory
 
@@ -38,7 +39,7 @@ hcl2json --glob '**/*.tf' dir/
 ```
 
 **Note**: The command above is equivalent to `hcl2json dir/**/*.tf` but may
-have better performance in scripts when there are hundreds of matching files.
+have slightly better performance when there are hundreds of matching files.
 
 ### Simplify and pretty-print
 
