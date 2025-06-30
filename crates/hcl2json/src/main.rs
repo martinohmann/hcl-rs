@@ -3,6 +3,7 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
+use globset::{GlobBuilder, GlobMatcher};
 use hcl::eval::{Context, Evaluate};
 use hcl::structure::Body;
 use rayon::prelude::*;
@@ -78,7 +79,14 @@ fn main() -> Result<()> {
                     bail!("--glob is required if directory arguments are specified")
                 };
 
-                if let Err(err) = glob_files(path, pattern, &mut paths) {
+                let path_pattern = path.join(pattern);
+
+                let matcher = GlobBuilder::new(&path_pattern.to_string_lossy())
+                    .literal_separator(true)
+                    .build()?
+                    .compile_matcher();
+
+                if let Err(err) = glob_files(&matcher, path, &mut paths) {
                     if !args.continue_on_error {
                         return Err(err);
                     }
@@ -173,12 +181,11 @@ fn write_json<W: Write>(writer: W, value: &Value, args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn glob_files(path: &Path, pattern: &str, paths: &mut Vec<PathBuf>) -> Result<()> {
-    let path_pattern = path.join(pattern);
+fn glob_files(matcher: &GlobMatcher, dir: &Path, paths: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in walkdir::WalkDir::new(dir) {
+        let path = entry?.into_path();
 
-    for result in glob::glob(&path_pattern.to_string_lossy())? {
-        let path = result?;
-        if path.is_file() {
+        if path.is_file() && matcher.is_match(&path) {
             paths.push(path);
         }
     }
