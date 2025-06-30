@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.2...hcl2json-v0.1.3) - 2025-06-30
+
+### Fixed
+
+- emit correct empty collection if paths are empty ([#446](https://github.com/martinohmann/hcl-rs/pull/446))
+
+### Other
+
+- remove `docs.rs` badge for `hcl2json`
+- *(hcl2json)* add integration tests ([#448](https://github.com/martinohmann/hcl-rs/pull/448))
+
 ## [0.1.2](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.1...hcl2json-v0.1.2) - 2025-06-30
 
 ### Other
