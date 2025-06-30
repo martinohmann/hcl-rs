@@ -2,7 +2,6 @@
 
 [![Build Status](https://github.com/martinohmann/hcl-rs/workflows/ci/badge.svg)](https://github.com/martinohmann/hcl-rs/actions?query=workflow%3Aci)
 [![crates.io](https://img.shields.io/crates/v/hcl2json)](https://crates.io/crates/hcl2json)
-[![docs.rs](https://img.shields.io/docsrs/hcl2json)](https://docs.rs/hcl2json)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
