@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 #![allow(clippy::struct_excessive_bools)]
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, anyhow, bail};
 use clap::Parser;
 use globset::{GlobBuilder, GlobMatcher};
 use hcl::eval::{Context, Evaluate};
@@ -99,7 +99,7 @@ fn main() -> Result<()> {
                     }
 
                     eprintln!(
-                        "Warning: Directory `{}` skipped due to error: {err}",
+                        "Warning: directory `{}` ignored due to errors: {err}",
                         path.display()
                     );
                 }
@@ -126,7 +126,7 @@ fn bulk_convert<W: Write>(paths: &[PathBuf], writer: W, args: &Args) -> Result<(
             Ok(result) => Some(result),
             Err(err) => {
                 eprintln!(
-                    "Warning: File `{}` skipped due to error: {err}",
+                    "Warning: file `{}` ignored due to errors: {err}",
                     path.display()
                 );
                 None
@@ -134,8 +134,11 @@ fn bulk_convert<W: Write>(paths: &[PathBuf], writer: W, args: &Args) -> Result<(
         })
         .collect::<Vec<_>>()
     } else {
-        iter.map(|path| process_file(path, args))
-            .collect::<Result<_>>()?
+        iter.map(|path| {
+            process_file(path, args)
+                .with_context(|| anyhow!("failed to process file `{}`", path.display()))
+        })
+        .collect::<Result<_>>()?
     };
 
     let value = if args.file_paths {

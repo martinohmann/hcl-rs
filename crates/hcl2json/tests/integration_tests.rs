@@ -80,9 +80,21 @@ fn glob_continue_on_error() {
         .assert()
         .success()
         .stderr(predicate::str::contains(
-            "Warning: File `../testdata/data/README.md` skipped due to error:",
+            "Warning: file `../testdata/data/README.md` ignored due to errors",
         ))
         .stdout(read("tests/fixtures/glob.continue-on-error.json").unwrap());
+}
+
+#[test]
+fn glob_file_error() {
+    Command::cargo_bin("hcl2json")
+        .unwrap()
+        .args(["../testdata/data", "--pretty", "--glob", "{small,README}.*"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Error: failed to process file `../testdata/data/README.md`",
+        ));
 }
 
 #[test]
