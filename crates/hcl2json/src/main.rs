@@ -26,23 +26,30 @@ struct Args {
     /// If multiple input files or at least one directory is provided, this reads the result into
     /// a map keyed by file path instead of an array.
     ///
-    /// If only one input file is provided, this option is ignored.
+    /// If only a single input file is provided or the input is passed via stdin, this option is
+    /// has no effect.
     #[arg(short = 'P', long)]
     file_paths: bool,
     /// Pretty-print the resulting JSON.
+    ///
+    /// By default, compact JSON is emitted.
     #[arg(short, long)]
     pretty: bool,
-    /// Continue on errors that occur while converting individual files.
+    /// Continue on errors that occur while processing individual files.
     ///
-    /// If the flag is provided, `hcl2json` will continue to convert the remaining input
-    /// files. For example, this is useful if you want to process files using a glob pattern
-    /// and one of the files is malformed. In this case a warning is logged to stderr and the
-    /// file is skipped.
+    /// If the flag is provided, processing of the remaining input files continues after an error
+    /// occurred. This is useful if you want to process files using a glob pattern and one of the
+    /// files is malformed. In this case a warning is logged to stderr and the file is ignored.
     ///
-    /// This flag is ignored if the input a single file.
+    /// If only a single input file is provided or the input is passed via stdin, this option is
+    /// has no effect.
     #[arg(short = 'C', long)]
     continue_on_error: bool,
-    /// Attempt to simply expressions which don't contain any variables or unknown functions.
+    /// Attempt to simplify expressions which do not contain any variables or unknown functions.
+    ///
+    /// This will attempt to simplify expressions as much as possible. For example, the binary
+    /// operation `1 + 1` can be simplified to just `2` because it does not contain any variables
+    /// or unknown function calls.
     #[arg(short, long)]
     simplify: bool,
     /// Paths to read HCL files from.
