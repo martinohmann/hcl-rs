@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.3...hcl2json-v0.1.4) - 2025-06-30
+
+### Added
+
+- better error context on processing errors
+
+### Other
+
+- improve CLI option documentation
+
 ## [0.1.3](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.2...hcl2json-v0.1.3) - 2025-06-30
 
 ### Fixed
