@@ -111,12 +111,7 @@ fn convert<R: Read, W: Write>(reader: R, writer: W, args: &Args) -> Result<()> {
     write_json(writer, &value, args)
 }
 
-fn bulk_convert<W: Write>(paths: &[PathBuf], mut writer: W, args: &Args) -> Result<()> {
-    if paths.is_empty() {
-        writer.write_all(b"{}")?;
-        return Ok(());
-    }
-
+fn bulk_convert<W: Write>(paths: &[PathBuf], writer: W, args: &Args) -> Result<()> {
     let iter = paths.into_par_iter();
 
     let results = if args.continue_on_error {
