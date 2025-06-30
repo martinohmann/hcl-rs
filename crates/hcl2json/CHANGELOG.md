@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.1...hcl2json-v0.1.2) - 2025-06-30
+
+### Other
+
+- *(hcl2json)* use `globset` for faster glob matching ([#445](https://github.com/martinohmann/hcl-rs/pull/445))
+- address some clippy lints
+
 ## [0.1.1](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.0...hcl2json-v0.1.1) - 2025-06-29
 
 ### Added
