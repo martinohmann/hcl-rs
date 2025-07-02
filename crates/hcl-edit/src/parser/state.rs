@@ -141,7 +141,7 @@ impl ExprParseState {
         }
 
         let binary_op = BinaryOp::new(lhs_expr, operator, rhs_expr);
-        let expr = Expression::BinaryOp(Box::new(binary_op));
+        let expr = Expression::BinaryOp(Box::new(binary_op.normalize()));
         self.current = Some(expr);
     }
 
