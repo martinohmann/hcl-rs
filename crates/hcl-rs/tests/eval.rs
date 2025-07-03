@@ -499,6 +499,10 @@ fn interpolation_unwrapping() {
         TemplateExpr::from("${{ a = 1, b = 2 }}"),
         Value::from_iter([("a", 1), ("b", 2)]),
     );
+    assert_eval(
+        TemplateExpr::from("${1 + 1 == 2 ? 3 : 4}"),
+        Value::Number(Number::from(3u64)),
+    );
 
     let mut ctx = Context::new();
     ctx.declare_var("var", true);

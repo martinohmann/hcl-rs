@@ -42,7 +42,7 @@ pub(super) fn expr(input: &mut Input) -> ModalResult<Expression> {
 
 pub(super) fn multiline_expr(input: &mut Input) -> ModalResult<Expression> {
     let mut state = ExprParseState::default();
-    state.allow_newlines(true);
+    state.allow_newlines();
     parse_expr(RefCell::new(state), input)
 }
 
@@ -64,6 +64,25 @@ fn expr_inner<'i>(
     move |input: &mut Input<'i>| {
         let span = expr_term(state).span().parse_next(input)?;
         state.borrow_mut().on_span(span);
+
+        // There are places where we need to defer the parsing of conditionals.
+        //
+        // One example are binary operations followed by a conditional like:
+        //
+        //   a == b ? c : d
+        //
+        // If we would allow conditionals there, it would parse as (pseudo code):
+        //
+        //   BinaryOp(a, Eq, Conditional(b, c, d))
+        //
+        // This would be incorrect. What we actually want is:
+        //
+        //   Conditional(BinaryOp(a, Eq, b), c, d)
+        //
+        // Hence, we prevent eagerly parsing conditionals in the RHS expression of a binary
+        // operation. The behaviour is triggered by the `binary_op` parser which calls
+        // `in_binary_op()` on the state.
+        let conditional_allowed = state.borrow().conditional_allowed();
 
         loop {
             let checkpoint = input.checkpoint();
@@ -93,7 +112,7 @@ fn expr_inner<'i>(
                     traversal(state).parse_next(input)?;
                 }
                 // Conditional.
-                Ok(b) if b.starts_with('?') => {
+                Ok(b) if conditional_allowed && b.starts_with('?') => {
                     state.borrow_mut().on_ws(suffix);
                     return conditional(state).parse_next(input);
                 }
@@ -106,7 +125,7 @@ fn expr_inner<'i>(
                         || b.starts_with(['!', '<', '>', '+', '-', '*', '/', '%', '&', '|']) =>
                 {
                     state.borrow_mut().on_ws(suffix);
-                    return binary_op(state).parse_next(input);
+                    binary_op(state).parse_next(input)?;
                 }
                 // None of the above matched or we hit the end of input.
                 _ => {
@@ -274,6 +293,7 @@ fn binary_op<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
+        state.borrow_mut().in_binary_op();
         (
             spanned(binary_operator.map(Spanned::new)),
             prefix_decorated(ws_or_sp(state), expr_with_state(state)),
@@ -330,7 +350,7 @@ fn array<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().allow_newlines(true);
+        state.borrow_mut().allow_newlines();
         delimited(
             '[',
             for_expr_or_items(for_list_expr(state), array_items(state)),
@@ -402,7 +422,7 @@ fn for_object_expr<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().allow_newlines(true);
+        state.borrow_mut().allow_newlines();
         (
             for_intro,
             separated_pair(
@@ -751,7 +771,7 @@ fn func_args<'i>(
             Ellipsis,
         }
 
-        state.borrow_mut().allow_newlines(true);
+        state.borrow_mut().allow_newlines();
 
         let args = separated(
             1..,

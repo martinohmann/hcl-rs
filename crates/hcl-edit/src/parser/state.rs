@@ -67,6 +67,7 @@ pub(super) struct ExprParseState {
     current: Option<Expression>,
     ws: Option<Range<usize>>,
     allow_newlines: bool,
+    in_binary_op: bool,
 }
 
 impl ExprParseState {
@@ -144,8 +145,16 @@ impl ExprParseState {
         self.current = Some(expr);
     }
 
-    pub(super) fn allow_newlines(&mut self, allow: bool) {
-        self.allow_newlines = allow;
+    pub(super) fn in_binary_op(&mut self) {
+        self.in_binary_op = true;
+    }
+
+    pub(super) fn conditional_allowed(&self) -> bool {
+        !self.in_binary_op
+    }
+
+    pub(super) fn allow_newlines(&mut self) {
+        self.allow_newlines = true;
     }
 
     pub(super) fn newlines_allowed(&self) -> bool {
@@ -164,6 +173,7 @@ impl Clone for ExprParseState {
             current: None,
             ws: None,
             allow_newlines: self.allow_newlines,
+            in_binary_op: self.in_binary_op,
         }
     }
 }

@@ -1,4 +1,4 @@
-use hcl_edit::expr::Expression;
+use hcl_edit::expr::{BinaryOp, BinaryOperator, Conditional, Expression};
 use hcl_edit::structure::{Attribute, Block, Body, Structure};
 use hcl_edit::template::{Element, Interpolation, Template};
 use hcl_edit::{Ident, Span};
@@ -315,4 +315,22 @@ fn issue_367() {
             && !startswith(behavior.origin, "forbidden/")
         }
     "#};
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/452
+#[test]
+fn issue_452() {
+    let input = "1 + 1 == 2 ? 3 : 4";
+
+    let parsed: Expression = input.parse().unwrap();
+    let expected = Expression::from(Conditional::new(
+        BinaryOp::new(
+            1,
+            BinaryOperator::Plus,
+            BinaryOp::new(1, BinaryOperator::Eq, 2),
+        ),
+        3,
+        4,
+    ));
+    assert_eq!(expected, parsed);
 }
