@@ -124,7 +124,7 @@ pub trait VisitMut {
         visit_splat_mut => Decorated<Splat>,
         visit_literal_mut => Spanned<String>,
         visit_unary_operator_mut => Spanned<UnaryOperator>,
-        visit_binary_operator_mut => Spanned<BinaryOperator>,
+        visit_binary_operator_mut => Decorated<BinaryOperator>,
         visit_endif_template_expr_mut => EndifTemplateExpr,
         visit_endfor_template_expr_mut => EndforTemplateExpr,
     }

@@ -3,6 +3,7 @@
 mod error;
 mod expr;
 mod number;
+mod pratt;
 mod repr;
 mod state;
 mod string;
