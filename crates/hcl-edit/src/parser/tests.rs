@@ -2,7 +2,10 @@ use super::expr::expr;
 use super::parse_complete;
 use super::structure::body;
 use super::template::template;
-use crate::{expr::Expression, Formatted, Number};
+use crate::{
+    expr::{BinaryOp, BinaryOperator, Expression, Parenthesis},
+    Formatted, Number,
+};
 use indoc::indoc;
 use pretty_assertions::assert_eq;
 
@@ -19,6 +22,43 @@ fn number_expr() {
     let parsed = parse_complete("42", expr).unwrap();
     let expected = Expression::Number(Formatted::new(Number::from(42)));
     assert_eq!(parsed, expected);
+}
+
+#[test]
+fn binary_ops() {
+    use BinaryOperator::*;
+
+    let tests = [
+        (
+            "1 + 1 == 2",
+            BinaryOp::new(BinaryOp::new(1, Plus, 1), Eq, 2),
+        ),
+        (
+            "1 + 1 * 2 / 3",
+            BinaryOp::new(1, Plus, BinaryOp::new(BinaryOp::new(1, Mul, 2), Div, 3)),
+        ),
+        (
+            "(1 + 1) * 2 / 3",
+            BinaryOp::new(
+                BinaryOp::new(Parenthesis::new(BinaryOp::new(1, Plus, 1).into()), Mul, 2),
+                Div,
+                3,
+            ),
+        ),
+        (
+            "(1 + 1) * (2 / 3)",
+            BinaryOp::new(
+                Parenthesis::new(BinaryOp::new(1, Plus, 1).into()),
+                Mul,
+                Parenthesis::new(BinaryOp::new(2, Div, 3).into()),
+            ),
+        ),
+    ];
+
+    for (given, expected) in tests {
+        let parsed = parse_complete(given, expr).unwrap();
+        assert_eq!(Expression::from(expected), parsed);
+    }
 }
 
 #[test]

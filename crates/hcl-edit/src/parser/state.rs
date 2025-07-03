@@ -1,9 +1,7 @@
-use crate::expr::{
-    BinaryOp, BinaryOperator, Conditional, Expression, Traversal, TraversalOperator, UnaryOp,
-    UnaryOperator,
-};
+use super::pratt::{parse_binary_op, BinaryOpToken};
+use crate::expr::{BinaryOperator, Conditional, Expression, Traversal, TraversalOperator};
 use crate::structure::{Body, Structure};
-use crate::{Decorate, Decorated, RawString, SetSpan, Spanned};
+use crate::{Decorate, Decorated, RawString, SetSpan};
 use fnv::FnvHashSet;
 use std::ops::Range;
 
@@ -63,11 +61,9 @@ impl<'a> BodyParseState<'a> {
 
 #[derive(Debug, Default)]
 pub(super) struct ExprParseState {
-    unary: Option<Spanned<UnaryOperator>>,
     current: Option<Expression>,
     ws: Option<Range<usize>>,
     allow_newlines: bool,
-    in_binary_op: bool,
 }
 
 impl ExprParseState {
@@ -87,20 +83,12 @@ impl ExprParseState {
 
     pub(super) fn on_expr_term(&mut self, expr: impl Into<Expression>) {
         let mut expr = expr.into();
-        if let Some(operator) = self.unary.take() {
-            expr = Expression::UnaryOp(Box::new(UnaryOp::new(operator, expr)));
-        }
 
         if let Some(prefix) = self.ws.take() {
             expr.decor_mut().set_prefix(RawString::from_span(prefix));
         }
 
         self.current = Some(expr);
-    }
-
-    pub(super) fn on_unary_op(&mut self, operator: Spanned<UnaryOperator>, ws_span: Range<usize>) {
-        self.unary = Some(operator);
-        self.on_ws(ws_span);
     }
 
     pub(super) fn on_traversal(&mut self, operators: Vec<Decorated<TraversalOperator>>) {
@@ -131,7 +119,7 @@ impl ExprParseState {
         self.current = Some(expr);
     }
 
-    pub(super) fn on_binary_op(&mut self, operator: Spanned<BinaryOperator>, rhs_expr: Expression) {
+    pub(super) fn on_binary_ops(&mut self, ops: Vec<(Decorated<BinaryOperator>, Expression)>) {
         let mut lhs_expr = self.current.take().unwrap();
 
         if let Some(suffix) = self.ws.take() {
@@ -140,17 +128,15 @@ impl ExprParseState {
                 .set_suffix(RawString::from_span(suffix));
         }
 
-        let binary_op = BinaryOp::new(lhs_expr, operator, rhs_expr);
-        let expr = Expression::BinaryOp(Box::new(binary_op));
-        self.current = Some(expr);
-    }
+        let mut tokens = Vec::with_capacity(ops.len() * 2 + 1);
+        tokens.push(BinaryOpToken::Expression(lhs_expr));
 
-    pub(super) fn in_binary_op(&mut self) {
-        self.in_binary_op = true;
-    }
+        for (operator, expr) in ops {
+            tokens.push(BinaryOpToken::Operator(operator));
+            tokens.push(BinaryOpToken::Expression(expr));
+        }
 
-    pub(super) fn conditional_allowed(&self) -> bool {
-        !self.in_binary_op
+        self.current = Some(parse_binary_op(tokens));
     }
 
     pub(super) fn allow_newlines(&mut self) {
@@ -169,11 +155,9 @@ impl ExprParseState {
 impl Clone for ExprParseState {
     fn clone(&self) -> Self {
         ExprParseState {
-            unary: None,
             current: None,
             ws: None,
             allow_newlines: self.allow_newlines,
-            in_binary_op: self.in_binary_op,
         }
     }
 }

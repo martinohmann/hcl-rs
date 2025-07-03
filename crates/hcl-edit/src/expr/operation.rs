@@ -1,5 +1,5 @@
 use crate::expr::Expression;
-use crate::{Decor, Spanned};
+use crate::{Decor, Decorated, Spanned};
 use std::ops::Range;
 
 // Re-exported for convenience.
@@ -50,7 +50,7 @@ pub struct BinaryOp {
     /// The expression on the left-hand-side of the operation.
     pub lhs_expr: Expression,
     /// The binary operator to use on the expressions.
-    pub operator: Spanned<BinaryOperator>,
+    pub operator: Decorated<BinaryOperator>,
     /// The expression on the right-hand-side of the operation.
     pub rhs_expr: Expression,
 
@@ -62,7 +62,7 @@ impl BinaryOp {
     /// Creates a new `BinaryOp` from two expressions and an operator.
     pub fn new(
         lhs_expr: impl Into<Expression>,
-        operator: impl Into<Spanned<BinaryOperator>>,
+        operator: impl Into<Decorated<BinaryOperator>>,
         rhs_expr: impl Into<Expression>,
     ) -> BinaryOp {
         BinaryOp {

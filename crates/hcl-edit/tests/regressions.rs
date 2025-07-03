@@ -325,9 +325,9 @@ fn issue_452() {
     let parsed: Expression = input.parse().unwrap();
     let expected = Expression::from(Conditional::new(
         BinaryOp::new(
-            1,
-            BinaryOperator::Plus,
-            BinaryOp::new(1, BinaryOperator::Eq, 2),
+            BinaryOp::new(1, BinaryOperator::Plus, 1),
+            BinaryOperator::Eq,
+            2,
         ),
         3,
         4,
