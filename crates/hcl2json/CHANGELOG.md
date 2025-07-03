@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.4...hcl2json-v0.1.5) - 2025-07-03
+
+### Other
+
+- updated the following local packages: hcl-rs
+
 ## [0.1.4](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.3...hcl2json-v0.1.4) - 2025-06-30
 
 ### Added
