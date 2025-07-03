@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.7](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.6...hcl-rs-v0.18.7) - 2025-07-03
+
+### Fixed
+
+- do not eagerly consume conditional while parsing binop ([#453](https://github.com/martinohmann/hcl-rs/pull/453))
+
 ## [0.18.6](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.5...hcl-rs-v0.18.6) - 2025-06-28
 
 ### Fixed

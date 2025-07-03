@@ -1,6 +1,6 @@
 [package]
 name = "hcl2json"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "CLI program for converting HCL to JSON"
@@ -29,7 +29,7 @@ all-features = true
 anyhow = "1.0.98"
 clap = { version = "4.5.40", features = ["derive"] }
 globset = "0.4.16"
-hcl-rs = { version = "0.18.6", path = "../hcl-rs", features = ["perf"] }
+hcl-rs = { version = "0.18.7", path = "../hcl-rs", features = ["perf"] }
 rayon = "1.10.0"
 serde_json = { version = "1.0.140", features = ["preserve_order"] }
 walkdir = "2.5.0"
