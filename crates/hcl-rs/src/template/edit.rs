@@ -17,7 +17,9 @@ impl From<template::Element> for Element {
     fn from(value: template::Element) -> Self {
         match value {
             template::Element::Literal(literal) => Element::Literal(literal.value_into()),
-            template::Element::Directive(directive) => Element::Directive(directive.into()),
+            template::Element::Directive(directive) => {
+                Element::Directive(Box::new((*directive).into()))
+            }
             template::Element::Interpolation(interp) => Element::Interpolation(interp.into()),
         }
     }
@@ -27,7 +29,9 @@ impl From<Element> for template::Element {
     fn from(value: Element) -> Self {
         match value {
             Element::Literal(literal) => template::Element::Literal(literal.into()),
-            Element::Directive(directive) => template::Element::Directive(directive.into()),
+            Element::Directive(directive) => {
+                template::Element::Directive(Box::new((*directive).into()))
+            }
             Element::Interpolation(interp) => template::Element::Interpolation(interp.into()),
         }
     }
