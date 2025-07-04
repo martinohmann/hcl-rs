@@ -424,7 +424,7 @@ impl Template {
             for element in &mut self.elements {
                 if let Element::Literal(literal) = element {
                     let dedented = dedent_by(literal, indent, skip_first_line);
-                    *literal.as_mut() = dedented.into();
+                    *literal.as_mut() = dedented.into_owned();
                     skip_first_line = !literal.ends_with('\n');
                 } else if !skip_first_line {
                     skip_first_line = true;
@@ -552,7 +552,7 @@ pub enum Element {
     /// sub-language), and converts the result to a string value.
     Interpolation(Interpolation),
     /// An `if` or `for` directive that allows for conditional template evaluation.
-    Directive(Directive),
+    Directive(Box<Directive>),
 }
 
 impl Element {
@@ -630,7 +630,7 @@ impl From<Interpolation> for Element {
 
 impl From<Directive> for Element {
     fn from(value: Directive) -> Self {
-        Element::Directive(value)
+        Element::Directive(Box::new(value))
     }
 }
 
