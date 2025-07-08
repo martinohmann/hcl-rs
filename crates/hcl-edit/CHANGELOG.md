@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.8...hcl-edit-v0.9.0) - 2025-07-08
+
+### Fixed
+
+- [**breaking**] binary operator precedence via pratt parser ([#456](https://github.com/martinohmann/hcl-rs/pull/456))
+- [**breaking**] Box `Directive` variant of `Element` type to reduce size ([#436](https://github.com/martinohmann/hcl-rs/pull/436))
+
 ## [0.8.8](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.7...hcl-edit-v0.8.8) - 2025-07-03
 
 ### Fixed

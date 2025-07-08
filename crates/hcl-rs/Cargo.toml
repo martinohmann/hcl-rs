@@ -1,6 +1,6 @@
 [package]
 name = "hcl-rs"
-version = "0.18.7"
+version = "0.19.0"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "HCL parser and formatter for rust with serde support"
@@ -36,7 +36,7 @@ perf = ["hcl-edit/perf", "hcl-primitives/perf"]
 [dependencies]
 indexmap = { version = "2.7.0", features = ["serde"] }
 itoa = "1.0.14"
-hcl-edit = { version = "0.8.8", path = "../hcl-edit" }
+hcl-edit = { version = "0.9.0", path = "../hcl-edit" }
 hcl-primitives = { version = "0.1.9", path = "../hcl-primitives", features = ["serde"] }
 serde = { version = "1.0.217", features = ["derive"] }
 vecmap-rs = { version = "0.2", features = ["serde"] }

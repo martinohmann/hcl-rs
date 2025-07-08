@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.5...hcl2json-v0.1.6) - 2025-07-08
+
+### Fixed
+
+- sort dir entries for deterministic ordering
+
 ## [0.1.5](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.4...hcl2json-v0.1.5) - 2025-07-03
 
 ### Other
