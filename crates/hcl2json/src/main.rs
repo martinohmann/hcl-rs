@@ -187,7 +187,7 @@ fn write_json<W: Write>(writer: W, value: &Value, args: &Args) -> Result<()> {
 }
 
 fn glob_files(matcher: &GlobMatcher, dir: &Path, paths: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in walkdir::WalkDir::new(dir) {
+    for entry in walkdir::WalkDir::new(dir).sort_by_file_name() {
         let path = entry?.into_path();
 
         if path.is_file() && matcher.is_match(&path) {
