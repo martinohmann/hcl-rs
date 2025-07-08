@@ -32,7 +32,6 @@ pub mod eval;
 pub mod expr;
 pub mod format;
 mod ident;
-mod parser;
 pub mod ser;
 pub mod structure;
 pub mod template;
@@ -65,7 +64,6 @@ pub use expr::{
 };
 
 pub use ident::Identifier;
-pub use parser::parse;
 
 #[doc(inline)]
 pub use ser::{to_string, to_vec, to_writer};
@@ -82,3 +80,46 @@ pub use template::Template;
 
 #[doc(inline)]
 pub use value::{from_value, to_value, Map, Value};
+
+/// Parse a `hcl::Body` from a `&str`.
+///
+/// If deserialization into a different type is preferred consider using [`hcl::from_str`][from_str].
+///
+/// [from_str]: ./de/fn.from_str.html
+///
+/// # Example
+///
+/// ```
+/// use hcl::{Attribute, Block, Body};
+///
+/// let input = r#"
+///     some_attr = "foo"
+///
+///     some_block "some_block_label" {
+///       attr = "value"
+///     }
+/// "#;
+///
+/// let expected = Body::builder()
+///     .add_attribute(("some_attr", "foo"))
+///     .add_block(
+///         Block::builder("some_block")
+///             .add_label("some_block_label")
+///             .add_attribute(("attr", "value"))
+///             .build()
+///     )
+///     .build();
+///
+/// let body = hcl::parse(input)?;
+///
+/// assert_eq!(body, expected);
+/// # Ok::<(), Box<dyn core::error::Error>>(())
+/// ```
+///
+/// # Errors
+///
+/// This function fails with an error if the `input` cannot be parsed as HCL.
+#[inline]
+pub fn parse(input: &str) -> Result<Body> {
+    input.parse()
+}

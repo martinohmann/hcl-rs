@@ -6,7 +6,7 @@
 //! [hcl-json-spec]: https://github.com/hashicorp/hcl/blob/main/json/spec.md
 
 use crate::structure::IntoJsonSpec;
-use crate::{parser, Body, Error, Identifier, Result};
+use crate::{Body, Error, Identifier, Result};
 use serde::de::value::StringDeserializer;
 use serde::de::{self, Deserializer as _, IntoDeserializer};
 use serde::forward_to_deserialize_any;
@@ -27,7 +27,7 @@ impl Deserializer {
     ///
     /// [Error]: ../error/enum.Error.html
     pub fn from_str(input: &str) -> Result<Self> {
-        let body = parser::parse(input)?;
+        let body: Body = input.parse()?;
         Ok(Deserializer { body })
     }
 

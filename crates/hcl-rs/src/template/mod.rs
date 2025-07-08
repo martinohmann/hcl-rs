@@ -86,7 +86,7 @@ mod edit;
 
 use crate::de::FromStrVisitor;
 use crate::expr::{Expression, TemplateExpr};
-use crate::{format, parser, Error, Identifier, Result};
+use crate::{format, Error, Identifier, Result};
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 use std::str::FromStr;
@@ -174,8 +174,10 @@ impl Template {
 impl FromStr for Template {
     type Err = Error;
 
+    #[inline]
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parser::parse_template(s)
+        let template: hcl_edit::template::Template = s.parse()?;
+        Ok(template.into())
     }
 }
 

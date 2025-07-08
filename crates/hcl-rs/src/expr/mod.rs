@@ -24,12 +24,12 @@ pub use self::{
     traversal::{Traversal, TraversalBuilder, TraversalOperator},
     variable::Variable,
 };
-use crate::format;
 use crate::ser::with_internal_serialization;
-use crate::{Identifier, Number, Result, Value};
+use crate::{format, Error, Identifier, Number, Result, Value};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::fmt::{self, Display};
+use std::str::FromStr;
 
 /// The object type used in the expression sub-language.
 pub type Object<K, V> = vecmap::VecMap<K, V>;
@@ -78,6 +78,16 @@ impl Expression {
         T: ?Sized + Serialize,
     {
         with_internal_serialization(|| value.serialize(ExpressionSerializer))
+    }
+}
+
+impl FromStr for Expression {
+    type Err = Error;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let expr: hcl_edit::expr::Expression = s.parse()?;
+        Ok(expr.into())
     }
 }
 

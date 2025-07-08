@@ -6,8 +6,9 @@ use super::iter::{
 use super::ser::BodySerializer;
 use super::{Attribute, Block, Structure};
 use crate::ser::with_internal_serialization;
-use crate::Result;
+use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 /// Represents an HCL config file body.
 ///
@@ -233,6 +234,16 @@ impl Body {
     /// ```
     pub fn into_blocks(self) -> IntoBlocks {
         IntoBlocks::new(self)
+    }
+}
+
+impl FromStr for Body {
+    type Err = Error;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let body: hcl_edit::structure::Body = s.parse()?;
+        Ok(body.into())
     }
 }
 
