@@ -3,9 +3,9 @@ use super::{
     LEADING_SPACE_DECOR, NO_DECOR, TRAILING_SPACE_DECOR,
 };
 use crate::expr::{
-    Array, BinaryOp, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall,
-    FuncName, Null, Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator,
-    Parenthesis, Splat, Traversal, TraversalOperator, UnaryOp,
+    Array, BinaryOp, BinaryOperator, Conditional, Expression, ForCond, ForExpr, ForIntro, FuncArgs,
+    FuncCall, FuncName, Null, Object, ObjectKey, ObjectValue, ObjectValueAssignment,
+    ObjectValueTerminator, Parenthesis, Splat, Traversal, TraversalOperator, UnaryOp,
 };
 use std::fmt::{self, Write};
 
@@ -234,11 +234,17 @@ impl Encode for UnaryOp {
     }
 }
 
+impl Encode for BinaryOperator {
+    fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
+        buf.write_str(self.as_str())
+    }
+}
+
 impl Encode for BinaryOp {
     fn encode(&self, buf: &mut EncodeState) -> fmt::Result {
-        self.lhs_expr.encode_decorated(buf, TRAILING_SPACE_DECOR)?;
-        buf.write_str(self.operator.as_str())?;
-        self.rhs_expr.encode_decorated(buf, LEADING_SPACE_DECOR)
+        self.lhs_expr.encode_decorated(buf, NO_DECOR)?;
+        self.operator.encode_decorated(buf, BOTH_SPACE_DECOR)?;
+        self.rhs_expr.encode_decorated(buf, NO_DECOR)
     }
 }
 

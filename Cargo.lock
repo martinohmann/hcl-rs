@@ -363,6 +363,7 @@ dependencies = [
  "fnv",
  "hcl-primitives",
  "indoc",
+ "pratt",
  "pretty_assertions",
  "testdata",
  "vecmap-rs",
@@ -561,6 +562,12 @@ checksum = "51bae2ac328883f7acdfea3d66a7c35751187f870bc81f94563733a154d7a670"
 dependencies = [
  "plotters-backend",
 ]
+
+[[package]]
+name = "pratt"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17e0a4425d076f0718b820673a38fbf3747080c61017eeb0dd79bc7e472b8bb8"
 
 [[package]]
 name = "predicates"

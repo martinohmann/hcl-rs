@@ -406,11 +406,10 @@ impl Evaluate for BinaryOp {
     fn evaluate(&self, ctx: &Context) -> EvalResult<Self::Output> {
         use {BinaryOperator::*, Value::*};
 
-        let op = self.clone().normalize();
-        let lhs = op.lhs_expr.evaluate(ctx)?;
-        let rhs = op.rhs_expr.evaluate(ctx)?;
+        let lhs = self.lhs_expr.evaluate(ctx)?;
+        let rhs = self.rhs_expr.evaluate(ctx)?;
 
-        let value = match (lhs, op.operator, rhs) {
+        let value = match (lhs, self.operator, rhs) {
             (lhs, Eq, rhs) => Bool(lhs == rhs),
             (lhs, NotEq, rhs) => Bool(lhs != rhs),
             (Bool(lhs), And, Bool(rhs)) => Bool(lhs && rhs),

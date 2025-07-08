@@ -10,7 +10,7 @@ use super::trivia::{line_comment, sp, ws};
 use crate::expr::{
     Array, BinaryOperator, Expression, ForCond, ForExpr, ForIntro, FuncArgs, FuncCall, FuncName,
     Object, ObjectKey, ObjectValue, ObjectValueAssignment, ObjectValueTerminator, Parenthesis,
-    Splat, TraversalOperator, UnaryOperator,
+    Splat, TraversalOperator, UnaryOp, UnaryOperator,
 };
 use crate::template::HeredocTemplate;
 use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
@@ -52,9 +52,21 @@ fn expr_with_state<'i>(
     move |input: &mut Input<'i>| parse_expr(state.clone(), input)
 }
 
+fn expr_term_with_state<'i>(
+    state: &RefCell<ExprParseState>,
+) -> impl ModalParser<Input<'i>, Expression, ContextError> + '_ {
+    move |input: &mut Input<'i>| parse_expr_term(state.clone(), input)
+}
+
 #[inline]
 fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
     expr_inner(&state).parse_next(input)?;
+    Ok(state.into_inner().into_expr())
+}
+
+#[inline]
+fn parse_expr_term(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
+    expr_term_inner(&state).parse_next(input)?;
     Ok(state.into_inner().into_expr())
 }
 
@@ -62,70 +74,40 @@ fn expr_inner<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        let span = expr_term(state).span().parse_next(input)?;
-        state.borrow_mut().on_span(span);
-
-        // There are places where we need to defer the parsing of conditionals.
-        //
-        // One example are binary operations followed by a conditional like:
-        //
-        //   a == b ? c : d
-        //
-        // If we would allow conditionals there, it would parse as (pseudo code):
-        //
-        //   BinaryOp(a, Eq, Conditional(b, c, d))
-        //
-        // This would be incorrect. What we actually want is:
-        //
-        //   Conditional(BinaryOp(a, Eq, b), c, d)
-        //
-        // Hence, we prevent eagerly parsing conditionals in the RHS expression of a binary
-        // operation. The behaviour is triggered by the `binary_op` parser which calls
-        // `in_binary_op()` on the state.
-        let conditional_allowed = state.borrow().conditional_allowed();
+        expr_term_inner(state).parse_next(input)?;
 
         loop {
             let checkpoint = input.checkpoint();
-            // Parse the next whitespace sequence and only add it as decor suffix to the expression if
-            // we actually encounter a traversal, conditional or binary operation. We'll rewind the
-            // parser if none of these follow.
+            // Parse the next whitespace sequence and only add it as decor suffix to the expression
+            // if we encounter conditional. We'll rewind the parser if none follows.
             let suffix = ws_or_sp(state).span().parse_next(input)?;
 
             // Peek the next two bytes to identify the following operation, if any.
             match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
-                // The sequence `..` might introduce a `...` operator within a for object expr
-                // or after the last argument of a function call, do not mistakenly parse it as
-                // a `.` traversal operator.
-                //
-                // `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
-                // division operator.
-                Ok("//" | "/*" | "..") => {
-                    input.reset(&checkpoint);
-                    return Ok(());
-                }
-                // Traversal operator.
-                //
-                // Note: after the traversal is consumed, the loop is entered again to consume
-                // a potentially following conditional or binary operation.
-                Ok(b) if b.starts_with(['.', '[']) => {
-                    state.borrow_mut().on_ws(suffix);
-                    traversal(state).parse_next(input)?;
-                }
                 // Conditional.
-                Ok(b) if conditional_allowed && b.starts_with('?') => {
+                Ok(b) if b.starts_with('?') => {
                     state.borrow_mut().on_ws(suffix);
                     return conditional(state).parse_next(input);
                 }
-                // Binary operation.
+                // Binary operations.
                 //
-                // Note: matching a single `=` is ambiguous as it could also be an object
+                // Note: `//` and `/*` are comment starts. Do not mistakenly parse a `/` as binary
+                // division operator.
+                //
+                // Also, matching a single `=` is ambiguous as it could also be an object
                 // key-value separator, so we'll need to match on `==`.
+                //
+                // After the binary operations are consumed, the loop is entered again to consume
+                // a potentially following conditional.
                 Ok(b)
-                    if b == "=="
-                        || b.starts_with(['!', '<', '>', '+', '-', '*', '/', '%', '&', '|']) =>
+                    if !(b == "//" || b == "/*")
+                        && (b == "=="
+                            || b.starts_with([
+                                '!', '<', '>', '+', '-', '*', '/', '%', '&', '|',
+                            ])) =>
                 {
-                    state.borrow_mut().on_ws(suffix);
-                    binary_op(state).parse_next(input)?;
+                    input.reset(&checkpoint);
+                    binary_ops(state).parse_next(input)?;
                 }
                 // None of the above matched or we hit the end of input.
                 _ => {
@@ -137,7 +119,7 @@ fn expr_inner<'i>(
     }
 }
 
-fn expr_term<'i>(
+fn expr_term_inner<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
@@ -164,7 +146,32 @@ fn expr_term<'i>(
                 .context(StrContext::Expected(StrContextValue::Description("letter")))
                 .context(StrContext::Expected(StrContextValue::Description("digit"))),
         }
+        .span()
         .parse_next(input)
+        .map(|span| state.borrow_mut().on_span(span))?;
+
+        let checkpoint = input.checkpoint();
+        // Parse the next whitespace sequence and only add it as decor suffix to the expression if
+        // we encounter a traversal. We'll rewind the parser if none follows.
+        let suffix = ws_or_sp(state).span().parse_next(input)?;
+
+        // Peek the next two bytes to identify the following operation, if any.
+        match peek(take::<_, _, ContextError>(2usize)).parse_next(input) {
+            // Traversal operator.
+            //
+            // The sequence `..` might introduce a `...` operator within a for object expr
+            // or after the last argument of a function call, do not mistakenly parse it as
+            // a `.` traversal operator.
+            Ok(b) if b != ".." && b.starts_with(['.', '[']) => {
+                state.borrow_mut().on_ws(suffix);
+                traversal(state).parse_next(input)
+            }
+            // None of the above matched or we hit the end of input.
+            _ => {
+                input.reset(&checkpoint);
+                Ok(())
+            }
+        }
     }
 }
 
@@ -270,13 +277,16 @@ fn unary_op<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        preceded(
-            (spanned(unary_operator.map(Spanned::new)), sp.span())
-                .map(|(operator, span)| state.borrow_mut().on_unary_op(operator, span)),
-            expr_term(state),
+        (
+            spanned(unary_operator.map(Spanned::new)),
+            prefix_decorated(sp, expr_term_with_state(state)),
         )
-        .void()
-        .parse_next(input)
+            .map(|(operator, expr)| {
+                state
+                    .borrow_mut()
+                    .on_expr_term(UnaryOp::new(operator, expr));
+            })
+            .parse_next(input)
     }
 }
 
@@ -289,17 +299,23 @@ fn unary_operator(input: &mut Input) -> ModalResult<UnaryOperator> {
     .parse_next(input)
 }
 
-fn binary_op<'i>(
+fn binary_ops<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().in_binary_op();
-        (
-            spanned(binary_operator.map(Spanned::new)),
-            prefix_decorated(ws_or_sp(state), expr_with_state(state)),
+        repeat(
+            1..,
+            (
+                decorated(
+                    ws_or_sp(state),
+                    binary_operator.map(Decorated::new),
+                    ws_or_sp(state),
+                ),
+                expr_term_with_state(state),
+            ),
         )
-            .map(|(operator, rhs_expr)| state.borrow_mut().on_binary_op(operator, rhs_expr))
-            .parse_next(input)
+        .map(|ops| state.borrow_mut().on_binary_ops(ops))
+        .parse_next(input)
     }
 }
 

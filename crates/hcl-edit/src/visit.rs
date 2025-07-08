@@ -107,7 +107,7 @@ pub trait Visit {
         visit_splat => Decorated<Splat>,
         visit_literal => Spanned<String>,
         visit_unary_operator => Spanned<UnaryOperator>,
-        visit_binary_operator => Spanned<BinaryOperator>,
+        visit_binary_operator => Decorated<BinaryOperator>,
         visit_endif_template_expr => EndifTemplateExpr,
         visit_endfor_template_expr => EndforTemplateExpr,
     }

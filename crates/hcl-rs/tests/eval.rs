@@ -21,7 +21,7 @@ fn eval_binary_op() {
             Mul,
             BinaryOp::new(3, Plus, BinaryOp::new(4, Div, 5)),
         ),
-        Value::from(2.3),
+        Value::from(1.9),
     );
     assert_eval(BinaryOp::new("foo", Eq, "foo"), Value::from(true));
     assert_eval(BinaryOp::new(false, Or, true), Value::from(true));
@@ -363,6 +363,11 @@ fn eval_template() {
         Template::from_str(template_str).unwrap(),
         expected.to_owned(),
     );
+
+    assert_eval(TemplateExpr::from("${1 + 1 == 2}"), Value::Bool(true));
+    assert_eval(TemplateExpr::from("${1 + 1 * 2 / 4}"), Value::from(1.5));
+    assert_eval(TemplateExpr::from("${(1 + 1) * 2 / 4}"), Value::from(1));
+    assert_eval(TemplateExpr::from("${(1 + 1 * 2) / 4}"), Value::from(0.75));
 }
 
 #[test]
