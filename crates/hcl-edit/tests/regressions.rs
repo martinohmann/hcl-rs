@@ -334,3 +334,9 @@ fn issue_452() {
     ));
     assert_eq!(expected, parsed);
 }
+
+// https://github.com/martinohmann/hcl-rs/pull/457
+#[test]
+fn issue_457() {
+    assert!(hcl_edit::parser::parse_expr("").is_err());
+}

@@ -117,6 +117,16 @@ impl Location {
 
 fn locate_error<'a>(err: &'a ParseError<Input<'a>, ContextError>) -> (&'a [u8], Location) {
     let input = err.input().as_bytes();
+    if input.is_empty() {
+        return (
+            input,
+            Location {
+                line: 1,
+                column: 1,
+                offset: 0,
+            },
+        );
+    }
     let offset = err.offset().min(input.len() - 1);
     let column_offset = err.offset() - offset;
 
