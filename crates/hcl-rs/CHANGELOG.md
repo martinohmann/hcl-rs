@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.1](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.0...hcl-rs-v0.19.1) - 2025-07-11
+
+### Other
+
+- updated the following local packages: hcl-edit
+
 ## [0.19.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.18.7...hcl-rs-v0.19.0) - 2025-07-08
 
 ### Fixed
