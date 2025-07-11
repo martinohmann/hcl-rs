@@ -232,7 +232,6 @@ use crate::expr::{
     BinaryOp, BinaryOperator, Conditional, Expression, ForExpr, FuncCall, FuncName, Object,
     ObjectKey, Operation, TemplateExpr, Traversal, TraversalOperator, UnaryOp, UnaryOperator,
 };
-use crate::parser;
 use crate::structure::{Attribute, Block, Body, Structure};
 use crate::template::{
     Directive, Element, ForDirective, IfDirective, Interpolation, Strip, Template,
@@ -454,7 +453,7 @@ pub fn from_str<T>(s: &str, ctx: &Context) -> Result<T>
 where
     T: de::DeserializeOwned,
 {
-    let body = parser::parse(s)?;
+    let body: Body = s.parse()?;
     let evaluated = body.evaluate(ctx)?;
     super::from_body(evaluated)
 }
