@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.2](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.1...hcl-rs-v0.19.2) - 2025-07-11
+
+### Added
+
+- impl `FromStr` for `Body` and `Expression` ([#460](https://github.com/martinohmann/hcl-rs/pull/460))
+
 ## [0.19.1](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.0...hcl-rs-v0.19.1) - 2025-07-11
 
 ### Other
