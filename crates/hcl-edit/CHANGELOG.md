@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.0...hcl-edit-v0.9.1) - 2025-07-11
+
+### Fixed
+
+- panic when parsing empty expression ([#457](https://github.com/martinohmann/hcl-rs/pull/457))
+
 ## [0.9.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.8.8...hcl-edit-v0.9.0) - 2025-07-08
 
 ### Fixed
