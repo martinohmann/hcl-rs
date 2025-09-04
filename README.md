@@ -1,3 +1,35 @@
+
+<div align="right">
+  <details>
+    <summary >🌐 Language</summary>
+    <div>
+      <div align="center">
+        <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=en">English</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=zh-CN">简体中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=zh-TW">繁體中文</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=ja">日本語</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=ko">한국어</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=hi">हिन्दी</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=th">ไทย</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=fr">Français</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=de">Deutsch</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=es">Español</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=it">Italiano</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=ru">Русский</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=pt">Português</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=nl">Nederlands</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=pl">Polski</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=ar">العربية</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=fa">فارسی</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=tr">Türkçe</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=vi">Tiếng Việt</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=id">Bahasa Indonesia</a>
+        | <a href="https://openaitx.github.io/view.html?user=martinohmann&project=hcl-rs&lang=as">অসমীয়া</
+      </div>
+    </div>
+  </details>
+</div>
+
 # hcl-rs
 
 [![Build Status](https://github.com/martinohmann/hcl-rs/workflows/ci/badge.svg)](https://github.com/martinohmann/hcl-rs/actions?query=workflow%3Aci)
