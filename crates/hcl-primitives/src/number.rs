@@ -312,7 +312,7 @@ impl Number {
     #[cfg(feature = "serde")]
     #[doc(hidden)]
     #[cold]
-    pub fn unexpected(&self) -> Unexpected {
+    pub fn unexpected(&self) -> Unexpected<'_> {
         match self.n {
             N::PosInt(v) => Unexpected::Unsigned(v),
             N::NegInt(v) => Unexpected::Signed(v),

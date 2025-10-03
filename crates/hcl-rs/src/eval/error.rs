@@ -45,7 +45,7 @@ impl Errors {
 
     /// Returns an iterator over all errors.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<Error> {
+    pub fn iter(&self) -> std::slice::Iter<'_, Error> {
         self.inner.iter()
     }
 }

@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-pub(crate) fn dedent_by(s: &str, n: usize, skip_first: bool) -> Cow<str> {
+pub(crate) fn dedent_by(s: &str, n: usize, skip_first: bool) -> Cow<'_, str> {
     let mut dedented = String::with_capacity(s.len());
 
     for (i, line) in s.lines().enumerate() {

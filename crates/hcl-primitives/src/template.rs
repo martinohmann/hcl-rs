@@ -91,7 +91,7 @@ impl From<(bool, bool)> for Strip {
 /// assert_eq!(escape_markers("$${escaped_interpolation}"), "$$${escaped_interpolation}");
 /// assert_eq!(escape_markers("%{if foo}bar%{else}baz%{endif}"), "%%{if foo}bar%%{else}baz%%{endif}");
 /// ```
-pub fn escape_markers(literal: &str) -> Cow<str> {
+pub fn escape_markers(literal: &str) -> Cow<'_, str> {
     if literal.len() < 2 {
         // Fast path: strings shorter than 2 chars cannot contain `${` or `%{`.
         return Cow::Borrowed(literal);
@@ -146,7 +146,7 @@ fn escape_markers_owned(literal: &str, idx: usize) -> String {
 /// assert_eq!(unescape_markers("$$${escaped_interpolation}"), "$${escaped_interpolation}");
 /// assert_eq!(unescape_markers("%{if foo}bar%{else}baz%{endif}"), "%{if foo}bar%{else}baz%{endif}");
 /// ```
-pub fn unescape_markers(literal: &str) -> Cow<str> {
+pub fn unescape_markers(literal: &str) -> Cow<'_, str> {
     if literal.len() < 3 {
         // Fast path: strings shorter than 3 chars cannot contain `$${` or `%%{`.
         return Cow::Borrowed(literal);

@@ -17,7 +17,7 @@ impl Expression {
     }
 
     #[cold]
-    fn unexpected(&self) -> Unexpected {
+    fn unexpected(&self) -> Unexpected<'_> {
         match self {
             Expression::Null => Unexpected::Unit,
             Expression::Bool(b) => Unexpected::Bool(*b),
