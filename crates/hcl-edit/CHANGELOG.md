@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.2...hcl-edit-v0.9.3) - 2025-10-04
+
+### Fixed
+
+- *(docs)* fix docs.rs build failure
+
 ## [0.9.2](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.1...hcl-edit-v0.9.2) - 2025-10-04
 
 ### Fixed

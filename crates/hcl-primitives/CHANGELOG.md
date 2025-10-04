@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.11](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.10...hcl-primitives-v0.1.11) - 2025-10-04
+
+### Fixed
+
+- *(docs)* fix docs.rs build failure
+
 ## [0.1.10](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.9...hcl-primitives-v0.1.10) - 2025-10-04
 
 ### Other
