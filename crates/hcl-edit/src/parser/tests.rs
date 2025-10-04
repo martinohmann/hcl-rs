@@ -137,6 +137,8 @@ fn roundtrip_body() {
         "},
         "ami = \"ami-5f6495430e7781fe5\" // Ubuntu 20.04 LTS\n",
         "ami = \"ami-5f6495430e7781fe5\" /* Ubuntu 20.04 LTS */\n",
+        "a = 1 + 2 - 3 * 4 / 5 // comment\n",
+        "c = 1 + 2 - 3 * 4 / 5 /* block comment */\n",
         "array =   [1, 2, 3]\n",
         "block {}\n\n// trailing body comment",
     ];

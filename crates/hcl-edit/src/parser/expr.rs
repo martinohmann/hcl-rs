@@ -334,7 +334,7 @@ fn binary_operator(input: &mut Input) -> ModalResult<BinaryOperator> {
         '+' => empty.value(BinaryOperator::Plus),
         '-' => empty.value(BinaryOperator::Minus),
         '*' => empty.value(BinaryOperator::Mul),
-        '/' => empty.value(BinaryOperator::Div),
+        '/' => not(one_of(b"/*")).value(BinaryOperator::Div),
         '%' => empty.value(BinaryOperator::Mod),
         '&' => '&'.value(BinaryOperator::And),
         '|' => '|'.value(BinaryOperator::Or),
