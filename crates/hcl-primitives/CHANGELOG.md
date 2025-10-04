@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.9...hcl-primitives-v0.1.10) - 2025-10-04
+
+### Other
+
+- address new clippy lints
+
 ## [0.1.9](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.8...hcl-primitives-v0.1.9) - 2025-06-28
 
 ### Fixed

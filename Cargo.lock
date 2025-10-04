@@ -358,7 +358,7 @@ checksum = "5971ac85611da7067dbfcabef3c70ebb5606018acd9e2a3903a0da507521e0d5"
 
 [[package]]
 name = "hcl-edit"
-version = "0.9.1"
+version = "0.9.2"
 dependencies = [
  "fnv",
  "hcl-primitives",
@@ -372,7 +372,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-primitives"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "itoa",
  "kstring",
@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "hcl-rs"
-version = "0.19.2"
+version = "0.19.3"
 dependencies = [
  "hcl-edit",
  "hcl-primitives",
@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "hcl2json"
-version = "0.1.8"
+version = "0.1.9"
 dependencies = [
  "anyhow",
  "assert_cmd",
