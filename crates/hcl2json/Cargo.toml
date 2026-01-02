@@ -1,6 +1,6 @@
 [package]
 name = "hcl2json"
-version = "0.1.12"
+version = "0.1.13"
 authors = ["Martin Ohmann <martinohmann@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "CLI program for converting HCL to JSON"
