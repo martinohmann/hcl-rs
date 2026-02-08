@@ -60,8 +60,10 @@ fn expr_term_with_state<'i>(
 
 #[inline]
 fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
-    expr_inner(&state).parse_next(input)?;
-    Ok(state.into_inner().into_expr())
+    let span = expr_inner(&state).span().parse_next(input)?;
+    let mut expr = state.into_inner().into_expr();
+    expr.set_span(span);
+    Ok(expr)
 }
 
 #[inline]
