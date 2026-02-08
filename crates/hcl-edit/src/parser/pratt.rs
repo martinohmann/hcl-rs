@@ -1,5 +1,5 @@
 use crate::expr::{BinaryOp, BinaryOperator, Expression};
-use crate::Decorated;
+use crate::{Decorated, SetSpan, Span};
 use pratt::{Affix, Associativity, NoError, PrattParser, Precedence, Result};
 
 /// Valid tokens in binary operations.
@@ -68,9 +68,14 @@ where
         rhs: Expression,
     ) -> Result<Expression> {
         match token {
-            BinaryOpToken::Operator(operator) => {
-                Ok(Expression::from(BinaryOp::new(lhs, operator, rhs)))
-            }
+            BinaryOpToken::Operator(operator) => match (lhs.span(), rhs.span()) {
+                (Some(lhs_span), Some(rhs_span)) => {
+                    let mut expr = Expression::from(BinaryOp::new(lhs, operator, rhs));
+                    expr.set_span(lhs_span.start..rhs_span.end);
+                    Ok(expr)
+                }
+                (_, _) => Ok(Expression::from(BinaryOp::new(lhs, operator, rhs))),
+            },
             BinaryOpToken::Expression(_) => unreachable!(),
         }
     }
