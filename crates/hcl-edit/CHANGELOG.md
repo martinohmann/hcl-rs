@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.3...hcl-edit-v0.9.4) - 2026-02-08
+
+### Fixed
+
+- add missing expression spans ([#509](https://github.com/martinohmann/hcl-rs/pull/509))
+
 ## [0.9.3](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.2...hcl-edit-v0.9.3) - 2025-10-04
 
 ### Fixed
