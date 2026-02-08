@@ -22,6 +22,7 @@ use winnow::combinator::{
     alt, cut_err, delimited, empty, fail, not, opt, peek, preceded, repeat, separated,
     separated_pair, terminated,
 };
+use winnow::stream::Location;
 use winnow::token::{any, none_of, one_of, take};
 
 fn ws_or_sp<'i>(
@@ -74,6 +75,8 @@ fn expr_inner<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
+        let start = input.current_token_start();
+
         expr_term_inner(state).parse_next(input)?;
 
         loop {
@@ -87,7 +90,10 @@ fn expr_inner<'i>(
                 // Conditional.
                 Ok(b) if b.starts_with('?') => {
                     state.borrow_mut().on_ws(suffix);
-                    return conditional(state).parse_next(input);
+                    return conditional(state)
+                        .span()
+                        .map(|span| state.borrow_mut().on_span(start..span.end))
+                        .parse_next(input);
                 }
                 // Binary operations.
                 //
@@ -107,7 +113,10 @@ fn expr_inner<'i>(
                             ])) =>
                 {
                     input.reset(&checkpoint);
-                    binary_ops(state).parse_next(input)?;
+                    binary_ops(state)
+                        .span()
+                        .map(|span| state.borrow_mut().on_span(start..span.end))
+                        .parse_next(input)?;
                 }
                 // None of the above matched or we hit the end of input.
                 _ => {
@@ -123,6 +132,8 @@ fn expr_term_inner<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
+        let start = input.current_token_start();
+
         dispatch! {peek(any);
             '"' => stringlike(state),
             '[' => array(state),
@@ -164,7 +175,10 @@ fn expr_term_inner<'i>(
             // a `.` traversal operator.
             Ok(b) if b != ".." && b.starts_with(['.', '[']) => {
                 state.borrow_mut().on_ws(suffix);
-                traversal(state).parse_next(input)
+                traversal(state)
+                    .span()
+                    .map(|span| state.borrow_mut().on_span(start..span.end))
+                    .parse_next(input)
             }
             // None of the above matched or we hit the end of input.
             _ => {
