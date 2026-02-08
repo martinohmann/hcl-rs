@@ -340,3 +340,20 @@ fn issue_452() {
 fn issue_457() {
     assert!(hcl_edit::parser::parse_expr("").is_err());
 }
+
+// https://github.com/martinohmann/hcl-rs/pull/508
+#[test]
+fn issue_508() {
+    hcl_edit::parser::parse_expr("foo.bar")
+        .unwrap()
+        .span()
+        .expect("traversal span");
+    hcl_edit::parser::parse_expr("1 + 1")
+        .unwrap()
+        .span()
+        .expect("binary_op span");
+    hcl_edit::parser::parse_expr("true ? 1 : 2")
+        .unwrap()
+        .span()
+        .expect("conditional span");
+}
