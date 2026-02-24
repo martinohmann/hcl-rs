@@ -15,7 +15,7 @@ use crate::expr::{
 use crate::template::HeredocTemplate;
 use crate::{Decorate, Decorated, Formatted, Ident, RawString, SetSpan, Spanned};
 
-use hcl_primitives::ident::is_id_start;
+use hcl_primitives::ident::{is_id_continue, is_id_start};
 use std::cell::RefCell;
 use winnow::ascii::{crlf, dec_uint, line_ending, newline, space0};
 use winnow::combinator::{
@@ -679,9 +679,9 @@ fn heredoc<'i>(
             spanned(heredoc_template(delim)),
             terminated(
                 raw_string(space0),
-                cut_err(delim).context(StrContext::Expected(StrContextValue::Description(
-                    "heredoc end delimiter",
-                ))),
+                cut_err(terminated(delim, not(one_of(is_id_continue)))).context(
+                    StrContext::Expected(StrContextValue::Description("heredoc end delimiter")),
+                ),
             ),
         )
             .parse_next(input)?;
