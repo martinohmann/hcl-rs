@@ -16,7 +16,10 @@ use crate::{SetSpan, Span, Spanned};
 
 use std::borrow::Cow;
 use winnow::ascii::{line_ending, space0};
-use winnow::combinator::{alt, delimited, opt, preceded, repeat, separated_pair, terminated};
+use winnow::combinator::{alt, delimited, not, opt, preceded, repeat, separated_pair, terminated};
+use winnow::token::one_of;
+
+use hcl_primitives::ident::is_id_continue;
 
 pub(super) fn string_template(input: &mut Input) -> ModalResult<StringTemplate> {
     delimited('"', elements(build_string(quoted_string_fragment)), '"')
@@ -44,7 +47,7 @@ pub(super) fn heredoc_template<'a>(
         //
         // Handling this case via parser combinators is quite tricky and thus we'll manually add
         // the line ending to the last template element below.
-        let heredoc_end = (line_ending, space0, delim).take();
+        let heredoc_end = (line_ending, space0, delim, not(one_of(is_id_continue))).take();
         let literal_end = alt(("${", "%{", heredoc_end));
         let literal = template_literal(literal_end);
 

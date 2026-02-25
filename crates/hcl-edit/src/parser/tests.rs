@@ -174,6 +174,32 @@ fn roundtrip_template() {
 }
 
 #[test]
+fn heredoc_prefix_delimiter() {
+    // Empty heredoc (non-indented) followed by heredoc with prefix-sharing delimiter.
+    let input = "a = <<EOF\nEOF\nb = <<EOFTF\ncontent\nEOFTF\n";
+    assert_roundtrip!(input, body);
+
+    // Non-empty indented heredoc followed by heredoc with prefix-sharing delimiter.
+    let input = indoc! {r#"
+        a = <<-EOF
+          hello
+          EOF
+        b = <<-EOFTF
+          world
+          EOFTF
+    "#};
+    assert_roundtrip!(input, body);
+
+    // Non-empty non-indented heredoc followed by heredoc with prefix-sharing delimiter.
+    let input = "a = <<EOF\nhello\nEOF\nb = <<EOFTF\nworld\nEOFTF\n";
+    assert_roundtrip!(input, body);
+
+    // Empty indented heredoc followed by prefix-sharing delimiter parses successfully.
+    let input = "a = <<-EOF\nEOF\nb = <<-EOFTF\ncontent\nEOFTF\n";
+    parse_complete(input, body).expect("should parse empty <<-EOF followed by <<-EOFTF");
+}
+
+#[test]
 fn invalid_exprs() {
     let inputs = [
         "{ , }",
