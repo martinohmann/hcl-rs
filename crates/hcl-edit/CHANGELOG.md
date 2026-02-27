@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.4...hcl-edit-v0.9.5) - 2026-02-27
+
+### Fixed
+
+- prevent heredoc delimiter prefix matching against longer identifiers ([#512](https://github.com/martinohmann/hcl-rs/pull/512))
+
 ## [0.9.4](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.3...hcl-edit-v0.9.4) - 2026-02-08
 
 ### Fixed

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.19.6](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.5...hcl-rs-v0.19.6) - 2026-02-27
+
+### Fixed
+
+- *(hcl-rs)* preserve commas in compact objects with nested collections ([#515](https://github.com/martinohmann/hcl-rs/pull/515))
+
 ## [0.19.5](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.4...hcl-rs-v0.19.5) - 2026-02-08
 
 ### Other
