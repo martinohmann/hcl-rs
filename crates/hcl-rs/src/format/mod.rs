@@ -180,6 +180,7 @@ pub struct Formatter<'a, W> {
     current_indent: usize,
     has_value: bool,
     compact_mode_level: u64,
+    nesting_state: Vec<(bool, bool)>,
 }
 
 /// A builder to create a `Formatter`.
@@ -319,6 +320,7 @@ impl<'a> FormatterBuilder<'a> {
             current_indent: 0,
             has_value: false,
             compact_mode_level: 0,
+            nesting_state: Vec::new(),
         }
     }
 
@@ -478,6 +480,8 @@ where
 
     /// Signals the start of an array to the formatter.
     fn begin_array(&mut self) -> Result<()> {
+        self.nesting_state
+            .push((self.first_element, self.has_value));
         if !self.compact_arrays() {
             self.current_indent += 1;
         }
@@ -521,11 +525,18 @@ where
             }
         }
 
-        self.write_bytes(b"]")
+        let result = self.write_bytes(b"]");
+        if let Some((first_element, has_value)) = self.nesting_state.pop() {
+            self.first_element = first_element;
+            self.has_value = has_value;
+        }
+        result
     }
 
     /// Signals the start of an object to the formatter.
     fn begin_object(&mut self) -> Result<()> {
+        self.nesting_state
+            .push((self.first_element, self.has_value));
         if !self.compact_objects() {
             self.current_indent += 1;
         }
@@ -579,7 +590,12 @@ where
             }
         }
 
-        self.write_bytes(b"}")
+        let result = self.write_bytes(b"}");
+        if let Some((first_element, has_value)) = self.nesting_state.pop() {
+            self.first_element = first_element;
+            self.has_value = has_value;
+        }
+        result
     }
 
     /// Signals the start of an attribute to the formatter.
