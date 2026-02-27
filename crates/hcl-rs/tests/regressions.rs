@@ -262,3 +262,16 @@ fn issue_344() {
     assert!(hcl::to_string(&value).is_err());
     assert!(hcl::to_string(&Expression::from_iter(value)).is_err());
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/514
+#[test]
+fn nested_collection_in_compact_object_roundtrip() {
+    let input = r#"variable "nested_list" {
+  type = object({ scopes = optional(list(string), []), path = string })
+}
+"#;
+
+    let deserialized: Body = hcl::from_str(input).expect("Failed to deserialize");
+    let serialized = hcl::format::to_string(&deserialized).expect("Failed to serialize");
+    assert_eq!(input, serialized);
+}
