@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.5...hcl-edit-v0.9.6) - 2026-04-01
+
+### Fixed
+
+- *(deps)* update rust crate winnow to v1 ([#530](https://github.com/martinohmann/hcl-rs/pull/530))
+
 ## [0.9.5](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.4...hcl-edit-v0.9.5) - 2026-02-27
 
 ### Fixed
