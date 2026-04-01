@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
       - name: Crates.io Auth
         uses: rust-lang/crates-io-auth-action@e919bc7605cde86df457cf5b93c5e103838bd879 # v1
