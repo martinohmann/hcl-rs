@@ -340,3 +340,17 @@ fn issue_452() {
 fn issue_457() {
     assert!(hcl_edit::parser::parse_expr("").is_err());
 }
+
+// The string literal "-9223372036854775808" (i64's minimum value) is parsed
+// into an intermediate value that caused a panic before it could be converted
+// into its valid final value (i64::MIN).
+// That intermediate value (i.e., 9,223,372,036,854,775,808) is one larger than
+// the biggest positive i64 (i.e., 9,223,372,036,854,775,807).
+#[test]
+fn parse_i64_min_literal() {
+    let input = "-9223372036854775808";
+
+    let parsed: Expression = input.parse().unwrap();
+    let expected = Expression::from(i64::MIN);
+    assert_eq!(expected, parsed);
+}

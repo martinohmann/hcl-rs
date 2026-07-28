@@ -166,6 +166,7 @@ impl Neg for N {
 
     fn neg(self) -> Self::Output {
         match self {
+            N::PosInt(value) if value == i64::MIN.unsigned_abs() => N::NegInt(i64::MIN),
             #[allow(clippy::cast_possible_wrap)]
             N::PosInt(value) => N::NegInt(-(value as i64)),
             N::NegInt(value) => N::from(-value),
@@ -497,6 +498,7 @@ mod tests {
         assert_op!(-int!(1u64), int!(-1i64), is_i64);
         assert_op!(-float!(1.5), float!(-1.5), is_f64);
         assert_op!(-float!(1.0), int!(-1i64), is_i64);
+        assert_op!(-int!(9_223_372_036_854_775_808u64), int!(i64::MIN), is_i64);
     }
 
     #[test]
