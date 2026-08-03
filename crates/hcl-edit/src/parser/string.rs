@@ -7,6 +7,7 @@ use crate::{Decorated, Ident, RawString};
 use hcl_primitives::ident::{is_id_continue, is_id_start};
 use std::borrow::Cow;
 use winnow::combinator::{alt, cut_err, delimited, empty, fail, not, opt, preceded, repeat};
+use winnow::error::ErrMode;
 use winnow::token::{any, one_of, take, take_while};
 
 pub(super) fn string(input: &mut Input) -> ModalResult<String> {
@@ -39,7 +40,10 @@ where
                     StringFragment::EscapedChar(c) => string.to_mut().push(c),
                     StringFragment::EscapedMarker(m) => string.to_mut().push_str(m.unescape()),
                 },
-                Err(_) => return Ok(string),
+                // A backtrack marks the end of the string; a cut (e.g. an invalid escape
+                // sequence) must surface instead of being silently dropped.
+                Err(ErrMode::Backtrack(_)) => return Ok(string),
+                Err(err) => return Err(err),
             }
         }
     }
