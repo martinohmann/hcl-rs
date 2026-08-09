@@ -216,3 +216,45 @@ fn invalid_exprs() {
         );
     }
 }
+
+#[test]
+fn valid_escape_sequences() {
+    let tests = [
+        (r#""a\nb""#, "a\nb"),
+        (r#""a\rb""#, "a\rb"),
+        (r#""a\tb""#, "a\tb"),
+        (r#""a\\b""#, "a\\b"),
+        (r#""a\"b""#, "a\"b"),
+        (r#""a\u2665b""#, "a\u{2665}b"),
+        (r#""a\U0001f600b""#, "a\u{1f600}b"),
+    ];
+
+    for (input, expected) in tests {
+        let parsed = parse_complete(input, expr).unwrap();
+        assert_eq!(parsed.as_str(), Some(expected), "input: `{input}`");
+    }
+}
+
+#[test]
+fn invalid_escape_sequences() {
+    // An invalid escape selector must raise a parse error rather than silently
+    // dropping the escaped character. The leading-literal cases regress the
+    // variant where the invalid escape reaches the string-building loop.
+    let inputs = [
+        r#""\q""#,
+        r#""pre\qpost""#,
+        r#""z\ay""#,
+        r#""\x41""#,
+        r#""\0""#,
+        r#""\v""#,
+        r#""\'""#,
+        r#""\e""#,
+    ];
+
+    for input in inputs {
+        assert!(
+            parse_complete(input, expr).is_err(),
+            "expected invalid escape sequence to be rejected: `{input}`",
+        );
+    }
+}
