@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.6...hcl-edit-v0.9.7) - 2026-08-09
+
+### Fixed
+
+- reject invalid string escapes instead of silently dropping them ([#559](https://github.com/martinohmann/hcl-rs/pull/559))
+
+### Other
+
+- Handle parsing the i64's min value literal (i.e., "-9223372036854775808") correctly ([#549](https://github.com/martinohmann/hcl-rs/pull/549))
+
 ## [0.9.6](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.5...hcl-edit-v0.9.6) - 2026-04-01
 
 ### Fixed

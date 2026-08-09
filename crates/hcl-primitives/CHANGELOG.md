@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.12](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.11...hcl-primitives-v0.1.12) - 2026-08-09
+
+### Other
+
+- Handle parsing the i64's min value literal (i.e., "-9223372036854775808") correctly ([#549](https://github.com/martinohmann/hcl-rs/pull/549))
+
 ## [0.1.11](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.10...hcl-primitives-v0.1.11) - 2025-10-04
 
 ### Fixed
