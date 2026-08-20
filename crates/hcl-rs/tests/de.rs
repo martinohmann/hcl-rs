@@ -141,6 +141,12 @@ fn duplicate_attribute() {
 }
 
 #[test]
+fn duplicate_object_key() {
+    let input = r#"foo = { bar = "baz", bar = 1 }"#;
+    assert!(hcl::from_str::<Value>(input).is_err());
+}
+
+#[test]
 fn duplicate_attribute_and_block() {
     let input = r#"
         foo = ["bar"]

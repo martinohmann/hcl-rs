@@ -500,7 +500,19 @@ fn object_items<'i>(
                 return Ok(());
             }
 
+            let checkpoint = input.checkpoint();
             let mut key = object_key(input)?;
+
+            if object.contains_key(&key) {
+                input.reset(&checkpoint);
+                return cut_err(fail)
+                    .context(StrContext::Label("object item"))
+                    .context(StrContext::Expected(StrContextValue::Description(
+                        "unique object key; found redefined object key",
+                    )))
+                    .parse_next(input);
+            }
+
             let mut value = object_value(input)?;
             key.decor_mut().set_prefix(trailing);
 
