@@ -162,3 +162,43 @@ fn invalid_exprs() {
               = invalid expression; expected `"`, `[`, `{`, `-`, `!`, `(`, `_`, `<`, letter or digit"#}
     );
 }
+
+#[test]
+fn redefined_object_keys() {
+    assert_error!(
+        "ident = { foo = 1, foo = 2 }",
+        indoc! {r#"
+             --> HCL parse error in line 1, column 20
+              |
+            1 | ident = { foo = 1, foo = 2 }
+              |                    ^---
+              |
+              = invalid object item; expected unique object key; found redefined object key"#}
+    );
+
+    assert_error!(
+        "ident = { \"foo\" = 1, \"foo\" = 2 }",
+        indoc! {r#"
+             --> HCL parse error in line 1, column 22
+              |
+            1 | ident = { "foo" = 1, "foo" = 2 }
+              |                      ^---
+              |
+              = invalid object item; expected unique object key; found redefined object key"#}
+    );
+
+    assert_error!(
+        indoc! {r#"
+            ident = {
+              foo = 1
+              foo = 2
+            }"#},
+        indoc! {r#"
+             --> HCL parse error in line 3, column 3
+              |
+            3 |   foo = 2
+              |   ^---
+              |
+              = invalid object item; expected unique object key; found redefined object key"#}
+    );
+}
