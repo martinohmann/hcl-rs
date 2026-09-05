@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.8](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.7...hcl-edit-v0.9.8) - 2026-09-05
+
+### Fixed
+
+- *(hcl-edit)* error on redefined object keys during parsing ([#562](https://github.com/martinohmann/hcl-rs/pull/562))
+
 ## [0.9.7](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.6...hcl-edit-v0.9.7) - 2026-08-09
 
 ### Fixed
