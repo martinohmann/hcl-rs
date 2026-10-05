@@ -2,6 +2,7 @@
 
 mod error;
 mod expr;
+mod nesting;
 mod number;
 mod pratt;
 mod repr;
@@ -14,7 +15,7 @@ mod tests;
 mod trivia;
 
 pub use self::error::{Error, Location};
-use self::expr::expr;
+use self::expr::root_expr;
 use self::structure::body;
 use self::template::template;
 use crate::expr::Expression;
@@ -26,7 +27,18 @@ mod prelude {
     pub(super) use winnow::stream::Stream;
     pub(super) use winnow::{dispatch, ModalParser, ModalResult, Parser};
 
-    pub(super) type Input<'a> = winnow::stream::LocatingSlice<&'a str>;
+    pub(super) type Input<'a> =
+        winnow::stream::Stateful<winnow::stream::LocatingSlice<&'a str>, NestingState>;
+
+    use super::nesting::NestingState;
+
+    /// Creates a new parser input from `s`.
+    pub(super) fn new_input(s: &str) -> Input<'_> {
+        Input {
+            input: winnow::stream::LocatingSlice::new(s),
+            state: NestingState::default(),
+        }
+    }
 }
 
 use self::prelude::*;
@@ -48,7 +60,7 @@ pub fn parse_body(input: &str) -> Result<Body, Error> {
 ///
 /// Returns an error if the input does not resemble a valid HCL expression.
 pub fn parse_expr(input: &str) -> Result<Expression, Error> {
-    let mut expr = parse_complete(input, expr)?;
+    let mut expr = parse_complete(input, root_expr)?;
     expr.despan(input);
     Ok(expr)
 }
@@ -68,7 +80,7 @@ fn parse_complete<'a, P, O>(input: &'a str, mut parser: P) -> Result<O, Error>
 where
     P: ModalParser<Input<'a>, O, ContextError>,
 {
-    let input = Input::new(input);
+    let input = new_input(input);
 
     parser
         .parse(input)

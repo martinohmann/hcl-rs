@@ -92,17 +92,17 @@ mod tests {
         ];
 
         for input in inline_comments {
-            let parsed = sp.parse(Input::new(input));
+            let parsed = sp.parse(new_input(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
         }
 
         for input in multiline_comments {
-            let parsed = sp.parse(Input::new(input));
+            let parsed = sp.parse(new_input(input));
             assert!(parsed.is_err(), "expected parse error for `{input}`");
         }
 
         for input in inline_comments.iter().chain(multiline_comments.iter()) {
-            let parsed = ws.parse(Input::new(input));
+            let parsed = ws.parse(new_input(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
         }
     }

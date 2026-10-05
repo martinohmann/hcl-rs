@@ -1,6 +1,7 @@
 use super::prelude::*;
 
 use super::expr::{expr, multiline_expr};
+use super::nesting::nested;
 use super::repr::{decorated, spanned};
 use super::string::{
     build_string, cut_char, cut_ident, cut_tag, quoted_string_fragment, raw_string,
@@ -122,7 +123,7 @@ fn if_directive(input: &mut Input) -> ModalResult<IfDirective> {
             "%{",
             (terminated(raw_string(ws), "if"), decorated(ws, expr, ws)),
         ),
-        spanned(template),
+        spanned(nested(template)),
     )
         .map(|(((preamble, cond_expr), strip), template)| {
             let mut expr = IfTemplateExpr::new(cond_expr, template);
@@ -133,7 +134,7 @@ fn if_directive(input: &mut Input) -> ModalResult<IfDirective> {
 
     let else_expr = (
         control("%{", separated_pair(raw_string(ws), "else", raw_string(ws))),
-        spanned(template),
+        spanned(nested(template)),
     )
         .map(|(((preamble, trailing), strip), template)| {
             let mut expr = ElseTemplateExpr::new(template);
@@ -171,7 +172,7 @@ fn for_directive(input: &mut Input) -> ModalResult<ForDirective> {
                 preceded(cut_tag("in"), decorated(ws, expr, ws)),
             ),
         ),
-        spanned(template),
+        spanned(nested(template)),
     )
         .map(
             |(((preamble, key_var, value_var, collection_expr), strip), template)| {
