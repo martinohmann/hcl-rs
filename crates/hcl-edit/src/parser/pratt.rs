@@ -12,9 +12,15 @@ pub(super) enum BinaryOpToken {
 #[inline]
 pub(super) fn parse_binary_op(tokens: Vec<BinaryOpToken>) -> Expression {
     debug_assert!(!tokens.is_empty());
-    BinaryOpParser
-        .parse(tokens.into_iter())
-        .expect("BinaryOpParser cannot fail")
+    let mut tokens = tokens.into_iter().peekable();
+    let expr = BinaryOpParser
+        .parse_peekable(&mut tokens)
+        .expect("BinaryOpParser cannot fail");
+    debug_assert!(
+        tokens.peek().is_none(),
+        "unconsumed binary operation tokens"
+    );
+    expr
 }
 
 /// A Pratt parser for operator precedence resolution.
@@ -32,23 +38,9 @@ where
         match token {
             BinaryOpToken::Operator(operator) => {
                 let precedence = u32::from(operator.precedence());
-                let associativity = match **operator {
-                    BinaryOperator::Eq
-                    | BinaryOperator::NotEq
-                    | BinaryOperator::LessEq
-                    | BinaryOperator::GreaterEq
-                    | BinaryOperator::Less
-                    | BinaryOperator::Greater => Associativity::Neither,
-                    BinaryOperator::Plus
-                    | BinaryOperator::Minus
-                    | BinaryOperator::Mul
-                    | BinaryOperator::Div
-                    | BinaryOperator::Mod
-                    | BinaryOperator::And
-                    | BinaryOperator::Or => Associativity::Left,
-                };
-
-                Ok(Affix::Infix(Precedence(precedence), associativity))
+                // All binary operators within the same precedence level have left-to-right
+                // associativity, including comparison operators.
+                Ok(Affix::Infix(Precedence(precedence), Associativity::Left))
             }
             BinaryOpToken::Expression(_) => Ok(Affix::Nilfix),
         }
