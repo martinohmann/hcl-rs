@@ -354,3 +354,22 @@ fn parse_i64_min_literal() {
     let expected = Expression::from(i64::MIN);
     assert_eq!(expected, parsed);
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/548
+#[test]
+fn issue_548() {
+    // `\b`, `\f` and `\/` are JSON escapes which are not part of the HCL spec.
+    assert_err!(r#"a = "\b""#);
+    assert_err!(r#"a = "\f""#);
+    assert_err!(r#"a = "\/""#);
+
+    // Backspace and form feed must be encoded using unicode escapes so that the encoded output
+    // can be parsed again.
+    let expr = Expression::from("a\u{8}b\u{c}c");
+
+    let encoded = expr.to_string();
+    assert_eq!(encoded, r#""a\u0008b\u000cc""#);
+
+    let parsed: Expression = encoded.parse().unwrap();
+    assert_eq!(parsed, expr);
+}

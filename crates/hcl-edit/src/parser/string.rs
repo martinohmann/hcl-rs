@@ -142,17 +142,12 @@ fn escaped_char(input: &mut Input) -> ModalResult<char> {
         't' => empty.value('\t'),
         '\\' => empty.value('\\'),
         '"' => empty.value('"'),
-        '/' => empty.value('/'),
-        'b' => empty.value('\u{08}'),
-        'f' => empty.value('\u{0C}'),
         'u' => cut_err(hexescape::<4>)
             .context(StrContext::Label("unicode 4-digit hex code")),
         'U' => cut_err(hexescape::<8>)
             .context(StrContext::Label("unicode 8-digit hex code")),
         _ => cut_err(fail)
             .context(StrContext::Label("escape sequence"))
-            .context(StrContext::Expected(StrContextValue::CharLiteral('b')))
-            .context(StrContext::Expected(StrContextValue::CharLiteral('f')))
             .context(StrContext::Expected(StrContextValue::CharLiteral('n')))
             .context(StrContext::Expected(StrContextValue::CharLiteral('r')))
             .context(StrContext::Expected(StrContextValue::CharLiteral('t')))

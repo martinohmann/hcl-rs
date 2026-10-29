@@ -275,3 +275,24 @@ fn nested_collection_in_compact_object_roundtrip() {
     let serialized = hcl::format::to_string(&deserialized).expect("Failed to serialize");
     assert_eq!(input, serialized);
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/548
+#[test]
+fn issue_548() {
+    // `\b`, `\f` and `\/` are JSON escapes which are not part of the HCL spec.
+    assert!(hcl::from_str::<Value>(r#"a = "\b""#).is_err());
+    assert!(hcl::from_str::<Value>(r#"a = "\f""#).is_err());
+    assert!(hcl::from_str::<Value>(r#"a = "\/""#).is_err());
+
+    // Backspace and form feed must be encoded using unicode escapes so that the formatted output
+    // can be parsed again.
+    let body = Body::builder()
+        .add_attribute(("a", "a\u{8}b\u{c}c"))
+        .build();
+
+    let formatted = hcl::format::to_string(&body).unwrap();
+    assert_eq!(formatted, "a = \"a\\u0008b\\u000cc\"\n");
+
+    let parsed: Body = hcl::from_str(&formatted).unwrap();
+    assert_eq!(parsed, body);
+}
