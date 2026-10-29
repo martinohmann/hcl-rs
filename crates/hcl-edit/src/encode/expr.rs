@@ -7,6 +7,7 @@ use crate::expr::{
     FuncCall, FuncName, Null, Object, ObjectKey, ObjectValue, ObjectValueAssignment,
     ObjectValueTerminator, Parenthesis, Splat, Traversal, TraversalOperator, UnaryOp,
 };
+use hcl_primitives::ident::is_valid_object_key;
 use std::fmt::{self, Write};
 
 impl Encode for Null {
@@ -96,6 +97,11 @@ impl Encode for Object {
 impl EncodeDecorated for ObjectKey {
     fn encode_decorated(&self, buf: &mut EncodeState, default_decor: (&str, &str)) -> fmt::Result {
         match self {
+            ObjectKey::Ident(ident) if !is_valid_object_key(ident) => {
+                encode_decorated(ident, buf, default_decor, |buf| {
+                    encode_quoted_string(buf, ident)
+                })
+            }
             ObjectKey::Ident(ident) => ident.encode_decorated(buf, default_decor),
             ObjectKey::Expression(expr) => expr.encode_decorated(buf, default_decor),
         }

@@ -1,7 +1,9 @@
-use hcl_edit::expr::{BinaryOp, BinaryOperator, Conditional, Expression};
+use hcl_edit::expr::{
+    BinaryOp, BinaryOperator, Conditional, Expression, Object, ObjectKey, ObjectValue,
+};
 use hcl_edit::structure::{Attribute, Block, Body, Structure};
 use hcl_edit::template::{Element, Interpolation, Template};
-use hcl_edit::{Ident, Span};
+use hcl_edit::{Decorate, Decorated, Ident, Span};
 use pretty_assertions::assert_eq;
 
 macro_rules! assert_ok {
@@ -372,4 +374,36 @@ fn issue_548() {
 
     let parsed: Expression = encoded.parse().unwrap();
     assert_eq!(parsed, expr);
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/567
+#[test]
+fn issue_567() {
+    for key in ["true", "false", "null", "for"] {
+        let mut object = Object::new();
+        object.insert(
+            ObjectKey::Ident(Decorated::new(Ident::new(key))),
+            ObjectValue::new(1),
+        );
+        let expr = Expression::Object(object);
+
+        let encoded = expr.to_string();
+        assert_eq!(encoded, format!("{{\"{key}\" = 1,}}"));
+
+        let parsed: Expression = encoded.parse().unwrap();
+        let mut expected = Object::new();
+        expected.insert(ObjectKey::Expression(key.into()), ObjectValue::new(1));
+        assert_eq!(parsed, Expression::Object(expected));
+    }
+
+    // Decor of keyword keys is preserved.
+    let mut key = Decorated::new(Ident::new("for"));
+    key.decor_mut().set_prefix("  ");
+    key.decor_mut().set_suffix(" /* c */ ");
+    let mut object = Object::new();
+    object.insert(ObjectKey::Ident(key), ObjectValue::new(1));
+    assert_eq!(
+        Expression::Object(object).to_string(),
+        "{  \"for\" /* c */ = 1,}"
+    );
 }

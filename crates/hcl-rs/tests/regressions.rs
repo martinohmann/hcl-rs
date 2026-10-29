@@ -296,3 +296,43 @@ fn issue_548() {
     let parsed: Body = hcl::from_str(&formatted).unwrap();
     assert_eq!(parsed, body);
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/567
+#[test]
+fn issue_567() {
+    for key in ["true", "false", "null", "for"] {
+        let mut object = Object::new();
+        object.insert(
+            ObjectKey::Identifier(Identifier::new(key).unwrap()),
+            1.into(),
+        );
+        let body = Body::builder()
+            .add_attribute(("o", Expression::Object(object)))
+            .build();
+
+        let formatted = hcl::format::to_string(&body).unwrap();
+        assert_eq!(formatted, format!("o = {{\n  \"{key}\" = 1\n}}\n"));
+
+        let expected: Value = hcl::from_body(body).unwrap();
+        let parsed: Value = hcl::from_str(&formatted).unwrap();
+        assert_eq!(parsed, expected);
+
+        // String keys must not be emitted as bare keywords when identifier keys are preferred.
+        let mut object = Object::new();
+        object.insert(ObjectKey::from(key), 1.into());
+        let body = Body::builder()
+            .add_attribute(("o", Expression::Object(object)))
+            .build();
+
+        let mut buf = Vec::new();
+        let mut formatter = hcl::format::Formatter::builder()
+            .prefer_ident_keys(true)
+            .build(&mut buf);
+        hcl::format::Format::format(&body, &mut formatter).unwrap();
+        let formatted = String::from_utf8(buf).unwrap();
+        assert_eq!(formatted, format!("o = {{\n  \"{key}\" = 1\n}}\n"));
+
+        let parsed: Body = hcl::from_str(&formatted).unwrap();
+        assert_eq!(parsed, body);
+    }
+}
