@@ -26,6 +26,62 @@ fn number_expr() {
 }
 
 #[test]
+fn neg_number_expr() {
+    let tests = [
+        ("-9223372036854775808", Number::from(i64::MIN)),
+        (
+            "-9223372036854775809",
+            Number::from_f64(-9_223_372_036_854_775_809.0).unwrap(),
+        ),
+        (
+            "-18446744073709551615",
+            Number::from_f64(-18_446_744_073_709_551_615.0).unwrap(),
+        ),
+        (
+            "-18446744073709551616",
+            Number::from_f64(-18_446_744_073_709_551_616.0).unwrap(),
+        ),
+        (
+            "-100000000000000000000000000000",
+            Number::from_f64(-1e29).unwrap(),
+        ),
+    ];
+
+    for (input, expected) in tests {
+        let parsed = parse_complete(input, expr).unwrap();
+        let Expression::Number(num) = parsed else {
+            panic!("expected number expression for `{input}`, got {parsed:?}");
+        };
+        assert_eq!(*num.value(), expected, "unexpected value for `{input}`");
+        assert!(
+            num.value().as_f64().unwrap() < 0.0,
+            "`{input}` must be negative"
+        );
+    }
+}
+
+#[test]
+fn large_number_expr() {
+    let parsed = parse_complete("18446744073709551616", expr).unwrap();
+    let expected = Expression::Number(Formatted::new(
+        Number::from_f64(18_446_744_073_709_551_616.0).unwrap(),
+    ));
+    assert_eq!(parsed, expected);
+    assert!(parsed.as_number().unwrap().is_f64());
+}
+
+#[test]
+fn large_number_roundtrip() {
+    for input in [
+        "a = 18446744073709551616\n",
+        "a = -18446744073709551616\n",
+        "a = 100000000000000000000000000000\n",
+    ] {
+        assert_roundtrip!(input, body);
+    }
+}
+
+#[test]
 fn binary_ops() {
     use BinaryOperator::*;
 

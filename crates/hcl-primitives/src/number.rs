@@ -39,7 +39,12 @@ enum N {
 }
 
 impl N {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn from_finite_f64(value: f64) -> N {
+        // Bounds for integral floats that can be converted to `i64` or `u64` without saturating.
+        const I64_MIN: f64 = -9_223_372_036_854_775_808.0;
+        const U64_MAX_EXCLUSIVE: f64 = 18_446_744_073_709_551_616.0;
+
         debug_assert!(value.is_finite());
 
         #[cfg(feature = "std")]
@@ -50,9 +55,10 @@ impl N {
         #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
         let no_fraction = value - (value as i64 as f64) == 0.0;
 
-        if no_fraction {
-            #[allow(clippy::cast_possible_truncation)]
-            N::from(value as i64)
+        if no_fraction && (I64_MIN..0.0).contains(&value) {
+            N::NegInt(value as i64)
+        } else if no_fraction && (0.0..U64_MAX_EXCLUSIVE).contains(&value) {
+            N::PosInt(value as u64)
         } else {
             N::Float(value)
         }
@@ -166,10 +172,14 @@ impl Neg for N {
 
     fn neg(self) -> Self::Output {
         match self {
+            N::PosInt(0) => N::PosInt(0),
             N::PosInt(value) if value == i64::MIN.unsigned_abs() => N::NegInt(i64::MIN),
             #[allow(clippy::cast_possible_wrap)]
-            N::PosInt(value) => N::NegInt(-(value as i64)),
-            N::NegInt(value) => N::from(-value),
+            N::PosInt(value) if value < i64::MIN.unsigned_abs() => N::NegInt(-(value as i64)),
+            // The negated value does not fit into an `i64`, fall back to a float.
+            #[allow(clippy::cast_precision_loss)]
+            N::PosInt(value) => N::Float(-(value as f64)),
+            N::NegInt(value) => N::PosInt(value.unsigned_abs()),
             N::Float(value) => N::Float(-value),
         }
     }
@@ -499,6 +509,33 @@ mod tests {
         assert_op!(-float!(1.5), float!(-1.5), is_f64);
         assert_op!(-float!(1.0), int!(-1i64), is_i64);
         assert_op!(-int!(9_223_372_036_854_775_808u64), int!(i64::MIN), is_i64);
+        assert_op!(-int!(0u64), int!(0u64), is_u64);
+        assert_op!(-int!(i64::MIN), int!(9_223_372_036_854_775_808u64), is_u64);
+        assert_op!(
+            -int!(9_223_372_036_854_775_809u64),
+            float!(-9_223_372_036_854_775_809.0),
+            is_f64
+        );
+        assert_op!(
+            -int!(u64::MAX),
+            float!(-18_446_744_073_709_551_615.0),
+            is_f64
+        );
+    }
+
+    #[test]
+    fn from_finite_f64_out_of_integer_range() {
+        assert_op!(float!(1e20), float!(1e20), is_f64);
+        assert_op!(float!(-1e20), float!(-1e20), is_f64);
+        assert_ne!(float!(1e20), int!(u64::MAX));
+        assert_ne!(float!(-1e20), int!(i64::MIN));
+        assert_op!(float!(-0.0), int!(0u64), is_u64);
+        assert_op!(
+            float!(9_223_372_036_854_775_808.0),
+            int!(1u64 << 63),
+            is_u64
+        );
+        assert_op!(float!(-9_223_372_036_854_775_808.0), int!(i64::MIN), is_i64);
     }
 
     #[test]
