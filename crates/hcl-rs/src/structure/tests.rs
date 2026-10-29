@@ -1,6 +1,6 @@
 use super::{Block, Body};
 use crate::expr::{Heredoc, HeredocStripMode, TemplateExpr, Traversal, Variable};
-use crate::{value, Identifier, Value};
+use crate::{Identifier, Value};
 use pretty_assertions::assert_eq;
 
 #[test]
