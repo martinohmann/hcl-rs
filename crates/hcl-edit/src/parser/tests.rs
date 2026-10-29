@@ -53,6 +53,31 @@ fn binary_ops() {
                 Parenthesis::new(BinaryOp::new(2, Div, 3).into()),
             ),
         ),
+        // Comparison operators are left-associative like all other binary operators.
+        (
+            "1 == 1 == true",
+            BinaryOp::new(BinaryOp::new(1, Eq, 1), Eq, true),
+        ),
+        (
+            "1 != 2 == true",
+            BinaryOp::new(BinaryOp::new(1, NotEq, 2), Eq, true),
+        ),
+        (
+            "1 < 2 < 3",
+            BinaryOp::new(BinaryOp::new(1, Less, 2), Less, 3),
+        ),
+        (
+            "1 <= 2 >= 3 > 4",
+            BinaryOp::new(
+                BinaryOp::new(BinaryOp::new(1, LessEq, 2), GreaterEq, 3),
+                Greater,
+                4,
+            ),
+        ),
+        (
+            "1 < 2 == 3 > 4",
+            BinaryOp::new(BinaryOp::new(1, Less, 2), Eq, BinaryOp::new(3, Greater, 4)),
+        ),
     ];
 
     for (given, expected) in tests {
@@ -74,6 +99,8 @@ fn roundtrip_expr() {
         "1.0000E10",
         "42",
         "var.enabled ? 1 : 0",
+        "1 == 1 == true",
+        "1 < 2 < 3 != false",
         r#"["bar", ["baz"]]"#,
         "[1,]",
         r#"[format("prefix-%s", var.foo)]"#,

@@ -39,6 +39,26 @@ fn eval_binary_op() {
 }
 
 #[test]
+fn eval_chained_comparisons() {
+    use BinaryOperator::*;
+
+    // Comparison operators are left-associative, e.g. `1 == 2 == false` is `(1 == 2) == false`.
+    let parse = |input: &str| input.parse::<Expression>().unwrap();
+
+    assert_eval(parse("1 == 1 == true"), Value::from(true));
+    assert_eval(parse("1 == 2 == false"), Value::from(true));
+    assert_eval(parse("1 != 1 != true"), Value::from(true));
+    assert_eval(parse("1 < 2 == 3 > 4"), Value::from(false));
+
+    // `(1 < 2) < 3` compares a boolean with a number.
+    let err = parse("1 < 2 < 3").evaluate(&Context::new()).unwrap_err();
+    assert_eq!(
+        err.kind(),
+        &ErrorKind::BinaryOp(Value::from(true), Less, Value::from(3))
+    );
+}
+
+#[test]
 fn eval_conditional() {
     assert_eval(Conditional::new(true, "yes", "no"), Value::from("yes"));
     assert_eval(Conditional::new(false, "yes", "no"), Value::from("no"));
