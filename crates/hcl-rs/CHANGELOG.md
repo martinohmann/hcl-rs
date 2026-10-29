@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.10](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.9...hcl-rs-v0.19.10) - 2026-10-29
+
+### Fixed
+
+- *(hcl-edit)* limit nesting depth during parsing ([#571](https://github.com/martinohmann/hcl-rs/pull/571))
+- *(hcl-edit)* parse chained comparison operators left-associatively ([#569](https://github.com/martinohmann/hcl-rs/pull/569))
+
 ## [0.19.9](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.8...hcl-rs-v0.19.9) - 2026-09-05
 
 ### Fixed
