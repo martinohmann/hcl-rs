@@ -196,7 +196,7 @@ fn format_context_error(err: &ContextError) -> String {
         match expected.len() {
             0 => {}
             1 => {
-                _ = write!(buf, "{}", &expected[0]);
+                _ = write!(buf, "{}", expected[0]);
             }
             n => {
                 for (i, expected) in expected.iter().enumerate() {

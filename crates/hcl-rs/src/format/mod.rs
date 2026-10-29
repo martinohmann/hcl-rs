@@ -779,7 +779,7 @@ where
     T: ?Sized + Format,
 {
     let mut formatter = Formatter::builder().compact(true).build_vec();
-    formatter.writer.extend([b'$', b'{']);
+    formatter.writer.extend(*b"${");
     let mut string = value.format_string(&mut formatter)?;
     string.push('}');
     Ok(string)
