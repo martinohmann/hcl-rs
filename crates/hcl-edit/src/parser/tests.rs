@@ -277,6 +277,11 @@ fn invalid_escape_sequences() {
         r#""\v""#,
         r#""\'""#,
         r#""\e""#,
+        // JSON-only escapes which are not part of the HCL spec.
+        r#""\b""#,
+        r#""\f""#,
+        r#""\/""#,
+        r#""pre\bpost""#,
     ];
 
     for input in inputs {
