@@ -26,6 +26,33 @@ fn number_expr() {
 }
 
 #[test]
+fn neg_number_expr() {
+    let tests = [
+        ("-9223372036854775808", Number::from(i64::MIN)),
+        (
+            "-9223372036854775809",
+            Number::from_f64(-9_223_372_036_854_775_809.0).unwrap(),
+        ),
+        (
+            "-18446744073709551615",
+            Number::from_f64(-18_446_744_073_709_551_615.0).unwrap(),
+        ),
+    ];
+
+    for (input, expected) in tests {
+        let parsed = parse_complete(input, expr).unwrap();
+        let Expression::Number(num) = parsed else {
+            panic!("expected number expression for `{input}`, got {parsed:?}");
+        };
+        assert_eq!(*num.value(), expected, "unexpected value for `{input}`");
+        assert!(
+            num.value().as_f64().unwrap() < 0.0,
+            "`{input}` must be negative"
+        );
+    }
+}
+
+#[test]
 fn binary_ops() {
     use BinaryOperator::*;
 
