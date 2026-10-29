@@ -516,7 +516,11 @@ mod tests {
             float!(-9_223_372_036_854_775_809.0),
             is_f64
         );
-        assert_op!(-int!(u64::MAX), float!(-18_446_744_073_709_551_615.0), is_f64);
+        assert_op!(
+            -int!(u64::MAX),
+            float!(-18_446_744_073_709_551_615.0),
+            is_f64
+        );
     }
 
     #[test]
@@ -526,7 +530,11 @@ mod tests {
         assert_ne!(float!(1e20), int!(u64::MAX));
         assert_ne!(float!(-1e20), int!(i64::MIN));
         assert_op!(float!(-0.0), int!(0u64), is_u64);
-        assert_op!(float!(9_223_372_036_854_775_808.0), int!(1u64 << 63), is_u64);
+        assert_op!(
+            float!(9_223_372_036_854_775_808.0),
+            int!(1u64 << 63),
+            is_u64
+        );
         assert_op!(float!(-9_223_372_036_854_775_808.0), int!(i64::MIN), is_i64);
     }
 
