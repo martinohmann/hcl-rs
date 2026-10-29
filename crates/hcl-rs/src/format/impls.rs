@@ -9,7 +9,7 @@ use crate::template::{
 };
 use crate::util::is_templated;
 use crate::{Identifier, Number, Result, Value};
-use hcl_primitives::ident::is_ident;
+use hcl_primitives::ident::is_valid_object_key;
 use hcl_primitives::template::escape_markers;
 use std::io;
 
@@ -179,6 +179,9 @@ impl Format for ObjectKey {
         W: io::Write,
     {
         match self {
+            ObjectKey::Identifier(ident) if !is_valid_object_key(ident) => {
+                fmt.write_quoted_string_escaped(ident)
+            }
             ObjectKey::Identifier(ident) => ident.format(fmt),
             ObjectKey::Expression(Expression::String(s)) => StrKey(s).format(fmt),
             ObjectKey::Expression(expr) => expr.format(fmt),
@@ -195,7 +198,7 @@ impl Format for StrKey<'_> {
     where
         W: io::Write,
     {
-        if fmt.config.prefer_ident_keys && is_ident(self.0) {
+        if fmt.config.prefer_ident_keys && is_valid_object_key(self.0) {
             fmt.write_string_fragment(self.0)
         } else {
             fmt.write_quoted_string_escaped(self.0)

@@ -343,3 +343,31 @@ pub fn is_ident(s: &str) -> bool {
 
     is_id_start(first) && chars.all(is_id_continue)
 }
+
+/// Determines if `s` is valid as an unquoted object key.
+///
+/// A string is valid as an unquoted object key if [`is_ident`] returns `true` for it and it is
+/// not one of the keywords `true`, `false`, `null` or `for`.
+///
+/// HCL has no globally-reserved words, but when used as unquoted object keys `true`, `false`
+/// and `null` are parsed as literal values, and `for` starts a `for` expression. Object keys
+/// for which this function returns `false` must be quoted.
+///
+/// # Example
+///
+/// ```
+/// # use hcl_primitives::ident::is_valid_object_key;
+/// assert!(is_valid_object_key("foo"));
+/// assert!(is_valid_object_key("in"));
+/// assert!(is_valid_object_key("True"));
+/// assert!(!is_valid_object_key("true"));
+/// assert!(!is_valid_object_key("false"));
+/// assert!(!is_valid_object_key("null"));
+/// assert!(!is_valid_object_key("for"));
+/// assert!(!is_valid_object_key("foo bar"));
+/// assert!(!is_valid_object_key(""));
+/// ```
+#[inline]
+pub fn is_valid_object_key(s: &str) -> bool {
+    is_ident(s) && !matches!(s, "true" | "false" | "null" | "for")
+}
