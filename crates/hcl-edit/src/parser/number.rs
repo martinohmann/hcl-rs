@@ -53,7 +53,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let parsed = integer.parse(Input::new(input));
+            let parsed = integer.parse(new_input(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
             assert_eq!(parsed.unwrap(), *expected);
         }
@@ -73,7 +73,7 @@ mod tests {
         ];
 
         for (input, expected) in tests {
-            let parsed = float.parse(Input::new(input));
+            let parsed = float.parse(new_input(input));
             assert!(parsed.is_ok(), "expected `{input}` to parse correctly");
             assert_eq!(parsed.unwrap(), *expected);
         }

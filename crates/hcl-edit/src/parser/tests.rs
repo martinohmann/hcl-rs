@@ -8,6 +8,7 @@ use crate::{
 };
 use indoc::indoc;
 use pretty_assertions::assert_eq;
+use testdata::nesting::{binary_inputs, nested_inputs, with_small_stack};
 
 macro_rules! assert_roundtrip {
     ($input:expr, $parser:expr) => {
@@ -284,4 +285,155 @@ fn invalid_escape_sequences() {
             "expected invalid escape sequence to be rejected: `{input}`",
         );
     }
+}
+
+fn assert_nesting_error(name: &str, err: &crate::parser::Error) {
+    assert_eq!(
+        err.message(),
+        "invalid nesting depth; expected at most 64 nested levels",
+        "unexpected error for {name}"
+    );
+}
+
+fn assert_operator_depth_error(name: &str, err: &crate::parser::Error) {
+    assert_eq!(
+        err.message(),
+        "invalid binary operation; expected at most 128 chained binary operators",
+        "unexpected error for {name}"
+    );
+}
+
+#[test]
+fn max_nesting_depth() {
+    with_small_stack(|| {
+        for (name, _) in nested_inputs(0) {
+            // Find the deepest nesting that is accepted and make sure that handling it does not
+            // overflow the stack.
+            let mut depth = 0;
+
+            loop {
+                let (_, input) = nested_inputs(depth + 1)
+                    .into_iter()
+                    .find(|(n, _)| *n == name)
+                    .unwrap();
+
+                match crate::parser::parse_body(&input) {
+                    Ok(body) => {
+                        assert_eq!(body.to_string(), input, "roundtrip failed for {name}");
+                        drop(body.clone());
+                        depth += 1;
+                    }
+                    Err(err) => {
+                        assert_nesting_error(name, &err);
+                        break;
+                    }
+                }
+            }
+
+            assert!(
+                depth >= 60,
+                "expected at least 60 nesting levels for {name}, got {depth}"
+            );
+        }
+    });
+}
+
+#[test]
+fn max_operator_depth() {
+    with_small_stack(|| {
+        for (name, _) in binary_inputs(0) {
+            // Find the deepest operator chain that is accepted and make sure that handling it
+            // does not overflow the stack.
+            let mut depth = 0;
+
+            loop {
+                let (_, input) = binary_inputs(depth + 1)
+                    .into_iter()
+                    .find(|(n, _)| *n == name)
+                    .unwrap();
+
+                match crate::parser::parse_body(&input) {
+                    Ok(body) => {
+                        assert_eq!(body.to_string(), input, "roundtrip failed for {name}");
+                        drop(body.clone());
+                        depth += 1;
+                    }
+                    Err(err) => {
+                        assert_operator_depth_error(name, &err);
+                        break;
+                    }
+                }
+            }
+
+            assert_eq!(depth, 128, "unexpected max operator depth for {name}");
+        }
+    });
+}
+
+#[test]
+fn deeply_nested_input_is_rejected() {
+    with_small_stack(|| {
+        for (name, input) in nested_inputs(100_000) {
+            let err = crate::parser::parse_body(&input).unwrap_err();
+            assert_nesting_error(name, &err);
+        }
+
+        for (name, input) in binary_inputs(100_000) {
+            let err = crate::parser::parse_body(&input).unwrap_err();
+            assert_operator_depth_error(name, &err);
+        }
+    });
+}
+
+#[test]
+fn nesting_depth_is_restored_after_nested_parsers() {
+    // Many sibling expressions each nested close to the limit must not accumulate depth.
+    let item = format!("{}1{}", "[".repeat(50), "]".repeat(50));
+    let input = format!(
+        "x = [{}]\ny = 1{}\na {{\n  b = {}\n}}\n",
+        vec![item.as_str(); 200].join(", "),
+        " + 1".repeat(50),
+        item
+    );
+    assert!(crate::parser::parse_body(&input).is_ok());
+}
+
+#[test]
+fn operator_depth_of_siblings_does_not_add_up() {
+    // Sibling expressions with long operator chains each stay within the limit, so they must be
+    // accepted. Only operators on the same path through the expression tree add up.
+    let chain = format!("1{}", " + 1".repeat(100));
+    let input = format!(
+        "a = [{chain}, {chain}]\n\
+         b = {{ x = {chain}, y = {chain} }}\n\
+         c = f({chain}, {chain})\n\
+         d = {chain} == 1 ? {chain} : {chain}\n\
+         e = \"${{{chain}}}${{{chain}}}\"\n\
+         f = a[{chain}][{chain}]\n"
+    );
+    assert!(crate::parser::parse_body(&input).is_ok());
+}
+
+#[test]
+fn templates_without_nested_elements_at_max_nesting_depth() {
+    // Templates which only contain literals do not take a nesting level, so they must be accepted
+    // at the maximum nesting depth. Every template ends with an attempt to parse a directive,
+    // which must not count as nesting.
+    with_small_stack(|| {
+        let templates = [
+            "\"foo\"",
+            "\"foo\\nbar\"",
+            "<<EOT\nfoo\nEOT\n",
+            "<<-EOT\n  foo\n  EOT\n",
+            "<<EOT\nEOT\n",
+        ];
+
+        for template in templates {
+            let input = format!("x = {}{template}{}", "[".repeat(64), "]".repeat(64));
+            let body = crate::parser::parse_body(&input).unwrap_or_else(|err| {
+                panic!("expected `{template}` to be accepted at max nesting depth: {err}")
+            });
+            assert_eq!(body.to_string(), input);
+        }
+    });
 }

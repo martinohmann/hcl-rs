@@ -1,6 +1,7 @@
 use super::prelude::*;
 
-use super::expr::expr;
+use super::expr::root_expr;
+use super::nesting::nested;
 use super::repr::{decorated, prefix_decorated, suffix_decorated};
 use super::state::BodyParseState;
 use super::string::{cut_char, cut_str_ident, ident, raw_string, string};
@@ -126,7 +127,7 @@ fn structure<'i, 's>(
 fn attribute_expr(input: &mut Input) -> ModalResult<Expression> {
     preceded(
         cut_char('=').context(StrContext::Label("attribute")),
-        prefix_decorated(sp, expr),
+        prefix_decorated(sp, root_expr),
     )
     .parse_next(input)
 }
@@ -147,7 +148,7 @@ fn block_body(input: &mut Input) -> ModalResult<Body> {
     let attribute =
         (suffix_decorated(ident, sp), attribute_expr).map(|(key, expr)| Attribute::new(key, expr));
 
-    delimited(
+    nested(delimited(
         cut_char('{'),
         alt((
             // Multiline block.
@@ -169,6 +170,6 @@ fn block_body(input: &mut Input) -> ModalResult<Body> {
             .context(StrContext::Expected(StrContextValue::Description(
                 "identifier",
             ))),
-    )
+    ))
     .parse_next(input)
 }

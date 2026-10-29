@@ -1,5 +1,6 @@
 use super::prelude::*;
 
+use super::nesting::{self, nested, operator_scope};
 use super::number::number as num;
 use super::repr::{decorated, prefix_decorated, spanned, suffix_decorated};
 use super::state::ExprParseState;
@@ -22,6 +23,7 @@ use winnow::combinator::{
     alt, cut_err, delimited, empty, fail, not, opt, peek, preceded, repeat, separated,
     separated_pair, terminated,
 };
+use winnow::error::ErrMode;
 use winnow::stream::Location;
 use winnow::token::{any, none_of, one_of, take};
 
@@ -37,38 +39,47 @@ fn ws_or_sp<'i>(
     }
 }
 
+/// Parses an expression which is not nested within another expression, e.g. an attribute value.
+///
+/// In contrast to [`expr`], the expression itself does not count towards the nesting depth.
+pub(super) fn root_expr(input: &mut Input) -> ModalResult<Expression> {
+    let state = RefCell::default();
+    operator_scope(expr_inner(&state)).parse_next(input)?;
+    Ok(state.into_inner().into_expr())
+}
+
 pub(super) fn expr(input: &mut Input) -> ModalResult<Expression> {
-    parse_expr(RefCell::default(), input)
+    let state = RefCell::default();
+    nested(expr_inner(&state)).parse_next(input)?;
+    Ok(state.into_inner().into_expr())
 }
 
 pub(super) fn multiline_expr(input: &mut Input) -> ModalResult<Expression> {
     let mut state = ExprParseState::default();
     state.allow_newlines();
-    parse_expr(RefCell::new(state), input)
+    let state = RefCell::new(state);
+    nested(expr_inner(&state)).parse_next(input)?;
+    Ok(state.into_inner().into_expr())
 }
 
 fn expr_with_state<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, Expression, ContextError> + '_ {
-    move |input: &mut Input<'i>| parse_expr(state.clone(), input)
+    move |input: &mut Input<'i>| {
+        let state = state.clone();
+        nested(expr_inner(&state)).parse_next(input)?;
+        Ok(state.into_inner().into_expr())
+    }
 }
 
 fn expr_term_with_state<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, Expression, ContextError> + '_ {
-    move |input: &mut Input<'i>| parse_expr_term(state.clone(), input)
-}
-
-#[inline]
-fn parse_expr(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
-    expr_inner(&state).parse_next(input)?;
-    Ok(state.into_inner().into_expr())
-}
-
-#[inline]
-fn parse_expr_term(state: RefCell<ExprParseState>, input: &mut Input) -> ModalResult<Expression> {
-    expr_term_inner(&state).parse_next(input)?;
-    Ok(state.into_inner().into_expr())
+    move |input: &mut Input<'i>| {
+        let state = state.clone();
+        expr_term_inner(&state).parse_next(input)?;
+        Ok(state.into_inner().into_expr())
+    }
 }
 
 fn expr_inner<'i>(
@@ -293,7 +304,7 @@ fn unary_op<'i>(
     move |input: &mut Input<'i>| {
         (
             spanned(unary_operator.map(Spanned::new)),
-            prefix_decorated(sp, expr_term_with_state(state)),
+            prefix_decorated(sp, nested(expr_term_with_state(state))),
         )
             .map(|(operator, expr)| {
                 state
@@ -317,20 +328,49 @@ fn binary_ops<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        repeat(
-            1..,
-            (
-                decorated(
-                    ws_or_sp(state),
-                    binary_operator.map(Decorated::new),
-                    ws_or_sp(state),
-                ),
-                expr_term_with_state(state),
-            ),
-        )
-        .map(|ops| state.borrow_mut().on_binary_ops(ops))
-        .parse_next(input)
+        let mut ops = Vec::new();
+
+        loop {
+            let checkpoint = input.checkpoint();
+
+            match binary_op(state, input, ops.len() + 1) {
+                Ok(op) => ops.push(op),
+                // No further binary operation follows, rewind to the end of the last one.
+                Err(ErrMode::Backtrack(_)) if !ops.is_empty() => {
+                    input.reset(&checkpoint);
+                    break;
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        // Binary operations are parsed iteratively, but each operator adds a level to the
+        // resulting expression tree. Track the operator depth of the tree to avoid building trees
+        // which overflow the stack when traversed recursively.
+        nesting::add_operator_depth(input, ops.len());
+        state.borrow_mut().on_binary_ops(ops);
+        Ok(())
     }
+}
+
+/// Parses the `operators`th binary operator of a chain and the expression term following it.
+fn binary_op(
+    state: &RefCell<ExprParseState>,
+    input: &mut Input,
+    operators: usize,
+) -> ModalResult<(Decorated<BinaryOperator>, Expression)> {
+    let prefix = ws_or_sp(state).span().parse_next(input)?;
+    let operator_start = input.checkpoint();
+    let mut operator = spanned(binary_operator.map(Decorated::new)).parse_next(input)?;
+    let suffix = ws_or_sp(state).span().parse_next(input)?;
+
+    let decor = operator.decor_mut();
+    decor.set_prefix(RawString::from_span(prefix));
+    decor.set_suffix(RawString::from_span(suffix));
+
+    let expr = expr_term_with_state(state).parse_next(input)?;
+    nesting::check_operator_depth(input, operators, &operator_start)?;
+    Ok((operator, expr))
 }
 
 fn binary_operator(input: &mut Input) -> ModalResult<BinaryOperator> {
