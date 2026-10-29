@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.12...hcl-primitives-v0.1.13) - 2026-10-29
+
+### Fixed
+
+- quote keyword object keys when formatting ([#575](https://github.com/martinohmann/hcl-rs/pull/575))
+- preserve sign and magnitude of out-of-range integer literals ([#574](https://github.com/martinohmann/hcl-rs/pull/574))
+
 ## [0.1.12](https://github.com/martinohmann/hcl-rs/compare/hcl-primitives-v0.1.11...hcl-primitives-v0.1.12) - 2026-08-09
 
 ### Other

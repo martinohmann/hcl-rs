@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.0](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.10...hcl-rs-v0.20.0) - 2026-10-29
+
+### Fixed
+
+- quote keyword object keys when formatting ([#575](https://github.com/martinohmann/hcl-rs/pull/575))
+- [**breaking**] reject `\b`, `\f` and `\/` string escapes ([#573](https://github.com/martinohmann/hcl-rs/pull/573))
+
+### Other
+
+- remove unused import
+- address new clippy lints
+
 ## [0.19.10](https://github.com/martinohmann/hcl-rs/compare/hcl-rs-v0.19.9...hcl-rs-v0.19.10) - 2026-10-29
 
 ### Fixed
