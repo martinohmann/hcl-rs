@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.9...hcl-edit-v0.10.0) - 2026-10-29
+
+### Fixed
+
+- quote keyword object keys when formatting ([#575](https://github.com/martinohmann/hcl-rs/pull/575))
+- preserve sign and magnitude of out-of-range integer literals ([#574](https://github.com/martinohmann/hcl-rs/pull/574))
+- [**breaking**] reject `\b`, `\f` and `\/` string escapes ([#573](https://github.com/martinohmann/hcl-rs/pull/573))
+
+### Other
+
+- address new clippy lints
+
 ## [0.9.9](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.8...hcl-edit-v0.9.9) - 2026-10-29
 
 ### Fixed
