@@ -33,7 +33,7 @@ perf = ["hcl-primitives/perf"]
 fnv = "1.0"
 hcl-primitives = { version = "0.1.13", path = "../hcl-primitives" }
 pratt = "0.4.0"
-vecmap-rs = "0.2"
+vecmap-rs = "0.3"
 winnow = "1.0"
 
 [dev-dependencies]
