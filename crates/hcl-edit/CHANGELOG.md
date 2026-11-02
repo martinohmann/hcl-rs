@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.1](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.10.0...hcl-edit-v0.10.1) - 2026-11-02
+
+### Fixed
+
+- *(deps)* update rust crate vecmap-rs to 0.3 ([#577](https://github.com/martinohmann/hcl-rs/pull/577))
+
 ## [0.10.0](https://github.com/martinohmann/hcl-rs/compare/hcl-edit-v0.9.9...hcl-edit-v0.10.0) - 2026-10-29
 
 ### Fixed

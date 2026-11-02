@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.24](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.23...hcl2json-v0.1.24) - 2026-11-02
+
+### Other
+
+- update Cargo.lock dependencies
+
 ## [0.1.23](https://github.com/martinohmann/hcl-rs/compare/hcl2json-v0.1.22...hcl2json-v0.1.23) - 2026-10-29
 
 ### Other
