@@ -140,7 +140,12 @@ impl ExprParseState {
     }
 
     pub(super) fn allow_newlines(&mut self) {
-        self.allow_newlines = true;
+        self.set_allow_newlines(true);
+    }
+
+    /// Sets whether newlines are allowed and returns the previous setting.
+    pub(super) fn set_allow_newlines(&mut self, allow: bool) -> bool {
+        std::mem::replace(&mut self.allow_newlines, allow)
     }
 
     pub(super) fn newlines_allowed(&self) -> bool {

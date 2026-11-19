@@ -336,3 +336,33 @@ fn issue_567() {
         assert_eq!(parsed, body);
     }
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/580
+#[test]
+fn issue_580() {
+    let ctx = Context::new();
+    let tests = [
+        ("x = (-\n7)", Value::from(-7)),
+        ("x = (!\ntrue)", Value::from(false)),
+        (
+            "x = [-\n7, !\nfalse]",
+            Value::from(vec![Value::from(-7), Value::from(true)]),
+        ),
+        ("x = [for v in [1, 2] : -\nv]", Value::from(vec![-1, -2])),
+        (
+            "x = {for k, v in {a = 1} : k => -\nv}",
+            Value::from_iter([("a", -1)]),
+        ),
+    ];
+
+    for (input, expected) in tests {
+        let body: Body = hcl::from_str(input).unwrap();
+        let attr = body.attributes().next().unwrap();
+        assert_eq!(attr.expr().evaluate(&ctx).unwrap(), expected, "{input:?}");
+    }
+
+    // The newline is only accepted within brackets.
+    assert!(hcl::from_str::<Body>("x = -\n7").is_err());
+    assert!(hcl::from_str::<Body>("x = [1] +\n7").is_err());
+    assert!(hcl::from_str::<Body>("x = [1] + -\n7").is_err());
+}

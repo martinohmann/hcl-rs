@@ -407,3 +407,35 @@ fn issue_567() {
         "{  \"for\" /* c */ = 1,}"
     );
 }
+
+// https://github.com/martinohmann/hcl-rs/issues/580
+#[test]
+fn issue_580_newline_outside_of_brackets_is_rejected() {
+    // A newline after a unary operator is only allowed within brackets.
+    assert_err!("x = -\n7\n");
+    assert_err!("x = !\ntrue\n");
+
+    // The newline allowance does not leak out of the closing bracket of the previous term.
+    assert_err!("x = abs(1) +\n7\n");
+    assert_err!("x = [1] ==\n[1]\n");
+    assert_err!("x = {for k, v in {a = 1} : k => v} ==\n{}\n");
+    assert_err!("x = abs(1) + -\n7\n");
+    assert_err!("x = [1] == -\n[1]\n");
+    assert_err!("x = [0][0] + -\n7\n");
+    assert_err!("x = [true][0] && !\ntrue\n");
+    assert_err!("x = tobool(true) && !\ntrue\n");
+    assert_err!("x = {for k, v in {a = 1} : k => v}[0] && !\ntrue\n");
+}
+
+// https://github.com/martinohmann/hcl-rs/issues/580
+#[test]
+fn issue_580_newlines_in_brackets_after_closed_bracket() {
+    // Newlines are still allowed inside of brackets that follow a closed one.
+    assert_ok!("x = abs(1) + [-\n7][0]\n");
+    assert_ok!("x = [1] == [\n[1]\n][0]\n");
+    assert_ok!("x = f(1) + g(-\n1)\n");
+
+    // Unchanged: newlines after binary operators and before an operand in parentheses.
+    assert_ok!("x = (1 +\n7)\n");
+    assert_ok!("x = (\n-7)\n");
+}
