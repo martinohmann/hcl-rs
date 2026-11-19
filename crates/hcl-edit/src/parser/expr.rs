@@ -304,7 +304,7 @@ fn unary_op<'i>(
     move |input: &mut Input<'i>| {
         (
             spanned(unary_operator.map(Spanned::new)),
-            prefix_decorated(sp, nested(expr_term_with_state(state))),
+            prefix_decorated(ws_or_sp(state), nested(expr_term_with_state(state))),
         )
             .map(|(operator, expr)| {
                 state
@@ -420,13 +420,15 @@ fn array<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().allow_newlines();
-        delimited(
+        let previous = state.borrow_mut().set_allow_newlines(true);
+        let result = delimited(
             '[',
             for_expr_or_items(for_list_expr(state), array_items(state)),
             cut_char(']'),
         )
-        .parse_next(input)
+        .parse_next(input);
+        state.borrow_mut().set_allow_newlines(previous);
+        result
     }
 }
 
@@ -492,13 +494,13 @@ fn for_object_expr<'i>(
     state: &RefCell<ExprParseState>,
 ) -> impl ModalParser<Input<'i>, (), ContextError> + '_ {
     move |input: &mut Input<'i>| {
-        state.borrow_mut().allow_newlines();
-        (
+        let previous = state.borrow_mut().set_allow_newlines(true);
+        let result = (
             for_intro,
             separated_pair(
-                decorated(ws, expr, ws),
+                decorated(ws, expr_with_state(state), ws),
                 cut_tag("=>"),
-                decorated(ws, expr, ws),
+                decorated(ws, expr_with_state(state), ws),
             ),
             opt(("...", raw_string(ws))),
             opt(for_cond(state)),
@@ -520,7 +522,9 @@ fn for_object_expr<'i>(
                     .borrow_mut()
                     .on_expr_term(Expression::ForExpr(Box::new(expr)));
             })
-            .parse_next(input)
+            .parse_next(input);
+        state.borrow_mut().set_allow_newlines(previous);
+        result
     }
 }
 
@@ -853,7 +857,7 @@ fn func_args<'i>(
             Ellipsis,
         }
 
-        state.borrow_mut().allow_newlines();
+        let previous = state.borrow_mut().set_allow_newlines(true);
 
         let args = separated(
             1..,
@@ -871,7 +875,7 @@ fn func_args<'i>(
             _ => fail,
         };
 
-        delimited(
+        let result = delimited(
             cut_char('('),
             (opt((args, opt(trailer))), raw_string(ws)).map(|(args, trailing)| {
                 let mut args = match args {
@@ -896,6 +900,8 @@ fn func_args<'i>(
                 "expression",
             ))),
         )
-        .parse_next(input)
+        .parse_next(input);
+        state.borrow_mut().set_allow_newlines(previous);
+        result
     }
 }

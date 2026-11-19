@@ -194,6 +194,28 @@ fn roundtrip_expr() {
 }
 
 #[test]
+fn roundtrip_newline_after_unary_operator_in_brackets() {
+    let inputs = [
+        "x = (-\n7)\n",
+        "x = (!\ntrue)\n",
+        "x = [-\n7]\n",
+        "x = [!\ntrue, -\n1]\n",
+        "x = f(-\n7)\n",
+        "x = f(a, !\nb)\n",
+        "x = [1 + -\n7]\n",
+        "x = [[-\n1]]\n",
+        "x = (\n-7)\n",
+        "x = {for k, v in {a = 1} : k => -\nv}\n",
+        "x = {for k, v in {a = 1} : k => v if !\nv}\n",
+        "x = [for v in [1] : -\nv]\n",
+    ];
+
+    for input in inputs {
+        assert_roundtrip!(input, body);
+    }
+}
+
+#[test]
 fn roundtrip_body() {
     let mut inputs = vec![
         indoc! {r#"
